@@ -4,44 +4,1406 @@
   "sourceScale": 4,
   "targetPickupRoot": "assets/marble",
   "alphaThreshold": 8,
-  "ball": { "diameterSrc": 112, "center": { "x": 80, "y": 80 }, "maxDiameterSrc": 120 },
+  "ball": {
+    "diameterSrc": 112,
+    "center": {
+      "x": 80,
+      "y": 80
+    },
+    "maxDiameterSrc": 120
+  },
   "sheets": {
-    "hedgehog": { "image": "creatures/hedgehog.png", "targetGamePath": "assets/marble/creatures/hedgehog.png", "qaStatus": "PASS", "grid": { "columns": 4, "rows": 5, "cellWidth": 160, "cellHeight": 160 }, "contactAnchor": { "x": 80, "y": 150, "mode": "pixel", "meaning": "standing foot contact" }, "baselineY": 150, "ballCenter": { "x": 80, "y": 80 }, "requiredDuplicate": { "from": [1, 3], "to": [2, 0] }, "animations": { "idle": { "row": 0, "frames": [0,1,2,3], "fps": 7, "loop": true }, "curl": { "row": 1, "frames": [0,1,2,3], "fps": 9, "loop": false }, "ball": { "row": 2, "frames": [0,1,2,3], "fps": 6, "loop": true }, "uncurl": { "row": 3, "frames": [0,1,2,3], "fps": 8, "loop": true }, "faceplant": { "row": 4, "frames": [0,1,2,3], "fps": 9, "loop": true } } },
-    "armadillo": { "image": "creatures/armadillo.png", "targetGamePath": "assets/marble/creatures/armadillo.png", "qaStatus": "PASS", "grid": { "columns": 4, "rows": 5, "cellWidth": 160, "cellHeight": 160 }, "contactAnchor": { "x": 80, "y": 150 }, "baselineY": 150, "ballCenter": { "x": 80, "y": 80 }, "requiredDuplicate": { "from": [1, 3], "to": [2, 0] }, "animations": { "idle": { "row": 0, "frames": [0,1,2,3], "fps": 7, "loop": true }, "curl": { "row": 1, "frames": [0,1,2,3], "fps": 9, "loop": false }, "ball": { "row": 2, "frames": [0,1,2,3], "fps": 6, "loop": true }, "uncurl": { "row": 3, "frames": [0,1,2,3], "fps": 8, "loop": true }, "faceplant": { "row": 4, "frames": [0,1,2,3], "fps": 9, "loop": true } } },
-    "pillbug": { "image": "creatures/pillbug.png", "targetGamePath": "assets/marble/creatures/pillbug.png", "qaStatus": "PASS", "grid": { "columns": 4, "rows": 5, "cellWidth": 160, "cellHeight": 160 }, "contactAnchor": { "x": 80, "y": 150 }, "baselineY": 150, "ballCenter": { "x": 80, "y": 80 }, "requiredDuplicate": { "from": [1, 3], "to": [2, 0] }, "animations": { "idle": { "row": 0, "frames": [0,1,2,3], "fps": 7, "loop": true }, "curl": { "row": 1, "frames": [0,1,2,3], "fps": 9, "loop": false }, "ball": { "row": 2, "frames": [0,1,2,3], "fps": 6, "loop": true }, "uncurl": { "row": 3, "frames": [0,1,2,3], "fps": 8, "loop": true }, "faceplant": { "row": 4, "frames": [0,1,2,3], "fps": 9, "loop": true } } },
-    "turtle": { "image": "creatures/turtle.png", "targetGamePath": "assets/marble/creatures/turtle.png", "qaStatus": "PASS", "grid": { "columns": 4, "rows": 5, "cellWidth": 160, "cellHeight": 160 }, "contactAnchor": { "x": 80, "y": 150 }, "baselineY": 150, "ballCenter": { "x": 80, "y": 80 }, "requiredDuplicate": { "from": [1, 3], "to": [2, 0] }, "animations": { "idle": { "row": 0, "frames": [0,1,2,3], "fps": 7, "loop": true }, "curl": { "row": 1, "frames": [0,1,2,3], "fps": 9, "loop": false }, "ball": { "row": 2, "frames": [0,1,2,3], "fps": 6, "loop": true }, "uncurl": { "row": 3, "frames": [0,1,2,3], "fps": 8, "loop": true }, "faceplant": { "row": 4, "frames": [0,1,2,3], "fps": 9, "loop": true } } },
-    "panda": { "image": "creatures/panda.png", "targetGamePath": "assets/marble/creatures/panda.png", "qaStatus": "PASS", "grid": { "columns": 4, "rows": 5, "cellWidth": 160, "cellHeight": 160 }, "contactAnchor": { "x": 80, "y": 150 }, "baselineY": 150, "ballCenter": { "x": 80, "y": 80 }, "requiredDuplicate": { "from": [1, 3], "to": [2, 0] }, "animations": { "idle": { "row": 0, "frames": [0,1,2,3], "fps": 7, "loop": true }, "curl": { "row": 1, "frames": [0,1,2,3], "fps": 9, "loop": false }, "ball": { "row": 2, "frames": [0,1,2,3], "fps": 6, "loop": true }, "uncurl": { "row": 3, "frames": [0,1,2,3], "fps": 8, "loop": true }, "faceplant": { "row": 4, "frames": [0,1,2,3], "fps": 9, "loop": true } } }
+    "hedgehog": {
+      "image": "creatures/hedgehog.png",
+      "targetGamePath": "assets/marble/creatures/hedgehog.png",
+      "qaStatus": "PASS",
+      "grid": {
+        "columns": 4,
+        "rows": 5,
+        "cellWidth": 160,
+        "cellHeight": 160
+      },
+      "contactAnchor": {
+        "x": 80,
+        "y": 150,
+        "mode": "pixel",
+        "meaning": "standing foot contact"
+      },
+      "baselineY": 150,
+      "ballCenter": {
+        "x": 80,
+        "y": 80
+      },
+      "requiredDuplicate": {
+        "from": [
+          1,
+          3
+        ],
+        "to": [
+          2,
+          0
+        ]
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 7,
+          "loop": true
+        },
+        "curl": {
+          "row": 1,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": false
+        },
+        "ball": {
+          "row": 2,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "uncurl": {
+          "row": 3,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "faceplant": {
+          "row": 4,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": true
+        }
+      }
+    },
+    "armadillo": {
+      "image": "creatures/armadillo.png",
+      "targetGamePath": "assets/marble/creatures/armadillo.png",
+      "qaStatus": "PASS",
+      "grid": {
+        "columns": 4,
+        "rows": 5,
+        "cellWidth": 160,
+        "cellHeight": 160
+      },
+      "contactAnchor": {
+        "x": 80,
+        "y": 150
+      },
+      "baselineY": 150,
+      "ballCenter": {
+        "x": 80,
+        "y": 80
+      },
+      "requiredDuplicate": {
+        "from": [
+          1,
+          3
+        ],
+        "to": [
+          2,
+          0
+        ]
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 7,
+          "loop": true
+        },
+        "curl": {
+          "row": 1,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": false
+        },
+        "ball": {
+          "row": 2,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "uncurl": {
+          "row": 3,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "faceplant": {
+          "row": 4,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": true
+        }
+      }
+    },
+    "pillbug": {
+      "image": "creatures/pillbug.png",
+      "targetGamePath": "assets/marble/creatures/pillbug.png",
+      "qaStatus": "PASS",
+      "grid": {
+        "columns": 4,
+        "rows": 5,
+        "cellWidth": 160,
+        "cellHeight": 160
+      },
+      "contactAnchor": {
+        "x": 80,
+        "y": 150
+      },
+      "baselineY": 150,
+      "ballCenter": {
+        "x": 80,
+        "y": 80
+      },
+      "requiredDuplicate": {
+        "from": [
+          1,
+          3
+        ],
+        "to": [
+          2,
+          0
+        ]
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 7,
+          "loop": true
+        },
+        "curl": {
+          "row": 1,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": false
+        },
+        "ball": {
+          "row": 2,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "uncurl": {
+          "row": 3,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "faceplant": {
+          "row": 4,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": true
+        }
+      }
+    },
+    "turtle": {
+      "image": "creatures/turtle.png",
+      "targetGamePath": "assets/marble/creatures/turtle.png",
+      "qaStatus": "PASS",
+      "grid": {
+        "columns": 4,
+        "rows": 5,
+        "cellWidth": 160,
+        "cellHeight": 160
+      },
+      "contactAnchor": {
+        "x": 80,
+        "y": 150
+      },
+      "baselineY": 150,
+      "ballCenter": {
+        "x": 80,
+        "y": 80
+      },
+      "requiredDuplicate": {
+        "from": [
+          1,
+          3
+        ],
+        "to": [
+          2,
+          0
+        ]
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 7,
+          "loop": true
+        },
+        "curl": {
+          "row": 1,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": false
+        },
+        "ball": {
+          "row": 2,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "uncurl": {
+          "row": 3,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "faceplant": {
+          "row": 4,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": true
+        }
+      }
+    },
+    "panda": {
+      "image": "creatures/panda.png",
+      "targetGamePath": "assets/marble/creatures/panda.png",
+      "qaStatus": "PASS",
+      "grid": {
+        "columns": 4,
+        "rows": 5,
+        "cellWidth": 160,
+        "cellHeight": 160
+      },
+      "contactAnchor": {
+        "x": 80,
+        "y": 150
+      },
+      "baselineY": 150,
+      "ballCenter": {
+        "x": 80,
+        "y": 80
+      },
+      "requiredDuplicate": {
+        "from": [
+          1,
+          3
+        ],
+        "to": [
+          2,
+          0
+        ]
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 7,
+          "loop": true
+        },
+        "curl": {
+          "row": 1,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": false
+        },
+        "ball": {
+          "row": 2,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "uncurl": {
+          "row": 3,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "faceplant": {
+          "row": 4,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 9,
+          "loop": true
+        }
+      }
+    }
   },
   "staticAssets": [
-    { "id": "start-platform-mid", "image": "pieces/start-platform-mid.png", "targetGamePath": "assets/marble/pieces/start-platform-mid.png", "canvas": [128,96], "anchor": [64,0], "sourcePlaneY": 0, "seam": "horizontal", "qaStatus": "PASS" },
-    { "id": "start-platform-end", "image": "pieces/start-platform-end.png", "targetGamePath": "assets/marble/pieces/start-platform-end.png", "canvas": [64,96], "anchor": [32,0], "sourcePlaneY": 0, "qaStatus": "PASS" },
-    { "id": "start-gate", "image": "pieces/start-gate.png", "targetGamePath": "assets/marble/pieces/start-gate.png", "canvas": [512,48], "grid": [4,1,128,48], "anchor": [64,48], "sourcePlaneY": 48, "qaStatus": "PASS" },
-    { "id": "log-bumper", "image": "pieces/log-bumper.png", "targetGamePath": "assets/marble/pieces/log-bumper.png", "canvas": [96,96], "anchor": [48,48], "sourcePlaneY": 48, "physicsVisual": "circle r=40 centred at anchor", "qaStatus": "PASS" },
-    { "id": "stake", "image": "pieces/stake.png", "targetGamePath": "assets/marble/pieces/stake.png", "canvas": [32,32], "anchor": [16,16], "sourcePlaneY": 16, "physicsVisual": "circle r=12 centred at anchor", "qaStatus": "PASS" },
-    { "id": "windmill-pole", "image": "pieces/windmill-pole.png", "targetGamePath": "assets/marble/pieces/windmill-pole.png", "canvas": [96,192], "anchor": [48,192], "sourcePlaneY": 192, "qaStatus": "PASS" },
-    { "id": "windmill-rotor", "image": "pieces/windmill-rotor.png", "targetGamePath": "assets/marble/pieces/windmill-rotor.png", "canvas": [192,192], "anchor": [96,96], "sourcePlaneY": 96, "symmetry": "4-way", "qaStatus": "PASS" },
-    { "id": "seesaw-plank", "image": "pieces/seesaw-plank.png", "targetGamePath": "assets/marble/pieces/seesaw-plank.png", "canvas": [224,24], "anchor": [112,12], "sourcePlaneY": 12, "symmetry": "2-way", "qaStatus": "PASS" },
-    { "id": "seesaw-pivot", "image": "pieces/seesaw-pivot.png", "targetGamePath": "assets/marble/pieces/seesaw-pivot.png", "canvas": [48,40], "anchor": [24,40], "sourcePlaneY": 40, "qaStatus": "PASS" },
-    { "id": "mud-puddle", "image": "pieces/mud-puddle.png", "targetGamePath": "assets/marble/pieces/mud-puddle.png", "canvas": [192,80], "anchor": [96,40], "sourcePlaneY": 40, "qaStatus": "PASS" },
-    { "id": "ramp", "image": "pieces/ramp.png", "targetGamePath": "assets/marble/pieces/ramp.png", "canvas": [160,96], "anchor": [0,96], "sourcePlaneY": 96, "slope": [[0,96],[160,0]], "qaStatus": "PASS" },
-    { "id": "fence-mid", "image": "pieces/fence-mid.png", "targetGamePath": "assets/marble/pieces/fence-mid.png", "canvas": [128,40], "anchor": [64,40], "sourcePlaneY": 40, "seam": "horizontal", "qaStatus": "PASS" },
-    { "id": "fence-post", "image": "pieces/fence-post.png", "targetGamePath": "assets/marble/pieces/fence-post.png", "canvas": [24,56], "anchor": [12,56], "sourcePlaneY": 56, "qaStatus": "PASS" },
-    { "id": "goal-basket-back", "image": "pieces/goal-basket-back.png", "targetGamePath": "assets/marble/pieces/goal-basket-back.png", "canvas": [320,160], "anchor": [160,160], "sourcePlaneY": 160, "layer": "behind-creatures", "qaStatus": "PASS" },
-    { "id": "goal-basket-front", "image": "pieces/goal-basket-front.png", "targetGamePath": "assets/marble/pieces/goal-basket-front.png", "canvas": [320,120], "anchor": [160,120], "sourcePlaneY": 120, "layer": "front-of-creatures", "qaStatus": "PASS" },
-    { "id": "dump-wall", "image": "pieces/dump-wall.png", "targetGamePath": "assets/marble/pieces/dump-wall.png", "canvas": [96,160], "anchor": [48,160], "sourcePlaneY": 160, "qaStatus": "PASS" },
-    { "id": "sky-far", "image": "stage/sky-far.png", "targetGamePath": "assets/marble/stage/sky-far.png", "canvas": [1920,1080], "anchor": [960,540], "sourcePlaneY": 540, "seam": "left-right", "qaStatus": "PASS" },
-    { "id": "meadow-tile", "image": "stage/meadow-tile.png", "targetGamePath": "assets/marble/stage/meadow-tile.png", "canvas": [1024,1024], "anchor": [512,512], "sourcePlaneY": 512, "seam": "all-edges", "qaStatus": "PASS" },
-    { "id": "bush-big", "image": "stage/decor-bush-big.png", "targetGamePath": "assets/marble/stage/decor-bush-big.png", "canvas": [128,96], "anchor": [64,96], "sourcePlaneY": 96, "qaStatus": "PASS" },
-    { "id": "bush-small", "image": "stage/decor-bush-small.png", "targetGamePath": "assets/marble/stage/decor-bush-small.png", "canvas": [64,48], "anchor": [32,48], "sourcePlaneY": 48, "qaStatus": "PASS" },
-    { "id": "flower-pink", "image": "stage/decor-flower-pink.png", "targetGamePath": "assets/marble/stage/decor-flower-pink.png", "canvas": [32,32], "anchor": [16,32], "sourcePlaneY": 32, "qaStatus": "PASS" },
-    { "id": "flower-yellow", "image": "stage/decor-flower-yellow.png", "targetGamePath": "assets/marble/stage/decor-flower-yellow.png", "canvas": [32,32], "anchor": [16,32], "sourcePlaneY": 32, "qaStatus": "PASS" },
-    { "id": "flower-white", "image": "stage/decor-flower-white.png", "targetGamePath": "assets/marble/stage/decor-flower-white.png", "canvas": [32,32], "anchor": [16,32], "sourcePlaneY": 32, "qaStatus": "PASS" },
-    { "id": "rock", "image": "stage/decor-rock.png", "targetGamePath": "assets/marble/stage/decor-rock.png", "canvas": [64,48], "anchor": [32,48], "sourcePlaneY": 48, "qaStatus": "PASS" },
-    { "id": "tree", "image": "stage/decor-tree.png", "targetGamePath": "assets/marble/stage/decor-tree.png", "canvas": [160,224], "anchor": [80,224], "sourcePlaneY": 224, "qaStatus": "PASS" },
-    { "id": "signpost", "image": "stage/decor-signpost.png", "targetGamePath": "assets/marble/stage/decor-signpost.png", "canvas": [64,96], "anchor": [32,96], "sourcePlaneY": 96, "qaStatus": "PASS" },
-    { "id": "dust-puff", "image": "fx/dust-puff.png", "targetGamePath": "assets/marble/fx/dust-puff.png", "canvas": [320,80], "grid": [4,1,80,80], "anchor": [10,64], "sourcePlaneY": 64, "qaStatus": "PASS" },
-    { "id": "impact-star", "image": "fx/impact-star.png", "targetGamePath": "assets/marble/fx/impact-star.png", "canvas": [384,96], "grid": [4,1,96,96], "anchor": [12,48], "sourcePlaneY": 48, "qaStatus": "PASS" },
-    { "id": "mud-splash", "image": "fx/mud-splash.png", "targetGamePath": "assets/marble/fx/mud-splash.png", "canvas": [512,96], "grid": [4,1,128,96], "anchor": [16,76], "sourcePlaneY": 76, "qaStatus": "PASS" },
-    { "id": "curl-poof", "image": "fx/curl-poof.png", "targetGamePath": "assets/marble/fx/curl-poof.png", "canvas": [384,96], "grid": [4,1,96,96], "anchor": [12,76], "sourcePlaneY": 76, "qaStatus": "PASS" }
-  ]
+    {
+      "id": "start-platform-mid",
+      "image": "pieces/start-platform-mid.png",
+      "targetGamePath": "assets/marble/pieces/start-platform-mid.png",
+      "canvas": [
+        128,
+        96
+      ],
+      "anchor": [
+        64,
+        0
+      ],
+      "sourcePlaneY": 0,
+      "seam": "horizontal",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "start-platform-end",
+      "image": "pieces/start-platform-end.png",
+      "targetGamePath": "assets/marble/pieces/start-platform-end.png",
+      "canvas": [
+        64,
+        96
+      ],
+      "anchor": [
+        32,
+        0
+      ],
+      "sourcePlaneY": 0,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "start-gate",
+      "image": "pieces/start-gate.png",
+      "targetGamePath": "assets/marble/pieces/start-gate.png",
+      "canvas": [
+        512,
+        48
+      ],
+      "grid": [
+        4,
+        1,
+        128,
+        48
+      ],
+      "anchor": [
+        64,
+        48
+      ],
+      "sourcePlaneY": 48,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "log-bumper",
+      "image": "pieces/log-bumper.png",
+      "targetGamePath": "assets/marble/pieces/log-bumper.png",
+      "canvas": [
+        96,
+        96
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "sourcePlaneY": 48,
+      "physicsVisual": "circle r=40 centred at anchor",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "stake",
+      "image": "pieces/stake.png",
+      "targetGamePath": "assets/marble/pieces/stake.png",
+      "canvas": [
+        32,
+        32
+      ],
+      "anchor": [
+        16,
+        16
+      ],
+      "sourcePlaneY": 16,
+      "physicsVisual": "circle r=12 centred at anchor",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "windmill-pole",
+      "image": "pieces/windmill-pole.png",
+      "targetGamePath": "assets/marble/pieces/windmill-pole.png",
+      "canvas": [
+        96,
+        192
+      ],
+      "anchor": [
+        48,
+        192
+      ],
+      "sourcePlaneY": 192,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "windmill-rotor",
+      "image": "pieces/windmill-rotor.png",
+      "targetGamePath": "assets/marble/pieces/windmill-rotor.png",
+      "canvas": [
+        192,
+        192
+      ],
+      "anchor": [
+        96,
+        96
+      ],
+      "sourcePlaneY": 96,
+      "symmetry": "4-way",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "seesaw-plank",
+      "image": "pieces/seesaw-plank.png",
+      "targetGamePath": "assets/marble/pieces/seesaw-plank.png",
+      "canvas": [
+        224,
+        24
+      ],
+      "anchor": [
+        112,
+        12
+      ],
+      "sourcePlaneY": 12,
+      "symmetry": "2-way",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "seesaw-pivot",
+      "image": "pieces/seesaw-pivot.png",
+      "targetGamePath": "assets/marble/pieces/seesaw-pivot.png",
+      "canvas": [
+        48,
+        40
+      ],
+      "anchor": [
+        24,
+        40
+      ],
+      "sourcePlaneY": 40,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "mud-puddle",
+      "image": "pieces/mud-puddle.png",
+      "targetGamePath": "assets/marble/pieces/mud-puddle.png",
+      "canvas": [
+        192,
+        80
+      ],
+      "anchor": [
+        96,
+        40
+      ],
+      "sourcePlaneY": 40,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "ramp",
+      "image": "pieces/ramp.png",
+      "targetGamePath": "assets/marble/pieces/ramp.png",
+      "canvas": [
+        160,
+        96
+      ],
+      "anchor": [
+        0,
+        96
+      ],
+      "sourcePlaneY": 96,
+      "slope": [
+        [
+          0,
+          96
+        ],
+        [
+          160,
+          0
+        ]
+      ],
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "fence-mid",
+      "image": "pieces/fence-mid.png",
+      "targetGamePath": "assets/marble/pieces/fence-mid.png",
+      "canvas": [
+        128,
+        40
+      ],
+      "anchor": [
+        64,
+        40
+      ],
+      "sourcePlaneY": 40,
+      "seam": "horizontal",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "fence-post",
+      "image": "pieces/fence-post.png",
+      "targetGamePath": "assets/marble/pieces/fence-post.png",
+      "canvas": [
+        24,
+        56
+      ],
+      "anchor": [
+        12,
+        56
+      ],
+      "sourcePlaneY": 56,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "goal-basket-back",
+      "image": "pieces/goal-basket-back.png",
+      "targetGamePath": "assets/marble/pieces/goal-basket-back.png",
+      "canvas": [
+        320,
+        160
+      ],
+      "anchor": [
+        160,
+        160
+      ],
+      "sourcePlaneY": 160,
+      "layer": "behind-creatures",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "goal-basket-front",
+      "image": "pieces/goal-basket-front.png",
+      "targetGamePath": "assets/marble/pieces/goal-basket-front.png",
+      "canvas": [
+        320,
+        120
+      ],
+      "anchor": [
+        160,
+        120
+      ],
+      "sourcePlaneY": 120,
+      "layer": "front-of-creatures",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "dump-wall",
+      "image": "pieces/dump-wall.png",
+      "targetGamePath": "assets/marble/pieces/dump-wall.png",
+      "canvas": [
+        96,
+        160
+      ],
+      "anchor": [
+        48,
+        160
+      ],
+      "sourcePlaneY": 160,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "sky-far",
+      "image": "stage/sky-far.png",
+      "targetGamePath": "assets/marble/stage/sky-far.png",
+      "canvas": [
+        1920,
+        1080
+      ],
+      "anchor": [
+        960,
+        540
+      ],
+      "sourcePlaneY": 540,
+      "seam": "left-right",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "meadow-tile",
+      "image": "stage/meadow-tile.png",
+      "targetGamePath": "assets/marble/stage/meadow-tile.png",
+      "canvas": [
+        1024,
+        1024
+      ],
+      "anchor": [
+        512,
+        512
+      ],
+      "sourcePlaneY": 512,
+      "seam": "all-edges",
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "bush-big",
+      "image": "stage/decor-bush-big.png",
+      "targetGamePath": "assets/marble/stage/decor-bush-big.png",
+      "canvas": [
+        128,
+        96
+      ],
+      "anchor": [
+        64,
+        96
+      ],
+      "sourcePlaneY": 96,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "bush-small",
+      "image": "stage/decor-bush-small.png",
+      "targetGamePath": "assets/marble/stage/decor-bush-small.png",
+      "canvas": [
+        64,
+        48
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "sourcePlaneY": 48,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "flower-pink",
+      "image": "stage/decor-flower-pink.png",
+      "targetGamePath": "assets/marble/stage/decor-flower-pink.png",
+      "canvas": [
+        32,
+        32
+      ],
+      "anchor": [
+        16,
+        32
+      ],
+      "sourcePlaneY": 32,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "flower-yellow",
+      "image": "stage/decor-flower-yellow.png",
+      "targetGamePath": "assets/marble/stage/decor-flower-yellow.png",
+      "canvas": [
+        32,
+        32
+      ],
+      "anchor": [
+        16,
+        32
+      ],
+      "sourcePlaneY": 32,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "flower-white",
+      "image": "stage/decor-flower-white.png",
+      "targetGamePath": "assets/marble/stage/decor-flower-white.png",
+      "canvas": [
+        32,
+        32
+      ],
+      "anchor": [
+        16,
+        32
+      ],
+      "sourcePlaneY": 32,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "rock",
+      "image": "stage/decor-rock.png",
+      "targetGamePath": "assets/marble/stage/decor-rock.png",
+      "canvas": [
+        64,
+        48
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "sourcePlaneY": 48,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "tree",
+      "image": "stage/decor-tree.png",
+      "targetGamePath": "assets/marble/stage/decor-tree.png",
+      "canvas": [
+        160,
+        224
+      ],
+      "anchor": [
+        80,
+        224
+      ],
+      "sourcePlaneY": 224,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "signpost",
+      "image": "stage/decor-signpost.png",
+      "targetGamePath": "assets/marble/stage/decor-signpost.png",
+      "canvas": [
+        64,
+        96
+      ],
+      "anchor": [
+        32,
+        96
+      ],
+      "sourcePlaneY": 96,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "dust-puff",
+      "image": "fx/dust-puff.png",
+      "targetGamePath": "assets/marble/fx/dust-puff.png",
+      "canvas": [
+        320,
+        80
+      ],
+      "grid": [
+        4,
+        1,
+        80,
+        80
+      ],
+      "anchor": [
+        10,
+        64
+      ],
+      "sourcePlaneY": 64,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "impact-star",
+      "image": "fx/impact-star.png",
+      "targetGamePath": "assets/marble/fx/impact-star.png",
+      "canvas": [
+        384,
+        96
+      ],
+      "grid": [
+        4,
+        1,
+        96,
+        96
+      ],
+      "anchor": [
+        12,
+        48
+      ],
+      "sourcePlaneY": 48,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "mud-splash",
+      "image": "fx/mud-splash.png",
+      "targetGamePath": "assets/marble/fx/mud-splash.png",
+      "canvas": [
+        512,
+        96
+      ],
+      "grid": [
+        4,
+        1,
+        128,
+        96
+      ],
+      "anchor": [
+        16,
+        76
+      ],
+      "sourcePlaneY": 76,
+      "qaStatus": "PASS"
+    },
+    {
+      "id": "curl-poof",
+      "image": "fx/curl-poof.png",
+      "targetGamePath": "assets/marble/fx/curl-poof.png",
+      "canvas": [
+        384,
+        96
+      ],
+      "grid": [
+        4,
+        1,
+        96,
+        96
+      ],
+      "anchor": [
+        12,
+        76
+      ],
+      "sourcePlaneY": 76,
+      "qaStatus": "PASS"
+    }
+  ],
+  "trackB": {
+    "batch": "marble-run-track-b-2026-09-20",
+    "status": "all-17-final-qa-passed",
+    "generationPath": "codex-direct-model-unverified",
+    "assets": {
+      "beaver-dam": {
+        "image": "pieces/beaver-dam.png",
+        "canvas": [
+          1440,
+          256
+        ],
+        "grid": [
+          3,
+          1
+        ],
+        "cell": [
+          480,
+          256
+        ],
+        "anchor": [
+          240,
+          256
+        ],
+        "sourcePlaneY": 256,
+        "frames": [
+          "intact",
+          "cracked-leaking",
+          "burst"
+        ],
+        "targetGamePath": "assets/marble/pieces/beaver-dam.png"
+      },
+      "beehive": {
+        "image": "pieces/beehive.png",
+        "canvas": [
+          192,
+          128
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "anchor": [
+          48,
+          128
+        ],
+        "sourcePlaneY": 128,
+        "frames": [
+          "calm",
+          "shaking-bees"
+        ],
+        "targetGamePath": "assets/marble/pieces/beehive.png"
+      },
+      "sun-patch": {
+        "image": "pieces/sun-patch.png",
+        "canvas": [
+          256,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          256,
+          128
+        ],
+        "anchor": [
+          128,
+          64
+        ],
+        "sourcePlaneY": 64,
+        "frames": [
+          "static"
+        ],
+        "targetGamePath": "assets/marble/pieces/sun-patch.png"
+      },
+      "beaver": {
+        "image": "pieces/beaver.png",
+        "canvas": [
+          192,
+          96
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          96,
+          96
+        ],
+        "anchor": [
+          48,
+          96
+        ],
+        "sourcePlaneY": 96,
+        "frames": [
+          "sitting",
+          "startled"
+        ],
+        "targetGamePath": "assets/marble/pieces/beaver.png"
+      },
+      "pit": {
+        "image": "pieces/pit.png",
+        "canvas": [
+          480,
+          160
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          480,
+          160
+        ],
+        "anchor": [
+          240,
+          160
+        ],
+        "sourcePlaneY": 160,
+        "frames": [
+          "static"
+        ],
+        "targetGamePath": "assets/marble/pieces/pit.png"
+      },
+      "last-gate": {
+        "image": "pieces/last-gate.png",
+        "canvas": [
+          512,
+          96
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          128,
+          96
+        ],
+        "anchor": [
+          64,
+          96
+        ],
+        "sourcePlaneY": 96,
+        "frames": [
+          "closed",
+          "lifting-1",
+          "lifting-2",
+          "open"
+        ],
+        "targetGamePath": "assets/marble/pieces/last-gate.png"
+      },
+      "flag": {
+        "image": "pieces/flag.png",
+        "canvas": [
+          64,
+          64
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          32,
+          64
+        ],
+        "anchor": [
+          16,
+          64
+        ],
+        "sourcePlaneY": 64,
+        "frames": [
+          "wave-a",
+          "wave-b"
+        ],
+        "targetGamePath": "assets/marble/pieces/flag.png"
+      },
+      "hedgehog-sleep": {
+        "image": "creatures/hedgehog-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "asleep",
+          "breathing",
+          "waking",
+          "seated"
+        ],
+        "targetGamePath": "assets/marble/creatures/hedgehog-sleep.png"
+      },
+      "armadillo-sleep": {
+        "image": "creatures/armadillo-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "asleep",
+          "breathing",
+          "waking",
+          "seated"
+        ],
+        "targetGamePath": "assets/marble/creatures/armadillo-sleep.png"
+      },
+      "pillbug-sleep": {
+        "image": "creatures/pillbug-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "asleep",
+          "breathing",
+          "waking",
+          "seated"
+        ],
+        "targetGamePath": "assets/marble/creatures/pillbug-sleep.png"
+      },
+      "turtle-sleep": {
+        "image": "creatures/turtle-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "asleep",
+          "breathing",
+          "waking",
+          "seated"
+        ],
+        "targetGamePath": "assets/marble/creatures/turtle-sleep.png"
+      },
+      "panda-sleep": {
+        "image": "creatures/panda-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "asleep",
+          "breathing",
+          "waking",
+          "seated"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-sleep.png"
+      },
+      "bee-swarm": {
+        "image": "fx/bee-swarm.png",
+        "canvas": [
+          512,
+          96
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          128,
+          96
+        ],
+        "anchor": [
+          64,
+          48
+        ],
+        "sourcePlaneY": 48,
+        "frames": [
+          "gather",
+          "dense",
+          "spread",
+          "disperse"
+        ],
+        "targetGamePath": "assets/marble/fx/bee-swarm.png"
+      },
+      "zz": {
+        "image": "fx/zz.png",
+        "canvas": [
+          192,
+          48
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          48,
+          48
+        ],
+        "anchor": [
+          24,
+          48
+        ],
+        "sourcePlaneY": 48,
+        "frames": [
+          "small-z",
+          "rise",
+          "large-z",
+          "fade"
+        ],
+        "targetGamePath": "assets/marble/fx/zz.png"
+      },
+      "wake": {
+        "image": "fx/wake.png",
+        "canvas": [
+          192,
+          48
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          48,
+          48
+        ],
+        "anchor": [
+          24,
+          48
+        ],
+        "sourcePlaneY": 48,
+        "frames": [
+          "spark",
+          "exclaim",
+          "burst",
+          "fade"
+        ],
+        "targetGamePath": "assets/marble/fx/wake.png"
+      },
+      "dam-burst": {
+        "image": "fx/dam-burst.png",
+        "canvas": [
+          768,
+          128
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          192,
+          128
+        ],
+        "anchor": [
+          96,
+          128
+        ],
+        "sourcePlaneY": 128,
+        "frames": [
+          "start",
+          "burst",
+          "spread",
+          "settle"
+        ],
+        "targetGamePath": "assets/marble/fx/dam-burst.png"
+      },
+      "cheer": {
+        "image": "fx/cheer.png",
+        "canvas": [
+          384,
+          96
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          96,
+          96
+        ],
+        "anchor": [
+          48,
+          96
+        ],
+        "sourcePlaneY": 96,
+        "frames": [
+          "start",
+          "rise",
+          "spread",
+          "fade"
+        ],
+        "targetGamePath": "assets/marble/fx/cheer.png"
+      }
+    }
+  }
 }

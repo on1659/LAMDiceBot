@@ -1,8 +1,7 @@
 /* 마블런(marble) 캔버스 렌더러 + 재생기.
    소켓/DOM 상태 없음 — (타임라인, t) → 화면 의 순수 함수에 가깝다. js/marble.js 와 game-lab/marble-preview.html 이 공용.
    좌표계: 트랙 논리폭 800(서버 socket/marble-sim.js 와 동일), 카메라가 세로로 따라간다.
-   에셋: 1차 배치(assets/marble/)는 스프라이트, 2차 미도착분은 ASSETS 값이 null → 코드 도형(라벨 포함)으로 그린다.
-   2차 도착 시 ASSETS 의 null 만 경로로 바꾸면 된다 (로직 무변경).
+   에셋: assets/marble/ 1차+2차 배치(52장, 규격은 marble-run.manifest.json). ASSETS 값이 null 이거나 로드 실패면 코드 도형(라벨 포함)으로 그린다.
    Math.random 0회 — 모든 흔들림/파티클은 t 에서 파생. */
 var MarbleRender = (function () {
     'use strict';
@@ -35,6 +34,10 @@ var MarbleRender = (function () {
     var WALL_SCALE = 1.5;            // 울타리 스프라이트 확대(128×40 소스 → 48×15)
     var SEESAW_SCALE = 1.5;
     var BASKET_SCALE = 2;            // 골 바구니·판자벽 — 결승 채널(160)을 채우게
+    var SUN_WALK_SPEED = 260;        // 햇볕 잔디 안에서 이 속도 미만이면 공을 풀고 서서 걷는 모습(시각 — 물리는 그대로 원)
+    var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
+    var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
+    var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
 
     // 24색 플레이어 링 팔레트 (참가자 순서 index) — spin-arena 24색과 동일 hue 분포
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
@@ -46,14 +49,15 @@ var MarbleRender = (function () {
     var A = '/assets/marble/';
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png' },
-        sleep: { hedgehog: null, armadillo: null, pillbug: null, turtle: null, panda: null },   // 2차: creatures/{id}-sleep.png (4×1, 160)
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
             'seesaw-plank': A + 'pieces/seesaw-plank.png', 'seesaw-pivot': A + 'pieces/seesaw-pivot.png', 'mud-puddle': A + 'pieces/mud-puddle.png',
             'fence-mid': A + 'pieces/fence-mid.png', 'fence-post': A + 'pieces/fence-post.png',
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
-            'beehive': null, 'sun-patch': null, 'beaver-dam': null, 'beaver': null, 'pit': null, 'last-gate': null, 'flag': null   // 2차
+            'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
+            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -63,7 +67,7 @@ var MarbleRender = (function () {
         },
         fx: {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
-            'bee-swarm': null, 'zz': null, 'wake': null, 'dam-burst': null, 'cheer': null   // 2차
+            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png'
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
@@ -146,7 +150,7 @@ var MarbleRender = (function () {
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0 }; });
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             evCursor = 0; lastT = -1; fxList = []; cam.init = false;
@@ -177,14 +181,14 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
                 var b = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
                     case 'nap': b.state = 'nap'; b.napAt = e.t; break;
-                    case 'wake': if (b.state !== 'done') { b.state = 'roll'; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
+                    case 'wake': if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitRise': break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
@@ -220,7 +224,11 @@ var MarbleRender = (function () {
                 var nx = lerp(x1, x2, a), ny = lerp(y1, y2, a);
                 if (b.state === 'roll') {
                     var dx = nx - b.x, dy = ny - b.y;
-                    if (Math.abs(dx) + Math.abs(dy) < 200) b.angle += (dx * 0.6 + dy) / BALL_R;   // 진행 방향 회전(시각)
+                    if (Math.abs(dx) + Math.abs(dy) < 200) {
+                        b.angle += (dx * 0.6 + dy) / BALL_R;   // 진행 방향 회전(시각)
+                        b.spd = Math.hypot(dx, dy) / Math.max(1e-3, s / 1000);   // 샘플 간 평균 속도(px/s)
+                        if (Math.abs(dx) > 0.5) b.dir = dx > 0 ? 1 : -1;
+                    }
                 }
                 b.x = nx; b.y = ny;
             }
@@ -256,6 +264,7 @@ var MarbleRender = (function () {
             else {
                 var k2 = Math.min(1, dt * CAM_SMOOTH);
                 cam.y += (targetY - cam.y) * k2; cam.x += (targetX - cam.x) * k2; cam.zoom += (targetZoom - cam.zoom) * Math.min(1, dt * 2.5);
+                if (Math.abs(cam.zoom - 1) < 0.004) cam.zoom = 1;   // 1 근처에서 스냅 — 미세 배율의 타일 이음새 방지
             }
         }
         // 재생 시각(벽시계) → 시뮬 시각: 서버 slow 구간에서 rate 배 느리게 (서버 durationMs 와 같은 식)
@@ -321,7 +330,7 @@ var MarbleRender = (function () {
             var y0 = toScreenY(Math.floor(cam.y / ts) * ts - ts * 2);
             ctx.save(); ctx.beginPath(); ctx.rect(-ts, Math.max(0, topY), view.w + ts * 2, view.h); ctx.clip();
             if (tile) {
-                for (var y = y0; y < view.h + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts, ts);
+                for (var y = y0; y < view.h + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지
             } else {
                 ctx.fillStyle = '#8fd07a'; ctx.fillRect(-ts, 0, view.w + ts * 2, view.h);
             }
@@ -363,16 +372,32 @@ var MarbleRender = (function () {
             });
             (pieces.sunpatch || []).forEach(function (s) {
                 var z = s.zone; if (!visible(z.y + z.h / 2, z.h)) return;
-                if (!drawSprite('pieces', 'sun-patch', z.x + z.w / 2, z.y + z.h / 2, 256, 128)) {
-                    var g = ctx.createRadialGradient(z.x + z.w / 2, toScreenY(z.y + z.h / 2), 20, z.x + z.w / 2, toScreenY(z.y + z.h / 2), z.w / 2);
-                    g.addColorStop(0, 'rgba(255,240,150,0.75)'); g.addColorStop(1, 'rgba(255,240,150,0)');
-                    ctx.fillStyle = g; ctx.fillRect(z.x, toScreenY(z.y), z.w, z.h);
-                    label('☀ 햇볕 잔디 — 느려지면 잠들어요', z.x + z.w / 2, z.y + 18, '#fff7c0', 13);
+                // 햇볕 잔디: 스프라이트(256×128, 4배=64×32)를 2배 크기(128×64) 벽돌 패턴으로 깔아 구역을 채운다
+                var sp = img('pieces', 'sun-patch');
+                var glow = ctx.createRadialGradient(z.x + z.w / 2, toScreenY(z.y + z.h / 2), 30, z.x + z.w / 2, toScreenY(z.y + z.h / 2), z.w * 0.6);
+                glow.addColorStop(0, 'rgba(255,235,130,0.55)'); glow.addColorStop(1, 'rgba(255,235,130,0)');
+                ctx.fillStyle = glow; ctx.fillRect(z.x - 40, toScreenY(z.y) - 30, z.w + 80, z.h + 60);
+                if (sp) {
+                    var tw = 128, th = 64, row = 0;
+                    for (var yy = z.y - 10; yy < z.y + z.h - th * 0.6; yy += th * 0.55, row++) {
+                        for (var xx = z.x - 20 + (row % 2 ? tw * 0.35 : 0); xx < z.x + z.w - tw * 0.5; xx += tw * 0.7) ctx.drawImage(sp, 0, 0, 256, 128, xx, toScreenY(yy), tw, th);
+                    }
                 }
+                // 햇살 반짝임 (t 파생, 결정론)
+                for (var q = 0; q < 10; q++) {
+                    var ph = (t / 900 + hash01(q + 11)) % 1, a = Math.sin(ph * Math.PI);
+                    var px = z.x + 30 + hash01(q + 5) * (z.w - 60), py = z.y + 30 + hash01(q + 17) * (z.h - 60);
+                    ctx.fillStyle = 'rgba(255,255,210,' + (0.85 * a).toFixed(2) + ')';
+                    ctx.beginPath(); ctx.arc(px, toScreenY(py), 1.5 + a * 2, 0, Math.PI * 2); ctx.fill();
+                }
+                // 팻말: 구역 입구 왼쪽
+                drawSprite('stage', 'signpost', z.x + 26, z.y + 6, 64, 96, { anchor: 'bottom' });
+                label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
+                label('따뜻해서 걷다가 잠들어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
-                if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h / 2, 480, 160)) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '구덩이', 14);
+                if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '구덩이', 14);
             });
             (pieces.mud || []).forEach(function (m) {
                 if (!visible(m.y, 60)) return;
@@ -401,7 +426,7 @@ var MarbleRender = (function () {
                 if (!visible(h.y, 60)) return;
                 var shaking = fxList.some(function (f) { return f.type === 'bees'; });
                 var wob = shaking ? Math.sin(t / 40) * 0.12 : 0;
-                if (!drawSprite('pieces', 'beehive', h.x, h.y, 96, 128, { sx: shaking ? 96 : 0, sw: 96, rot: wob })) {
+                if (!drawSprite('pieces', 'beehive', h.x, h.y + 24, 96, 128, { sx: shaking ? 96 : 0, sw: 96, rot: wob, anchor: 'bottom', scale: 1.5 })) {
                     ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(wob);
                     ctx.fillStyle = '#e0a52a'; ctx.beginPath(); ctx.ellipse(0, 0, 16, 20, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.strokeStyle = '#8a5f10'; ctx.lineWidth = 2; for (var yy = -12; yy <= 12; yy += 8) { ctx.beginPath(); ctx.moveTo(-14, yy); ctx.lineTo(14, yy); ctx.stroke(); }
@@ -415,7 +440,8 @@ var MarbleRender = (function () {
                 var st = data.events.some(function (e) { return e.type === 'damBurst' && e.t <= t; }) ? 2 : (data.events.some(function (e) { return e.type === 'damCrack' && e.t <= t; }) ? 1 : 0);
                 var cx = (d.x1 + d.x2) / 2, w = d.x2 - d.x1;
                 if (st < 2 || burst) {
-                    if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 10, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', alpha: burst ? 0.5 : 1 })) {
+                    var dsc = w / (480 * SRC_SCALE);   // 채널 폭에 맞춤. 벽 = 셀 상단 가장자리 → 바닥 앵커를 y1 + 셀높이 로
+                    if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burst ? 1 - (t - (data.events.find(function (e) { return e.type === 'damBurst'; }) || { t: t }).t) / DAM_FX_MS * 0.7 : 1 })) {
                         ctx.save(); ctx.globalAlpha = burst ? 0.4 : 1;
                         for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
                         if (st === 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
@@ -423,7 +449,7 @@ var MarbleRender = (function () {
                         label(st === 1 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
                     }
                 }
-                if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 - 40, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom' })) {
+                if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
@@ -436,7 +462,15 @@ var MarbleRender = (function () {
                 var frame = Math.round(prog * 3);
                 var cx = (g.x1 + g.x2) / 2, w = g.x2 - g.x1;
                 var drawn = false;
-                if (img('pieces', 'last-gate')) { for (var x = g.x1; x < g.x2; x += 32) drawSprite('pieces', 'last-gate', x + 16, g.y1 + 8, 128, 96, { sx: frame * 128, sw: 128, anchor: 'bottom' }); drawn = true; }
+                if (img('pieces', 'last-gate')) {
+                    // 가로 타일: 양 끝 기둥 8px(소스) 겹침. n 장이 정확히 채널 폭을 채우도록 배율 계산
+                    var tileW = GATE_TILE_SRC_W * SRC_SCALE, ov = GATE_TILE_OVERLAP_SRC * SRC_SCALE;
+                    var nT = Math.max(1, Math.ceil((w - ov) / (tileW - ov)));
+                    var gsc = (w + (nT - 1) * ov) / (nT * tileW);
+                    var step = tileW * gsc - ov * gsc;
+                    for (var ti = 0; ti < nT; ti++) drawSprite('pieces', 'last-gate', g.x1 + tileW * gsc / 2 + ti * step, g.y1 + 8, 128, 96, { sx: frame * 128, sw: 128, anchor: 'bottom', scale: gsc });
+                    drawn = true;
+                }
                 if (!drawn) {
                     var h = 22 * (1 - prog);
                     ctx.fillStyle = '#c99a5b'; ctx.fillRect(g.x1, toScreenY(g.y1) - h, w, Math.max(4, h));
@@ -501,6 +535,39 @@ var MarbleRender = (function () {
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
+        // 꼴찌 깃발 — 흰 천을 플레이어 색으로 틴트 (multiply 후 원본 알파 복원). (colorIdx, frame) 별 오프스크린 캐시
+        var flagCache = {};
+        function drawTintedFlag(b, x, y, frame) {
+            var im = img('pieces', 'flag'); if (!im) return false;
+            var key = b.colorIdx + ':' + frame;
+            var c = flagCache[key];
+            if (!c) {
+                c = document.createElement('canvas'); c.width = 32; c.height = 64;
+                var cc = c.getContext('2d');
+                cc.drawImage(im, frame * 32, 0, 32, 64, 0, 0, 32, 64);
+                cc.globalCompositeOperation = 'multiply'; cc.fillStyle = ringColor(b); cc.fillRect(0, 0, 32, 64);
+                cc.globalCompositeOperation = 'destination-in'; cc.drawImage(im, frame * 32, 0, 32, 64, 0, 0, 32, 64);
+                flagCache[key] = c;
+            }
+            var sc = SRC_SCALE * 1.4;
+            ctx.drawImage(c, x - 16 * sc, toScreenY(y) - 64 * sc, 32 * sc, 64 * sc);
+            return true;
+        }
+        // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
+        function inSunZone(b) { var sz = (pieces.sunpatch || [])[0]; return !!sz && b.x >= sz.zone.x && b.x <= sz.zone.x + sz.zone.w && b.y >= sz.zone.y && b.y <= sz.zone.y + sz.zone.h; }
+        function drawSunWalker(b, t) {
+            var since = t - b.sunSince;
+            var row, col;
+            if (since < SUN_UNCURL_MS) { row = 3; col = since < SUN_UNCURL_MS / 2 ? 0 : 1; }
+            else { row = 0; col = Math.floor((since - SUN_UNCURL_MS) / 140) % 4; }
+            var im = img('creatures', b.creature);
+            if (!im) { drawCreatureFrame(b, 2, 0, b.x, b.y, 0); return; }
+            var sc = SRC_SCALE;
+            ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.scale(b.dir, 1);
+            ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
+            ctx.restore();
+        }
+
         function drawBalls(t) {
             var i, b, mine;
             // 그림자 먼저
@@ -528,10 +595,25 @@ var MarbleRender = (function () {
                     // zz
                     var zt = (t - b.napAt) % 900; var zy = b.y - 20 - zt / 45; var za = 1 - zt / 900;
                     if (!img('fx', 'zz')) label(zt < 450 ? 'z' : 'Z', b.x + 14, zy, 'rgba(255,255,255,' + za.toFixed(2) + ')', 12);
-                    else drawSprite('fx', 'zz', b.x + 14, zy, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za });
+                    else drawSprite('fx', 'zz', b.x + 14, zy - 4, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za, scale: 1.3 });
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawRing(b, b.x, b.y, BALL_R + 3, mine); continue; }
+                // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
+                if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
+                    var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
+                    ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(img('sleep', b.creature), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
+                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    continue;
+                }
+                // 햇볕 잔디에서 느려짐 → 펴져서 걷는 모습 (느려지는 이유가 화면에서 읽히게)
+                if (inSunZone(b) && b.spd < SUN_WALK_SPEED && t > 0) {
+                    if (b.sunSince < 0) b.sunSince = t;
+                    drawSunWalker(b, t);
+                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    continue;
+                }
+                b.sunSince = -1;
                 var col = 0;
                 if (t < b.squashUntil) col = 1; else if (t < b.dizzyUntil) col = 3; else if (b.muddy) col = 2;
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
@@ -542,7 +624,7 @@ var MarbleRender = (function () {
                 var rb = rearByOwner[owner]; if (!visible(rb.y, 60) || t < 0) return;
                 var fx = rb.x + 10, fy = rb.y - 24;
                 var wave = Math.sin(t / 120 + rb.id) * 2;
-                if (!drawSprite('pieces', 'flag', fx + 4, fy, 32, 64, { sx: Math.floor(t / 200) % 2 * 32, sw: 32 })) {
+                if (!drawTintedFlag(rb, fx + 4, fy + 22, Math.floor(t / 200) % 2)) {
                     ctx.save(); ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, toScreenY(fy)); ctx.lineTo(fx, toScreenY(fy) + 20); ctx.stroke();
                     ctx.fillStyle = ringColor(rb); ctx.beginPath(); ctx.moveTo(fx, toScreenY(fy)); ctx.lineTo(fx + 12 + wave, toScreenY(fy) + 4); ctx.lineTo(fx, toScreenY(fy) + 9); ctx.closePath(); ctx.fill(); ctx.restore();
                 }
