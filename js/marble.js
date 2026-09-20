@@ -408,7 +408,7 @@ function showResultOverlay(data) {
         var html = '';
         if (data.selected) html += '<div class="marble-result-selected">🐾 당첨(벌칙): ' + escapeHtml(data.selected) + '</div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
-        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 통에 들어간 순서. 1위가 제일 안전, 마지막이 꼴찌(당첨)
+        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 골에 들어간 순서. 1위가 제일 안전, 마지막이 꼴찌(당첨)
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
