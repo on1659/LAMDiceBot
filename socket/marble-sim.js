@@ -15,9 +15,10 @@ const SAMPLE_FEW_MAX = 60;
 // ─── 인원/공 ───
 const MAX_BALLS = 200;
 const BALLS_PER_PLAYER_MIN = 1, BALLS_PER_PLAYER_MAX = 10, BALLS_PER_PLAYER_DEFAULT = 3;
-// 마릿수 3단계(호스트 선택). 인당 = clamp(floor(total / 인원), 1, perMax) — 인원이 많아지면 인당이 줄어 총 마릿수가 total 근처에 머문다.
-//   2명: 4 / 8 / 16마리, 10명: 20 / 40 / 80, 30명: 30 / 30 / 90, 50명+: 인원수(인당 최소 1 — 사람마다 자기 동물이 하나는 있어야 하므로 하한)
+// 마릿수 4단계(호스트 선택). 인당 = clamp(floor(total / 인원), 1, perMax) — 인원이 많아지면 인당이 줄어 총 마릿수가 total 근처에 머문다.
+//   솔로: 항상 인당 1마리. 2명: 2 / 4 / 8 / 16마리, 10명: 10 / 20 / 40 / 80, 30명: 30 / 30 / 30 / 90, 50명+: 인원수(인당 최소 1 — 사람마다 자기 동물이 하나는 있어야 하므로 하한)
 const CROWD_PRESETS = {
+    solo:   { perMax: 1, total: MAX_BALLS },
     few:    { perMax: 2, total: 20 },
     normal: { perMax: 4, total: 50 },
     many:   { perMax: 8, total: 100 }
@@ -106,7 +107,7 @@ const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위�
 //    꼴찌 결정전에선 쉬는 시간을 짧게 해 바쁘게 움직이고, 통로에서 달리는 놈(walk)을 뚜껑 앞에서 기다리는 놈보다 3배 우선(사용자 2026-09-21 2차).
 //    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
 const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
-const EAGLES_BY_CROWD = { few: 1, normal: 2, many: 3 };   // 마릿수 단계별 독수리 수(사용자 2026-09-21). 같은 독수리는 같은 놈을 두 번 안 잡지만 다른 독수리는 잡을 수 있다
+const EAGLES_BY_CROWD = { solo: 1, few: 1, normal: 2, many: 3 };   // 마릿수 단계별 독수리 수(사용자 2026-09-21). 같은 독수리는 같은 놈을 두 번 안 잡지만 다른 독수리는 잡을 수 있다
 // 예산(사용자 2026-09-21): 남은 동물이 EAGLE_FINAL_ALIVE 보다 많을 땐 독수리 전체 합쳐 EAGLE_MAX_EARLY 회 — 초반에 다 써서 막판에 못 움직이던 것.
 //    남은 동물이 EAGLE_FINAL_ALIVE 이하가 되는 순간 카운터를 0 으로 되돌리고 전체 EAGLE_MAX_FINAL 회. 같은 독수리는 같은 놈 재납치 금지(유지).
 //    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
@@ -975,7 +976,7 @@ function rankPlayers(balls, finishOrder, participants) {
     return { rankings, successionList, selected: successionList[0] || null };
 }
 
-// 3단계 프리셋 → 인당 마릿수 (MAX_BALLS 캡 포함). 모르는 프리셋은 기본값.
+// 4단계 프리셋 → 인당 마릿수 (MAX_BALLS 캡 포함). 모르는 프리셋은 기본값.
 function crowdBallsPerPlayer(crowd, players) {
     const p = CROWD_PRESETS[crowd] || CROWD_PRESETS[CROWD_DEFAULT];
     const n = Math.max(1, Math.min(p.perMax, Math.floor(p.total / Math.max(1, players))));

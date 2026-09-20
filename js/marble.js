@@ -8,7 +8,7 @@ var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
 var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
-var MARBLE_CROWDS = ['few', 'normal', 'many'];   // 마릿수 3단계 — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
+var MARBLE_CROWDS = ['solo', 'few', 'normal', 'many'];   // 마릿수 4단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
 
 // localhost 체크
@@ -59,7 +59,7 @@ var readyModuleInitialized = false;
 var marbleState = {
     phase: 'idle',           // idle | playing | finished
     picks: {},               // { userName: creatureId }
-    crowd: 'normal',         // 마릿수 단계 few|normal|many
+    crowd: 'normal',         // 마릿수 단계 solo|few|normal|many
     ballsPerPlayer: 1,       // 서버가 준비 인원으로 환산한 인당 마릿수 (안내용)
     reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
     preview: null            // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
@@ -335,20 +335,10 @@ function updateStartButton() {
     }
     var locked = (marbleState.phase === 'playing' || isMarbleActive);
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
-    renderBallsNote();
-}
-
-// "준비 N명 × M마리 = 총 K마리" — M 은 서버가 준비 인원으로 환산해 내려준 값(인원이 많으면 인당이 줄어든다)
-function renderBallsNote() {
-    var note = document.getElementById('marbleBallsNote');
-    if (!note) return;
-    var rc = Math.max(readyCount(), 1), n = marbleState.ballsPerPlayer;
-    note.textContent = '준비 ' + rc + '명 × ' + n + '마리 = 총 ' + (rc * n) + '마리 (인원이 늘면 인당 마릿수가 줄어요)';
 }
 
 function syncBallsControl() {
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.classList.toggle('selected', b.getAttribute('data-crowd') === marbleState.crowd); });
-    renderBallsNote();
 }
 
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 상태 문구

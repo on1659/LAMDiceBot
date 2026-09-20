@@ -225,7 +225,7 @@ module.exports = (socket, io, ctx) => {
         emitState(room, gameState);
     });
 
-    // 마릿수 단계 (호스트, idle) — few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
+    // 마릿수 단계 (호스트, idle) — solo | few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
     socket.on('marble:setCrowd', (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
