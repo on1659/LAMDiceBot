@@ -86,6 +86,7 @@ async function startMarble(room, gameState, io, ctx) {
         balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
         slow: result.slow,            // 마지막 공 골 앞 슬로모 {startMs, rate, endMs} — 2탭 동기용, durationMs 에 반영돼 있음
         fast: result.fast,            // 꼴찌 한 마리만 남은 구간 2배속 {startMs, rate, endMs}
+        cutMs: result.cutMs,          // 꼴찌가 혼자 통로에 내려온 순간(나머지 전원 골인) — 클라는 여기서 세상을 멈추고 비석. null 이면 골 진입 때
         ballsPerPlayer,
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };

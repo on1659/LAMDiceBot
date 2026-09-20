@@ -935,12 +935,17 @@ async function simulate(balls, seed, track) {
         if (x >= 0 && Math.abs(y - track.goalY) <= LANE_H / 2 && x >= track.goalX - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }   // 통로 위(걷는 중)에서 골 앞 SLOW_ZONE_PX
     }
     if (slowStartMs > simEndMs) slowStartMs = simEndMs;
-    const slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs };
-    const slowExtra = (simEndMs - slowStartMs) * (1 / SLOW_RATE - 1);
-    // 2배속 구간: 마지막 한 마리만 남은 순간(뒤에서 두 번째 골인)부터 슬로모 시작까지. 클라 simTime() 이 같은 식으로 재생 → 2탭 동기
-    const fast = (finishOrder.length >= 2 && slowStartMs - secondLastT > 500) ? { startMs: secondLastT, rate: FAST_RATE, endMs: slowStartMs } : null;
+    // 조기 확정(cutMs): 꼴찌가 통로에 내려오는(land) 순간 나머지 전원이 이미 골인해 있으면 그 순간 꼴찌 확정 → 재생을 거기서 끊고 비석
+    // (혼자 5~9s 걷는 걸 안 본다). 둘 이상이 아직 내려오는 중이면 골 진입 순서가 결과이므로 끊지 않는다(사용자 2026-09-21). 순위·finishOrder 는 영향 없음
+    const lastLand = finishOrder.length >= 2 ? events.filter(e => e.type === 'land' && e.ball === lastId && e.t > secondLastT)[0] : null;
+    const cutMs = lastLand ? lastLand.t : null;
+    let slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs }, slowExtra = (simEndMs - slowStartMs) * (1 / SLOW_RATE - 1), endMs = simEndMs;
+    if (cutMs != null) { slow = null; slowExtra = 0; endMs = cutMs; }   // 컷 뒤(골 앞 슬로모)는 재생하지 않는다
+    // 2배속 구간: 마지막 한 마리만 남은 순간(뒤에서 두 번째 골인)부터 슬로모 시작(또는 컷)까지. 클라 simTime() 이 같은 식으로 재생 → 2탭 동기
+    const fastEnd = cutMs != null ? cutMs : slowStartMs;
+    const fast = (finishOrder.length >= 2 && fastEnd - secondLastT > 500) ? { startMs: secondLastT, rate: FAST_RATE, endMs: fastEnd } : null;
     const fastSaved = fast ? (fast.endMs - fast.startMs) * (1 - 1 / FAST_RATE) : 0;
-    return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, fast, durationMs: Math.round(simEndMs - fastSaved + slowExtra + FINALE_HOLD_MS) };
+    return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, fast, cutMs, durationMs: Math.round(endMs - fastSaved + slowExtra + FINALE_HOLD_MS) };
 }
 
 // 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 마지막 공의 주인 = selected(당첨).

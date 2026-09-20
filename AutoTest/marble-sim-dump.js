@@ -24,7 +24,7 @@ const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-ti
     const payload = {
         durationMs: r.durationMs, sampleMs: r.sampleMs, track: r.track,
         balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num })),
-        frames: r.frames, events: r.events, finishOrder: r.finishOrder, slow: r.slow, fast: r.fast, result: rank
+        frames: r.frames, events: r.events, finishOrder: r.finishOrder, slow: r.slow, fast: r.fast, cutMs: r.cutMs, result: rank
     };
     const json = JSON.stringify(payload);
     fs.writeFileSync(out, json);
@@ -32,6 +32,6 @@ const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-ti
     r.events.forEach(e => { evCount[e.type] = (evCount[e.type] || 0) + 1; });
     console.log(`balls=${balls.length} sim=${Date.now() - t0}ms simEnd=${r.simEndMs}ms frames=${r.frames.length} json=${(json.length / 1024).toFixed(0)}KB`);
     console.log('events:', JSON.stringify(evCount));
-    console.log('selected:', rank.selected, '| last ball(골 진입 마지막):', JSON.stringify(balls[r.finishOrder[r.finishOrder.length - 1]]), '| slow from', r.slow.startMs, 'ms');
+    console.log('selected:', rank.selected, '| last ball(골 진입 마지막):', JSON.stringify(balls[r.finishOrder[r.finishOrder.length - 1]]), '| slow from', r.slow ? r.slow.startMs : null, 'ms | cut', r.cutMs, 'ms');
     console.log('written:', out);
 })();

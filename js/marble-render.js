@@ -244,7 +244,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -271,6 +271,13 @@ var MarbleRender = (function () {
                     case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'land':
+                        if (data.cutMs != null && e.t >= data.cutMs && b.id === data.finishOrder[data.finishOrder.length - 1]) {   // 혼자 내려온 꼴찌: 착지 = 확정, 그 자리에 비석(drawLastBall). 자리는 착지 직후 샘플에서
+                            var lf = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))];
+                            b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.length - 1;
+                            b.doneX = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2] : b.x; b.doneY = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2 + 1] : b.y;
+                            b.x = b.doneX; b.y = b.doneY;
+                            break;
+                        }
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
@@ -335,7 +342,7 @@ var MarbleRender = (function () {
             var carried = null; for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried') { carried = balls[ci]; break; }
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
-            else if (loserDone) { targetX = data.track.goalX; targetY = goalY + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 골 앞 비석으로
+            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
@@ -1169,7 +1176,7 @@ var MarbleRender = (function () {
             var b = byId[lastId];
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
-            var x = data.track.goalX + BALL_R, y = data.track.goalY;   // 골 선 넘어 판자벽 앞
+            var x = b.doneX != null ? b.doneX : data.track.goalX + BALL_R, y = b.doneY != null ? b.doneY : data.track.goalY;   // 혼자 내려온 착지 자리, 아니면 골 선 넘어 판자벽 앞
             // 비석: 위에서 가속 낙하 → 쿵(먼지). 동물은 비석이 깔리기 전까지만 엎어져 있고, 깔리는 순간 펑 하고 사라진다(비석이 동물을 대신한다)
             var k = clamp(since / GRAVE_DROP_MS, 0, 1);
             var drop = (1 - k) * (1 - k) * GRAVE_DROP_H;
@@ -1403,8 +1410,10 @@ var MarbleRender = (function () {
             if (!data) return;
             dt = dt || 0.016;
             var t = tPlay < 0 ? tPlay : simTime(tPlay);
-            applyEventsUpTo(Math.max(0, t));
-            samplePositions(t);
+            // 조기 확정(cutMs) 뒤에는 세상을 그 순간에 멈춘다 — 피날레 연출(비석·스탠드)만 t 로 흐른다
+            var tw = (data.cutMs != null && t > data.cutMs) ? data.cutMs : t;
+            applyEventsUpTo(Math.max(0, tw));
+            samplePositions(tw);
             updateCamera(t, dt);
             updateHud();
             ctx.save();
