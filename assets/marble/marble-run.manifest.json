@@ -1719,7 +1719,7 @@
     "batch": "marble-run-events-e-2026-09-20",
     "status": "pending-request",
     "request": "docs/spritemake-request/2026-09-20-marble-run-events-e.md",
-    "note": "warp-pipe 만 코드 연결됨(없으면 코드 도형). 나머지(독수리·스프링 널빤지·mole-v2·댐/간헐천 루프)는 기능 구현 때 키 추가",
+    "note": "warp-pipe·spring-plank 코드 연결됨(없으면 코드 도형). 나머지(독수리·mole-v2·댐/간헐천 루프)는 기능 구현 때 키 추가",
     "assets": {
       "warp-pipe": {
         "image": "pieces/warp-pipe.png",
@@ -1738,6 +1738,35 @@
         "sourcePlaneY": 224,
         "note": "하단 정렬, 표시 48×56, 짝 색 띠·번호는 코드",
         "targetGamePath": "assets/marble/pieces/warp-pipe.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "spring-plank": {
+        "image": "pieces/spring-plank.png",
+        "canvas": [
+          960,
+          64
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          240,
+          64
+        ],
+        "anchor": [
+          0,
+          32
+        ],
+        "note": "경첩 = 셀 왼쪽 끝 세로 중앙(코드는 -6px 여유). 경사로 각도로만 회전, 휨은 프레임. 표시 60×16",
+        "frames": [
+          "flat",
+          "slight",
+          "bent",
+          "snap"
+        ],
+        "targetGamePath": "assets/marble/pieces/spring-plank.png",
         "md5": null,
         "qaStatus": "pending"
       }

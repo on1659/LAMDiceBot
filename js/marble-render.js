@@ -82,7 +82,8 @@ var MarbleRender = (function () {
             'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png',
             'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
             'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
-            'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png'   // 4차(finale-d) — 도착 전엔 코드 도형
+            'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png',   // 4차(finale-d) — 도착 전엔 코드 도형
+            'spring-plank': A + 'pieces/spring-plank.png'   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -137,6 +138,14 @@ var MarbleRender = (function () {
         return 0;
     }
     function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
+    // 스프링 널빤지 — socket/marble-sim.js springAngle()/springSnapping() 과 동일식 (+=아래로 처짐)
+    function springPhase(sp, t) { return (((t + sp.phase) % sp.period + sp.period) % sp.period) / sp.period; }
+    function springAngle(sp, t) {
+        var p = springPhase(sp, t), bend = sp.bendDeg * Math.PI / 180, up = -sp.upDeg * Math.PI / 180;
+        if (p < sp.chargeEnd) { var k = p / sp.chargeEnd; return bend * k * k; }
+        if (p < sp.snapEnd) { var k2 = (p - sp.chargeEnd) / (sp.snapEnd - sp.chargeEnd); return bend + (up - bend) * Math.min(1, k2 * 1.6); }
+        var k3 = (p - sp.snapEnd) / (1 - sp.snapEnd); return up * (1 - k3);
+    }
     // 주기 장치(두더지·선풍기) 켜짐 판정 — socket/marble-sim.js deviceOn 과 같은 식
     function deviceOn(d, t) { var c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
     function devicePhase(d, t) { return (((t + d.phase) % d.period + d.period) % d.period) / (d.on != null ? d.on : d.up); }   // 켜진 창 안 진행도(0~1, 꺼져 있으면 >1)
@@ -238,6 +247,7 @@ var MarbleRender = (function () {
                     case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
                     case 'mole': fxList.push({ type: 'mole', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
                     case 'flip': ffDir = e.dir; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
@@ -491,6 +501,31 @@ var MarbleRender = (function () {
             });
             (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
             // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
+            (pieces.spring || []).forEach(function (sp) {   // 스프링 널빤지: 경첩(sp.x, sp.y)에 매달린 판. 에셋(4셀: 평평/살짝/많이 휨/튕김)이 오면 그 프레임, 없으면 각도대로 그린 코드 도형
+                if (!visible(sp.y, 80)) return;
+                var tt = Math.max(0, t), p = springPhase(sp, tt), a = sp.angle + springAngle(sp, tt);
+                var frame = p < 0.3 ? 0 : p < 0.6 ? 1 : p < sp.chargeEnd ? 2 : p < sp.snapEnd + 0.06 ? 3 : 0;
+                var snapping = p >= sp.chargeEnd && p < sp.snapEnd;
+                var im = img('pieces', 'spring-plank');
+                ctx.save(); ctx.translate(sp.x, toScreenY(sp.y));
+                if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(의뢰서 §2-2). 경사로 각도로만 회전 — 휨은 프레임이 표현
+                    ctx.rotate(sp.angle);
+                    var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
+                    ctx.drawImage(im, frame * 240, 0, 240, 64, -6, -ch / 2, cw, ch);
+                } else {
+                    ctx.rotate(a);
+                    ctx.fillStyle = '#6b4420'; ctx.fillRect(-4, -12, 8, 24);                                  // 경첩 기둥
+                    ctx.fillStyle = '#c8873a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
+                    roundRect(0, -4, sp.len, 8, 3); ctx.fill(); ctx.stroke();                                 // 판
+                    ctx.strokeStyle = '#8a9aa2'; ctx.lineWidth = 2; ctx.beginPath();                          // 스프링(지그재그, 처질수록 눌림)
+                    var sx = sp.len * 0.6, sh = 16 - Math.max(0, springAngle(sp, tt)) * 20;
+                    for (var zi = 0; zi <= 6; zi++) ctx.lineTo(sx + ((zi % 2) ? 5 : -5), 4 + sh * zi / 6); ctx.stroke();
+                    ctx.fillStyle = '#5a3416'; ctx.fillRect(sx - 8, 4 + sh, 16, 3);                          // 스프링 받침
+                }
+                ctx.restore();
+                if (snapping) { ctx.save(); ctx.strokeStyle = 'rgba(255,240,160,0.8)'; ctx.lineWidth = 2; var ex = sp.x + Math.cos(a) * sp.len, ey = toScreenY(sp.y) + Math.sin(a) * sp.len; ctx.beginPath(); ctx.moveTo(ex - 6, ey - 14); ctx.lineTo(ex - 14, ey - 30); ctx.moveTo(ex + 4, ey - 16); ctx.lineTo(ex + 2, ey - 32); ctx.stroke(); ctx.restore(); }   // 튕김 속도선
+                label('스프링', sp.x + Math.cos(sp.angle) * sp.len * 0.5, sp.y + Math.sin(sp.angle) * sp.len * 0.5 + 26, '#ffe08a', 11);
+            });
             (pieces.zzhole || []).forEach(function (h) {
                 if (!visible(h.y, 40)) return;
                 if (!drawSprite('pieces', 'gap-mark', h.x, h.y, 176, 48, { rot: h.angle, scale: h.w / (176 * SRC_SCALE) })) {   // 틈 표시(4차) — 없으면 둥근 홈
@@ -1145,6 +1180,7 @@ var MarbleRender = (function () {
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
+                    case 'spring': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -1219,6 +1255,7 @@ var MarbleRender = (function () {
                     case 'pit': g.fillStyle = '#2b1a0a'; ell(X(p.zone.x + p.zone.w / 2), Y(p.zone.y + p.zone.h / 2), p.zone.w * sc / 2, p.zone.h * sc / 2); break;
                     case 'windmill': g.strokeStyle = '#e0bd82'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len), Y(p.y)); g.lineTo(X(p.x + p.len), Y(p.y)); g.moveTo(X(p.x), Y(p.y - p.len)); g.lineTo(X(p.x), Y(p.y + p.len)); g.stroke(); break;
                     case 'mole': g.fillStyle = '#5a3d22'; dot(X(p.x), Y(p.y), 1.8); break;
+                    case 'spring': g.strokeStyle = '#ffd166'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x + Math.cos(p.angle) * p.len), Y(p.y + Math.sin(p.angle) * p.len)); g.stroke(); break;
                     case 'flipflop': g.strokeStyle = '#ffe08a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x - 20), Y(p.y + 40)); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x + 20), Y(p.y + 40)); g.stroke(); break;
                     case 'belt': g.strokeStyle = '#ffd166'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
                     case 'fan': g.fillStyle = '#c8d0da'; g.beginPath(); g.moveTo(X(p.x), Y(p.y - 12)); g.lineTo(X(p.x + p.dir * 24), Y(p.y)); g.lineTo(X(p.x), Y(p.y + 12)); g.closePath(); g.fill(); break;

@@ -95,6 +95,15 @@ const VAR_TOP = DEV_TOP + DEV_H;
 const VAR_GAP_W = 40;             // 끊긴 경사로 틈 폭(공 1.4개)
 const VAR_BOWL_R = 240, VAR_BOWL_SEGS = 14, VAR_BOWL_GAP_DEG = 11;   // 그릇 반지름·호 분할 수·바닥 틈 각도(≈2R·sin(5.5°) ≈ 46px)
 const VAR_H = 1000 + 360;         // 구간 높이 (워프 방 WARP_H 만큼 늘어남 — 아래 const 는 이 위에 못 쓰므로 숫자로)
+// 스프링 널빤지(끊긴 경사로 끝 60px, 사용자 요청 2026-09-21): 경첩에 매달린 판이 박자대로 서서히 아래로 휘었다가(장전) 확 튕겨 올라간다.
+//    튕기는 순간 판 위에 있던 공만 위·뒤(경사로 시작 쪽)로 날아가 다시 굴러 내려와야 한다(2~4s 손해). 각도식 springAngle() 은 서버·클라 동일.
+const SPRING_LEN = 60;
+const SPRING_PERIOD_MS = 2600, SPRING_PHASE_MS = 700;
+const SPRING_BEND_DEG = 22;       // 장전 끝 처짐(경사로 기울기에 더해짐)
+const SPRING_UP_DEG = 28;         // 튕긴 순간 젖혀짐
+const SPRING_CHARGE_END = 0.72, SPRING_SNAP_END = 0.82;   // 위상: 0~0.72 처짐, 0.72~0.82 튕김(이 창에 판 위 공 발사), ~1 복귀
+const SPRING_VX = 300, SPRING_VY = 640;   // 발사 속도(뒤·위) — 640 은 ≈290px 올라간다(경사로 낙차 160 보다 위)
+const SPRING_COOLDOWN_MS = 600;
 const VALLEY_H = DEV_H + VAR_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
 // ⑦-d 워프 파이프 방(갈래 골짜기 끊긴 경사로 아래, docs/goal/marble-warp-pipes.md): 마리오식 서 있는 파이프 6개가 한 화면에.
 //    윗줄 [1][2][3] / 통나무 한 줄 / 아랫줄 [4][5][6], 짝 1↔6·2↔5·3↔4(대각선 교차). 들어가면 짝 파이프에서 위로 뿅 튀어나온다 —
@@ -245,7 +254,10 @@ function buildTrack(ballCount, rng) {
             p.push({ kind: 'zzhole', x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, w: VAR_GAP_W, angle: Math.atan2(y2 - y1, x2 - x1) });   // 클라 연출(틈 표시)
             from = k + gw / 2;
         });
-        wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, x2, y2);
+        const ux = (x2 - x1) / L, uy = (y2 - y1) / L, hx = x2 - ux * SPRING_LEN, hy = y2 - uy * SPRING_LEN;   // 경첩 = 끝에서 60 앞
+        wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, hx, hy);
+        p.push({ kind: 'spring', x: hx, y: hy, len: SPRING_LEN, angle: Math.atan2(uy, ux), period: SPRING_PERIOD_MS, phase: SPRING_PHASE_MS,
+            bendDeg: SPRING_BEND_DEG, upDeg: SPRING_UP_DEG, chargeEnd: SPRING_CHARGE_END, snapEnd: SPRING_SNAP_END });
     }
     // (c) 워프 파이프 방: 윗줄 3 / 통나무 한 줄 / 아랫줄 3, 짝은 1↔6·2↔5·3↔4. 파이프 몸통 양옆은 벽(공이 옆에서 부딪히면 튕김), 입구는 센서
     {
@@ -395,6 +407,15 @@ function lidCover(h, t) {
     return 0;
 }
 function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
+// 스프링 널빤지 각도(라디안, +=아래로 처짐). 위상 p: 0~chargeEnd 처짐(ease-in), chargeEnd~snapEnd 튕김, ~1 복귀 — 서버·클라 동일식
+function springAngle(sp, t) {
+    const p = (((t + sp.phase) % sp.period + sp.period) % sp.period) / sp.period;
+    const bend = sp.bendDeg * Math.PI / 180, up = -sp.upDeg * Math.PI / 180;
+    if (p < sp.chargeEnd) { const k = p / sp.chargeEnd; return bend * k * k; }
+    if (p < sp.snapEnd) { const k = (p - sp.chargeEnd) / (sp.snapEnd - sp.chargeEnd); return bend + (up - bend) * Math.min(1, k * 1.6); }
+    const k = (p - sp.snapEnd) / (1 - sp.snapEnd); return up * (1 - k);
+}
+function springSnapping(sp, t) { const p = (((t + sp.phase) % sp.period + sp.period) % sp.period) / sp.period; return p >= sp.chargeEnd && p < sp.snapEnd; }
 // 주기 장치(두더지·선풍기) 켜짐 판정: 주기 안 [0, on) 이 켜진 창. 클라(js/marble-render.js)와 같은 식
 function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
 
@@ -402,7 +423,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|warp|warpOut|land|trip|doze|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|land|trip|doze|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -418,12 +439,12 @@ async function simulate(balls, seed, track) {
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
-        stuckSince: 0, lidAt: -1e9, moleAt: -1e9, ffDone: false,
+        stuckSince: 0, lidAt: -1e9, moleAt: -1e9, springAt: -1e9, ffDone: false,
         warpDone: {}, warpUntil: 0, warpOut: null
     }));
 
     // 조각 분류
-    const walls = [], stakes = [], muds = [], moles = [], belts = [], fans = [], warps = [];
+    const walls = [], stakes = [], muds = [], moles = [], belts = [], fans = [], warps = [], springs = [];
     let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null, windmill = null, holefield = null, flipflop = null;
     for (const pc of track.pieces) {
         switch (pc.kind) {
@@ -434,6 +455,7 @@ async function simulate(balls, seed, track) {
             case 'belt': belts.push(pc); break;
             case 'fan': fans.push(pc); break;
             case 'warp': warps.push(pc); break;
+            case 'spring': springs.push(pc); break;
             case 'flipflop': flipflop = pc; break;
             case 'beehive': beehive = pc; break;
             case 'sunpatch': sun = pc; break;
@@ -691,6 +713,17 @@ async function simulate(balls, seed, track) {
                     const a = a0 + k * 2 * Math.PI / windmill.blades;
                     collideMovingSegment(t, b, windmill.x, windmill.y, windmill.x + Math.cos(a) * windmill.len, windmill.y + Math.sin(a) * windmill.len, WALL_RESTITUTION, om, windmill.x, windmill.y);
                 }
+            }
+            for (const sp of springs) {   // 스프링 널빤지: 경첩에 매달린 움직이는 선분. 튕기는 창에 판 위(길이 안·판 위 반지름 이내)에 있던 공만 뒤·위로 발사
+                if (Math.abs(b.x - sp.x) > sp.len + BALL_R + 4 || Math.abs(b.y - sp.y) > sp.len + BALL_R + 4) continue;
+                const a = sp.angle + springAngle(sp, t), ex = sp.x + Math.cos(a) * sp.len, ey = sp.y + Math.sin(a) * sp.len;
+                const om = (springAngle(sp, t + SIM_DT_MS) - springAngle(sp, t)) / (SIM_DT_MS / 1000);
+                collideMovingSegment(t, b, sp.x, sp.y, ex, ey, WALL_RESTITUTION, om, sp.x, sp.y);
+                if (!springSnapping(sp, t) || t - b.springAt < SPRING_COOLDOWN_MS) continue;
+                const dx = b.x - sp.x, dy = b.y - sp.y, along = dx * Math.cos(a) + dy * Math.sin(a), above = -(dx * -Math.sin(a) + dy * Math.cos(a));   // 판 축 좌표(above>0 = 판 위)
+                if (along < -4 || along > sp.len + 4 || above < 0 || above > BALL_R + 10) continue;
+                b.vx = -SPRING_VX + (rng() - 0.5) * 60; b.vy = -SPRING_VY; b.springAt = t; b.stuckSince = t;
+                pushEvent(t, 'spring', b, { x: Math.round(ex), y: Math.round(ey) });
             }
             for (const m of moles) {   // 두더지: 올라와 있는 순간 머리 위에 있는 공만 튕긴다
                 if (Math.abs(b.y - m.y) > 40 || Math.abs(b.x - m.x) > 40) continue;
