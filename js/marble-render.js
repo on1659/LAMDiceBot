@@ -335,6 +335,20 @@ var MarbleRender = (function () {
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
             var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done');
             var hf = (pieces.holefield || [])[0];
+            // 내 동물 따라가기(강조 모드): 내 동물 중 선두를 따라가다가, 내 것이 하나라도 들어가면 그때부터 내 것 중 꼴찌를 따라간다.
+            // 내 것이 다 들어갔거나(myFocus 없음) 결승 프레임 구역에 들어오면 시스템 카메라로 돌아간다(프레임은 어차피 전원이 보인다)
+            var myFocus = null;
+            if (highlightMine && myName) {
+                var myLead = null, myRear = null, myDone = false;
+                for (var mi = 0; mi < balls.length; mi++) {
+                    var mb = balls[mi]; if (mb.owner !== myName) continue;
+                    if (mb.state === 'done') { myDone = true; continue; }
+                    if (!myLead || progress(mb) > progress(myLead)) myLead = mb;
+                    if (!myRear || progress(mb) < progress(myRear)) myRear = mb;
+                }
+                myFocus = myDone ? myRear : myLead;
+                if (myFocus && hf && myFocus.y >= hf.zone.y - FRAME_ABOVE_PX) myFocus = null;
+            }
             var wallP = (pieces.dumpwall || [])[0];
             // 결승 프레임: 선두가 구멍밭 위 FRAME_ABOVE_PX 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
             var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ABOVE_PX;
@@ -345,6 +359,7 @@ var MarbleRender = (function () {
             if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
+            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; }   // 내 동물 따라가기
             else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {

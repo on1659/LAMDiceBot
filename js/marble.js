@@ -393,13 +393,13 @@ function resetMarbleRound() { socket.emit('marble:reset'); }
 window.reopenResult = reopenResult;
 window.resetMarbleRound = resetMarbleRound;
 
-// 내 동물 강조 스위치 — 내 화면에서 내 동물은 금색 링, 남의 동물은 옅게. 화면 위 버튼, 설정은 이 브라우저에만 저장
+// 내 동물 따라가기 스위치 — 켜면 내 동물은 금색 링·남의 동물은 옅게, 카메라도 내 동물을 따라간다(선두 → 하나 들어간 뒤엔 내 꼴찌 → 다 들어가면 시스템 카메라). 설정은 이 브라우저에만 저장
 function getMyHighlight() { try { return localStorage.getItem(MY_HIGHLIGHT_KEY) !== 'false'; } catch (e) { return true; } }
 function updateHighlightButton() {
     var btn = document.getElementById('marbleHighlightBtn');
     if (!btn) return;
     var on = getMyHighlight();
-    btn.textContent = on ? '✨ 내 동물 강조 켬' : '내 동물 강조 끔';
+    btn.textContent = on ? '🐾 내 동물 따라가는 중' : '🐾 내 동물 따라가기';
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
