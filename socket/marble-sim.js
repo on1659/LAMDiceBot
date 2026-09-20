@@ -59,6 +59,8 @@ const DAM_FRACTION = 0.5;         // 전체 공의 이 비율이 쌓이면 터�
 const DAM_MIN_COUNT = 2;
 const DAM_MAX_HOLD_MS = 2500;     // 첫 접촉 후 이 시간이 지나면 무조건 터짐
 const DAM_BURST_VY = 320, DAM_BURST_VX = 120;
+const DAM_DRAIN_MS = 700;         // 터진 뒤 갇혀 있던 공이 물처럼 순서 없이 흘러나가는 시간(마리별 시드 랜덤 지연) — 한꺼번에 툭 떨어지지 않게
+const DAM_BOUNCE_MIN = 380, DAM_BOUNCE_MAX = 620;   // 댐에 부딪힌 공의 위로 튕기는 속도(입사 속도 그대로, 이 범위로 클램프) → 100~270px 튀어 오른다
 const DAM_GAP_W = 56;             // 댐 한쪽 끝에 새는 틈(공 2개) — 틈 쪽으로 온 놈은 기다리지 않고 바로 빠진다. 쪽은 시드로
 // ⑦ 풍차: 날개 4개가 도는 회전 장애물 — 맞는 놈만 튕겨 나간다. 날개 끝 속도 ≈ 2π·len/period
 const WINDMILL_LEN = 72;          // 날개 길이(허브→끝). rotor 스프라이트 192px 를 3배(=144 표시)로 그린다
@@ -70,29 +72,30 @@ const JUMP_LEN = 36;
 const JUMP_VY = 520;              // 위로 튀는 속도 → 최고 높이 JUMP_VY²/(2g) ≈ 193px
 const JUMP_VX = 120;              // 내리막 방향 살짝
 const JUMP_LIFT = 5;              // 경사로 면에서 발판을 띄우는 높이(공이 경사로보다 먼저 닿게)
-const PIT_FRACTION = 0.1, PIT_FILL_MIN = 1, PIT_FILL_MAX = 12;
-const PIT_PASS_MULT = 2;          // PIT_FILL × 2 마리 지나가면 깨어남
-const PIT_MAX_MS = 2200;
-const PIT_RISE_VY = 120;
+// ⑥ 간헐천 구덩이: 들어온 놈은 전부 빠져 잠깐 갇혔다가, 주기마다 한꺼번에 분수처럼 튀어 오른다(위로 100~190px, 좌우 랜덤).
+//    한 번 튀어 오른 놈은 다시 안 빠진다(위를 그냥 굴러 지나감). 정원이 없어 채널이 막히지 않는다.
+const PIT_ERUPT_PERIOD_MS = 1500;
+const PIT_ERUPT_VY_MIN = 380, PIT_ERUPT_VY_MAX = 520;
+const PIT_ERUPT_VX = 150;
 const MUD_STALL_MS = 500, MUD_DIZZY_MS = 800, MUD_RESUME_VY = 60;
 const SEESAW_LEN = 84, SEESAW_AMP_DEG = 25, SEESAW_PERIOD_MS = 2400;
 // ⑨ 구멍밭: 폭 500 판에 말뚝(파칭코) + 바닥 골 구멍 HOLE_COUNT 개. 구멍 사이 바닥은 지붕처럼 솟아 공이 구멍으로 굴러 떨어진다.
 //   구멍 아래 파이프 안 goalY 를 지나면 도착. 물리만으로 읽히는 결승(가둬 두는 문·회전판 없음).
 const HOLE_COUNT = 5;
-const HOLE_W = 44;                // 구멍 폭 (공 1.6개 — 동시에 둘이 끼지 못함)
-const HOLE_RIDGE_H = 16;          // 구멍 사이 바닥 지붕 높이
+const HOLE_W = 40;                // 구멍 폭 (공 1.4개 — 동시에 둘이 끼지 못함)
+const HOLE_RIDGE_H = 12;          // 구멍 사이 바닥 지붕 높이
 const HOLE_PIPE_H = 60;           // 구멍 아래 파이프 길이
 // 구멍 뚜껑: 구멍마다 여닫힌다. 골(오른쪽 끝)에 가까운 구멍일수록 주기가 길어 가끔 열리고, 먼 구멍일수록 자주 열린다.
 //   열려 있는 시간은 전부 같고(HOLE_OPEN_MS) 주기만 왼쪽→오른쪽 선형. 뚜껑은 왼쪽으로 미끄러져 열린다. 클라는 hole 에 실린 값으로 같은 식을 그린다.
 const HOLE_OPEN_MS = 700;
+const HOLE_OPEN_SCALE_BALLS = 40;  // 공이 이 수를 넘으면 열림 시간을 n/40 배로 늘린다(최대 주기의 85%) — 200마리가 얄쌍한 구멍밭에서 막히지 않게. 소인원(≤40)은 그대로
 const HOLE_PERIOD_FAR_MS = 1500;  // 골에서 가장 먼 구멍(왼쪽 끝)
 const HOLE_PERIOD_NEAR_MS = 4200; // 골에 가장 가까운 구멍(오른쪽 끝)
 const HOLE_LID_SLIDE_MS = 150;    // 여닫히는 데 걸리는 시간
 const HOLE_PHASE_STEP = 0.37;     // 구멍별 위상(주기 × i × 이 값) — 동시에 열리지 않게
 // ⑩ 집결 통로: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 한 줄로 직접 걸어간다. 앞을 추월 못 함.
 const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운). 앞이 느리면 갇힌다
-const WALK_SPACING = 28;          // 앞 동물과 최소 간격
-const WALK_PASS_MS = 900;         // 앞에 막혀 이만큼 답답하면 옆으로 비켜 추월 (인원 많을 때 병목 해소)
+const WALK_SPACING = 30;          // 통로 줄 서기 간격(앞 동물과 이 이하로 안 붙는다) — 졸고 있는 동물은 뒤가 이 거리로 붙으면 깨운다
 const WALK_TRIP_P = 0.08;         // 초당 넘어질 확률
 const WALK_TRIP_MS = 700;         // 넘어져 있는 시간
 const WALK_DOZE_P = 0.04;         // 초당 졸 확률
@@ -104,6 +107,8 @@ const LANE_ROWS_MAX = 3;
 const LANE_ROW_GAP = 20;          // 줄 간 y 간격
 const LANE_END_X = 745;           // 통로 끝 벽(판자벽)
 const GOAL_X = 700;               // 이 x 를 지나면 도착
+const CHUTE_H = 24;               // 통로 아래 홈통 높이(도착 동물이 굴러가는 파이프, 클라 연출)
+const STAND_ROW_H = 44, STAND_ROWS_MAX = 3;   // 스탠드 줄 높이·줄 수 (js/marble-render.js 와 동일 값) — 결승 프레임 높이에 들어감
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
 // 슬로모 (Marble Roulette timeScale 차용): 마지막 남은 공이 골 앞 SLOW_ZONE_PX 에 들어오면 재생 속도 SLOW_RATE.
 // 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
@@ -172,7 +177,7 @@ function buildTrack(ballCount, rng) {
     //   풍차: 채널 출구 바로 아래 한가운데 — 대부분 날개에 맞아 좌우로 튕기고, 옆으로 빠진 놈은 그냥 통과.
     //   점프대: 경사로 2단(오른쪽 내리막 → 왼쪽 내리막) 위 발판 3개 — 밟은 놈만 튀어 올라 시간을 잃고 다른 자리에 떨어진다.
     wall(320, 2200, 150, 2320); wall(480, 2200, 650, 2320);
-    wall(150, 2320, 150, 3800); wall(650, 2320, 650, 3800);
+    wall(150, 2320, 150, 3720); wall(650, 2320, 650, 3720);
     const WM = { x: 400, y: 2480 };
     p.push({ kind: 'windmill', x: WM.x, y: WM.y, blades: 4, len: WINDMILL_LEN, period: WINDMILL_PERIOD_MS, hubR: WINDMILL_HUB_R, poleH: WINDMILL_POLE_H });
     wall(WM.x, WM.y + 45, WM.x - 32, WM.y + WINDMILL_POLE_H); wall(WM.x, WM.y + 45, WM.x + 32, WM.y + WINDMILL_POLE_H);   // 기둥 A자 다리
@@ -185,7 +190,7 @@ function buildTrack(ballCount, rng) {
     ramp(150, 2700, 560, 2830, [0.3, 0.68]);   // 오른쪽 내리막, 끝(560~650)으로 떨어짐
     ramp(650, 2910, 240, 3040, [0.5]);         // 왼쪽 내리막, 끝(150~240)으로 떨어짐
 
-    // ⑧ 통나무 범퍼 + 진흙·시소 (500폭)
+    // ⑧ 통나무 범퍼 + 진흙·시소 (500폭). 끝은 구멍밭 폭(360)으로 좁아지는 깔때기
     for (let r = 0; r < 3; r++) {
         const y = 3180 + r * 120, off = (r % 2) ? 60 : 0;
         for (let x = 220 + off; x <= 580; x += 120) p.push({ kind: 'log', x, y, r: LOG_R });
@@ -195,20 +200,23 @@ function buildTrack(ballCount, rng) {
     p.push({ kind: 'mud', x: 540, y: 3700, rx: 60, ry: 32 });
     p.push({ kind: 'mud', x: 400, y: 3770, rx: 50, ry: 28 });
 
-    // ⑨ 구멍밭 — 500폭 그대로. 말뚝 파칭코 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도, 구멍마다 여닫는 뚜껑) → 파이프
-    const HF = { x: 150, y: 3800, w: 500, h: 440 };        // 구역
-    const floorY = HF.y + HF.h;                             // 4240
-    wall(150, HF.y, 150, floorY); wall(650, HF.y, 650, floorY);
-    for (let r = 0; r < 5; r++) {
-        const y = HF.y + 80 + r * 60, off = (r % 2) ? 25 : 0;
-        for (let x = 200 + off; x <= 600; x += 50) p.push({ kind: 'stake', x, y, r: STAKE_R });
+    // ⑨ 구멍밭 — 얄쌍하고 짧게(420폭 × 280). 말뚝 3줄 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도, 구멍마다 여닫는 뚜껑) → 파이프
+    //   결승 카메라가 위 구간(범퍼·시소·진흙)까지 한 화면에 담아야 하므로 구멍밭 자체는 작게.
+    const HF = { x: 190, y: 3800, w: 420, h: 280 };        // 구역. 파이프 사이 간격(pitch−HOLE_W=44)이 공(28)보다 넉넉해야 200마리 때 바닥을 뚫고 샌 공이 끼지 않는다
+    const floorY = HF.y + HF.h;                             // 4080
+    wall(150, 3720, HF.x, HF.y); wall(650, 3720, HF.x + HF.w, HF.y);   // 깔때기 500 → 420
+    wall(HF.x, HF.y, HF.x, floorY); wall(HF.x + HF.w, HF.y, HF.x + HF.w, floorY);
+    for (let r = 0; r < 3; r++) {
+        const y = HF.y + 60 + r * 60, off = (r % 2) ? 25 : 0;
+        for (let x = HF.x + 40 + off; x <= HF.x + HF.w - 40; x += 50) p.push({ kind: 'stake', x, y, r: STAKE_R });
     }
     const holes = [];
-    const pitch = HF.w / HOLE_COUNT;                        // 100
+    const pitch = HF.w / HOLE_COUNT;                        // 84
     for (let i = 0; i < HOLE_COUNT; i++) {
         const cx = HF.x + pitch * (i + 0.5);
         const period = Math.round(HOLE_PERIOD_FAR_MS + (HOLE_PERIOD_NEAR_MS - HOLE_PERIOD_FAR_MS) * i / (HOLE_COUNT - 1));   // 왼쪽(골에서 멂)=자주, 오른쪽(골 가까움)=가끔
-        holes.push({ x: cx, y: floorY, w: HOLE_W, period, open: HOLE_OPEN_MS, phase: Math.round(period * HOLE_PHASE_STEP * i), slide: HOLE_LID_SLIDE_MS });
+        const open = Math.round(Math.min(period * 0.85, HOLE_OPEN_MS * Math.max(1, ballCount / HOLE_OPEN_SCALE_BALLS)));
+        holes.push({ x: cx, y: floorY, w: HOLE_W, period, open, phase: Math.round(period * HOLE_PHASE_STEP * i), slide: HOLE_LID_SLIDE_MS });
         // 파이프 벽 (구멍 양옆 아래로)
         wall(cx - HOLE_W / 2, floorY, cx - HOLE_W / 2, floorY + HOLE_PIPE_H);
         wall(cx + HOLE_W / 2, floorY, cx + HOLE_W / 2, floorY + HOLE_PIPE_H);
@@ -229,7 +237,8 @@ function buildTrack(ballCount, rng) {
     const laneRows = Math.max(1, Math.min(LANE_ROWS_MAX, Math.ceil(ballCount / LANE_ROW_BALLS)));
     p.push({ kind: 'lane', x0: 150, x1: LANE_END_X, y: laneY, h: LANE_H, goalX: GOAL_X, rows: laneRows, rowGap: LANE_ROW_GAP });
     // 스탠드 — 통로 아래, 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치). 꼴찌는 통로 끝 판자벽 앞에 엎어짐
-    p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + 24, w: 500, h: 180 }, cols: 10 });
+    // 골 x 에서 통로 바닥 아래 파이프로 떨어져 스탠드 위 홈통(chute)을 왼쪽으로 굴러가 자기 자리에 떨어진다(클라 연출 — 물리 없음)
+    p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + CHUTE_H + 12, w: 500, h: STAND_ROWS_MAX * STAND_ROW_H }, cols: 10, chuteY: laneTop + LANE_H + CHUTE_H / 2, chuteH: CHUTE_H, chuteX: GOAL_X });
     p.push({ kind: 'dumpwall', x: LANE_END_X, y: laneY, facing: 'left' });
 
     // 장식(클라 전용, 물리 없음)
@@ -303,7 +312,7 @@ function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|jump|mud|mudEnd|bump|land|trip|doze|pass|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|jump|mud|mudEnd|bump|land|trip|doze|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -318,7 +327,7 @@ async function simulate(balls, seed, track) {
         r: BALL_R,
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
-        pitDone: false, inPit: false, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '', blockedSince: -1,
+        pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
         stuckSince: 0, lidAt: -1e9
     }));
 
@@ -358,8 +367,7 @@ async function simulate(balls, seed, track) {
     // 장치 상태
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
-    const pitFill = Math.min(PIT_FILL_MAX, Math.max(PIT_FILL_MIN, Math.ceil(n * PIT_FRACTION)));
-    let pitFallen = 0, pitPassed = 0, pitFirstFall = -1, pitReleased = false;
+    let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
 
     const events = [{ t: 0, type: 'gateOpen' }];
@@ -394,7 +402,7 @@ async function simulate(balls, seed, track) {
         const c = closestOnSegment(b.x, b.y, x1, y1, x2, y2);
         let nx = b.x - c.x, ny = b.y - c.y;
         const d2 = nx * nx + ny * ny;
-        if (d2 >= b.r * b.r) return;
+        if (d2 >= b.r * b.r) return false;
         let d = Math.sqrt(d2);
         if (d < 1e-6) {   // 정확히 선 위 — 선분 법선(위쪽 우선)으로
             const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
@@ -412,6 +420,7 @@ async function simulate(balls, seed, track) {
         const vt = b.vx * tx + b.vy * ty;
         const fr = Math.min(1, WALL_FRICTION * dt);
         b.vx -= vt * fr * tx; b.vy -= vt * fr * ty;
+        return true;
     };
     // 공 vs 정지 원(말뚝/통나무)
     const collideCircle = (t, b, cx, cy, cr, e) => {
@@ -467,24 +476,33 @@ async function simulate(balls, seed, track) {
         if (dam && damActive) {
             let cnt = 0;
             for (const b of B) if (b.state !== 'done' && inZone(b, dam.zone)) cnt++;
-            if (cnt > 0 && damFirstContact < 0) damFirstContact = t;
+            if (cnt > 0 && damFirstContact < 0) { damFirstContact = t; pushEvent(t, 'damHit'); }   // 클라는 damHit→damBurst 사이를 프레임 진행에 쓴다
             if (!damCracked && cnt >= Math.ceil(damThreshold / 2)) { damCracked = true; pushEvent(t, 'damCrack'); }
             if (cnt >= damThreshold || (damFirstContact >= 0 && t - damFirstContact >= DAM_MAX_HOLD_MS)) {
                 damActive = false;
                 pushEvent(t, 'damBurst');
+                // 한꺼번에 툭 떨어지지 않고 물처럼 흘러나간다: 마리별로 0~DAM_DRAIN_MS 뒤에 댐이 풀리며 아래로 밀린다
                 for (const b of B) {
-                    if (b.state === 'roll' && inZone(b, dam.zone)) {
-                        b.vy += DAM_BURST_VY; b.vx += (rng() - 0.5) * DAM_BURST_VX;
-                    }
+                    if (b.state === 'roll' && inZone(b, dam.zone)) b.damHold = t + rng() * DAM_DRAIN_MS;
                 }
             }
         }
-        // 구덩이 해제
-        if (pit && !pitReleased && pitFirstFall >= 0 &&
-            (pitPassed >= pitFill * PIT_PASS_MULT || t - pitFirstFall >= PIT_MAX_MS)) {
-            pitReleased = true;
-            pushEvent(t, 'pitRise');
-            for (const b of B) if (b.state === 'pit') wakeBall(t, b, (rng() - 0.5) * 40, PIT_RISE_VY);
+        if (dam && !damActive) {
+            for (const b of B) {
+                if (b.damHold > 0 && t >= b.damHold) { b.damHold = 0; b.vy += DAM_BURST_VY * (0.6 + rng() * 0.4); b.vx += (rng() - 0.5) * DAM_BURST_VX; }
+            }
+        }
+        // 간헐천 분출: 빠진 놈이 있고 주기가 찼으면 전원 위로 뿜어낸다
+        if (pit && pitLastErupt >= 0 && t - pitLastErupt >= PIT_ERUPT_PERIOD_MS) {
+            const trapped = B.filter(b => b.state === 'pit');
+            if (trapped.length) {
+                pushEvent(t, 'pitErupt', null, { x: pit.zone.x + pit.zone.w / 2, y: pit.zone.y + pit.zone.h / 2, count: trapped.length });
+                for (const b of trapped) {
+                    b.y = pit.zone.y;   // 구덩이 위쪽 가장자리에서 솟는다
+                    wakeBall(t, b, (rng() - 0.5) * 2 * PIT_ERUPT_VX, -(PIT_ERUPT_VY_MIN + rng() * (PIT_ERUPT_VY_MAX - PIT_ERUPT_VY_MIN)));
+                }
+            }
+            pitLastErupt = t;
         }
 
         // ── 집결 통로 걷기: 한 줄, 앞 추월 불가, 골 x 통과 시 도착 ──
@@ -509,15 +527,8 @@ async function simulate(balls, seed, track) {
                 if (r < WALK_TRIP_P * dt) { w.stallKind = 'trip'; w.stallAt = t; w.stallUntil = t + WALK_TRIP_MS; w.vx = 0; pushEvent(t, 'trip', w); continue; }
                 if (r < (WALK_TRIP_P + WALK_DOZE_P) * dt) { w.stallKind = 'doze'; w.stallAt = t; w.stallUntil = t + WALK_DOZE_MIN_MS + rng() * WALK_DOZE_RND_MS; w.vx = 0; pushEvent(t, 'doze', w); continue; }
                 w.x += w.walkSpeed * dt; w.vx = w.walkSpeed;
-                if (i > 0) {
-                    const ahead = walkers[i - 1];
-                    if (w.x > ahead.x - WALK_SPACING) {
-                        if (w.blockedSince < 0) w.blockedSince = t;
-                        if (t - w.blockedSince >= WALK_PASS_MS) {   // 비켜 추월
-                            w.x = ahead.x + WALK_SPACING * 0.5; w.blockedSince = -1; pushEvent(t, 'pass', w);
-                        } else w.x = ahead.x - WALK_SPACING;
-                    } else w.blockedSince = -1;
-                }
+                const ahead = walkers[i - 1];   // 줄 서기: 앞 동물과 WALK_SPACING 이하로 붙지 않는다(겹침 방지). 결과는 통 진입에서 이미 났으니 병목은 상관없다
+                if (ahead && w.x > ahead.x - WALK_SPACING) { w.x = ahead.x - WALK_SPACING; w.vx = ahead.vx; }
                 if (w.x >= lane.goalX) finishBall(t, w);
             }
             }
@@ -558,9 +569,12 @@ async function simulate(balls, seed, track) {
             if (wl) for (const w of wl) collideSegment(t, b, w.x1, w.y1, w.x2, w.y2, WALL_RESTITUTION);
             const sl = stakeBands.get(bandKey(b.y));
             if (sl) for (const s of sl) collideCircle(t, b, s.x, s.y, s.r, WALL_RESTITUTION);
-            if (dam && damActive && Math.abs(b.y - dam.y1) < BALL_R + 4) {   // 틈(gap)은 비워 둔다
-                if (dam.gap.x1 > dam.x1) collideSegment(t, b, dam.x1, dam.y1, dam.gap.x1, dam.y1, WALL_RESTITUTION);
-                if (dam.gap.x2 < dam.x2) collideSegment(t, b, dam.gap.x2, dam.y1, dam.x2, dam.y2, WALL_RESTITUTION);
+            if (dam && (damActive || b.damHold > t) && Math.abs(b.y - dam.y1) < BALL_R + 4) {   // 틈(gap)은 비워 둔다. 위에서 떨어져 맞으면 크게 튕겨 올린다 — 먼저 온 놈이 오히려 손해. 터진 뒤에도 제 차례(damHold)까지는 벽
+                const vy0 = b.vy;
+                let hit = false;
+                if (dam.gap.x1 > dam.x1) hit = collideSegment(t, b, dam.x1, dam.y1, dam.gap.x1, dam.y1, WALL_RESTITUTION) || hit;
+                if (dam.gap.x2 < dam.x2) hit = collideSegment(t, b, dam.gap.x2, dam.y1, dam.x2, dam.y2, WALL_RESTITUTION) || hit;
+                if (hit && vy0 > 0 && b.y < dam.y1) b.vy = -Math.max(DAM_BOUNCE_MIN, Math.min(DAM_BOUNCE_MAX, vy0));
             }
             if (ss && Math.abs(b.y - seesaw.y) < SEESAW_LEN) collideSegment(t, b, ss.x1, ss.y1, ss.x2, ss.y2, WALL_RESTITUTION);
             if (windmill && Math.abs(b.y - windmill.y) < windmill.len + BALL_R) {
@@ -605,17 +619,14 @@ async function simulate(balls, seed, track) {
                     continue;
                 }
             }
-            if (pit) {
-                const inside = inZone(b, pit.zone);
-                if (inside && !b.pitDone && !pitReleased && pitFallen < pitFill) {
-                    b.pitDone = true; pitFallen++; if (pitFirstFall < 0) pitFirstFall = t;
-                    b.state = 'pit'; b.vx = 0; b.vy = 0; b.r = NAP_R;
-                    b.y = Math.min(b.y, pit.zone.y + pit.zone.h - NAP_R);
-                    pushEvent(t, 'pitFall', b);
-                    continue;
-                }
-                if (inside) b.inPit = true;
-                else if (b.inPit && b.y > pit.zone.y + pit.zone.h) { b.inPit = false; if (!b.pitDone) { b.pitDone = true; pitPassed++; } }
+            if (pit && !b.pitDone && inZone(b, pit.zone)) {
+                // 처음 온 놈은 무조건 빠진다(정원 없음). 다음 분출 때 튀어 오르고 그 뒤론 위를 굴러 지나간다
+                b.pitDone = true;
+                b.state = 'pit'; b.vx = 0; b.vy = 0;
+                b.y = pit.zone.y + pit.zone.h / 2;
+                if (pitLastErupt < 0) pitLastErupt = t;
+                pushEvent(t, 'pitFall', b);
+                continue;
             }
             for (let mi = 0; mi < muds.length; mi++) {
                 if (!b.mudDone[mi] && inEllipse(b, muds[mi])) {
@@ -637,7 +648,7 @@ async function simulate(balls, seed, track) {
 
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
-            const waitingDam = dam && damActive && inZone(b, dam.zone);
+            const waitingDam = dam && (damActive || b.damHold > t) && inZone(b, dam.zone);
             if (spd > STUCK_SPEED || waitingDam || t - b.lidAt < 50) b.stuckSince = t;
             else if (t - b.stuckSince >= STUCK_MS) {
                 b.vx = (b.x < TRACK_W / 2 ? 1 : -1) * (STUCK_KICK_X_MIN + rng() * STUCK_KICK_X_RND); b.vy = STUCK_KICK_Y; b.stuckSince = t;
@@ -647,13 +658,13 @@ async function simulate(balls, seed, track) {
         // ── 공-공 충돌(해시) ──
         const grid = new Map();
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk') continue;
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit') continue;   // pit = 땅속(간헐천) — 장애물 아님
             const k = (Math.floor(b.x / CELL) + 4096) * 65536 + Math.floor((b.y + 8192) / CELL);
             if (!grid.has(k)) grid.set(k, []);
             grid.get(k).push(b);
         }
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk') continue;
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit') continue;
             const cx = Math.floor(b.x / CELL) + 4096, cy = Math.floor((b.y + 8192) / CELL);
             for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
                 const cell = grid.get((cx + ox) * 65536 + (cy + oy));

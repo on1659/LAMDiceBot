@@ -25,6 +25,9 @@ var MarbleRender = (function () {
     var WAKE_FX_MS = 600;
     var MUD_FX_MS = 520;
     var DAM_FX_MS = 900;
+    var DAM_FLOW_MS = 1400;          // 댐이 터진 뒤 물이 쏟아져 내려가는 연출 시간
+    var DAM_CRUMBLE_MS = 260;        // 마지막 금 프레임 → 터진 프레임 크로스페이드
+    var GEYSER_FX_MS = 750;          // 간헐천 분출 물기둥
     var POOF_FX_MS = 420;
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
@@ -35,13 +38,14 @@ var MarbleRender = (function () {
     var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
-    var ZOOM_MIN = 0.58;             // 결승 프레임(구멍밭+스탠드)을 한 화면에 넣기 위한 줌아웃 하한
-    var FRAME_ENTER_PX = 200;        // 선두가 구멍밭 위 이 거리 안에 들어오면 결승 프레임 모드
-    var MINIMAP_W = 22;
+    var ZOOM_MIN = 0.5;              // 결승 프레임(범퍼·시소·진흙 + 구멍밭 + 스탠드)을 한 화면에 넣기 위한 줌아웃 하한
+    var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유 — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
+    var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
+    var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
-    var STAND_MAX_ROWS = 4;          // 스탠드에 보여줄 최대 줄 수 (넘치면 첫 줄 + 마지막 줄들)
+    var STAND_MAX_ROWS = 3;          // 스탠드에 보여줄 최대 줄 수 (넘치면 첫 줄 + 마지막 줄들) — socket/marble-sim.js STAND_ROWS_MAX 와 동일
     var WALL_SCALE = 1.5;            // 울타리 스프라이트 확대(128×40 소스 → 48×15)
     var SEESAW_SCALE = 1.5;
     var BASKET_SCALE = 2;            // 골 바구니·판자벽 — 결승 채널(160)을 채우게
@@ -155,10 +159,12 @@ var MarbleRender = (function () {
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
             var box = canvas.parentElement;
+            var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+            var fs = !!fsEl && (fsEl === box || fsEl === canvas);
+            if (!fs) { canvas.style.width = ''; canvas.style.height = ''; }   // 전체화면에서 남은 인라인 크기가 박스 폭 측정에 끼지 않게
             var cssW = box ? box.clientWidth : canvas.clientWidth;
             if (!cssW) cssW = TRACK_W;   // display:none 상태(대기 중) — 0폭이면 논리폭으로 (NaN 방지)
             var cssH;
-            var fs = document.fullscreenElement && (document.fullscreenElement === box || document.fullscreenElement === canvas);
             if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
             else { cssH = Math.round(cssW < 600 ? cssW * 1.25 : cssW * 0.72); }
             var dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -171,7 +177,7 @@ var MarbleRender = (function () {
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, passAt: -1e9 }; });
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
             var extras = balls.filter(function (b) { return b.num > 1; }).sort(function (a, c) { return a.num - c.num || a.id - c.id; });
@@ -179,7 +185,7 @@ var MarbleRender = (function () {
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false;
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null;
             hudInfo = { remaining: balls.length, worst: [] };
             R.resize();
         };
@@ -207,7 +213,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.passAt = -1e9; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -215,8 +221,8 @@ var MarbleRender = (function () {
                 switch (e.type) {
                     case 'nap': b.state = 'nap'; b.napAt = e.t; break;
                     case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
-                    case 'pitFall': b.state = 'pit'; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
-                    case 'pitRise': break;
+                    case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
                     case 'jump': fxList.push({ type: 'jump', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
@@ -237,7 +243,6 @@ var MarbleRender = (function () {
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
-                    case 'pass': b.passAt = e.t; break;
                     case 'finish':
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
                         fxList.push({ type: 'poof', ball: b.id, x: b.x, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
@@ -289,8 +294,8 @@ var MarbleRender = (function () {
             var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done');
             var hf = (pieces.holefield || [])[0];
             var wallP = (pieces.dumpwall || [])[0];
-            // 결승 프레임: 선두가 구멍밭 근처(위 FRAME_ENTER_PX 이내)에 오면 구멍밭+스탠드+판자벽을 한 화면에 고정 — 이후 도착하는 공은 위에서 들어오고, 후미 추적 없이 전원이 보인다
-            var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ENTER_PX;
+            // 결승 프레임: 선두가 구멍밭 위 FRAME_ABOVE_PX 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
+            var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ABOVE_PX;
             cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
@@ -299,7 +304,7 @@ var MarbleRender = (function () {
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
-                var top = hf.zone.y - 30, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
+                var top = hf.zone.y - FRAME_ABOVE_PX, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
                 targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
                 targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
@@ -462,7 +467,7 @@ var MarbleRender = (function () {
             });
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
-                if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '구덩이', 14);
+                if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '간헐천', 14);
             });
             (pieces.mud || []).forEach(function (m) {
                 if (!visible(m.y, 60)) return;
@@ -530,48 +535,59 @@ var MarbleRender = (function () {
             });
             (pieces.dam || []).forEach(function (d) {
                 if (!visible(d.y1, 60)) return;
-                var burst = fxList.some(function (f) { return f.type === 'damburst'; });
-                // 프레임 = 압력 단계. 압력 = 댐 구역 안 미도착 공 수 / 서버 임계(max(2, ceil(전체×0.5)) — socket/marble-sim.js DAM_* 와 동일 값).
-                // DAM_FRAMES 3: [온전, 금+물, 터짐] / 5(2400×256 도착 시): [온전, 금 살짝, 금 많이, 금+물, 터짐] — 상수만 바꾸면 됨
-                var burstEv = data.events.some(function (e) { return e.type === 'damBurst' && e.t <= t; });
-                var inDam = 0;
-                for (var bi = 0; bi < balls.length; bi++) { var bb = balls[bi]; if (bb.state !== 'done' && bb.x >= d.zone.x && bb.x <= d.zone.x + d.zone.w && bb.y >= d.zone.y && bb.y <= d.zone.y + d.zone.h) inDam++; }
-                var damThreshold = Math.max(2, Math.ceil(balls.length * 0.5));
-                var pressure = clamp(inDam / damThreshold, 0, 1);
-                var st = burstEv ? DAM_FRAMES - 1 : Math.min(DAM_FRAMES - 2, Math.floor(pressure * (DAM_FRAMES - 1)));
+                // 프레임 = 시간 진행. 서버 damHit(첫 접촉) → damBurst 사이를 [온전, 금 살짝, 금 많이, 금+물] 4단계로 나누고,
+                // 터진 뒤에는 마지막 프레임(부서진 잔해)이 그대로 남는다 — 물리(터질 때까지 벽, 터지면 통과)와 화면이 일치. 사라지는 페이드 없음
+                var hitEv = null, burstE = null;
+                for (var ei = 0; ei < data.events.length && !(hitEv && burstE); ei++) { var ee = data.events[ei]; if (ee.type === 'damHit') hitEv = ee; else if (ee.type === 'damBurst') burstE = ee; }
+                var burstEv = !!burstE && burstE.t <= t;
+                var st = 0;
+                if (burstEv) st = DAM_FRAMES - 1;
+                else if (hitEv && burstE && t >= hitEv.t) st = Math.min(DAM_FRAMES - 2, Math.floor((t - hitEv.t) / Math.max(1, burstE.t - hitEv.t) * (DAM_FRAMES - 1)));
                 var cx = (d.x1 + d.x2) / 2, w = d.x2 - d.x1;
                 var gap = d.gap || null;   // 새는 틈 — 이 x 범위는 댐을 그리지 않고(클립) 물줄기만
-                if (st < DAM_FRAMES - 1 || burst) {
-                    var dsc = w / (480 * SRC_SCALE);   // 채널 폭에 맞춤. 벽 = 셀 상단 가장자리 → 바닥 앵커를 y1 + 셀높이 로
+                var dsc = w / (480 * SRC_SCALE);   // 채널 폭에 맞춤. 벽 = 셀 상단 가장자리 → 바닥 앵커를 y1 + 셀높이 로
+                ctx.save();
+                if (gap && !burstEv) {
+                    ctx.beginPath();
+                    ctx.rect(-view.w, toScreenY(d.y1) - 200, gap.x1 + view.w, 400);
+                    ctx.rect(gap.x2, toScreenY(d.y1) - 200, view.w * 2, 400);
+                    ctx.clip();
+                }
+                // 터지는 순간: 마지막 금 프레임 → 부서진 프레임을 DAM_CRUMBLE_MS 동안 크로스페이드 (툭 바뀌지 않게)
+                var crumble = burstEv ? clamp((t - burstE.t) / DAM_CRUMBLE_MS, 0, 1) : 1;
+                if (burstEv && crumble < 1) drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: (DAM_FRAMES - 2) * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: 1 - crumble });
+                if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burstEv ? crumble : 1 })) {
+                    ctx.save(); ctx.globalAlpha = burstEv ? 0.4 : 1;
+                    for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
+                    if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
+                    ctx.restore();
+                    label(burstEv ? '댐이 터졌다' : st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
+                }
+                ctx.restore();
+                if (burstEv && t - burstE.t < DAM_FLOW_MS) {   // 터진 물이 채널을 타고 쏟아져 내려간다 — 앞머리는 아래로, 꼬리는 옅어지며 (t 파생 잔물결)
+                    var fk = (t - burstE.t) / DAM_FLOW_MS, head = 60 + fk * 320, fa = 0.6 * (1 - fk * fk);
+                    ctx.save(); ctx.beginPath(); ctx.rect(d.x1, toScreenY(d.y1) - 24, w, head + 24); ctx.clip();
+                    var fg = ctx.createLinearGradient(0, toScreenY(d.y1) - 24, 0, toScreenY(d.y1) + head);
+                    fg.addColorStop(0, 'rgba(120,190,255,' + (fa * 0.5).toFixed(2) + ')'); fg.addColorStop(0.7, 'rgba(120,190,255,' + fa.toFixed(2) + ')'); fg.addColorStop(1, 'rgba(200,240,255,0)');
+                    ctx.fillStyle = fg; ctx.fillRect(d.x1, toScreenY(d.y1) - 24, w, head + 24);
+                    ctx.strokeStyle = 'rgba(255,255,255,' + (fa * 0.8).toFixed(2) + ')'; ctx.lineWidth = 2;
+                    for (var si = 0; si < 6; si++) { var sxx = d.x1 + 12 + si * (w - 24) / 5 + Math.sin(t / 90 + si) * 4, sy0 = toScreenY(d.y1) + ((t / 6 + si * 37) % Math.max(1, head)); ctx.beginPath(); ctx.moveTo(sxx, sy0); ctx.lineTo(sxx + 2, sy0 + 14); ctx.stroke(); }
+                    ctx.restore();
+                }
+                if (gap && !burstEv) {   // 틈으로 새는 물줄기 (t 파생 흔들림)
                     ctx.save();
-                    if (gap && !burstEv) {
-                        ctx.beginPath();
-                        ctx.rect(-view.w, toScreenY(d.y1) - 200, gap.x1 + view.w, 400);
-                        ctx.rect(gap.x2, toScreenY(d.y1) - 200, view.w * 2, 400);
-                        ctx.clip();
-                    }
-                    if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burst ? 1 - (t - (data.events.find(function (e) { return e.type === 'damBurst'; }) || { t: t }).t) / DAM_FX_MS * 0.7 : 1 })) {
-                        ctx.save(); ctx.globalAlpha = burst ? 0.4 : 1;
-                        for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
-                        if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
-                        ctx.restore();
-                        label(st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
+                    var gx = (gap.x1 + gap.x2) / 2, gw = gap.x2 - gap.x1;
+                    ctx.fillStyle = 'rgba(90,170,255,0.55)';
+                    ctx.fillRect(gap.x1 + 3, toScreenY(d.y1) - 30, gw - 6, 30);
+                    ctx.strokeStyle = 'rgba(230,245,255,0.85)'; ctx.lineWidth = 2;
+                    for (var wi = 0; wi < 3; wi++) {
+                        var wx = gap.x1 + 8 + wi * (gw - 16) / 2, wph = (Math.max(0, t) / 260 + wi * 0.33) % 1;
+                        ctx.beginPath(); ctx.moveTo(wx, toScreenY(d.y1) - 30 + wph * 10); ctx.lineTo(wx + 2, toScreenY(d.y1) + 6 + wph * 20); ctx.stroke();
                     }
                     ctx.restore();
-                    if (gap && !burstEv) {   // 틈으로 새는 물줄기 (t 파생 흔들림)
-                        ctx.save();
-                        var gx = (gap.x1 + gap.x2) / 2, gw = gap.x2 - gap.x1;
-                        ctx.fillStyle = 'rgba(90,170,255,0.55)';
-                        ctx.fillRect(gap.x1 + 3, toScreenY(d.y1) - 30, gw - 6, 30);
-                        ctx.strokeStyle = 'rgba(230,245,255,0.85)'; ctx.lineWidth = 2;
-                        for (var wi = 0; wi < 3; wi++) {
-                            var wx = gap.x1 + 8 + wi * (gw - 16) / 2, wph = (t / 260 + wi * 0.33) % 1;
-                            ctx.beginPath(); ctx.moveTo(wx, toScreenY(d.y1) - 30 + wph * 10); ctx.lineTo(wx + 2, toScreenY(d.y1) + 6 + wph * 20); ctx.stroke();
-                        }
-                        ctx.restore();
-                        label('틈!', gx, d.y1 - 40, '#dff4ff', 11);
-                    }
+                    label('틈!', gx, d.y1 - 40, '#dff4ff', 11);
                 }
+                if (!burstEv) label('부딪히면 크게 튕겨요', cx, d.y1 - 64, '#fff', 11);
                 if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
@@ -673,13 +689,8 @@ var MarbleRender = (function () {
             ctx.restore();
             drawNameTag(b, x, toScreenY(y) - r - 7, strong);
         }
-        // 서 있는 동물용 발밑 마커(카운트다운): 발 아래 타원 + 머리 옆 번호 배지 — 링 대신
-        function drawFootMarker(b, x, y, strong) {
-            ctx.save();
-            ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 3.5 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
-            if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
-            ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + 24, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
-            ctx.restore();
+        // 공이 아닐 때(서 있음·걷기·잠·엎어짐)의 표식: 링 없이 머리 옆 번호 배지만 — 링은 구를 때만(스프라이트 원에 딱 맞게)
+        function drawBadge(b, x, y, strong) {
             drawNameTag(b, x, toScreenY(y) - 22 - (b.id % 2) * 9, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
@@ -744,69 +755,80 @@ var MarbleRender = (function () {
                     if (b.dim) ctx.globalAlpha = 0.45;   // 대기 프리뷰: 동물은 골랐지만 아직 준비 안 한 사람(반투명)
                     if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8);
                     else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8)); }
-                    if (curled) drawRing(b, b.x, by, BALL_R + 3, mine);
-                    else drawFootMarker(b, b.x, by, mine);
+                    if (curled) drawRing(b, b.x, by, BALL_R + 1, mine);
+                    else drawBadge(b, b.x, by, mine);
                     ctx.globalAlpha = 1;
                     continue;
                 }
-                if (b.state === 'nap' || b.state === 'pit') {
+                if (b.state === 'pit') {
+                    // 간헐천에 빠짐: 공 모양 그대로 반쯤 잠겨 어둡게 + 물결/거품 (t 파생), 튀어 오르기 직전 흔들림
+                    var ps = t - (b.pitAt || 0), sink = Math.min(1, ps / 250);
+                    ctx.save(); ctx.globalAlpha = 0.55;
+                    drawCreatureFrame(b, 2, 0, b.x, b.y + 8 * sink, b.angle, 0.85);
+                    ctx.restore();
+                    ctx.save(); ctx.fillStyle = 'rgba(120,200,255,0.55)';
+                    for (var bi = 0; bi < 3; bi++) { var bt = ((t / 500) + hash01(b.id * 5 + bi)) % 1; ctx.beginPath(); ctx.arc(b.x - 10 + bi * 10 + Math.sin(t / 150 + bi) * 2, toScreenY(b.y + 6) - bt * 18, 2 + (1 - bt) * 1.5, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.restore();
+                    drawBadge(b, b.x, b.y + 4, mine);
+                    continue;
+                }
+                if (b.state === 'nap') {
                     // 잠든 포즈 — 2차 sleep 스트립 없으면 1차 faceplant col 2(엎어짐) 프레임
                     var sl = img('sleep', b.creature);
                     if (sl) { var sf = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sl, sf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                     else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
-                    drawRing(b, b.x, b.y, NAP_R + 2, mine);
+                    drawBadge(b, b.x, b.y, mine);
                     // zz
                     var zt = (t - b.napAt) % 900; var zy = b.y - 20 - zt / 45; var za = 1 - zt / 900;
                     if (!img('fx', 'zz')) label(zt < 450 ? 'z' : 'Z', b.x + 14, zy, 'rgba(255,255,255,' + za.toFixed(2) + ')', 12);
                     else drawSprite('fx', 'zz', b.x + 14, zy - 4, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za, scale: 1.3 });
                     continue;
                 }
-                if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (한 줄, 답답하면 비켜 추월)
+                if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
                     if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임
                         drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 200 ? 1 : 2, b.x, b.y - 4);
-                        drawRing(b, b.x, b.y, BALL_R + 3, mine); continue;
+                        drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz
                         var slw = img('sleep', b.creature);
                         if (slw) { var sfw = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(slw, sfw * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                         else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
-                        drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                        drawBadge(b, b.x, b.y, mine);
                         var ztw = (t - b.walkStallAt) % 900, zyw = b.y - 20 - ztw / 45;
                         if (!drawSprite('fx', 'zz', b.x + 14, zyw - 4, 48, 48, { sx: Math.floor(ztw / 225) * 48, sw: 48, alpha: 1 - ztw / 900, scale: 1.3 })) label('z', b.x + 14, zyw, '#fff', 12);
                         continue;
                     }
                     var ws = t - b.landAt;
-                    var hop = (t - b.passAt < 400) ? -Math.sin((t - b.passAt) / 400 * Math.PI) * 14 : 0;   // 추월: 살짝 뛰어넘는 호
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
                     var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 4;
                     var wim = img('creatures', b.creature);
-                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6 + hop)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
+                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
-                    drawRing(b, b.x, b.y + hop, BALL_R + 3, mine);
+                    drawBadge(b, b.x, b.y, mine);
                     if (b.walkSpeed >= 125) label('💨', b.x - 18, b.y - 4, '#fff', 11);   // 빠른 놈 표시
                     else if (b.walkSpeed <= 72) label('🐢', b.x - 18, b.y - 4, '#fff', 10);   // 굼벵이
                     continue;
                 }
-                if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawRing(b, b.x, b.y, BALL_R + 3, mine); continue; }
+                if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawBadge(b, b.x, b.y, mine); continue; }
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
                 if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
                     var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
                     ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(img('sleep', b.creature), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
-                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    drawBadge(b, b.x, b.y, mine);
                     continue;
                 }
                 // 햇볕 잔디에서 느려짐 → 펴져서 걷는 모습 (느려지는 이유가 화면에서 읽히게)
                 if (inSunZone(b) && b.spd < SUN_WALK_SPEED && t > 0) {
                     if (b.sunSince < 0) b.sunSince = t;
                     drawSunWalker(b, t);
-                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    drawBadge(b, b.x, b.y, mine);
                     continue;
                 }
                 b.sunSince = -1;
                 var col = 0;
                 if (t < b.squashUntil) col = 1; else if (t < b.dizzyUntil) col = 3; else if (b.muddy) col = 2;
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
-                drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                drawRing(b, b.x, b.y, BALL_R + 1, mine);   // 구를 때만 링 — 공 스프라이트(지름 28)에 딱 맞게
             }
             // 깃발 + 내 이름표
             Object.keys(rearByOwner).forEach(function (owner) {
@@ -823,28 +845,49 @@ var MarbleRender = (function () {
 
         // ─── 응원석 + 피날레 ───
         // 도착 스탠드: finishOrder 순서대로 왼쪽부터 1, 2, 3… (한 줄 cols 마리). 줄이 넘치면 첫 줄 + 마지막 줄들만.
-        function drawCheerStand(t) {
-            var st = (pieces.stand || [])[0]; if (!st) return;
-            var z = st.zone, cols = st.cols || 10, colW = z.w / cols;
-            var total = data.finishOrder.length;
-            var lastId = data.finishOrder[total - 1];
+        // 스탠드 배치 계산 — 판자/홈통(동물 뒤에 깔림)과 도착 동물(동물 위에 그림)이 같은 값을 쓴다
+        function standLayout() {
+            var st = (pieces.stand || [])[0]; if (!st) return null;
+            var z = st.zone, cols = st.cols || 10;
             var finishedCount = 0;
             for (var i = 0; i < balls.length; i++) if (balls[i].state === 'done') finishedCount++;
             var rows = Math.ceil(Math.max(1, finishedCount) / cols);
-            // 보이는 줄 → 화면 줄 번호 매핑
             var rowMap = {};
             if (rows <= STAND_MAX_ROWS) { for (var r = 0; r < rows; r++) rowMap[r] = r; }
             else { rowMap[0] = 0; for (var r2 = rows - (STAND_MAX_ROWS - 1); r2 < rows; r2++) rowMap[r2] = r2 - (rows - STAND_MAX_ROWS); }
-            var shownRows = Math.min(rows, STAND_MAX_ROWS);
-            // 나무 판 (start-platform-mid 타일) — 보이는 줄 수만큼
+            var ln = (pieces.lane || [])[0];
+            var chute = (st.chuteY != null && ln) ? { x: st.chuteX, y: st.chuteY, h: st.chuteH || 24, top: ln.y + ln.h / 2 } : null;
+            return { st: st, z: z, cols: cols, colW: z.w / cols, rows: rows, rowMap: rowMap, shownRows: Math.min(rows, STAND_MAX_ROWS), ln: ln, chute: chute };
+        }
+        // 스탠드 판자 + 도착 파이프(홈통) — 동물보다 먼저 그린다. 통로가 2~3열이면 아래 줄 동물 발이 통로 바닥 아래로 내려오는데, 뒤에 그리면 홈통이 그 발을 가린다
+        function drawStandBase(t) {
+            var L = standLayout(); if (!L) return;
+            var z = L.z, chute = L.chute;
             var mid = img('pieces', 'start-platform-mid');
-            for (var sr = 0; sr < shownRows; sr++) {
+            for (var sr = 0; sr < L.shownRows; sr++) {
                 var py = z.y + sr * STAND_ROW_H;
                 if (!visible(py, STAND_ROW_H)) continue;
-                if (mid) { for (var x = z.x; x < z.x + z.w; x += 32) ctx.drawImage(mid, 0, 0, 128, 96, x, toScreenY(py + 10), Math.min(32, z.x + z.w - x), 24); }
-                else { ctx.fillStyle = 'rgba(160,110,60,0.85)'; ctx.fillRect(z.x, toScreenY(py + 10), z.w, 24); }
+                if (mid) { for (var x = z.x; x < z.x + z.w; x += 32) ctx.drawImage(mid, 0, 0, 128, 96, x, toScreenY(py + 22), Math.min(32, z.x + z.w - x), 24); }
+                else { ctx.fillStyle = 'rgba(160,110,60,0.85)'; ctx.fillRect(z.x, toScreenY(py + 22), z.w, 24); }
             }
-            if (rows > STAND_MAX_ROWS) label('··· ' + (rows - STAND_MAX_ROWS) * cols + '마리 더 ···', z.x + z.w / 2, z.y + STAND_ROW_H - 4, '#fff', 11);
+            if (L.rows > STAND_MAX_ROWS) label('··· ' + (L.rows - STAND_MAX_ROWS) * L.cols + '마리 더 ···', z.x + z.w / 2, z.y + STAND_ROW_H - 4, '#fff', 11);
+            // 도착 파이프: 골 x 에서 통로 바닥 아래로 떨어져(세로 관) 스탠드 위 홈통을 왼쪽으로 굴러가 자기 자리에 떨어진다 — 텔레포트 없음
+            if (chute && visible(chute.y, 60)) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.ellipse(chute.x, toScreenY(chute.top), 16, 6, 0, 0, Math.PI * 2); ctx.fill();   // 통로 바닥 구멍
+                ctx.fillStyle = '#7d5330'; ctx.fillRect(chute.x - 16, toScreenY(chute.top), 32, chute.y + chute.h / 2 - chute.top);                    // 세로 관
+                roundRect(z.x - 12, toScreenY(chute.y - chute.h / 2), chute.x + 16 - (z.x - 12), chute.h, 6); ctx.fill();                                // 홈통
+                ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(z.x - 8, toScreenY(chute.y - chute.h / 2) + 4, chute.x + 12 - (z.x - 8), chute.h - 8, 4); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,220,160,0.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(z.x - 12, toScreenY(chute.y - chute.h / 2) + 0.5); ctx.lineTo(chute.x + 16, toScreenY(chute.y - chute.h / 2) + 0.5); ctx.stroke();
+                ctx.restore();
+            }
+        }
+        // 도착 동물: 파이프 이동 중이면 그 위치에 공으로, 자리에 도착했으면 순위 배지와 함께 판자 위에
+        function drawCheerStand(t) {
+            var L = standLayout(); if (!L) return;
+            var z = L.z, cols = L.cols, colW = L.colW, rowMap = L.rowMap, chute = L.chute, ln = L.ln;
+            var total = data.finishOrder.length;
+            var lastId = data.finishOrder[total - 1];
             for (var i2 = 0; i2 < balls.length; i2++) {
                 var b = balls[i2];
                 if (b.state !== 'done') continue;
@@ -852,9 +895,23 @@ var MarbleRender = (function () {
                 if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 자리 비석(drawLastBall)
                 var row = Math.floor(idx / cols), col = idx % cols;
                 if (rowMap[row] == null) continue;
-                var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 8;
-                if (!visible(y2, 40)) continue;
+                var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
                 var since = t - b.finishAt;
+                if (chute) {   // 파이프 이동 중이면 그 위치에 공으로
+                    var d0 = chute.y - ln.y, d1 = chute.x - x2, d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
+                    if (dist < d0 + d1 + d2) {
+                        var px, py;
+                        if (dist < d0) { px = chute.x; py = ln.y + dist; }
+                        else if (dist < d0 + d1) { px = chute.x - (dist - d0); py = chute.y; }
+                        else { px = x2; py = chute.y + (dist - d0 - d1); }
+                        if (!visible(py, 40)) continue;
+                        drawCreatureFrame(b, 2, 0, px, py, -dist / BALL_R, 0.85);
+                        drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
+                        continue;
+                    }
+                    since -= (d0 + d1 + d2) / CHUTE_SPEED * 1000;   // 자리에 떨어진 뒤 경과
+                }
+                if (!visible(y2, 40)) continue;
                 var frame = since < 300 ? Math.min(1, Math.floor(since / 150)) : 2 + Math.floor((t / 260 + idx) % 2);
                 drawCreatureFrame(b, 3, frame, x2, y2 - 6, 0, 0.85);
                 // 순위 배지 (플레이어 색)
@@ -935,6 +992,19 @@ var MarbleRender = (function () {
                         label('벌 떼다!!', z.x + z.w / 2, z.y + 40, '#fff', 14);
                         break;
                     }
+                    case 'geyser': {   // 간헐천 분출: 물기둥(위로 늘어나며 옅어짐) + 물방울 + 흙먼지 + 라벨
+                        if (!visible(y, 120)) return;
+                        ctx.save();
+                        var gh = 40 + k * 150, gw = 26 + Math.min(40, (f.count || 1) * 3);
+                        var grd = ctx.createLinearGradient(0, toScreenY(y), 0, toScreenY(y) - gh);
+                        grd.addColorStop(0, 'rgba(140,210,255,' + (0.8 * (1 - k)).toFixed(2) + ')'); grd.addColorStop(1, 'rgba(200,240,255,0)');
+                        ctx.fillStyle = grd; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) - gh / 2, gw / 2 * (1 - k * 0.4), gh / 2, 0, 0, Math.PI * 2); ctx.fill();
+                        for (var q = 0; q < 14; q++) { var qa = (hash01(q + 21) - 0.5) * 1.6, qs = 60 + hash01(q + 33) * 120; var qx = x + Math.sin(qa) * qs * k, qy = y - Math.cos(qa) * qs * k + 200 * k * k; ctx.fillStyle = 'rgba(150,215,255,' + (1 - k).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(qx, toScreenY(qy), 3, 0, Math.PI * 2); ctx.fill(); }
+                        ctx.restore();
+                        drawSprite('fx', 'dust-puff', x - 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 }); drawSprite('fx', 'dust-puff', x + 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 });
+                        if (k < 0.6) label('펑!', x, y - 60 - k * 40, '#fff', 18);
+                        break;
+                    }
                     case 'damburst': {
                         var d = (pieces.dam || [])[0]; if (!d || !visible(d.y1, 80)) return;
                         var cx = (d.x1 + d.x2) / 2;
@@ -958,37 +1028,60 @@ var MarbleRender = (function () {
             hudInfo = { remaining: rem, worst: worst };
         }
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
-        var MINIMAP_BANDS = [   // [y0, y1, color, 라벨] — socket/marble-sim.js buildTrack 구간과 동일
-            [0, 300, '#b48a5a', '출발'], [300, 900, '#c9a26a', '말뚝'], [900, 1250, '#e6b73a', '벌집'], [1250, 1650, '#f2e27a', '햇볕'],
-            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 2660, '#8fd07a', '풍차'], [2660, 3100, '#ffb01f', '점프대'],
-            [3100, 3800, '#a07a4a', '범퍼·진흙'], [3800, 4240, '#d98c3a', '구멍밭'], [4240, 4700, '#f2b134', '통로·스탠드']
-        ];
-        function drawMinimap(t) {
-            var x0 = 12, y0 = 44, h = view.h - 60, w = MINIMAP_W;
-            var startY = data.track.startY, endY = data.track.endY;
-            var sc = h / (endY - startY);
-            var my = function (wy) { return y0 + (wy - startY) * sc; };
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(x0 - 4, y0 - 4, w + 8, h + 8, 6); ctx.fill();
-            MINIMAP_BANDS.forEach(function (bd) {
-                var a = Math.max(startY, bd[0]), bb = Math.min(endY, bd[1]);
-                ctx.fillStyle = bd[2]; ctx.globalAlpha = 0.8; ctx.fillRect(x0, my(a), w, Math.max(1, my(bb) - my(a)));
+        // 미니맵 — 좌측 세로 스트립에 실제 트랙 배치(벽·말뚝·장치·구멍·통로·스탠드)를 축소해 그린다. 정적 부분은 오프스크린 캐시,
+        // 공 점(플레이어 색, 내 공 크게)과 현재 화면 범위만 매 프레임. 리플레이 시각 기준이라 모든 클라 동일.
+        var mmCache = null;
+        function buildMinimapCache(sc, w, h, dpr, startY) {
+            var c = document.createElement('canvas'); c.width = Math.ceil(w * dpr); c.height = Math.ceil(h * dpr);
+            var g = c.getContext('2d'); g.scale(dpr, dpr);
+            var X = function (wx) { return wx * sc; }, Y = function (wy) { return (wy - startY) * sc; };
+            var dot = function (x, y, r) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+            var ell = function (x, y, rx, ry) { g.beginPath(); g.ellipse(x, y, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2); g.fill(); };
+            g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(0, 0, w, h);
+            g.fillStyle = 'rgba(110,170,80,0.5)'; g.fillRect(0, Y(data.track.startY - 30), w, h);
+            data.track.pieces.forEach(function (p) {
+                switch (p.kind) {
+                    case 'platform': g.fillStyle = '#b48a5a'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
+                    case 'wall': g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'stake': g.fillStyle = '#d9a35c'; g.fillRect(X(p.x) - 0.6, Y(p.y) - 0.6, 1.2, 1.2); break;
+                    case 'log': g.fillStyle = '#a06a35'; dot(X(p.x), Y(p.y), Math.max(1.5, p.r * sc)); break;
+                    case 'mud': g.fillStyle = '#5a3d22'; ell(X(p.x), Y(p.y), p.rx * sc, p.ry * sc); break;
+                    case 'sunpatch': g.fillStyle = '#f2e27a'; (p.spots || []).forEach(function (o) { ell(X(o.x), Y(o.y), o.rx * sc, o.ry * sc); }); break;
+                    case 'beehive': g.fillStyle = '#e6b73a'; dot(X(p.x), Y(p.y), 2.5); break;
+                    case 'dam': g.fillStyle = '#7fa6d6'; g.fillRect(X(p.x1), Y(p.y1) - 1.5, (p.x2 - p.x1) * sc, 3); if (p.gap) { g.fillStyle = '#bfefff'; g.fillRect(X(p.gap.x1), Y(p.y1) - 1.5, (p.gap.x2 - p.gap.x1) * sc, 3); } break;
+                    case 'pit': g.fillStyle = '#2b1a0a'; ell(X(p.zone.x + p.zone.w / 2), Y(p.zone.y + p.zone.h / 2), p.zone.w * sc / 2, p.zone.h * sc / 2); break;
+                    case 'windmill': g.strokeStyle = '#e0bd82'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len), Y(p.y)); g.lineTo(X(p.x + p.len), Y(p.y)); g.moveTo(X(p.x), Y(p.y - p.len)); g.lineTo(X(p.x), Y(p.y + p.len)); g.stroke(); break;
+                    case 'jumppad': g.fillStyle = '#ffb01f'; g.fillRect(X(p.x) - 2, Y(p.y) - 1, 4, 2); break;
+                    case 'seesaw': g.strokeStyle = '#c9944f'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len / 2), Y(p.y)); g.lineTo(X(p.x + p.len / 2), Y(p.y)); g.stroke(); break;
+                    case 'holefield': g.fillStyle = '#1e1208'; p.holes.forEach(function (hh) { g.fillRect(X(hh.x - hh.w / 2), Y(hh.y), Math.max(1.5, hh.w * sc), Math.max(2, p.pipeH * sc)); }); break;
+                    case 'lane': g.fillStyle = 'rgba(150,115,70,0.85)'; g.fillRect(X(p.x0), Y(p.y - p.h / 2), (p.x1 - p.x0) * sc, Math.max(2, p.h * sc)); g.fillStyle = '#ffe08a'; g.fillRect(X(p.goalX) - 0.5, Y(p.y - p.h / 2), 1, Math.max(2, p.h * sc)); break;
+                    case 'stand': g.fillStyle = '#c9a26a'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
+                }
             });
-            ctx.globalAlpha = 1;
-            // 화면 범위
-            var vh = view.h / cam.zoom;
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(x0 - 2, my(cam.y - vh / 2), w + 4, Math.max(3, vh * sc));
+            return c;
+        }
+        function drawMinimap(t) {
+            var x0 = 12, y0 = 44, hMax = view.h - 60;
+            var startY = data.track.startY - 40, endY = data.track.endY;
+            var sc = Math.min(hMax / (endY - startY), MINIMAP_MAX_W / TRACK_W);
+            var w = TRACK_W * sc, h = (endY - startY) * sc;
+            var key = w.toFixed(1) + ':' + h.toFixed(1) + ':' + view.scale + ':' + data.track.pieces.length;
+            if (!mmCache || mmCache.key !== key) mmCache = { key: key, canvas: buildMinimapCache(sc, w, h, view.scale, startY) };
+            var mx = function (wx) { return x0 + wx * sc; }, my = function (wy) { return y0 + (wy - startY) * sc; };
+            ctx.save();
+            ctx.drawImage(mmCache.canvas, x0, y0, w, h);
             // 공 점: 남의 공 작게, 내 공 크게(테두리)
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i]; if (b.state === 'done' || t < 0) continue;
-                var px = x0 + 3 + (b.x / TRACK_W) * (w - 6), py = my(b.y);
                 ctx.fillStyle = ringColor(b);
-                ctx.beginPath(); ctx.arc(px, py, b.owner === myName ? 3.2 : 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(mx(b.x), my(b.y), b.owner === myName ? 2.8 : 1.7, 0, Math.PI * 2); ctx.fill();
                 if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
             }
-            // 골 표시
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-            ctx.fillText('골', x0 + w / 2, my(data.track.goalY) + 2);
+            // 현재 화면 범위
+            var vw = view.w / cam.zoom, vh = view.h / cam.zoom;
+            var rx = clamp(mx(cam.x - vw / 2), x0, x0 + w), ry = clamp(my(cam.y - vh / 2), y0, y0 + h);
+            var rw = Math.min(x0 + w, mx(cam.x + vw / 2)) - rx, rh = Math.min(y0 + h, my(cam.y + vh / 2)) - ry;
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(rx, ry, Math.max(3, rw), Math.max(3, rh));
             ctx.restore();
         }
 
@@ -1046,6 +1139,7 @@ var MarbleRender = (function () {
             ctx.translate(view.w / 2, view.h / 2); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -view.h / 2);
             drawBackground(t);
             drawPieces(t);
+            drawStandBase(t);
             drawBalls(t);
             drawCheerStand(t);
             drawBasketFront();
