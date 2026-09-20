@@ -377,11 +377,33 @@
     color: var(--red-500);
     margin-bottom: 10px;
 }
-.marble-result-safe {
-    font-size: 15px;
-    color: var(--text-secondary);
-    line-height: 1.7;
+.marble-result-ranks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 40vh;
+    overflow-y: auto;
+    text-align: left;
 }
-.marble-result-safe b {
+.marble-result-ranks li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 15px;
+    color: var(--text-primary);
+}
+.marble-result-ranks li .rk {
+    flex: 0 0 44px;
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 700;
     color: var(--marble-600);
+}
+.marble-result-ranks li.loser {
+    background: rgba(var(--marble-500-rgb), 0.08);
+}
+.marble-result-ranks li.loser .rk,
+.marble-result-ranks li.loser b {
+    color: var(--red-500);
 }

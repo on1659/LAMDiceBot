@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=4">
+    <link rel="stylesheet" href="/css/marble.css?v=5">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -331,7 +331,7 @@
                 </div>
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
                 <div id="marbleAfterRace" class="marble-after-race" style="display: none;">
-                    <button type="button" class="marble-after-btn" onclick="reopenResult()">🏆 결과 보기</button>
+                    <button type="button" class="marble-after-btn" onclick="reopenResult()">🏆 순위 보기</button>
                     <button type="button" class="marble-after-btn marble-after-btn-host" id="marbleResetButton" onclick="resetMarbleRound()" style="display: none;">🔄 다음 판 준비</button>
                 </div>
             </section>
@@ -369,7 +369,7 @@
     <!-- 결과 오버레이 -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
-            <div class="result-title">🎊 결과 발표 🎊</div>
+            <div class="result-title">🏆 이번 판 순위 🏆</div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
@@ -436,7 +436,7 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/marble-render.js?v=15"></script>
-    <script src="/js/marble.js?v=7"></script>
+    <script src="/js/marble.js?v=8"></script>
 
     <script>
         // ============================================

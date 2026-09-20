@@ -408,9 +408,13 @@ function showResultOverlay(data) {
         var html = '';
         if (data.selected) html += '<div class="marble-result-selected">🐾 당첨(벌칙): ' + escapeHtml(data.selected) + '</div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
-        var rk = (data.rankings || []).filter(function (r) { return r.name !== data.selected; });
+        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 통에 들어간 순서. 1위가 제일 안전, 마지막이 꼴찌(당첨)
+        var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
-            html += '<div class="marble-result-safe">😌 안전: ' + rk.map(function (r) { return '<b>' + escapeHtml(r.name) + '</b>'; }).join(', ') + '</div>';
+            html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
+                var isLoser = r.name === data.selected;
+                return '<li class="' + (isLoser ? 'loser' : '') + '"><span class="rk">' + (isLoser ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + '</li>';
+            }).join('') + '</ol>';
         }
         box.innerHTML = html;
     }
