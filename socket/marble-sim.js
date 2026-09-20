@@ -6,7 +6,7 @@
 
 // ─── 시간축 ───
 const SIM_DT_MS = 5;              // 내부 스텝(200fps) — 자유낙하 속도(≤1400px/s = 스텝당 7px < 반지름)에서 벽 터널링 방지
-const SIM_CAP_MS = 90000;         // 하드 캡 — 이후 미도착 공은 진행도(y) 순으로 강제 정산
+const SIM_CAP_MS = 120000;        // 하드 캡 — 이후 미도착 공은 진행도(y) 순으로 강제 정산 (200마리 3열 통로 ~80s 여유)
 const SIM_YIELD_EVERY = 200;      // 이 스텝마다 setImmediate (CPU 양보)
 const SAMPLE_MS_FEW = 40;         // 공 ≤ SAMPLE_FEW_MAX 이면 40ms 샘플 (SIM_DT_MS 배수여야 함)
 const SAMPLE_MS_MANY = 100;
@@ -62,9 +62,18 @@ const HOLE_W = 44;                // 구멍 폭 (공 1.6개 — 동시에 둘이
 const HOLE_RIDGE_H = 16;          // 구멍 사이 바닥 지붕 높이
 const HOLE_PIPE_H = 60;           // 구멍 아래 파이프 길이
 // ⑩ 집결 통로: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 한 줄로 직접 걸어간다. 앞을 추월 못 함.
-const WALK_SPEED = 95;            // px/s 걷는 속도(전원 동일)
-const WALK_SPACING = 30;          // 앞 동물과 최소 간격
+const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운). 앞이 느리면 갇힌다
+const WALK_SPACING = 28;          // 앞 동물과 최소 간격
+const WALK_PASS_MS = 900;         // 앞에 막혀 이만큼 답답하면 옆으로 비켜 추월 (인원 많을 때 병목 해소)
+const WALK_TRIP_P = 0.08;         // 초당 넘어질 확률
+const WALK_TRIP_MS = 700;         // 넘어져 있는 시간
+const WALK_DOZE_P = 0.04;         // 초당 졸 확률
+const WALK_DOZE_MIN_MS = 1200, WALK_DOZE_RND_MS = 1500;   // 졸음 길이 1.2~2.7s
+const WALK_DOZE_BUMP_MS = 500;    // 이만큼 지난 뒤 뒤에서 부딪히면 깸
 const LANE_H = 60;                // 통로 높이
+const LANE_ROW_BALLS = 25;        // 이 마리 수마다 줄 하나 (≤25 한 줄, ≤50 2열, 그 이상 3열) — 줄은 착지 시 시드 랜덤, 줄끼리 독립 큐
+const LANE_ROWS_MAX = 3;
+const LANE_ROW_GAP = 20;          // 줄 간 y 간격
 const LANE_END_X = 745;           // 통로 끝 벽(판자벽)
 const GOAL_X = 700;               // 이 x 를 지나면 도착
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
@@ -177,7 +186,8 @@ function buildTrack(ballCount) {
     const laneTop = floorY + HOLE_PIPE_H, laneY = laneTop + LANE_H / 2;
     wall(150, laneTop, 150, laneTop + LANE_H); wall(150, laneTop + LANE_H, LANE_END_X, laneTop + LANE_H);
     wall(LANE_END_X, laneTop - 10, LANE_END_X, laneTop + LANE_H);
-    p.push({ kind: 'lane', x0: 150, x1: LANE_END_X, y: laneY, h: LANE_H, goalX: GOAL_X });
+    const laneRows = Math.max(1, Math.min(LANE_ROWS_MAX, Math.ceil(ballCount / LANE_ROW_BALLS)));
+    p.push({ kind: 'lane', x0: 150, x1: LANE_END_X, y: laneY, h: LANE_H, goalX: GOAL_X, rows: laneRows, rowGap: LANE_ROW_GAP });
     // 스탠드 — 통로 아래, 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치). 꼴찌는 통로 끝 판자벽 앞에 엎어짐
     p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + 24, w: 500, h: 180 }, cols: 10 });
     p.push({ kind: 'dumpwall', x: LANE_END_X, y: laneY, facing: 'left' });
@@ -244,7 +254,7 @@ function seesawSegment(s, t) {
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|land|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|land|trip|doze|pass|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -259,7 +269,7 @@ async function simulate(balls, seed, track) {
         r: BALL_R,
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
-        pitDone: false, inPit: false,
+        pitDone: false, inPit: false, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '', blockedSince: -1,
         stuckSince: 0
     }));
 
@@ -414,12 +424,35 @@ async function simulate(balls, seed, track) {
 
         // ── 집결 통로 걷기: 한 줄, 앞 추월 불가, 골 x 통과 시 도착 ──
         if (lane) {
-            const walkers = B.filter(b => b.state === 'walk').sort((a, b) => b.x - a.x);
+            for (let row = 0; row < lane.rows; row++) {
+            const rowY = lane.y + (row - (lane.rows - 1) / 2) * lane.rowGap;
+            const walkers = B.filter(b => b.state === 'walk' && b.walkRow === row).sort((a, b) => b.x - a.x);
             for (let i = 0; i < walkers.length; i++) {
                 const w = walkers[i];
-                w.x += WALK_SPEED * dt; w.y = lane.y; w.vx = WALK_SPEED; w.vy = 0;
-                if (i > 0) w.x = Math.min(w.x, walkers[i - 1].x - WALK_SPACING);
+                w.y = rowY; w.vy = 0;
+                if (t < w.stallUntil) {
+                    // 졸음: 최소 시간 지난 뒤 뒤에서 누가 붙으면 깸
+                    const behind = walkers[i + 1];
+                    if (w.stallKind === 'doze' && behind && behind.x >= w.x - WALK_SPACING - 2 && t - w.stallAt >= WALK_DOZE_BUMP_MS) {
+                        w.stallUntil = t; pushEvent(t, 'wake', w);
+                    } else { w.vx = 0; continue; }
+                }
+                // 걷다가 넘어짐 / 졸음 (전원 동일 확률)
+                const r = rng();
+                if (r < WALK_TRIP_P * dt) { w.stallKind = 'trip'; w.stallAt = t; w.stallUntil = t + WALK_TRIP_MS; w.vx = 0; pushEvent(t, 'trip', w); continue; }
+                if (r < (WALK_TRIP_P + WALK_DOZE_P) * dt) { w.stallKind = 'doze'; w.stallAt = t; w.stallUntil = t + WALK_DOZE_MIN_MS + rng() * WALK_DOZE_RND_MS; w.vx = 0; pushEvent(t, 'doze', w); continue; }
+                w.x += w.walkSpeed * dt; w.vx = w.walkSpeed;
+                if (i > 0) {
+                    const ahead = walkers[i - 1];
+                    if (w.x > ahead.x - WALK_SPACING) {
+                        if (w.blockedSince < 0) w.blockedSince = t;
+                        if (t - w.blockedSince >= WALK_PASS_MS) {   // 비켜 추월
+                            w.x = ahead.x + WALK_SPACING * 0.5; w.blockedSince = -1; pushEvent(t, 'pass', w);
+                        } else w.x = ahead.x - WALK_SPACING;
+                    } else w.blockedSince = -1;
+                }
                 if (w.x >= lane.goalX) finishBall(t, w);
+            }
             }
         }
 
@@ -498,7 +531,13 @@ async function simulate(balls, seed, track) {
             if (b.state !== 'roll') continue;
 
             // 골인
-            if (lane && b.y >= lane.y) { b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0; pushEvent(t, 'land', b); continue; }
+            if (lane && b.y >= lane.y) {
+                b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
+                b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
+                b.walkRow = Math.floor(rng() * lane.rows);
+                pushEvent(t, 'land', b, { speed: b.walkSpeed, row: b.walkRow });
+                continue;
+            }
 
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
@@ -579,7 +618,7 @@ async function simulate(balls, seed, track) {
     let slowStartMs = simEndMs;
     for (let k = Math.ceil(secondLastT / sampleMs); k < frames.length; k++) {
         const x = frames[k][lastId * 2], y = frames[k][lastId * 2 + 1];
-        if (x >= 0 && Math.abs(y - track.goalY) < 2 && x >= track.goalX - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }   // 통로 위(걷는 중)에서 골 앞 SLOW_ZONE_PX
+        if (x >= 0 && Math.abs(y - track.goalY) <= LANE_H / 2 && x >= track.goalX - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }   // 통로 위(걷는 중)에서 골 앞 SLOW_ZONE_PX
     }
     if (slowStartMs > simEndMs) slowStartMs = simEndMs;
     const slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs };

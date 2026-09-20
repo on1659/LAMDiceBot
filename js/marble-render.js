@@ -154,7 +154,7 @@ var MarbleRender = (function () {
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0 }; });
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, passAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             evCursor = 0; lastT = -1; fxList = []; cam.init = false;
@@ -185,14 +185,14 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.passAt = -1e9; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
                 var b = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
                     case 'nap': b.state = 'nap'; b.napAt = e.t; break;
-                    case 'wake': if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
+                    case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitRise': break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
@@ -201,7 +201,10 @@ var MarbleRender = (function () {
                     case 'bees': fxList.push({ type: 'bees', t0: e.t, dur: BEE_MS }); break;
                     case 'damCrack': break;
                     case 'damBurst': fxList.push({ type: 'damburst', t0: e.t, dur: DAM_FX_MS }); break;
-                    case 'land': b.state = 'walk'; b.landAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'land': b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
+                    case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
+                    case 'pass': b.passAt = e.t; break;
                     case 'finish':
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
                         fxList.push({ type: 'poof', ball: b.id, x: b.x, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
@@ -630,13 +633,30 @@ var MarbleRender = (function () {
                     else drawSprite('fx', 'zz', b.x + 14, zy - 4, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za, scale: 1.3 });
                     continue;
                 }
-                if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (앞을 추월 못 하는 한 줄)
+                if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (한 줄, 답답하면 비켜 추월)
+                    if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임
+                        drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 200 ? 1 : 2, b.x, b.y - 4);
+                        drawRing(b, b.x, b.y, BALL_R + 3, mine); continue;
+                    }
+                    if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz
+                        var slw = img('sleep', b.creature);
+                        if (slw) { var sfw = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(slw, sfw * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
+                        else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
+                        drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                        var ztw = (t - b.walkStallAt) % 900, zyw = b.y - 20 - ztw / 45;
+                        if (!drawSprite('fx', 'zz', b.x + 14, zyw - 4, 48, 48, { sx: Math.floor(ztw / 225) * 48, sw: 48, alpha: 1 - ztw / 900, scale: 1.3 })) label('z', b.x + 14, zyw, '#fff', 12);
+                        continue;
+                    }
                     var ws = t - b.landAt;
-                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / 140) % 4;
+                    var hop = (t - b.passAt < 400) ? -Math.sin((t - b.passAt) / 400 * Math.PI) * 14 : 0;   // 추월: 살짝 뛰어넘는 호
+                    var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
+                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 4;
                     var wim = img('creatures', b.creature);
-                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
+                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6 + hop)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
-                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    drawRing(b, b.x, b.y + hop, BALL_R + 3, mine);
+                    if (b.walkSpeed >= 125) label('💨', b.x - 18, b.y - 4, '#fff', 11);   // 빠른 놈 표시
+                    else if (b.walkSpeed <= 72) label('🐢', b.x - 18, b.y - 4, '#fff', 10);   // 굼벵이
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawRing(b, b.x, b.y, BALL_R + 3, mine); continue; }
