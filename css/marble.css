@@ -198,6 +198,29 @@
 #marbleStage {
     margin: 0 0 20px;
 }
+.marble-after-race {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+.marble-after-btn {
+    flex: 1 1 0;
+    width: auto;
+    margin: 0;
+    padding: 12px;
+    border: 2px solid var(--marble-accent);
+    border-radius: 8px;
+    background: var(--bg-white);
+    color: var(--marble-accent);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.marble-after-btn-host {
+    background: var(--marble-gradient);
+    color: var(--bg-white);
+}
 
 #marbleCanvasBox {
     position: relative;

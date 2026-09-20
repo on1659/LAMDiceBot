@@ -8,7 +8,6 @@ const sim = require('./marble-sim');
 // ─── 공유 상수 (js/marble.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운 — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산
 const RESULT_HOLD_MS = 1500;      // 재생 끝(durationMs = 마지막 골인 + 엎어짐 여유) 후 결과 오버레이 전 여유
-const MARBLE_RESET_DELAY = 4500;  // gameEnd 후 다음 판 리셋까지
 const MARBLE_MIN_PLAYERS = 2;
 const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
@@ -149,19 +148,19 @@ function endGame(room, gameState, io, ctx) {
     console.log(`[마블런] 방 ${room.roomName} 종료 - 당첨=${selected}`);
     if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
 
-    mb.resetTimeout = setTimeout(() => {
-        const currentRoom = ctx.rooms[room.roomId];
-        if (!currentRoom) return;
-        const cur = currentRoom.gameState.marble;
-        resetMarble(cur);
-        const cg = currentRoom.gameState;
-        cg.readyUsers = [];
-        cg.users.forEach(u => { u.isReady = false; });
-        io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
-        io.to(room.roomId).emit('marble:roundReset');
-        ctx.updateRoomsList();
-    }, MARBLE_RESET_DELAY);
+    // 자동 리셋 없음 — 마지막 화면(비석)은 방장이 [다음 판 준비]를 누르거나 다음 경주를 시작할 때까지 남는다(사용자 결정 2026-09-20).
+    // 준비만 바로 비운다(다음 판은 다시 준비한 사람만) — 경마와 같은 규칙.
+    gameState.readyUsers = [];
+    gameState.users.forEach(u => { u.isReady = false; });
+    io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
+    ctx.updateRoomsList();
+}
+
+// finished → idle (출발대 프리뷰로). 방장 [다음 판 준비] 또는 예약 없이 바로 시작할 때는 startMarble 이 phase 를 덮는다.
+function resetRound(room, gameState, io, ctx) {
+    resetMarble(gameState.marble);
+    io.to(room.roomId).emit('marble:roundReset');
     ctx.updateRoomsList();
 }
 
@@ -210,7 +209,7 @@ module.exports = (socket, io, ctx) => {
     }
     ctx.emitMarbleStateUpdated = emitState;
 
-    // 동물 선택 (idle 단계, 준비 여부 무관 — 선택 → 준비 순서)
+    // 동물 선택 (idle·finished 단계, 준비 여부 무관 — 선택 → 준비 순서)
     socket.on('marble:pick', (data) => {
         if (!rateOk()) return;
         if (!data || typeof data.creatureId !== 'string') return;
@@ -218,7 +217,7 @@ module.exports = (socket, io, ctx) => {
         const room = getCurrentRoom();
         if (!gameState || !room || room.gameType !== 'marble') return;
         const mb = gameState.marble;
-        if (mb.phase !== 'idle') { socket.emit('marble:error', '게임 시작 전(대기 중)에만 동물을 고를 수 있습니다.'); return; }
+        if (mb.phase === 'playing') { socket.emit('marble:error', '경주 중에는 동물을 고를 수 없습니다.'); return; }
         if (!CREATURES.includes(data.creatureId)) { socket.emit('marble:error', '없는 동물입니다.'); return; }
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
@@ -235,11 +234,23 @@ module.exports = (socket, io, ctx) => {
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || !user.isHost) { socket.emit('marble:error', '방장만 바꿀 수 있습니다.'); return; }
         const mb = gameState.marble;
-        if (mb.phase !== 'idle') { socket.emit('marble:error', '게임 시작 전에만 바꿀 수 있습니다.'); return; }
+        if (mb.phase === 'playing') { socket.emit('marble:error', '경주 중에는 바꿀 수 없습니다.'); return; }
         const crowd = data && data.crowd;
         if (!Object.prototype.hasOwnProperty.call(sim.constants.CROWD_PRESETS, crowd)) return;
         mb.crowd = crowd;
         emitState(room, gameState);
+    });
+
+    // 다음 판 준비 (호스트, finished) — 마지막 화면을 걷고 출발대 프리뷰로
+    socket.on('marble:reset', () => {
+        if (!rateOk()) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) { socket.emit('marble:error', '방장만 다음 판을 준비할 수 있습니다.'); return; }
+        if (gameState.marble.phase !== 'finished') return;
+        resetRound(room, gameState, io, ctx);
     });
 
     // 입장/재입장 시 상태 요청 — 요청 소켓에만 응답 (server-only 데이터 없음)
@@ -264,7 +275,7 @@ module.exports = (socket, io, ctx) => {
         await startMarble(room, gameState, io, ctx);
     });
 
-    // 호스트 이탈 → grace 후 phase 분기 (spin-arena 복제: playing/finished는 타이머가 자연 처리)
+    // 호스트 이탈 → grace 후 phase 분기 (spin-arena 복제: playing 은 타이머가 자연 처리)
     socket.on('disconnect', (reason) => {
         if (!socket.currentRoomId || !socket.isHost) return;
         const roomId = socket.currentRoomId;
@@ -277,7 +288,7 @@ module.exports = (socket, io, ctx) => {
             if (!gameState || !gameState.marble) return;
             const reconnected = gameState.users.some(u => u.name === socket.userName && u.id !== socket.id);
             if (reconnected) return;
-            // playing: endTimeout 자연 종료. finished: resetTimeout이 idle 복귀. idle: 타이머 없음 → 개입 안 함
+            // playing: endTimeout 자연 종료. finished/idle: 타이머 없음 → 개입 안 함 (다음 판은 새 방장이 시작·준비)
         }, waitTime);
     });
 };

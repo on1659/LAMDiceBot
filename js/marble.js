@@ -6,6 +6,7 @@
 // ─── 공유 상수 (socket/marble.js 상단과 반드시 동일 값) ───
 var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
+var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var MARBLE_CROWDS = ['few', 'normal', 'many'];   // 마릿수 3단계 — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
 
@@ -217,7 +218,10 @@ window.addEventListener('DOMContentLoaded', function () {
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
         var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
         window.addEventListener('resize', onResize);
-        document.addEventListener('fullscreenchange', onResize);
+        // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
+        var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
+        document.addEventListener('fullscreenchange', onFsChange);
+        document.addEventListener('webkitfullscreenchange', onFsChange);
     }
 });
 
@@ -288,7 +292,7 @@ function closeResultOverlay() {
 function startMarble() { socket.emit('marble:start'); }
 function pickCreature(id) {
     if (MARBLE_CREATURES.indexOf(id) < 0) return;
-    if (marbleState.phase !== 'idle') { showCustomAlert('게임 시작 전에만 동물을 고를 수 있어요.', 'warning'); return; }
+    if (marbleState.phase === 'playing' || isMarbleActive) { showCustomAlert('경주 중에는 동물을 고를 수 없어요.', 'warning'); return; }
     socket.emit('marble:pick', { creatureId: id });
     playMarbleSound('marble_bump', 0.5);
 }
@@ -324,11 +328,11 @@ function updateStartButton() {
     var startBtn = document.getElementById('startMarbleButton');
     var rc = readyCount();
     if (startBtn) {
-        var canStart = isHost && marbleState.phase === 'idle' && !isMarbleActive && rc >= MARBLE_MIN_PLAYERS;
+        var canStart = isHost && marbleState.phase !== 'playing' && !isMarbleActive && rc >= MARBLE_MIN_PLAYERS;
         startBtn.disabled = !canStart;
         startBtn.textContent = rc < MARBLE_MIN_PLAYERS ? '🐾 경주 시작 (2명 이상 준비)' : '🐾 경주 시작';
     }
-    var locked = (marbleState.phase !== 'idle' || isMarbleActive);
+    var locked = (marbleState.phase === 'playing' || isMarbleActive);
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
     renderBallsNote();
 }
@@ -358,13 +362,13 @@ function renderPickStatus() {
         if (!badge) { badge = document.createElement('span'); badge.className = 'pick-count'; btn.appendChild(badge); }
         badge.textContent = counts[id] ? counts[id] + '명' : '';
         badge.style.display = counts[id] ? '' : 'none';
-        btn.disabled = marbleState.phase !== 'idle';
+        btn.disabled = marbleState.phase === 'playing' || isMarbleActive;
     });
     var status = document.getElementById('marblePickStatus');
     if (status) {
         var mine = picks[currentUser];
         var names = (typeof MarbleRender !== 'undefined') ? MarbleRender.CREATURE_NAMES : {};
-        if (marbleState.phase !== 'idle') status.textContent = '경주 중에는 바꿀 수 없어요';
+        if (marbleState.phase === 'playing' || isMarbleActive) status.textContent = '경주 중에는 바꿀 수 없어요';
         else if (!mine) status.textContent = '동물을 고르면 출발대에 서요. 준비를 눌러야 경주에 나가요. 안 고르면 자동으로 배정돼요.';
         else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · ' + marbleState.ballsPerPlayer + '마리씩 달려요';
     }
@@ -382,8 +386,22 @@ function showStage(show) {
     if (show && renderer) renderer.resize();
 }
 
+// 경주 뒤 버튼 줄 (결과 다시 보기 / 방장: 다음 판 준비) — 마지막 화면(비석)은 방장이 걷을 때까지 남는다
+var lastResult = null;
+function showAfterRace(show) {
+    var box = document.getElementById('marbleAfterRace');
+    if (box) box.style.display = show ? '' : 'none';
+    var reset = document.getElementById('marbleResetButton');
+    if (reset) reset.style.display = (show && isHost) ? '' : 'none';
+}
+function reopenResult() { if (lastResult) showResultOverlay(lastResult); }
+function resetMarbleRound() { socket.emit('marble:reset'); }
+window.reopenResult = reopenResult;
+window.resetMarbleRound = resetMarbleRound;
+
 // 결과 오버레이 (gameEnd 도착 시)
 function showResultOverlay(data) {
+    lastResult = data;
     if (document.body) document.body.classList.remove('race-running');
     var box = document.getElementById('resultRankings');
     if (box) {
@@ -643,6 +661,7 @@ socket.on('roomJoined', function (data) {
             var last = localHistory.length ? localHistory[localHistory.length - 1].selected : null;
             setGameStatus('결과 발표 직후예요', 'active');
             if (last) showResultOverlay({ selected: last, rankings: [] });
+            showAfterRace(true);
         }
     }
     addDebugLog('방 입장: ' + data.roomId + ' (host=' + isHost + ')');
@@ -782,6 +801,7 @@ socket.on('updateUsers', function (data) {
         if (typeof RankingModule !== 'undefined') RankingModule.setHost(isHost);
         var hostControls = document.getElementById('hostControls');
         if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
+        if (marbleState.phase === 'finished') showAfterRace(true);   // 다음 판 준비 버튼은 방장만
     }
     if (typeof ChatModule !== 'undefined' && ChatModule.updateConnectedUsers) ChatModule.updateConnectedUsers(userArray);
     renderUsersList(userArray);
@@ -794,6 +814,7 @@ socket.on('hostDelegated', function (data) {
         var hostControls = document.getElementById('hostControls');
         if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
         updateStartButton();
+        if (marbleState.phase === 'finished') showAfterRace(true);
         if (!wasHost && isHost) showCustomAlert('호스트 권한을 받았습니다!', 'success');
     }
 });
@@ -818,7 +839,7 @@ socket.on('readyUsersUpdated', function (rUsers) {
     readyUsers = rUsers || [];
     updateStartButton(); renderPickStatus();
     // 출발대 프리뷰는 준비 인원으로 그린다 — 서버에 다시 받는다 (라운드 리셋 직후는 roundReset 이 요청)
-    if (marbleState.phase === 'idle' && !isMarbleActive) socket.emit('marble:requestState');
+    if (marbleState.phase !== 'playing' && !isMarbleActive) socket.emit('marble:requestState');   // finished 땐 안내 숫자만 갱신(프리뷰 없음)
 });
 
 // ============================================
@@ -853,6 +874,7 @@ socket.on('marble:reveal', function (data) {
     isMarbleActive = true;
     if (document.body) document.body.classList.add('race-running');   // 스티키 광고 숨김
     closeResultOverlay();
+    showAfterRace(false);
     showStage(true);
     renderPickStatus();
     updateStartButton();
@@ -877,6 +899,9 @@ socket.on('marble:gameEnd', function (data) {
     renderHistory(localHistory);
     setGameStatus('🐾 당첨: ' + (data.selected || '-'), 'finished');
     showResultOverlay(data);
+    showStage(false);          // 피커는 다시 열되 캔버스는 마지막 화면(비석) 그대로 — 리셋은 방장이
+    showAfterRace(true);
+    renderPickStatus();
     updateStartButton();
 });
 
@@ -900,6 +925,7 @@ socket.on('marble:roundReset', function () {
     if (renderer) renderer.stop();
     if (document.body) document.body.classList.remove('race-running');
     showStage(false);
+    showAfterRace(false);
     closeResultOverlay();
     setGameStatus('게임 대기 중...', 'waiting');
     renderPickStatus();
