@@ -51,10 +51,15 @@ var MarbleRender = (function () {
     var ZOOM_MIN = 0.5;              // 결승 프레임(범퍼·시소·진흙 + 구멍밭 + 스탠드)을 한 화면에 넣기 위한 줌아웃 하한
     var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유 — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
     var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
+    var MINIMAP_MAX_W_NARROW = 60;   // 모바일(HUD 단위 = CSS px)에서의 미니맵 최대 폭
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
     var HUD_ICON_PX = 18;
+    var UI_SCALE_MAX = 2.2;          // 폰에서 HUD·라벨을 키우는 배율 상한 (375px 폰 ≈ 2.13 → HUD 단위 = CSS px)
+    var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일 카메라(폭 맞춤 + 후미 추적)·줌 하한
+    var MOBILE_ZOOM_MIN = 1.3;       // 모바일 줌 하한(공 지름 ≥ 17 CSS px)
+    var MOBILE_FRAME_W = 560;        // 모바일 결승 프레임: 트랙 폭 500 + 여유를 화면 폭에 맞춘다
     var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
     var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
@@ -181,7 +186,7 @@ var MarbleRender = (function () {
         var myName = '';
         var phase = 'idle';       // idle | countdown | play | finale | done
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
-        var view = { w: TRACK_W, h: 600, scale: 1 };
+        var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라
         var pieces = {};          // kind → 조각 배열
         var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
@@ -212,6 +217,8 @@ var MarbleRender = (function () {
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
             view.scale = canvas.width / TRACK_W;
             view.w = TRACK_W; view.h = canvas.height / view.scale;
+            view.ui = Math.min(UI_SCALE_MAX, Math.max(1, TRACK_W / cssW));   // 논리 800 을 좁은 화면에 축소하면 글자가 절반이 되므로 HUD·라벨만 되돌린다(폰: HUD 단위 ≈ CSS px)
+            view.narrow = cssW < NARROW_PX;
         };
 
         R.setTimeline = function (payload, me) {
@@ -394,6 +401,11 @@ var MarbleRender = (function () {
                 var top = hf.zone.y - FRAME_ABOVE_PX, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
                 targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
                 targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
+                if (view.narrow) {   // 모바일: 프레임 전체를 세로로 넣으면 공이 8px — 폭만 맞추고 후미 무리를 프레임 안에서 세로로 따라간다
+                    targetZoom = clamp(view.w / MOBILE_FRAME_W, ZOOM_MIN, ZOOM_MAX);
+                    var half = view.h / 2 / targetZoom, follow = rear || lead;
+                    targetY = clamp(follow.y + view.h * CAM_LEAD / targetZoom, top + half, Math.max(top + half, bottom - half));
+                }
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
                     var kk = clamp((rear.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
                     targetZoom = Math.max(targetZoom, 1 + (ZOOM_MAX - 1) * kk);
@@ -405,6 +417,10 @@ var MarbleRender = (function () {
                 var k = clamp((focus.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
                 targetZoom = 1 + (ZOOM_MAX - 1) * k;
                 if (targetZoom > 1.01) { targetX = focus.x; targetY = focus.y + view.h * CAM_LEAD / targetZoom; }
+            }
+            if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) {   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 좁아진 시야는 초점 공을 가로로 따라가 메운다
+                targetZoom = MOBILE_ZOOM_MIN;
+                var fx = carried || myFocus || focus; if (fx && !frameMode) targetX = fx.x;
             }
             var minY = data.track.startY + view.h / 2 - 140, maxY = data.track.endY - view.h / 2 + 20;   // 출발대 위 140px(하늘 띠)까지
             targetY = clamp(targetY, minY, maxY);
@@ -455,11 +471,14 @@ var MarbleRender = (function () {
             ctx.restore();
             return true;
         }
+        // 세계 텍스트 배율: 데스크톱 1(그대로), 폰에선 view.ui 에 줌아웃 보정(줌 0.6 결승 프레임에서 같이 쪼그라들지 않게) — CSS 로 ≈ 원래 크기
+        function textBoost() { return view.ui > 1 ? view.ui / Math.max(cam.zoom || 1, 0.6) : 1; }
         function label(text, x, y, color, size) {
             ctx.save();
-            ctx.font = 'bold ' + (size || 11) + 'px "Jua", sans-serif';
+            var f = textBoost();
+            ctx.font = 'bold ' + Math.round((size || 11) * f) + 'px "Jua", sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.fillStyle = color || '#fff';
+            ctx.lineWidth = 3 * f; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.fillStyle = color || '#fff';
             ctx.strokeText(text, x, toScreenY(y)); ctx.fillText(text, x, toScreenY(y));
             ctx.restore();
         }
@@ -922,10 +941,11 @@ var MarbleRender = (function () {
             var hl = highlightMine && strong;   // 강조 모드: 내 이름표는 금색, 남의 것은 옅게
             ctx.save();
             if (highlightMine && !strong) ctx.globalAlpha = OTHER_RING_ALPHA;
-            ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            var w = ctx.measureText(name).width + 8, h = 12;
-            ctx.fillStyle = hl ? MY_RING : ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
-            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+            var f = textBoost();
+            ctx.font = 'bold ' + Math.round(9 * f) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            var w = ctx.measureText(name).width + 8 * f, h = 12 * f;
+            ctx.fillStyle = hl ? MY_RING : ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6 * f); ctx.fill();
+            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * f; ctx.stroke(); }
             ctx.fillStyle = hl ? '#4a3000' : '#fff'; ctx.fillText(name, cx, cy + 0.5);
             ctx.restore();
         }
@@ -944,11 +964,11 @@ var MarbleRender = (function () {
                 ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
             }
             ctx.restore();
-            drawNameTag(b, x, toScreenY(y) - r - 7, strong);
+            drawNameTag(b, x, toScreenY(y) - r - 7 * textBoost(), strong);
         }
         // 공이 아닐 때(서 있음·걷기·잠·엎어짐)의 표식: 링 없이 머리 옆 번호 배지만 — 링은 구를 때만(스프라이트 원에 딱 맞게)
         function drawBadge(b, x, y, strong) {
-            drawNameTag(b, x, toScreenY(y) - 22 - (b.id % 2) * 9, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
+            var f = textBoost(); drawNameTag(b, x, toScreenY(y) - (22 + (b.id % 2) * 9) * f, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
         var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
@@ -1473,13 +1493,13 @@ var MarbleRender = (function () {
             });
             return c;
         }
-        function drawMinimap(t) {
-            var x0 = 12, y0 = 44, hMax = view.h - 60;
+        function drawMinimap(t, hh) {   // drawHud 의 ui 배율 변환 안에서 호출됨 — hh = HUD 단위 높이
+            var x0 = 12, y0 = 44, hMax = (hh || view.h) - 60;
             var startY = data.track.startY - 40, endY = data.track.endY;
-            var sc = Math.min(hMax / (endY - startY), MINIMAP_MAX_W / TRACK_W);
-            var w = TRACK_W * sc, h = (endY - startY) * sc;
-            var key = w.toFixed(1) + ':' + h.toFixed(1) + ':' + view.scale + ':' + data.track.pieces.length;
-            if (!mmCache || mmCache.key !== key) mmCache = { key: key, canvas: buildMinimapCache(sc, w, h, view.scale, startY) };
+            var sc = Math.min(hMax / (endY - startY), (view.narrow ? MINIMAP_MAX_W_NARROW : MINIMAP_MAX_W) / TRACK_W);   // 폰에선 HUD 단위 = CSS px 라 96 이면 화면 1/4 — 좁게
+            var w = TRACK_W * sc, h = (endY - startY) * sc, res = view.scale * view.ui;
+            var key = w.toFixed(1) + ':' + h.toFixed(1) + ':' + res + ':' + data.track.pieces.length;
+            if (!mmCache || mmCache.key !== key) mmCache = { key: key, canvas: buildMinimapCache(sc, w, h, res, startY) };
             var mx = function (wx) { return x0 + wx * sc; }, my = function (wy) { return y0 + (wy - startY) * sc; };
             ctx.save();
             ctx.drawImage(mmCache.canvas, x0, y0, w, h);
@@ -1507,6 +1527,8 @@ var MarbleRender = (function () {
 
         function drawHud(t) {
             ctx.save();
+            ctx.scale(view.ui, view.ui);   // 폰에선 HUD 를 view.ui 배 — 아래 배치는 hw×hh(HUD 단위) 기준
+            var hw = view.w / view.ui, hh = view.h / view.ui;
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
             var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : '꼴찌 확정!');
@@ -1514,30 +1536,30 @@ var MarbleRender = (function () {
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {
                 ctx.font = 'bold 12px "Jua", sans-serif';
-                var y = 8, w = 150;
-                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(view.w - w - 8, y, w, 22 + hudInfo.worst.length * 18, 8); ctx.fill();
-                ctx.fillStyle = '#ffd166'; ctx.fillText('🚩 꼴찌 후보', view.w - w, y + 5);
+                var y = view.narrow ? 52 : 8, w = 150;   // 폰: 우상단 전체화면 버튼(36px) 아래로
+                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(hw - w - 8, y, w, 22 + hudInfo.worst.length * 18, 8); ctx.fill();
+                ctx.fillStyle = '#ffd166'; ctx.fillText('🚩 꼴찌 후보', hw - w, y + 5);
                 hudInfo.worst.forEach(function (b, i) {
                     var yy = y + 24 + i * 18;
-                    drawMiniIcon(b, view.w - w + 9, yy + 7, HUD_ICON_PX, b.owner === myName);
+                    drawMiniIcon(b, hw - w + 9, yy + 7, HUD_ICON_PX, b.owner === myName);
                     ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8';
                     var name = b.owner.length > 8 ? b.owner.slice(0, 8) + '…' : b.owner;
-                    ctx.fillText(name + ' ' + b.num + '번', view.w - w + 18, yy);
+                    ctx.fillText(name + ' ' + b.num + '번', hw - w + 18, yy);
                 });
             }
-            drawMinimap(t);
+            drawMinimap(t, hh);
             if (phase === 'idle') {
                 if (!balls.length) {
                     ctx.font = 'bold 18px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
-                    ctx.strokeText('동물을 고르고 준비하면 출발대에 섭니다', view.w / 2, view.h * 0.6); ctx.fillText('동물을 고르고 준비하면 출발대에 섭니다', view.w / 2, view.h * 0.6);
+                    ctx.strokeText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6); ctx.fillText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6);
                 }
             } else if (t < 0) {
                 var n = Math.ceil(-t / 1000);
                 ctx.font = 'bold 64px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
                 var s = n >= 4 ? '준비!' : String(n);
-                ctx.strokeText(s, view.w / 2, view.h / 2); ctx.fillText(s, view.w / 2, view.h / 2);
+                ctx.strokeText(s, hw / 2, hh / 2); ctx.fillText(s, hw / 2, hh / 2);
             }
             ctx.restore();
         }
