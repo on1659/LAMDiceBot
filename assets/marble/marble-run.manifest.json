@@ -2023,5 +2023,211 @@
     },
     "generationPath": "spritemake-direct-unverified-provenance",
     "sourceDir": "/Users/radar/Work/SpriteMake/output/marble-run-events-e-2026-09-20/final"
+  },
+  "scuffleF": {
+    "batch": "marble-run-lid-scuffle-f-2026-09-21",
+    "status": "all-6-picked-up",
+    "request": "docs/spritemake-request/2026-09-21-marble-run-lid-scuffle-f.md",
+    "note": "구멍 앞 몸싸움(docs/goal/marble-lid-scuffle.md). 2026-09-21 02:04 final/ 인수 — md5·크기(640×320 / 96×48)·alpha1-7=0 배치 QA 6/6 PASS 재검증. 코드 연결: js/marble-render.js ASSETS.scuffle + fx dizzy-swirl(파일 없으면 idle/faceplant 폴백)",
+    "assets": {
+      "hedgehog-scuffle": {
+        "image": "creatures/hedgehog-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "note": "오른쪽 향함(왼쪽 놈은 코드 반전). 윗줄 밀기 4 루프(130ms), 아랫줄 ⑤화들짝 ⑥파이프 낙하 ⑦⑧기절 교대(150ms). 4·5 프레임은 발이 공중(y<150)",
+        "targetGamePath": "assets/marble/creatures/hedgehog-scuffle.png",
+        "md5": "c57bceed993e15b98fd7ae941f4e0567",
+        "qaStatus": "PASS"
+      },
+      "armadillo-scuffle": {
+        "image": "creatures/armadillo-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "note": "오른쪽 향함(왼쪽 놈은 코드 반전). 윗줄 밀기 4 루프(130ms), 아랫줄 ⑤화들짝 ⑥파이프 낙하 ⑦⑧기절 교대(150ms). 4·5 프레임은 발이 공중(y<150)",
+        "targetGamePath": "assets/marble/creatures/armadillo-scuffle.png",
+        "md5": "3ef90f79bc05465ccab095ec8677d006",
+        "qaStatus": "PASS"
+      },
+      "pillbug-scuffle": {
+        "image": "creatures/pillbug-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "note": "오른쪽 향함(왼쪽 놈은 코드 반전). 윗줄 밀기 4 루프(130ms), 아랫줄 ⑤화들짝 ⑥파이프 낙하 ⑦⑧기절 교대(150ms). 4·5 프레임은 발이 공중(y<150)",
+        "targetGamePath": "assets/marble/creatures/pillbug-scuffle.png",
+        "md5": "15030a89a6ab2711421c76d878f01136",
+        "qaStatus": "PASS"
+      },
+      "turtle-scuffle": {
+        "image": "creatures/turtle-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "note": "오른쪽 향함(왼쪽 놈은 코드 반전). 윗줄 밀기 4 루프(130ms), 아랫줄 ⑤화들짝 ⑥파이프 낙하 ⑦⑧기절 교대(150ms). 4·5 프레임은 발이 공중(y<150)",
+        "targetGamePath": "assets/marble/creatures/turtle-scuffle.png",
+        "md5": "d281fa8a48579ef5f1602b4d38edce32",
+        "qaStatus": "PASS"
+      },
+      "panda-scuffle": {
+        "image": "creatures/panda-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "note": "오른쪽 향함(왼쪽 놈은 코드 반전). 윗줄 밀기 4 루프(130ms), 아랫줄 ⑤화들짝 ⑥파이프 낙하 ⑦⑧기절 교대(150ms). 4·5 프레임은 발이 공중(y<150)",
+        "targetGamePath": "assets/marble/creatures/panda-scuffle.png",
+        "md5": "bc662ed1c4999495a33985d845b4e3b1",
+        "qaStatus": "PASS"
+      },
+      "dizzy-swirl": {
+        "image": "fx/dizzy-swirl.png",
+        "canvas": [
+          96,
+          48
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          48,
+          48
+        ],
+        "anchor": [
+          24,
+          48
+        ],
+        "sourcePlaneY": 24,
+        "frames": [
+          "orbit-a",
+          "orbit-b"
+        ],
+        "note": "기절한 동물 머리 위, 아래 중앙 앵커, 2프레임 교대(150ms)",
+        "targetGamePath": "assets/marble/fx/dizzy-swirl.png",
+        "md5": "6955818c53adad931ec01f64ddc702c1",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
