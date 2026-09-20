@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=8">
+    <link rel="stylesheet" href="/css/marble.css?v=9">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -333,6 +333,7 @@
                     <div id="raceChatOverlay"></div>
                     <!-- 다시 보기 중 표시 (나만 보임) -->
                     <div id="marbleReplayBadge" style="display: none;">↺ 다시 보는 중 — 나만 보여요</div>
+                    <div id="marbleBetaBadge" aria-label="베타 테스트 중">🧪 베타 테스트</div>
                     <button type="button" id="marbleFullscreenBtn" onclick="toggleMarbleFullscreen()" title="전체화면">⛶</button>
                 </div>
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->

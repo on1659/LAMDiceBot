@@ -305,6 +305,28 @@
     z-index: 2;
     transition: background 0.15s ease;
 }
+/* 베타 테스트 배지 — 전체화면 버튼 왼쪽, 빨강 바탕 흰 글씨. 전체화면에서도 캔버스와 함께 보인다 */
+#marbleBetaBadge {
+    position: absolute;
+    top: 12px;
+    right: 52px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--red-500);
+    color: var(--bg-white);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    z-index: 2;
+}
+#marbleCanvasBox:fullscreen #marbleBetaBadge {
+    top: 16px;
+    right: 60px;
+}
 #marbleFullscreenBtn:hover {
     background: rgba(0, 0, 0, 0.65);
 }
