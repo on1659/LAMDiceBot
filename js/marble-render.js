@@ -480,7 +480,7 @@ var MarbleRender = (function () {
                 }
             });
             (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
-            // 지그재그 경사로의 구멍(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
+            // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
             (pieces.zzhole || []).forEach(function (h) {
                 if (!visible(h.y, 40)) return;
                 ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
@@ -488,6 +488,12 @@ var MarbleRender = (function () {
                 ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
                 ctx.restore();
                 label('↓', h.x, h.y - 16, '#ffe08a', 12);
+            });
+            (pieces.bowl || []).forEach(function (bw) {   // U자 그릇: 벽(호)은 wall 로 그려지고 여기선 안내와 바닥 틈만
+                if (!visible(bw.y + bw.r, bw.r)) return;
+                ctx.save(); ctx.fillStyle = 'rgba(40,25,10,0.85)'; ctx.beginPath(); ctx.ellipse(bw.x, toScreenY(bw.y + bw.r), bw.gapW / 2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                label('그릇 — 바닥 틈으로만 빠져요', bw.x, bw.y + bw.r * 0.55, '#fff', 12);
+                label('↓', bw.x, bw.y + bw.r - 16, '#ffe08a', 12);
             });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;

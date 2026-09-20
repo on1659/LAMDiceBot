@@ -89,16 +89,13 @@ const BELT_SPEED = 160;           // 컨베이어 표면 속도 px/s
 const BELT_GRIP = 8;              // 공이 벨트 속도에 붙는 세기 /s
 const FAN_PERIOD_MS = 2400, FAN_ON_MS = 900, FAN_ACCEL = 1600, FAN_BAND = 200;
 const DEV_H = 760;                // 장치 골짜기 높이
-// ⑦-c 지그재그 골짜기(장치 골짜기 아래): 폭 500 을 가로지르는 긴 경사로 6단(오른쪽↘ → 왼쪽↙ → …). 맵이 일자로만 떨어지지 않게 대각선으로 흐르고,
-//    경사(≈21°, 가속 g·sin ≈ 250px/s²)라 한 단에 1~2초 걸려 경주가 길어진다. 경사로마다 구멍(공 1.6개) 하나 — 빠진 놈은 아랫단으로 지름길(순위 뒤집힘).
-//    끝에서 떨어져 다음 단으로. (경사로 위 장애물은 오르막 쪽에 쐐기가 생겨 두지 않는다)
-const ZZ_TOP = DEV_TOP + DEV_H;
-const ZZ_RAMPS = 6;
-const ZZ_STEP = 320;              // 한 단 세로 간격
-const ZZ_DROP = 170;              // 경사로 한 단의 낙차 (가로 440 → 약 21°)
-const ZZ_HOLE_W = 44;
-const ZZ_H = ZZ_RAMPS * ZZ_STEP + 60;
-const VALLEY_H = DEV_H + ZZ_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
+// ⑦-c 갈래 골짜기(장치 골짜기 아래): 대각선 한 방향으로만 길게 흐르지 않게 지형을 섞는다 —
+//    짧은 경사 → 끊긴 경사로(틈으로 먼저 빠지는 놈·끝까지 가는 놈) → 크기 제각각 범퍼 밭(시드 배치) → 갈라주는 봉우리 Λ 두 개 → U자 그릇(바닥 가운데 틈으로만 빠짐, 빠른 놈은 왔다갔다)
+const VAR_TOP = DEV_TOP + DEV_H;
+const VAR_GAP_W = 40;             // 끊긴 경사로 틈 폭(공 1.4개)
+const VAR_BOWL_R = 240, VAR_BOWL_SEGS = 14, VAR_BOWL_GAP_DEG = 11;   // 그릇 반지름·호 분할 수·바닥 틈 각도(≈2R·sin(5.5°) ≈ 46px)
+const VAR_H = 1000;               // 구간 높이
+const VALLEY_H = DEV_H + VAR_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
 // ⑨ 구멍밭: 폭 500 판에 말뚝(파칭코) + 바닥 골 구멍 HOLE_COUNT 개. 구멍 사이 바닥은 지붕처럼 솟아 공이 구멍으로 굴러 떨어진다.
 //   구멍 아래 파이프 안 goalY 를 지나면 도착. 물리만으로 읽히는 결승(가둬 두는 문·회전판 없음).
 const HOLE_COUNT = 5;
@@ -113,9 +110,10 @@ const HOLE_PERIOD_FAR_MS = 1500;  // 골에서 가장 먼 구멍(왼쪽 끝)
 const HOLE_PERIOD_NEAR_MS = 4200; // 골에 가장 가까운 구멍(오른쪽 끝)
 const HOLE_LID_SLIDE_MS = 150;    // 여닫히는 데 걸리는 시간
 const HOLE_PHASE_STEP = 0.37;     // 구멍별 위상(주기 × i × 이 값) — 동시에 열리지 않게
-// ⑩ 집결 통로: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 한 줄로 직접 걸어간다. 앞을 추월 못 함.
-const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운). 앞이 느리면 갇힌다
-const WALK_SPACING = 30;          // 통로 줄 서기 간격(앞 동물과 이 이하로 안 붙는다) — 졸고 있는 동물은 뒤가 이 거리로 붙으면 깨운다
+// ⑩ 집결 통로 = 마지막 경주 구간: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 제 속도로 달린다 — 추월 있음.
+//    골(x ≥ GOAL_X)에 들어간 순서가 곧 순위, 꼴찌 = 골에 마지막으로 들어간 놈 (사용자 확정 2026-09-20 밤, 그림으로).
+const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운)
+const WALK_SPACING = 30;          // 졸고 있는 동물은 뒤가 이 거리로 붙으면 깨운다
 const WALK_TRIP_P = 0.08;         // 초당 넘어질 확률
 const WALK_TRIP_MS = 700;         // 넘어져 있는 시간
 const WALK_DOZE_P = 0.04;         // 초당 졸 확률
@@ -222,18 +220,43 @@ function buildTrack(ballCount, rng) {
     p.push({ kind: 'fan', x: 150, y: DEV_TOP + 520, dir: 1, band: FAN_BAND, period: FAN_PERIOD_MS, on: FAN_ON_MS, phase: 0, accel: FAN_ACCEL });
     p.push({ kind: 'fan', x: 650, y: DEV_TOP + 680, dir: -1, band: FAN_BAND, period: FAN_PERIOD_MS, on: FAN_ON_MS, phase: Math.round(FAN_PERIOD_MS / 2), accel: FAN_ACCEL });
 
-    // ⑦-c 지그재그 골짜기 — 긴 대각선 경사로 6단 (구멍 지름길). 시드로 구멍 자리가 매판 다르다
-    for (let i = 0; i < ZZ_RAMPS; i++) {
-        const toRight = i % 2 === 0;
-        const y1 = ZZ_TOP + 60 + i * ZZ_STEP, y2 = y1 + ZZ_DROP;
-        const x1 = toRight ? 150 : 650, x2 = toRight ? 590 : 210;   // 끝 60px 은 트여 있어 아랫단으로 떨어진다
-        const hk = 0.3 + rng() * 0.4;                                  // 구멍 위치(경사로 30~70%)
-        const hx = x1 + (x2 - x1) * hk, hy = y1 + (y2 - y1) * hk;
-        const ux = (x2 - x1), uy = (y2 - y1), L = Math.hypot(ux, uy), hw = ZZ_HOLE_W / 2 / L;
-        wall(x1, y1, x1 + ux * (hk - hw), y1 + uy * (hk - hw));
-        wall(x1 + ux * (hk + hw), y1 + uy * (hk + hw), x2, y2);
-        p.push({ kind: 'zzhole', x: hx, y: hy, w: ZZ_HOLE_W, angle: Math.atan2(uy, ux) });   // 클라 연출용(물리는 벽의 빈 자리)
-        // 경사로 위 장애물(통나무·말뚝)은 두지 않는다 — 오르막 쪽 틈에 공이 쐐기처럼 끼어 영영 못 나온다(캡까지 갇힘). 흔들기는 구멍 지름길·낙차로
+    // ⑦-c 갈래 골짜기 (VAR_TOP ~ VAR_TOP+VAR_H)
+    const V = VAR_TOP;
+    wall(650, V + 20, 470, V + 90);                                  // (a) 오른쪽 위 짧은 경사 — 오른쪽으로 온 놈을 가운데로
+    {   // (b) 끊긴 경사로 ↘: 5토막, 틈 4개(시드 위치). 틈에서 빠진 놈은 범퍼 밭으로 먼저, 끝까지 간 놈은 오른쪽 끝(610~650)으로
+        const x1 = 150, y1 = V + 120, x2 = 610, y2 = V + 280, L = Math.hypot(x2 - x1, y2 - y1), gw = VAR_GAP_W / L;
+        let from = 0;
+        [0.2, 0.4, 0.6, 0.8].forEach(k0 => {
+            const k = k0 + (rng() - 0.5) * 0.08;
+            wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, x1 + (x2 - x1) * (k - gw / 2), y1 + (y2 - y1) * (k - gw / 2));
+            p.push({ kind: 'zzhole', x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, w: VAR_GAP_W, angle: Math.atan2(y2 - y1, x2 - x1) });   // 클라 연출(틈 표시)
+            from = k + gw / 2;
+        });
+        wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, x2, y2);
+    }
+    {   // (c) 범퍼 밭: 크기 제각각(큰 통나무·작은 통나무·굵은 말뚝) 9개, 시드 배치 — 서로 40px 이상 띄운다(공이 끼지 않게)
+        const placed = [];
+        for (let i = 0; i < 9; i++) {
+            const r = i % 3 === 0 ? LOG_R + 6 : i % 3 === 1 ? LOG_R - 4 : STAKE_R + 4;
+            for (let tries = 0; tries < 30; tries++) {
+                const x = 200 + rng() * 400, y = V + 330 + rng() * 220;
+                if (placed.every(q => Math.hypot(q.x - x, q.y - y) > q.r + r + 40)) { placed.push({ x, y, r }); p.push({ kind: r > 14 ? 'log' : 'stake', x: Math.round(x), y: Math.round(y), r }); break; }
+            }
+        }
+    }
+    // (d) 봉우리 Λ 두 개 — 꼭대기에 맞으면 좌우로 갈린다(가운데 틈 120 · 양 옆 틈 30)
+    wall(180, V + 660, 260, V + 570); wall(260, V + 570, 340, V + 660);
+    wall(460, V + 660, 540, V + 570); wall(540, V + 570, 620, V + 660);
+    {   // (e) U자 그릇: 반원 호(선분 분할). 굴러 들어와 왔다갔다 하다 바닥 가운데 틈으로만 빠진다 — 느린 놈이 먼저, 빠른 놈은 지나쳤다 돌아온다
+        const cx = 400, cy = V + 700, R = VAR_BOWL_R, N = VAR_BOWL_SEGS;
+        const a0 = Math.PI * 162 / 180, a1 = Math.PI * 18 / 180, gapHalf = VAR_BOWL_GAP_DEG / 2 * Math.PI / 180;
+        let prev = null, prevA = 0;
+        for (let i = 0; i <= N; i++) {
+            const a = a0 + (a1 - a0) * i / N, pt = { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
+            if (prev && Math.abs((a + prevA) / 2 - Math.PI / 2) > gapHalf) wall(prev.x, prev.y, pt.x, pt.y);   // 바닥(90°) 토막 하나는 비운다 = 틈
+            prev = pt; prevA = a;
+        }
+        p.push({ kind: 'bowl', x: cx, y: cy, r: R, gapW: Math.round(2 * R * Math.sin(gapHalf)) });   // 클라 연출용(라벨)
     }
 
     // ⑧ 통나무 범퍼 + 진흙·시소 (500폭). 끝은 구멍밭 폭(360)으로 좁아지는 깔때기
@@ -568,7 +591,7 @@ async function simulate(balls, seed, track) {
             pitLastErupt = t;
         }
 
-        // ── 집결 통로 걷기: 한 줄, 앞 추월 불가, 골 x 통과 시 도착 ──
+        // ── 집결 통로 걷기: 제 속도로(겹침·추월 허용), 골 x 통과 시 도착 ──
         if (lane) {
             for (let row = 0; row < lane.rows; row++) {
             const rowY = lane.y + (row - (lane.rows - 1) / 2) * lane.rowGap;
@@ -589,9 +612,7 @@ async function simulate(balls, seed, track) {
                 const r = rng();
                 if (r < WALK_TRIP_P * dt) { w.stallKind = 'trip'; w.stallAt = t; w.stallUntil = t + WALK_TRIP_MS; w.vx = 0; pushEvent(t, 'trip', w); continue; }
                 if (r < (WALK_TRIP_P + WALK_DOZE_P) * dt) { w.stallKind = 'doze'; w.stallAt = t; w.stallUntil = t + WALK_DOZE_MIN_MS + rng() * WALK_DOZE_RND_MS; w.vx = 0; pushEvent(t, 'doze', w); continue; }
-                w.x += w.walkSpeed * dt; w.vx = w.walkSpeed;
-                const ahead = walkers[i - 1];   // 줄 서기: 앞 동물과 WALK_SPACING 이하로 붙지 않는다(겹침 방지). 결과는 통 진입에서 이미 났으니 병목은 상관없다
-                if (ahead && w.x > ahead.x - WALK_SPACING) { w.x = Math.max(lane.x0 + BALL_R, ahead.x - WALK_SPACING); w.vx = ahead.vx; }   // 줄이 통로 입구보다 길어지면(대인원) 밖으로 밀리지 않고 입구에서 겹친다
+                w.x += w.walkSpeed * dt; w.vx = w.walkSpeed;   // 줄 서기 없음 — 빠른 놈이 느린 놈·자는 놈을 지나친다(통로에서도 순위가 바뀌어야 한다)
                 if (w.x >= lane.goalX) finishBall(t, w);
             }
             }
@@ -712,14 +733,12 @@ async function simulate(balls, seed, track) {
             }
             if (b.state !== 'roll') continue;
 
-            // 골인
+            // 통로 착지 → 걷기 시작. 도착(finishBall)은 걷기 루프에서 골 x 를 지날 때
             if (lane && b.y >= lane.y) {
-                // 통(파이프)에 들어온 순간이 곧 도착 — 순위는 여기서 확정되고(holeEntryCut), 통로 걷기는 없다.
-                // 걷기로 도착시키면 도착 순서가 통 진입 순서와 어긋나 스탠드가 1, 7, 3… 순으로 차서 혼란스러웠다(사용자 2026-09-20).
-                // 클라는 착지 자리에서 홈통을 타고 스탠드 자기 자리로 굴러가는 연출만 한다
-                b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y;
-                pushEvent(t, 'land', b, { speed: 0, row: 0 });
-                finishBall(t, b);
+                b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
+                b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
+                b.walkRow = Math.floor(rng() * lane.rows);
+                pushEvent(t, 'land', b, { speed: b.walkSpeed, row: b.walkRow });
                 continue;
             }
 
@@ -797,9 +816,9 @@ async function simulate(balls, seed, track) {
         if (finishedCount === n) { simEndMs = t; if (step % sampleEvery !== 0) record(); break; }
     }
 
-    // 캡 도달: 미도착 공을 진행도(y) 내림차순으로 정산 (덜 간 공이 더 늦게 도착)
+    // 캡 도달: 미도착 공을 진행도(y, 통로 안이면 x) 내림차순으로 정산 (덜 간 공이 더 늦게 도착)
     if (finishedCount < n) {
-        const rest = B.filter(b => b.state !== 'done').sort((a, b) => (b.y - a.y) || (a.id - b.id));
+        const rest = B.filter(b => b.state !== 'done').sort((a, b) => (b.y - a.y) || (b.x - a.x) || (a.id - b.id));
         for (const b of rest) finishBall(SIM_CAP_MS, b);
         simEndMs = SIM_CAP_MS;
         record();
@@ -821,17 +840,6 @@ async function simulate(balls, seed, track) {
 
 // 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 마지막 공의 주인 = selected(당첨).
 // successionList = worst→best (이탈자 대체용, spin-arena 패턴).
-// 꼴찌 = 구멍(통)에 마지막으로 들어간 공. 통로 걷기·골 도착 순서는 결과에 영향 없고 재생도 그 순간(cutMs)에 끝낸다
-// (사용자 결정 2026-09-20: 통에 들어가는 순간 확정이니 랭킹까지 기다릴 필요 없음). 캡까지 못 들어간 공은 정산 순서를 뒤에 붙인다.
-// 반환 { finishOrder, cutMs, durationMs } — 서버(socket/marble.js)와 덤프(AutoTest/marble-sim-dump.js)가 같이 쓴다.
-function holeEntryCut(result, ballCount) {
-    const lands = result.events.filter(e => e.type === 'land');
-    const landOrder = lands.map(e => e.ball);
-    const landed = new Set(landOrder);
-    const finishOrder = landOrder.concat(result.finishOrder.filter(id => !landed.has(id)));
-    const cutMs = (landOrder.length === ballCount && lands.length) ? lands[lands.length - 1].t : result.simEndMs;
-    return { finishOrder, cutMs, durationMs: cutMs + FINALE_HOLD_MS };
-}
 
 function rankPlayers(balls, finishOrder, participants) {
     const worst = {};
@@ -855,7 +863,7 @@ function effectiveBallsPerPlayer(n, players) {
 }
 
 module.exports = {
-    buildTrack, layoutBalls, simulate, rankPlayers, holeEntryCut, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
+    buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT, CROWD_PRESETS, CROWD_DEFAULT,
         BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE
