@@ -1,4 +1,39 @@
 ========================================
+📋 Summit Log - 2026-09-21 (게임 이름 마블런 → 데구리 + 09-20 저녁 방 통합·규칙 정리 세션분 기록)
+========================================
+
+## 변경 파일 (이 커밋)
+- update-log.md: 09-21 「마블런」 항목을 「데구리」로 고쳐 쓰고, 09-20 저녁 세션의 유저 체감 변경(출발대 대기·복제 낙하·이름표·비석·순위 보기·초대 링크·드래그 준비·예약·랭킹 탭) 추가
+- summit-log.txt: 이 항목
+- (8dcc125) 22개 파일 "마블런" → "데구리": marble-multiplayer.html(title/OG/JSON-LD/noscript/안내), dice-game-multiplayer.html 로비 라벨, js/free.js·utils/og-meta.js·js/shared/ranking-shared.js 게임명, js/marble.js 방 제목 접미사, socket/marble.js 로그·에러 문구, AutoTest/devtools.html 탭, game-lab 프리뷰, 주석. 코드 식별자(marble, /marble, marble:* 이벤트, 파일명, DB gameType)는 유지 — 저장된 방·랭킹 데이터와 어긋나지 않게. docs/·summit-log 과거 기록은 손대지 않음.
+  같은 커밋에 미추적이던 에셋 6장(assets/marble/creatures/*-scuffle.png 5, fx/dizzy-swirl.png)이 함께 추적됨(6차 의뢰 도착분, 코드 연결은 별도).
+
+## 09-20 저녁 세션 작업 기록 (이전 summit 항목에 없던 커밋들 — 이미 main 배포됨)
+### [방 통합 5건 c7610e2]
+- 대기 화면: 트랙 항상 표시 + 서버 stateUpdated.preview(고정 시드 배치) 로 출발대 프리뷰, 준비 인원 바뀌면 requestState
+- 다이렉트 링크: js/shared/free-invite.js·js/free.js 게임 맵에 /marble 추가(초대 바·/free/marble/CODE 입장). 해적(pirate)은 둘 다 아직 빠짐
+- 드래그 준비: 접속자 태그 draggable(source='users') — 힌트만 있고 동작이 없었음(pirate/spin-arena 동일 상태)
+- 예약 시작: socket/marble.js start 를 canStart/start 로 분리해 scheduled-start.js 등록, 클라 팝업·배지·버튼(horse 구조)
+- 랭킹 팝업 게임별 탭 마블런 → db0df0b 에서 기록 있거나 마블런 방에서 열 때만 노출로 게이트
+### [규칙·연출 5204910 b2b40c9 489c7a0 a26d1b0 b053d64 f4f8ff4 febba61 cda204b]
+- 마릿수 3단계(CROWD_PRESETS few/normal/many, 인당 = clamp(floor(total/인원),1,perMax)) → 이후 다른 세션이 솔로 추가해 4단계(1b504a7)
+- 대기 프리뷰 사람당 1마리(고르면 반투명, 준비하면 진하게), 카운트다운 SPAWN_* 구간에 2번째 마리부터 낙하
+- 공 배지 번호 → 주인 이름표(drawNameTag, 출발대 지그재그 높이)
+- 새로고침 시 roomJoined 가 숨은 입력칸(localStorage 잔존 별명)을 서버 확정 이름보다 우선 → 옛 별명 재입장·호스트 상실. data.userName 우선으로 수정
+- 통로 졸음 시간 만료 시 wake 이벤트 누락 → 자는 그림인 채 걸어가던 것 수정
+- 꼴찌 확정 = 통 진입(sim.holeEntryCut, cutMs) + 착지 자리 비석(drawGravestone) + 동물 소멸 → 이후 다른 세션이 40d4179·638ddfb 에서 "통로 끝 골 진입 순서, 혼자 내려오면 즉시 확정"으로 재정의(현재 HEAD 규칙)
+- 경주 뒤 자동 roundReset 제거: 마지막 화면 유지, [🏆 순위 보기](1위…꼴찌 목록)·방장 [🔄 다음 판 준비](marble:reset). finished 에서도 동물 선택·마릿수 변경·바로 다음 경주 시작 허용
+### [장치·맵 d3edba6 e055d3f e186106 6b42b79]
+- 구덩이 → 간헐천(정원 없이 빠졌다 PIT_ERUPT_PERIOD 마다 분출). 분출 시 겹친 공이 밀어내기로 벽을 뚫고 밖으로 새던 것 → 격자로 펼쳐 띄움(e055d3f). 댐은 마리별 지연(damHold)으로 흘러 터짐 + 물살 연출
+- visible() 컬링이 줌을 무시해 0.5x 결승 프레임에서 스탠드가 안 그려지던 것 수정, 피날레 스포트라이트 → 비석 뒤 빛
+- 지그재그 골짜기(대각선 경사로 6단, ZZ_*) 추가 → 다른 세션이 장치 골짜기로 교체(a0c8ce4) 후 아래에 복원·통합(5037f2e), 이후 갈래 골짜기(c9c0384)
+### [운영]
+- 두 세션이 같은 워킹트리를 동시에 편집해 hunk 가 섞이고 규칙이 두 번 뒤집혔다(통 진입 확정 ↔ 골 순서). 앞으로 마블런 sim/render 는 한 세션만. 다른 세션 WIP 는 stash@{0} 에 남아 있음(장치 골짜기 초안, a0c8ce4 로 대체 → drop 가능)
+- main 머지는 워킹트리 dirty 일 때 `git worktree add …/lam-main main` 에서 --no-ff 로. 실서버 배포 = origin/main push
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (마블런 베타 공개 + 독수리 초반 빈도 −20% + 다시 보기·내 동물 따라가기·마릿수 4단계)
 ========================================
 
