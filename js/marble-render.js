@@ -875,15 +875,16 @@ var MarbleRender = (function () {
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
             var x = b.doneX != null ? b.doneX : b.x, y = b.doneY != null ? b.doneY : b.y;   // 통에 들어간 그 자리
-            // 동물은 엎어진 채 그 자리 (비석 왼쪽으로 얼굴이 삐져나오게)
-            var frame = since < 150 ? 0 : since < 320 ? 1 : 2;
-            drawShadow(x, y, BALL_R + 2);
-            drawCreatureFrame(b, 4, frame, x - 12, y - 6, 0, 1.15);
-            // 비석: 위에서 가속 낙하 → 쿵(먼지)
+            // 비석: 위에서 가속 낙하 → 쿵(먼지). 동물은 비석이 깔리기 전까지만 엎어져 있고, 깔리는 순간 펑 하고 사라진다(비석이 동물을 대신한다)
             var k = clamp(since / GRAVE_DROP_MS, 0, 1);
             var drop = (1 - k) * (1 - k) * GRAVE_DROP_H;
-            if (!b.graveLanded && k >= 1) { b.graveLanded = true; fxList.push({ type: 'dust', x: x + 10, y: y + 6, t0: t, dur: POOF_FX_MS }); }
-            drawGravestone(x + 10, y + 8 - drop, since - GRAVE_DROP_MS);
+            if (k < 1) {
+                var frame = since < 150 ? 0 : since < 320 ? 1 : 2;
+                drawShadow(x, y, BALL_R + 2);
+                drawCreatureFrame(b, 4, frame, x, y - 6, 0, 1.15);
+            }
+            if (!b.graveLanded && k >= 1) { b.graveLanded = true; fxList.push({ type: 'dust', x: x, y: y + 6, t0: t, dur: POOF_FX_MS }); fxList.push({ type: 'poof', x: x, y: y - 6, t0: t, dur: POOF_FX_MS }); }
+            drawGravestone(x, y + 8 - drop, since - GRAVE_DROP_MS);
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
                 // 스포트라이트 + 이름
