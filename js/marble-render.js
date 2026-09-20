@@ -43,8 +43,8 @@ var MarbleRender = (function () {
     var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
-    var MINIMAP_ICON_PX = 9;         // 미니맵 동물 아이콘 크기
-    var HUD_ICON_PX = 16;            // 꼴찌 후보 목록 동물 아이콘 크기
+    var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
+    var HUD_ICON_PX = 18;            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
@@ -706,19 +706,24 @@ var MarbleRender = (function () {
         function drawBadge(b, x, y, strong) {
             drawNameTag(b, x, toScreenY(y) - 22 - (b.id % 2) * 9, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
-        // 작은 동물 아이콘(HUD·미니맵용): 시트의 공 프레임(row 2, col 0)을 size px 로 축소 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
+        // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
+        var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
         function drawMiniIcon(b, sx, sy, size, strong) {
             var im = img('creatures', b.creature);
+            var r = size / 2;
             ctx.save();
             if (im) {
                 ctx.imageSmoothingEnabled = true;
-                ctx.drawImage(im, 0, 2 * CELL, CELL, CELL, sx - size / 2, sy - size / 2, size, size);
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.clip();
+                ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(sx - r, sy - r, size, size);
+                ctx.drawImage(im, FACE_CROP.x, FACE_CROP.y, FACE_CROP.w, FACE_CROP.h, sx - r, sy - r, size, size);
+                ctx.restore(); ctx.save();
                 ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 2 : 1.2;
-                ctx.beginPath(); ctx.arc(sx, sy, size * 0.36, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
             } else {
-                ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(sx, sy, size * 0.35, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(sx, sy, r * 0.7, 0, Math.PI * 2); ctx.fill();
             }
-            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, size * 0.36 + 1.5, 0, Math.PI * 2); ctx.stroke(); }
+            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, r + 1.5, 0, Math.PI * 2); ctx.stroke(); }
             ctx.restore();
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
