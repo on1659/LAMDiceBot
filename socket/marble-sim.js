@@ -668,10 +668,12 @@ async function simulate(balls, seed, track) {
 
             // 골인
             if (lane && b.y >= lane.y) {
-                b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
-                b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
-                b.walkRow = Math.floor(rng() * lane.rows);
-                pushEvent(t, 'land', b, { speed: b.walkSpeed, row: b.walkRow });
+                // 통(파이프)에 들어온 순간이 곧 도착 — 순위는 여기서 확정되고(holeEntryCut), 통로 걷기는 없다.
+                // 걷기로 도착시키면 도착 순서가 통 진입 순서와 어긋나 스탠드가 1, 7, 3… 순으로 차서 혼란스러웠다(사용자 2026-09-20).
+                // 클라는 착지 자리에서 홈통을 타고 스탠드 자기 자리로 굴러가는 연출만 한다
+                b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y;
+                pushEvent(t, 'land', b, { speed: 0, row: 0 });
+                finishBall(t, b);
                 continue;
             }
 

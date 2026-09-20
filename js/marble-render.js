@@ -247,8 +247,10 @@ var MarbleRender = (function () {
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
                     case 'finish':
+                        if (b.state === 'done') break;   // 꼴찌는 land 에서 이미 done(비석 자리 고정)
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
-                        fxList.push({ type: 'poof', ball: b.id, x: b.x, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
+                        if (b.doneX == null) { var ff = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))]; b.doneX = ff && ff[b.id * 2] >= 0 ? ff[b.id * 2] : b.x; }   // 홈통 출발 x = 착지 자리
+                        fxList.push({ type: 'poof', ball: b.id, x: b.doneX, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
                         break;
                 }
             }
@@ -637,7 +639,7 @@ var MarbleRender = (function () {
                 ctx.beginPath(); ctx.moveTo(ln.goalX, toScreenY(ln.y - ln.h / 2)); ctx.lineTo(ln.goalX, toScreenY(ln.y + ln.h / 2)); ctx.stroke();
                 ctx.restore();
                 label('골', ln.goalX, ln.y - ln.h / 2 - 10, '#ffe08a', 12);
-                label('→ 떨어진 자리에서 골까지 한 줄로 걸어갑니다', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
+                label('통에 들어온 순서대로 스탠드에 섭니다', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
             });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
@@ -930,12 +932,13 @@ var MarbleRender = (function () {
                 if (rowMap[row] == null) continue;
                 var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
                 var since = t - b.finishAt;
-                if (chute) {   // 파이프 이동 중이면 그 위치에 공으로
-                    var d0 = chute.y - ln.y, d1 = chute.x - x2, d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
+                if (chute) {   // 홈통 이동 중이면 그 위치에 공으로 — 착지한 자리(통 아래)에서 내려가 홈통을 따라 자기 자리로(왼쪽·오른쪽 어느 쪽이든)
+                    var sx0 = b.doneX != null ? b.doneX : chute.x, dirC = x2 < sx0 ? -1 : 1;
+                    var d0 = chute.y - ln.y, d1 = Math.abs(sx0 - x2), d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
                     if (dist < d0 + d1 + d2) {
                         var px, py;
-                        if (dist < d0) { px = chute.x; py = ln.y + dist; }
-                        else if (dist < d0 + d1) { px = chute.x - (dist - d0); py = chute.y; }
+                        if (dist < d0) { px = sx0; py = ln.y + dist; }
+                        else if (dist < d0 + d1) { px = sx0 + dirC * (dist - d0); py = chute.y; }
                         else { px = x2; py = chute.y + (dist - d0 - d1); }
                         if (!visible(py, 40)) continue;
                         drawCreatureFrame(b, 2, 0, px, py, -dist / BALL_R, 0.85);
