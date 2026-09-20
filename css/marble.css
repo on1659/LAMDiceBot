@@ -1,4 +1,4 @@
-/* 마블런(marble) 전용 스타일 + 공통 변수 alias.
+/* 데구리(marble) 전용 스타일 + 공통 변수 alias.
    공통 레이아웃은 horse-race.css에 의존(.container, .users-section, .chat-section, .history-section, .result-overlay 등) →
    horse-race.css가 쓰는 var(--horse-*)를 marble 색으로 alias. 페이지별 stylesheet link라 경마 페이지엔 무영향.
    색 토큰(--marble-500/-600/-accent/-500-rgb)은 theme.css(라이트/다크)에 정의. */

@@ -61,7 +61,7 @@ function formatWallClock(epochMs) {
 // 예약을 지원하는 게임 = 실서버에서 방을 만들 수 있는 게임.
 // 사다리는 서버가 실서버 방 생성을 거부하고(socket/rooms.js), 다리건너기·회전칼날·해적은
 // 방 만들기 라디오가 display:none이라 실서버 사용자가 도달할 수 없다.
-// 마블런은 준비한 사람이 곧 참가자라 예약 발화에 특별 처리가 없다(안 고른 동물은 시작 시 자동 배정).
+// 데구리은 준비한 사람이 곧 참가자라 예약 발화에 특별 처리가 없다(안 고른 동물은 시작 시 자동 배정).
 const SUPPORTED_GAME_TYPES = {
     'dice': './dice',
     'roulette': './roulette',

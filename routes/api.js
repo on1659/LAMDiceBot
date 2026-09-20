@@ -116,7 +116,7 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'pirate-multiplayer.html'));
     });
 
-    // 마블런 (marble)
+    // 데구리 (marble)
     app.get('/marble', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');

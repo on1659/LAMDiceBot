@@ -1,4 +1,4 @@
-// 마블런(marble) 게임 소켓 핸들러
+// 데구리(marble) 게임 소켓 핸들러
 // spin-arena.js 패턴: 결과는 서버에서만 결정(시드 결정론 시뮬 socket/marble-sim.js), 클라는 타임라인 재생만.
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
 const { recordGamePlay } = require('../db/stats');
@@ -23,9 +23,9 @@ function clearMarbleTimers(mb) {
 // 시작 검문 — 소켓 없이 판정한다(예약 스위퍼 socket/scheduled-start.js 가 그대로 호출).
 // 호스트 확인은 여기 넣지 않는다: 타이머에는 응답할 소켓이 없다.
 function canStartMarble(room, gameState) {
-    if (room.gameType !== 'marble') return '마블런 방이 아닙니다!';
+    if (room.gameType !== 'marble') return '데구리 방이 아닙니다!';
     const mb = gameState.marble;
-    if (!mb) return '마블런 방이 아닙니다!';
+    if (!mb) return '데구리 방이 아닙니다!';
     if (mb.phase !== 'idle' && mb.phase !== 'finished') return '이미 게임이 진행 중입니다!';
     const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
     if (ready.length < MARBLE_MIN_PLAYERS) return `준비한 인원이 ${MARBLE_MIN_PLAYERS}명 이상이어야 합니다!`;
@@ -68,7 +68,7 @@ async function startMarble(room, gameState, io, ctx) {
         const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
     } catch (e) {
-        console.warn('[마블런] 시뮬 실패:', e.message);
+        console.warn('[데구리] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
         // 방장 소켓이 없을 수도 있어(예약 발화) 방 전체에 알린다
         io.to(room.roomId).emit('marble:error', '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -94,7 +94,7 @@ async function startMarble(room, gameState, io, ctx) {
     mb.result = payload.result;
 
     io.to(room.roomId).emit('marble:reveal', payload);
-    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
+    console.log(`[데구리] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
 
     clearMarbleTimers(mb);
     mb.endTimeout = setTimeout(() => {
@@ -142,10 +142,10 @@ function endGame(room, gameState, io, ctx) {
             serverId: room.serverId, sessionId, gameType: 'marble', gameRules: 'last-ball',
             winnerName: dbPlayers.find(n => n !== selected) || null,
             participantCount: dbPlayers.length
-        })).catch(e => console.warn('[마블런] DB 기록 실패:', e.message));
+        })).catch(e => console.warn('[데구리] DB 기록 실패:', e.message));
     }
 
-    console.log(`[마블런] 방 ${room.roomName} 종료 - 당첨=${selected}`);
+    console.log(`[데구리] 방 ${room.roomName} 종료 - 당첨=${selected}`);
     if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
 
     // 자동 리셋 없음 — 마지막 화면(비석)은 방장이 [다음 판 준비]를 누르거나 다음 경주를 시작할 때까지 남는다(사용자 결정 2026-09-20).

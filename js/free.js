@@ -36,7 +36,7 @@
         bridge:   '다리건너기',
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
-        marble:   '마블런'
+        marble:   '데구리'
     };
 
     var GAME_EMOJI = {

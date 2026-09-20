@@ -1,4 +1,4 @@
-// 마블런 시뮬 덤프 — game-lab/marble-preview.html 용 타임라인 JSON 생성.
+// 데구리 시뮬 덤프 — game-lab/marble-preview.html 용 타임라인 JSON 생성.
 // 사용: node AutoTest/marble-sim-dump.js [players=6] [ballsPerPlayer=3] [seed=12345] [out=game-lab/marble-timeline.json] [crowd=normal]
 const fs = require('fs');
 const path = require('path');

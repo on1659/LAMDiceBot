@@ -1,4 +1,4 @@
-/* 마블런(marble) 클라이언트 로직 — 방 부트스트랩 + 동물 선택 + 리플레이 연결.
+/* 데구리(marble) 클라이언트 로직 — 방 부트스트랩 + 동물 선택 + 리플레이 연결.
    부트스트랩(방 생성/입장 + 공통 모듈 init)은 pirate/spin-arena 패턴 차용.
    렌더/재생은 js/marble-render.js (MarbleRender) 가 담당한다 — 이 파일은 소켓·DOM·상태만.
    공정성: 결과는 100% 서버(socket/marble.js + marble-sim.js). Math.random 은 deviceId/tabId 생성에만. */
@@ -105,7 +105,7 @@ function playMarbleSound(key, vol) {
             currentServerId = rd.serverId || null;
             currentServerName = rd.serverName || null;
             if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
-            if (rd.serverName) document.title = rd.serverName + ' - 마블런';
+            if (rd.serverName) document.title = rd.serverName + ' - 데구리';
             runWhenSocketConnected(function () {
                 socket.emit('joinRoom', { roomId: rd.roomId, userName: rd.userName, isHost: false, password: '', deviceId: getDeviceId(), tabId: getTabId() });
             });
@@ -125,7 +125,7 @@ function playMarbleSound(key, vol) {
             currentServerName = pd.serverName || null;
             if (currentServerId) {
                 socket.emit('setServerId', { serverId: currentServerId, userName: pd.userName });
-                if (pd.serverName) document.title = pd.serverName + ' - 마블런';
+                if (pd.serverName) document.title = pd.serverName + ' - 데구리';
             }
         } catch (e) {}
     }
@@ -322,7 +322,7 @@ function escapeHtml(str) {
 }
 
 // ============================================
-// 마블런 UI
+// 데구리 UI
 // ============================================
 function readyCount() {
     return (readyUsers || []).filter(function (n) { return (currentUsers || []).some(function (u) { return u.name === n; }); }).length;
@@ -900,7 +900,7 @@ socket.on('readyUsersUpdated', function (rUsers) {
 });
 
 // ============================================
-// 소켓 이벤트 — 마블런 전용
+// 소켓 이벤트 — 데구리 전용
 // ============================================
 socket.on('marble:error', function (message) {
     showCustomAlert(typeof message === 'string' ? message : '오류가 발생했습니다.', 'error');

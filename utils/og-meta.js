@@ -29,7 +29,7 @@ const GAME_LABELS = {
     ladder:       '사다리타기',
     'spin-arena': '회전 칼날',
     pirate:       '해적 룰렛',
-    marble:       '마블런'
+    marble:       '데구리'
 };
 const GAME_EMOJI = {
     dice:         '🎲',
