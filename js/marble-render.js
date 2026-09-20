@@ -469,6 +469,15 @@ var MarbleRender = (function () {
                 label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
                 label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
+            // 지그재그 경사로의 구멍(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
+            (pieces.zzhole || []).forEach(function (h) {
+                if (!visible(h.y, 40)) return;
+                ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
+                ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+                label('↓', h.x, h.y - 16, '#ffe08a', 12);
+            });
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
                 if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '간헐천', 14);
