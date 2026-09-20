@@ -7,6 +7,7 @@
 var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
 var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
+var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
 var MARBLE_CROWDS = ['few', 'normal', 'many'];   // 마릿수 3단계 — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
 
@@ -216,7 +217,7 @@ window.addEventListener('DOMContentLoaded', function () {
             if (!isMarbleActive) renderer.drawIdle(marbleState.preview, currentUser);
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
-        var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
+        var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && !replaying && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
         window.addEventListener('resize', onResize);
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
         var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
@@ -398,6 +399,41 @@ function reopenResult() { if (lastResult) showResultOverlay(lastResult); }
 function resetMarbleRound() { socket.emit('marble:reset'); }
 window.reopenResult = reopenResult;
 window.resetMarbleRound = resetMarbleRound;
+
+// 경주 다시 보기 — 서버가 보낸 타임라인(marbleState.reveal)을 카운트다운·소리 없이 혼자 다시 재생한다.
+// 방장이 다음 판을 준비(roundReset)하거나 새 reveal 이 오면 끝난다. 다른 사람 화면과 무관(나만 보임).
+var replaying = false, replayEndTimer = null;
+function setReplayUi(on) {
+    var btn = document.getElementById('marbleReplayButton');
+    if (btn) btn.textContent = on ? '■ 그만 보기' : '▶ 경주 다시 보기';
+    var badge = document.getElementById('marbleReplayBadge');
+    if (badge) badge.style.display = on ? '' : 'none';
+}
+function replayRace() {
+    if (!renderer || !marbleState.reveal) return;
+    if (replaying) { stopReplay(true); return; }
+    var data = marbleState.reveal;
+    replaying = true;
+    closeResultOverlay();
+    renderer.setTimeline(data, currentUser);
+    renderer.onFinale(function () {});
+    renderer.play(0);
+    setReplayUi(true);
+    clearTimeout(replayEndTimer);
+    replayEndTimer = setTimeout(function () { if (replaying) stopReplay(false); }, data.durationMs + REPLAY_END_GRACE_MS);   // 재생기가 끝에서 스스로 멈추면 버튼만 되돌린다
+    try { if (document.getElementById('marbleStage').scrollIntoView) document.getElementById('marbleStage').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+}
+// jumpToEnd: 도중에 끊었으면 마지막 화면(비석)으로 되돌린다
+function stopReplay(jumpToEnd) {
+    clearTimeout(replayEndTimer); replayEndTimer = null;
+    if (!replaying) return;
+    replaying = false;
+    setReplayUi(false);
+    if (!renderer) return;
+    renderer.stop();
+    if (jumpToEnd && marbleState.reveal) renderer.render(marbleState.reveal.durationMs, 0.016);
+}
+window.replayRace = replayRace;
 
 // 결과 오버레이 (gameEnd 도착 시)
 function showResultOverlay(data) {
@@ -873,6 +909,7 @@ socket.on('marble:stateUpdated', function (data) {
 // reveal → 카운트다운 포함 리플레이 시작. 결과 오버레이는 gameEnd(서버 타이머)에서.
 socket.on('marble:reveal', function (data) {
     if (!data || !renderer) return;
+    stopReplay(false);
     marbleState.phase = 'playing';
     marbleState.reveal = data;
     isMarbleActive = true;
@@ -922,6 +959,7 @@ socket.on('marble:gameAborted', function (data) {
 });
 
 socket.on('marble:roundReset', function () {
+    stopReplay(false);
     marbleState.phase = 'idle';
     marbleState.reveal = null;
     isMarbleActive = false;
