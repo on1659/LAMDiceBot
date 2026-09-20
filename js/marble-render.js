@@ -35,6 +35,7 @@ var MarbleRender = (function () {
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
     var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
+    var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
@@ -704,7 +705,7 @@ var MarbleRender = (function () {
             (pieces.dam || []).forEach(function (d) {
                 if (!visible(d.y1, 60)) return;
                 // 프레임 = 시간 진행. 서버 damHit(첫 접촉) → damBurst 사이를 [온전, 금 살짝, 금 많이, 금+물] 4단계로 나누고,
-                // 터진 뒤에는 마지막 프레임(부서진 잔해)이 그대로 남는다 — 물리(터질 때까지 벽, 터지면 통과)와 화면이 일치. 사라지는 페이드 없음
+                // 터진 뒤에는 부서진 잔해가 물살을 타고 채널 아래로 쓸려 내려가며 사라진다(DAM_FLOW_MS) — 그 자리에 가만히 남지 않는다(사용자 2026-09-21)
                 var hitEv = null, burstE = null;
                 for (var ei = 0; ei < data.events.length && !(hitEv && burstE); ei++) { var ee = data.events[ei]; if (ee.type === 'damHit') hitEv = ee; else if (ee.type === 'damBurst') burstE = ee; }
                 var burstEv = !!burstE && burstE.t <= t;
@@ -721,10 +722,11 @@ var MarbleRender = (function () {
                     ctx.rect(gap.x2, toScreenY(d.y1) - 200, view.w * 2, 400);
                     ctx.clip();
                 }
-                // 터지는 순간: 마지막 금 프레임 → 부서진 프레임을 DAM_CRUMBLE_MS 동안 크로스페이드 (툭 바뀌지 않게)
+                // 터지는 순간: 마지막 금 프레임 → 부서진 프레임을 DAM_CRUMBLE_MS 동안 크로스페이드 (툭 바뀌지 않게), 그 뒤 잔해는 물살 앞머리를 따라 내려가며 옅어진다
                 var crumble = burstEv ? clamp((t - burstE.t) / DAM_CRUMBLE_MS, 0, 1) : 1;
+                var wash = burstEv ? clamp((t - burstE.t) / DAM_FLOW_MS, 0, 1) : 0, washY = wash * wash * 300, washA = burstEv ? crumble * (1 - wash) * (1 - wash) : 1;
                 if (burstEv && crumble < 1) drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: (DAM_FRAMES - 2) * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: 1 - crumble });
-                if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burstEv ? crumble : 1 })) {
+                if (wash < 1 && !drawSprite('pieces', 'beaver-dam', cx + Math.sin(wash * 9) * 6 * wash, d.y1 + 256 * SRC_SCALE * dsc + washY, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: washA, rot: Math.sin(wash * 7) * 0.12 * wash })) {
                     ctx.save(); ctx.globalAlpha = burstEv ? 0.4 : 1;
                     for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
                     if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
@@ -758,7 +760,8 @@ var MarbleRender = (function () {
                 }
                 if (!burstEv) label('부딪히면 크게 튕겨요', cx, d.y1 - 64, '#fff', 11);
                 var bvf = burstEv ? 3 : st > 0 ? 2 : Math.floor(Math.max(0, t) / BEAVER_TAP_MS) % 2;   // 두드리기 A/B 루프 → 금 가면 놀람 → 터지면 도망 (5차 beaver-v2)
-                if (!drawSprite('pieces', 'beaver-v2', d.beaverX, d.y1 + 26, 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3 }) && !drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
+                var flee = burstEv ? clamp((t - burstE.t) / BEAVER_FLEE_MS, 0, 1) : 0;   // 터지면 오른쪽 벽 쪽으로 달려가 사라진다
+                if (flee < 1 && !drawSprite('pieces', 'beaver-v2', d.beaverX + flee * 110, d.y1 + 26 - Math.abs(Math.sin(flee * 18)) * 6 * (1 - flee), 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee * flee }) && !drawSprite('pieces', 'beaver', d.beaverX + flee * 110, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
