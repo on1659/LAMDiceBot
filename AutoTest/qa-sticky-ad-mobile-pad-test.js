@@ -1,5 +1,5 @@
 /**
- * QA 보조 — 스티키 광고 모바일 예약 패딩(≤480px → 64px) + 데스크톱(96px) 확인.
+ * QA 보조 — 스티키 광고 모바일 예약 패딩(375px → 84px) + 데스크톱(≥800px → 124px) 확인.
  * 3게임 페이지를 방 없이 로드해 idle(비연출) 상태의 body padding-bottom만 계측한다.
  * (theme.css: body:has(.ad-sticky:not(.ad-hidden)):not(.race-running) { padding-bottom: var(--ad-sticky-reserve) })
  *
@@ -13,8 +13,8 @@ const URL = `http://127.0.0.1:${PORT}`;
 
 const PAGES = ['ladder-multiplayer.html', 'pirate-multiplayer.html', 'spin-arena-multiplayer.html'];
 const VIEWPORTS = [
-    { name: 'desktop-1280', width: 1280, height: 800, expect: '96px' },
-    { name: 'mobile-375', width: 375, height: 812, expect: '64px' }
+    { name: 'desktop-1280', width: 1280, height: 800, expect: '124px' },
+    { name: 'mobile-375', width: 375, height: 812, expect: '84px' }
 ];
 
 (async () => {

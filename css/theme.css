@@ -261,8 +261,9 @@
   --border-color: var(--gray-300);
   --border-light: var(--gray-200);
 
-  /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백 */
-  --ad-sticky-reserve: 96px;
+  /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백
+     = 상하 패딩 + 라벨 줄 24px + 광고 높이 + 상단 border 1px. 모바일(320×50) 기준, 넓은 화면은 스티키 섹션 미디어쿼리에서 재정의 */
+  --ad-sticky-reserve: 84px;
 
   /* ============================================
      패널 계층 구조 (팔레트 사용)
@@ -685,12 +686,38 @@ body.premium .ad-container {
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
   z-index: 900; /* 모달(1000) 미만 — 결과/비번 모달이 위를 덮음 */
 }
+/* 광고 크기 고정 — 전면 폭 반응형(data-full-width-responsive)이 모바일에서 375×375 정사각으로 커져
+   화면 절반을 덮던 문제. AdSense 공식 방식: <ins>에서 data-ad-format 제거 + CSS 미디어쿼리로 정확한 크기 지정 */
+.ad-sticky .ad-sticky-unit {
+  width: 320px;
+  height: 50px;
+  vertical-align: bottom;
+}
+/* 라벨 줄(24px)에 닫기 버튼 — 광고 영역과 겹치지 않도록 라벨 줄 높이를 버튼 높이로 고정 */
+.ad-sticky .ad-label {
+  line-height: 24px;
+  margin-bottom: 0;
+}
+.ad-sticky .ad-close {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+}
 /* 레이스(결과 애니메이션) 진행 중에는 숨김 */
 body.race-running .ad-container.ad-sticky {
   display: none;
 }
 /* 스티키 광고가 채팅 입력창 등 본문 하단 콘텐츠를 가리지 않도록 여백 확보 */
-/* 광고가 실제로 보일 때(실제 슬롯 + 레이스 중 아님)만 패딩 — placeholder/숨김 시 죽은 공간 방지 */
+/* 광고가 실제로 보일 때(실제 슬롯 + 레이스 중 아님 + 닫지 않음)만 패딩 — placeholder/숨김 시 죽은 공간 방지 */
 body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
   padding-bottom: var(--ad-sticky-reserve);
 }
@@ -698,7 +725,12 @@ body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
   .ad-container.ad-sticky {
     padding: 2px 4px;
   }
-  body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
-    padding-bottom: 64px;
-  }
+}
+@media (min-width: 500px) {
+  :root { --ad-sticky-reserve: 94px; }
+  .ad-sticky .ad-sticky-unit { width: 468px; height: 60px; }
+}
+@media (min-width: 800px) {
+  :root { --ad-sticky-reserve: 124px; }
+  .ad-sticky .ad-sticky-unit { width: 728px; height: 90px; }
 }

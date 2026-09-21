@@ -25,4 +25,11 @@ function initAds() {
 document.addEventListener('DOMContentLoaded', function() {
   // Future: fetch('/api/user/premium').then(...)
   initAds();
+
+  // 스티키 광고 닫기 — ad-hidden으로 숨기면 body 하단 예약 패딩도 함께 해제됨 (theme.css :has 규칙)
+  document.querySelectorAll('.ad-sticky .ad-close').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.closest('.ad-sticky').classList.add('ad-hidden');
+    });
+  });
 });

@@ -5,7 +5,7 @@
  * 판정 신호(동시 관찰):
  *   race = document.body.classList.contains('race-running')
  *   disp = getComputedStyle(.ad-container.ad-sticky).display   ('block' ↔ 'none')
- *   pad  = getComputedStyle(body).paddingBottom                (96px ↔ 0px, 데스크톱 뷰포트)
+ *   pad  = getComputedStyle(body).paddingBottom                (124px ↔ 0px, 데스크톱 뷰포트)
  *
  * 시나리오:
  *   [L] ladder  — L0 초기 표시 / L1 리빌 중 숨김 / L2 재대결(tournamentRound) 복원
