@@ -13,6 +13,9 @@ var MarbleRender = (function () {
     var COUNTDOWN_MS = 4000;         // js/marble.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
+    // 대기 화면 애니: 출발대 위 동물들이 가만있지 않고 서성이고, 주기마다 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
+    var IDLE_SCUF_PERIOD_MS = 5200;  // 몸싸움 한 판 주기 (다가감 → 밀기 → 화들짝 → 어지러움)
+    var IDLE_WANDER_X = 9, IDLE_WANDER_Y = 3;
     // 카운트다운 복제 연출: 사람당 1마리(num 1)는 대기 때부터 서 있고, 나머지는 이 구간에 순서대로 위에서 떨어져 마릿수를 보여준다
     var SPAWN_START_MS = -COUNTDOWN_MS + 400;
     var SPAWN_END_MS = CURL_START_MS - 350;   // 웅크리기 전에 전원 착지
@@ -198,8 +201,10 @@ var MarbleRender = (function () {
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
+        var idleClock = 0, idleStart = 0, idleOrder = [];   // 대기 애니 시계(ms)·x 순 정렬(몸싸움 짝 고르기)
 
         R.loadAssets = loadAll;
+        R.setIdleClock = function (ms) { idleClock = ms; idleStart = performance.now() - ms; };   // 테스트·프리뷰용: 대기 애니 시계를 특정 시각으로
         R.debug = function () { return { cam: cam, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT) }; };
 
         // 캔버스 크기 → 논리 뷰
@@ -1094,6 +1099,27 @@ var MarbleRender = (function () {
             ctx.restore();
             return true;
         }
+        // 대기 화면 포즈 — idleClock 에서 파생. 반환 { dx, dy, flip, pose: 'walk'|'push'|'startled'|'dizzy', col, growl }
+        // 서성임: 마리마다 다른 위상의 사인 왕복(발 구르기 프레임은 걷는 방향으로). 몸싸움: IDLE_SCUF_PERIOD 마다 x 순 이웃 한 쌍이
+        // 다가가서(0~20%) 밀고(20~70%, 으르렁) 한 놈이 화들짝(70~85%) 어지러움(85~100%). 준비 안 한(dim) 놈은 몸싸움에서 뺀다
+        function idlePose(b) {
+            var ic = idleClock, ph0 = ic / 1900 + b.id * 1.7;
+            var dx = Math.sin(ph0) * IDLE_WANDER_X, dy = Math.sin(ic / 2600 + b.id * 0.9) * IDLE_WANDER_Y;
+            var res = { dx: dx, dy: dy, flip: Math.cos(ph0) < 0, pose: 'walk', col: Math.floor(ic / 160 + b.id) % 4, growl: false };
+            var n = idleOrder.length; if (n < 2) return res;
+            var w = Math.floor(ic / IDLE_SCUF_PERIOD_MS), ph = (ic % IDLE_SCUF_PERIOD_MS) / IDLE_SCUF_PERIOD_MS;
+            var k = Math.floor(hash01(w * 7 + 1) * (n - 1));
+            var aId = idleOrder[k], bId = idleOrder[k + 1];
+            if (b.id !== aId && b.id !== bId) return res;
+            var isA = b.id === aId, loserIsA = hash01(w * 3 + 2) < 0.5, loser = isA === loserIsA;
+            var toward = isA ? 1 : -1;   // a(왼쪽)는 오른쪽으로, b(오른쪽)는 왼쪽으로
+            res.flip = !isA;             // 서로 마주 봄 (시트는 오른쪽을 향함)
+            if (ph < 0.2) { res.dx = toward * 7 * (ph / 0.2); res.dy = 0; res.col = Math.floor(ic / 120) % 4; }
+            else if (ph < 0.7) { res.dx = toward * 7 + toward * Math.sin(ic / 70) * 1.5; res.dy = 0; res.pose = 'push'; res.col = Math.floor(ic / 130) % 4; res.growl = true; }
+            else if (ph < 0.85) { res.dx = toward * (loser ? -6 : 7); res.dy = 0; res.pose = loser ? 'startled' : 'walk'; res.col = 0; }
+            else { res.dx = toward * (loser ? -6 : 4); res.dy = 0; res.pose = loser ? 'dizzy' : 'walk'; res.col = Math.floor(ic / 220); }
+            return res;
+        }
         // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
         function drawCreatureFlipped(b, row, col, x, y, flip) {
             var im = img('creatures', b.creature);
@@ -1142,6 +1168,18 @@ var MarbleRender = (function () {
                     var by = b.y - dropOff;
                     var curled = false;
                     if (b.dim) ctx.globalAlpha = 0.45;   // 대기 프리뷰: 동물은 골랐지만 아직 준비 안 한 사람(반투명)
+                    if (phase === 'idle') {   // 대기 화면: 서성임 + 몸싸움. 시작(reveal)하면 R.play 가 이 루프를 끊고 카운트다운 위치로 팍 바뀐다
+                        var ia = idlePose(b);
+                        var ix = clamp(b.x + ia.dx, 200 + 16, 600 - 16), iy = by + ia.dy;
+                        if (ia.pose === 'push') { if (!drawScuffleFrame(b, 0, ia.col, ix, iy + 4, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip); }
+                        else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 1, ix, iy + 4); }
+                        else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 2, ix, iy + 4); }
+                        else drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip);
+                        if (ia.growl) label('으르렁!', ix + (ia.flip ? -14 : 14), iy - 26 + Math.sin(idleClock / 60) * 1.5, '#fff', 11);
+                        drawBadge(b, ix, iy, mine);
+                        ctx.globalAlpha = 1;
+                        continue;
+                    }
                     if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8);
                     else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8)); }
                     if (curled) drawRing(b, b.x, by, BALL_R + 1, mine);
@@ -1605,7 +1643,12 @@ var MarbleRender = (function () {
             if (preview && preview.track) {
                 R.setTimeline({ track: preview.track, balls: preview.balls, frames: [preview.frame], sampleMs: 100, events: [], finishOrder: [], durationMs: 0, slow: null }, me);
                 phase = 'idle';
+                // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다. 몸싸움 짝은 준비한(dim 아님) 놈들만, 출발대 x 순
+                idleOrder = balls.filter(function (b) { return !b.dim; }).sort(function (a, c) { return a.y - c.y || a.x - c.x; }).map(function (b) { return b.id; });
+                idleStart = performance.now(); idleClock = 0;
+                var loop = function () { idleClock = performance.now() - idleStart; R.render(IDLE_T, 0.016); rafId = requestAnimationFrame(loop); };
                 R.render(IDLE_T, 0);
+                rafId = requestAnimationFrame(loop);
                 return;
             }
             phase = 'idle'; data = null;
