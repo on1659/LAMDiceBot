@@ -665,7 +665,7 @@ const ChatModule = (function () {
             rightContentSpan.style.cssText = 'min-width: 60px; text-align: right;';
             const diceResultSpan = document.createElement('span');
             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-            diceResultSpan.replaceChildren(UIIcons.el('dice'), ' ' + chatMessage.diceResult.result);
+            diceResultSpan.textContent = '🎲 ' + chatMessage.diceResult.result;   // 채팅 안 주사위 결과는 이모지 유지(사용자 결정)
             rightContentSpan.appendChild(diceResultSpan);
             firstLineDiv.appendChild(rightContentSpan);
 
@@ -1245,7 +1245,7 @@ const ChatModule = (function () {
 
             const rightSpan = document.createElement('span');
             rightSpan.style.cssText = 'font-weight: 600; color: #333; white-space: nowrap; margin-left: 10px;';
-            rightSpan.replaceChildren(UIIcons.el('dice'), ' ' + msg.diceResult.result);
+            rightSpan.textContent = '🎲 ' + msg.diceResult.result;
 
             contentDiv.appendChild(leftSpan);
             contentDiv.appendChild(rightSpan);

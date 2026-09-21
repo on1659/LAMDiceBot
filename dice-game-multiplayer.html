@@ -2779,10 +2779,10 @@
                         // 애니메이션 단계: 진행률에 따라 숫자 업데이트
                         const progress = elapsed / ANIMATION_DURATION;
                         currentNum = Math.floor(1 + (maxNum - 1) * progress);
-                        UIIcons.setIconText(diceResultSpan, diceIcon + currentNum);
+                        diceResultSpan.textContent = diceIcon + currentNum;
                     } else {
                         // 대기 단계: 최종 결과 표시
-                        UIIcons.setIconText(diceResultSpan, diceIcon + finalResult);
+                        diceResultSpan.textContent = diceIcon + finalResult;
                         
                         // 정확히 3.5초 후 완료
                         if (elapsed >= TOTAL_DURATION) {
@@ -2806,7 +2806,7 @@
                         clearInterval(interval);
                         onComplete();
                     }
-                    UIIcons.setIconText(diceResultSpan, diceIcon + currentNum);
+                    diceResultSpan.textContent = diceIcon + currentNum;
                 }, 60);
             },
             
@@ -2824,7 +2824,7 @@
                     if (currentNum >= maxNum) {
                         currentNum = maxNum;
                         clearInterval(upInterval);
-                        UIIcons.setIconText(diceResultSpan, diceIcon + maxNum);
+                        diceResultSpan.textContent = diceIcon + maxNum;
                         
                         // 2단계: 0.3초 대기
                         setTimeout(() => {
@@ -2852,12 +2852,12 @@
                                 
                                 if (downNum <= targetNum) {
                                     downNum = targetNum;
-                                    UIIcons.setIconText(diceResultSpan, diceIcon + targetNum);
+                                    diceResultSpan.textContent = diceIcon + targetNum;
                                     setTimeout(() => {
                                         onComplete();
                                     }, 200);
                                 } else {
-                                    UIIcons.setIconText(diceResultSpan, diceIcon + downNum);
+                                    diceResultSpan.textContent = diceIcon + downNum;
                                     setTimeout(countDown, downDelay);
                                 }
                             };
@@ -2865,7 +2865,7 @@
                             countDown();
                         }, 150); // 0.15초 대기
                     } else {
-                        UIIcons.setIconText(diceResultSpan, diceIcon + currentNum);
+                        diceResultSpan.textContent = diceIcon + currentNum;
                     }
                 }, 30); // 빠르게 올라가기
             },
@@ -2879,7 +2879,7 @@
                 // 한 자리수인 경우 (0~9)
                 if (targetNum < 10) {
                     // 처음에 ? 표시
-                    UIIcons.setIconText(diceResultSpan, diceIcon + '?');
+                    diceResultSpan.textContent = diceIcon + '?';
                     
                     // 1의 자리만 애니메이션
                     let onesCurrent = 0;
@@ -2900,11 +2900,11 @@
                             passedTarget = true;
                         }
                         
-                        UIIcons.setIconText(diceResultSpan, diceIcon + onesCurrent);
+                        diceResultSpan.textContent = diceIcon + onesCurrent;
                         
                         // 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
                         if (onesCurrent === onesDigit && passedTarget && spinCount >= minSpins) {
-                            UIIcons.setIconText(diceResultSpan, diceIcon + targetNum);
+                            diceResultSpan.textContent = diceIcon + targetNum;
                             
                             // 확대/축소 연출 추가
                             diceResultSpan.style.transition = 'transform 0.1s ease-out';
@@ -2932,7 +2932,7 @@
                 } else {
                     // 두 자리수인 경우 (10~99)
                     // 처음에 ?? 표시
-                    UIIcons.setIconText(diceResultSpan, diceIcon + '??');
+                    diceResultSpan.textContent = diceIcon + '??';
                     
                     // 1의 자리 애니메이션 (천천히 떨어지는 효과 없음 - 빠르게 진행)
                     let onesCurrent = 0;
@@ -2952,11 +2952,11 @@
                             onesPassedTarget = true;
                         }
                         
-                        UIIcons.setIconText(diceResultSpan, diceIcon + '?' + onesCurrent);
+                        diceResultSpan.textContent = diceIcon + '?' + onesCurrent;
                         
                         // 1의 자리가 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
                         if (onesCurrent === onesDigit && onesPassedTarget && onesSpinCount >= onesMinSpins) {
-                            UIIcons.setIconText(diceResultSpan, diceIcon + '?' + onesDigit);
+                            diceResultSpan.textContent = diceIcon + '?' + onesDigit;
                             
                             // 잠시 대기 후 10의 자리 애니메이션 시작
                             setTimeout(() => {
@@ -2977,11 +2977,11 @@
                                         tensPassedTarget = true;
                                     }
                                     
-                                    UIIcons.setIconText(diceResultSpan, diceIcon + tensCurrent + onesDigit);
+                                    diceResultSpan.textContent = diceIcon + tensCurrent + onesDigit;
                                     
                                     // 10의 자리가 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
                                     if (tensCurrent === tensDigit && tensPassedTarget && tensSpinCount >= tensMinSpins) {
-                                        UIIcons.setIconText(diceResultSpan, diceIcon + targetNum);
+                                        diceResultSpan.textContent = diceIcon + targetNum;
                                         
                                         // 확대/축소 연출 추가
                                         diceResultSpan.style.transition = 'transform 0.1s ease-out';
@@ -6591,7 +6591,7 @@
                         // 초기 스타일 설정
                         if (shouldSaveToHistory && !isNotReady) {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: var(--text-primary);';
-                            UIIcons.setIconText(diceResultSpan, diceIcon);
+                            diceResultSpan.textContent = diceIcon;
                         } else {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: var(--text-primary);';
                             diceResultSpan.textContent = '';
@@ -6660,7 +6660,7 @@
                             if (isLastRoller) {
                                 addDebugLog(`⚠️ 마지막 사람이지만 애니메이션 조건 불만족 - 즉시 숫자 표시`, 'warn');
                             }
-                            UIIcons.setIconText(diceResultSpan, diceIcon + finalResult);
+                            diceResultSpan.textContent = diceIcon + finalResult;
                         }
                     }
                 }
@@ -7150,7 +7150,7 @@
                             const diceIcon = (shouldSaveToHistory && !isNotReady) ? '🎲 ' : '';
                             
                             diceResultSpan.style.cssText = 'font-weight: 600; color: var(--text-primary);';
-                            UIIcons.setIconText(diceResultSpan, diceIcon);
+                            diceResultSpan.textContent = diceIcon;
                             resultContainer.appendChild(diceResultSpan);
                             
                             // 테스트용 애니메이션 재생
@@ -7858,7 +7858,7 @@
                     
                     // isNotReady인 경우 아이콘 없이 숫자만 표시
                     const diceIcon = chatMessage.diceResult.isNotReady ? '' : '🎲 ';
-                    UIIcons.setIconText(diceResultSpan, diceIcon + chatMessage.diceResult.result);
+                    diceResultSpan.textContent = diceIcon + chatMessage.diceResult.result;
                     
                     rightContentSpan.appendChild(diceResultSpan);
                 }
@@ -8613,7 +8613,7 @@
                     left.style.cssText = 'display:flex;align-items:center;';
                     var nameSpan = document.createElement('span');
                     nameSpan.style.cssText = 'font-weight:600;color:var(--dice-500);margin-right:8px;';
-                    UIIcons.setIconText(nameSpan, m.name);
+                    nameSpan.textContent = m.name;
                     var msgSpan = document.createElement('span');
                     msgSpan.style.color = 'var(--text-primary)';
                     msgSpan.textContent = m.msg;
@@ -8622,7 +8622,7 @@
                     row.appendChild(left);
                     var right = document.createElement('span');
                     right.style.cssText = 'font-weight:600;color:var(--text-primary);';
-                    UIIcons.setIconText(right, m.dice);
+                    right.textContent = m.dice;
                     row.appendChild(right);
                     div.appendChild(row);
                     wrap.appendChild(div);
