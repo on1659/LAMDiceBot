@@ -2234,7 +2234,7 @@
     "batch": "marble-run-creatures-g-2026-09-21",
     "status": "all-9-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-g.md",
-    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음",
+    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음 / 13:33 복어 3장 v2(다리·발 제거) 교체, md5 갱신",
     "assets": {
       "hamster": {
         "image": "creatures/hamster.png",
@@ -2353,8 +2353,9 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/pufferfish.png",
-        "md5": "6dae065f36b61e6c3f225240edb301b8",
-        "qaStatus": "PASS"
+        "md5": "b697fb3707e7eea7a1ffc6669e90affb",
+        "qaStatus": "PASS",
+        "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
       "pufferfish-sleep": {
         "image": "creatures/pufferfish-sleep.png",
@@ -2382,8 +2383,9 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-sleep.png",
-        "md5": "e0028f5a8ee197a718afb2742f1ccd78",
-        "qaStatus": "PASS"
+        "md5": "6abbfed3da48cd6ba0d301dec81c2978",
+        "qaStatus": "PASS",
+        "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
       "pufferfish-scuffle": {
         "image": "creatures/pufferfish-scuffle.png",
@@ -2415,8 +2417,9 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-scuffle.png",
-        "md5": "371d650aa8299f342395dfacd473eb48",
-        "qaStatus": "PASS"
+        "md5": "7ea0b9ee03d670c6624bb860fd275cff",
+        "qaStatus": "PASS",
+        "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
       "raccoon": {
         "image": "creatures/raccoon.png",
