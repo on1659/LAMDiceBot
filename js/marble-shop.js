@@ -61,6 +61,7 @@
         title: '꾸미기 상점',
         subtitle: '데구리 · 동물 스킨',
         slots: [{ key: SLOT, label: '동물 스킨' }],   // 단일 슬롯 → 탭바 미렌더
+        coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         noticeText: '동물 스킨은 경주 결과에 영향을 주지 않아요. 스킨의 동물을 골랐을 때 모두에게 보여요.',
         hooks: {
             buildPreview: buildSkinPreview,

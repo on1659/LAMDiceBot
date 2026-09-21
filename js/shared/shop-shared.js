@@ -36,6 +36,7 @@
     // ── 임시 게이트: 코인샵 탭만 "준비 중 / 추후 오픈 예정" ──
     // 코인샵은 로그인(서버 인증) 필요한데 보안 로그인이 아직 준비 안 됨 → 코인샵 탭만 안내문으로 막는다.
     // 광고샵/인벤토리는 정상. 준비되면 false → 코인샵 그대로 열림(코드 전부 보존).
+    // 어댑터가 init({ coinShopOpen: true })로 자기 게임만 먼저 열 수 있다 (데구리 동물 스킨, 사용자 2026-09-22 — 다른 게임은 그대로 잠금).
     var COIN_SHOP_COMING_SOON = true;
 
     // ── 광고 보상 티어 상수 (튜닝 가능 — v1 단순화: 실제 광고 SDK 없음) ──
@@ -1009,7 +1010,7 @@
         //  ② 아니면 어댑터 coinShopLocked hook(예: free 서버는 코인 경제 미가동).
         var coinLockMsg = null;
         if (_activeMainShop === 'coin') {
-            if (COIN_SHOP_COMING_SOON) {
+            if (COIN_SHOP_COMING_SOON && !(_config && _config.coinShopOpen)) {
                 coinLockMsg = '🛠️ 코인샵은 준비 중이에요. 추후 오픈 예정이니 조금만 기다려 주세요!';
             } else if (_config.hooks && _config.hooks.coinShopLocked) {
                 coinLockMsg = _config.hooks.coinShopLocked();
