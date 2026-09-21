@@ -70,6 +70,36 @@
     // 메인샵: 'ad'(광고샵) | 'coin'(코인샵). 기본 'coin'(게임 코인 상점).
     // 카탈로그에 adOnly 아이템이 있을 때만 메인탭 노출(없으면 코인샵 단독 — 기존 동작 보존).
     var _activeMainShop = 'coin';
+    // 상점/옷장 분리(어댑터 config.closet: true — 데구리, 사용자 2026-09-22). 'shop' = 구매 전용(소유 아이템은 '보유 중' 표시, 장착 버튼 없음),
+    // 'closet' = 장착 전용(소유 아이템만, 가격 없음). closet 미설정 게임(경마·사다리·회전)은 항상 'shop' 이고 기존 통합 카드 그대로.
+    var _view = 'shop';
+    function closetMode() { return !!(_config && _config.closet); }
+    // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
+    // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
+    var _groupFilter = 'all';
+    function hasGroups() { return closetMode() && !!(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup); }
+    function passesGroup(item) {
+        if (!hasGroups() || _groupFilter === 'all') return true;
+        var g = _config.hooks.itemGroup(item);
+        return g == null || g === _groupFilter;
+    }
+    function renderGroupChips() {
+        var chips = document.createElement('div');
+        chips.className = 'hshop-inv-chips hshop-groupchips';
+        [{ key: 'all', label: '전체' }].concat(_config.hooks.groups() || []).forEach(function (cd) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'hshop-inv-chip hshop-groupchip' + (_groupFilter === cd.key ? ' is-active' : '');
+            // 어댑터가 그룹 아이콘(동물 얼굴 캔버스)을 주면 이름 앞에 — 글자만 있는 칩보다 한눈에 고르기 쉽다. 칩은 줄바꿈으로 전부 보인다(가로 스크롤 X)
+            var icon = null;
+            if (cd.key !== 'all' && _config.hooks.groupIcon) { try { icon = _config.hooks.groupIcon(cd.key); } catch (e) { icon = null; } }
+            if (icon) chip.appendChild(icon);
+            var lb = document.createElement('span'); lb.textContent = cd.label; chip.appendChild(lb);
+            chip.addEventListener('click', function () { if (_groupFilter === cd.key) return; _groupFilter = cd.key; renderModal(); });
+            chips.appendChild(chip);
+        });
+        return chips;
+    }
     var _invPreviewVehicle = null; // 인벤토리 미리보기 탈것 id(null=어댑터 폴백: 내 탈것 또는 'car')
     var _invFilter = 'all';        // 인벤토리 카테고리 필터(슬롯 key 또는 'all')
 
@@ -358,6 +388,8 @@
                 _wallet.balance = res.balance || 0;
                 _wallet.owned = Array.isArray(res.owned) ? res.owned : [];
                 _wallet.equipped = res.equipped || {};
+                // 어댑터가 서버 prefs 장착값을 덧쓸 기회(데구리: 방 단위 장착값으로 덮음 — 모달을 다시 열 때마다 여기로 온다)
+                if (_config && _config.hooks && _config.hooks.onWalletRefreshed) _config.hooks.onWalletRefreshed(_wallet);
             }
             if (done) done();
         });
@@ -568,6 +600,20 @@
 
         card.appendChild(thumb);
         card.appendChild(nm);
+        // 분리 모드: 가격을 이름 줄 오른쪽에(카드 세로 길이 절약, 사용자 2026-09-22) — 아래 가격 노드는 만들지 않는다
+        var priceInline = false;
+        if (closetMode() && !isAdItem(item)) {
+            var st0 = itemStateFor(item);
+            if (_view === 'shop' && !st0.owned && Number.isFinite(item.price)) {
+                var namerow = document.createElement('div');
+                namerow.className = 'hshop-namerow';
+                var pr = document.createElement('span');
+                pr.className = 'hshop-price hshop-price--inline';
+                setIconValue(pr, 'coin', item.price);
+                card.replaceChild(namerow, nm); namerow.appendChild(nm); namerow.appendChild(pr);
+                priceInline = true;
+            }
+        }
 
         // 광고 아이템은 ad-wallet(클라) 기준 — 별도 경로(서버 shop:buy/equip 미진입)
         if (isAdItem(item)) {
@@ -588,9 +634,17 @@
             return card;
         }
 
+        // 상점/옷장 분리 모드 + 상점 뷰 + 소유: 장착 버튼 대신 '보유 중'(비활성) — 장착은 옷장에서
+        if (closetMode() && _view === 'shop' && state.owned) {
+            var ownedTag = document.createElement('button');
+            ownedTag.type = 'button'; ownedTag.className = 'hshop-equip hshop-owned'; ownedTag.disabled = true;
+            ownedTag.textContent = item.defaultOwned ? '기본 제공' : '보유 중';
+            card.appendChild(ownedTag);
+            return card;
+        }
         // 가격 노드는 미소유 + price가 유한할 때만 (D6: spin defaultOwned 무가격 대응)
         var price = null;
-        if (!state.owned && Number.isFinite(item.price)) {
+        if (!priceInline && !state.owned && Number.isFinite(item.price)) {
             price = document.createElement('div');
             price.className = 'hshop-price';
             setIconValue(price, 'coin', item.price);
@@ -611,7 +665,7 @@
                     btn.disabled = true;
                 }
             } else {
-                btn.textContent = Number.isFinite(item.price) ? '구매 (' + item.price + ')' : '구매';
+                btn.textContent = (Number.isFinite(item.price) && !priceInline) ? '구매 (' + item.price + ')' : '구매';   // 가격이 이름 줄에 있으면 버튼은 '구매'만
                 btn.addEventListener('click', function () { requestBuy(item, btn); });
             }
         } else {
@@ -760,7 +814,7 @@
         }
         // 메인탭 없을 때: 기존 동작(어댑터 noticeText hook).
         if (_config && _config.hooks && _config.hooks.noticeText) {
-            return _config.hooks.noticeText(slot);
+            return _config.hooks.noticeText(slot, _view);   // 2번째 인자 = 뷰('shop'|'closet') — 기존 어댑터는 무시
         }
         return _config.noticeText || '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
     }
@@ -934,6 +988,58 @@
         }
     }
 
+    // 분리 모드 탭바 [상점 | 옷장] — 같은 팝업에서 뷰만 바꾼다(사용자 2026-09-22: 팝업 하나에 탭)
+    function renderViewTabs() {
+        var bar = document.createElement('div');
+        bar.className = 'hshop-tabs hshop-viewtabs';
+        [['shop', '🛍 ' + (_config.shopTabLabel || '상점')], ['closet', '👗 ' + (_config.closetTabLabel || _config.closetTitle || '옷장')]].forEach(function (t) {
+            var tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'hshop-tab' + (_view === t[0] ? ' is-active' : '');
+            tab.textContent = t[1];
+            tab.addEventListener('click', function () { if (_view === t[0]) return; _view = t[0]; renderModal(); });
+            bar.appendChild(tab);
+        });
+        return bar;
+    }
+    // 옷장 본문 — 슬롯 순서대로 소유(defaultOwned 포함) 아이템 카드. 하나도 없으면 빈 상태 + [상점 가기]
+    function buildClosetBody() {
+        var body = document.createElement('div');
+        body.className = 'hshop-inv-body';
+        var slots = activeSlots(); var anyOwned = false; var anyBought = false;   // anyBought = defaultOwned 아닌 소유(산 것)
+        slots.forEach(function (slot) {
+            var ownedAll = (_catalog[slot.key] || []).filter(ownsForInventory);
+            if (ownedAll.some(function (it) { return !it.defaultOwned; })) anyBought = true;
+            var list = ownedAll.filter(passesGroup);
+            if (list.length === 0) return;
+            anyOwned = true;
+            var section = document.createElement('div');
+            section.className = 'hshop-inv-section';
+            if (slots.length > 1) {   // 슬롯 하나면 제목 생략
+                var head = document.createElement('div');
+                head.className = 'hshop-inv-section-head';
+                UIIcons.setIconText(head, slot.label || slot.key);
+                section.appendChild(head);
+            }
+            var grid = document.createElement('div');
+            grid.className = 'hshop-grid hshop-inv-grid';
+            list.forEach(function (item) { grid.appendChild(renderCard(slot.key, item)); });
+            section.appendChild(grid);
+            body.appendChild(section);
+        });
+        if (!anyBought) {   // 기본 제공만 있으면(=산 게 없으면) 카드 아래에 안내 + [상점 가기]
+            var empty = document.createElement('div');
+            empty.className = 'hshop-empty';
+            empty.textContent = anyOwned ? '아직 산 꾸미기가 없어요. 상점에서 골라 보세요.' : '아직 산 꾸미기가 없어요.';
+            var go = document.createElement('button');
+            go.type = 'button'; go.className = 'hshop-equip hshop-goto-shop'; go.textContent = '상점 가기';
+            go.addEventListener('click', function () { _view = 'shop'; renderModal(); });
+            empty.appendChild(document.createElement('br')); empty.appendChild(go);
+            body.appendChild(empty);
+        }
+        return body;
+    }
+
     function renderModal() {
         var mount = getMount();
         if (!mount || !_catalog) return;
@@ -956,10 +1062,12 @@
         var titleWrap = document.createElement('div');
         titleWrap.className = 'hshop-title';
         // 제목/부제는 상수(어댑터 config) — 유저 입력 아님. textContent로 분리 구성.
-        titleWrap.textContent = _config.title || '꾸미기 상점';
-        if (_config.subtitle) {
+        var inCloset = closetMode() && _view === 'closet';
+        titleWrap.textContent = inCloset ? (_config.closetTitle || '옷장') : (_config.title || '꾸미기 상점');
+        var subtitle = inCloset ? (_config.closetSubtitle || _config.subtitle) : _config.subtitle;
+        if (subtitle) {
             var small = document.createElement('small');
-            small.textContent = _config.subtitle;
+            small.textContent = subtitle;
             titleWrap.appendChild(small);
         }
         header.appendChild(titleWrap);
@@ -994,6 +1102,20 @@
             panel.appendChild(header);
             panel.appendChild(renderMainTabBar());
             panel.appendChild(buildInventoryBody());
+            overlay.appendChild(panel);
+            mount.appendChild(overlay);
+            return;
+        }
+        // 옷장 뷰(분리 모드) — 소유 아이템만 슬롯별로, 장착 버튼. 메인탭·가챠·광고행 없음.
+        if (inCloset) {
+            var cnotice = document.createElement('div');
+            cnotice.className = 'hshop-notice';
+            cnotice.textContent = noticeFor(_activeTab);
+            panel.appendChild(header);
+            panel.appendChild(renderViewTabs());
+            if (hasGroups()) panel.appendChild(renderGroupChips());
+            panel.appendChild(cnotice);
+            panel.appendChild(buildClosetBody());
             overlay.appendChild(panel);
             mount.appendChild(overlay);
             return;
@@ -1045,10 +1167,11 @@
             if (showMainTabs) {
                 list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
             }
+            list = list.filter(passesGroup);
             if (list.length === 0) {
                 var empty = document.createElement('div');
                 empty.className = 'hshop-empty';
-                empty.textContent = '준비 중인 카테고리예요.';
+                empty.textContent = (hasGroups() && _groupFilter !== 'all') ? '이 동물의 스킨은 아직 없어요.' : '준비 중인 카테고리예요.';
                 grid.appendChild(empty);
             } else {
                 list.forEach(function (item) { grid.appendChild(renderCard(_activeTab, item)); });
@@ -1060,6 +1183,8 @@
         var gachaArea = buildGachaArea(_activeMainShop, !!coinLockMsg);
 
         panel.appendChild(header);
+        if (closetMode()) panel.appendChild(renderViewTabs());
+        if (hasGroups()) panel.appendChild(renderGroupChips());
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         panel.appendChild(notice);
@@ -1091,7 +1216,7 @@
                 if (_config && _config.hooks && _config.hooks.onPurchased) {
                     _config.hooks.onPurchased(_wallet);
                 }
-                showShopToast('구매했습니다', 'success');
+                showShopToast(closetMode() ? '구매했어요 — 옷장에서 장착하세요' : '구매했습니다', 'success');
             } else {
                 var msg = (res && res.reason === 'insufficient') ? '코인이 부족해요.'
                         : (res && res.reason === 'owned') ? '이미 가지고 있어요.'
@@ -1517,7 +1642,11 @@
     // 상점 열기. 인증되면 전체 상점. 미인증/만료토큰은 allowGuestShop에 따라 분기:
     //   - 허용(경마 v1): ad-티어만 구매 가능, 일반 상품은 잠금('로그인하세요').
     //   - 불허(스핀 등): 모달을 열지 않고 로그인 안내(기존 토큰-필수 동작 유지).
-    function openShop() {
+    function openShop() { openView('shop'); }
+    // 옷장(장착 전용) — config.closet 이 없는 게임은 상점과 같다
+    function openCloset() { openView(closetMode() ? 'closet' : 'shop'); }
+    function openView(view) {
+        _view = view; _groupFilter = 'all';
         loadAdWallet();
         var token = getToken();
         loadCatalog().then(function () {
@@ -1582,6 +1711,7 @@
         authenticate: authenticate,
         loadCatalog: loadCatalog,
         openShop: openShop,
+        openCloset: openCloset,
         closeShop: closeShop,
         reapplyAdEquips: reapplyAdEquips,
         isAuthed: function () { return _wallet.authed; },

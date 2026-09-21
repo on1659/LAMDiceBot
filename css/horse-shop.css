@@ -375,6 +375,25 @@ body.hshop-open {
     background: var(--horse-500, #8B4513);
     color: #fff;
 }
+/* 상점/옷장 분리 모드(어댑터 config.closet): 상점 뷰에서 소유 아이템은 장착 버튼 자리에 비활성 '보유 중' */
+.hshop-equip.hshop-owned, .hshop-equip.hshop-owned:disabled {
+    background: var(--gray-200, #e5e7eb);
+    border-color: var(--gray-200, #e5e7eb);
+    color: var(--text-muted, #6b7280);
+    cursor: default;
+}
+/* 옷장 빈 상태의 [상점 가기] — 전체폭 아님 */
+.hshop-empty .hshop-goto-shop { width: auto; margin-top: 12px; padding: 8px 18px; }
+/* 분리 모드 상점 카드: 이름 줄 오른쪽에 가격(카드 세로 길이 절약), 뷰 탭 [상점|옷장] */
+.hshop-namerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.hshop-namerow .hshop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hshop-price.hshop-price--inline { margin-top: 0; flex: 0 0 auto; }
+.hshop-viewtabs { padding-bottom: 0; }
+/* 뒤에 선언된 .hshop-inv-chips 와 같은 특이성이면 패딩이 밀리므로 두 클래스로. 위(탭↔칩)·아래(칩↔안내, notice margin 12) 간격을 12px 로 맞춘다 */
+.hshop-inv-chips.hshop-groupchips { flex: none; flex-wrap: wrap; justify-content: center; overflow: visible; padding: 12px 16px 0; margin-bottom: 0; gap: 6px; }   /* 줄마다 가운데 정렬 — 왼쪽 끝에 붙으면 불안정해 보임(사용자 2026-09-22) */   /* 뷰 탭 아래 동물 필터 — 줄바꿈으로 전부 보이게(가로 스크롤은 PC 에서 뒤쪽 동물을 못 고름) */
+.hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
+.hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(255,255,255,0.7); }
+.hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(255,255,255,0.9); }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped);

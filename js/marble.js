@@ -89,7 +89,7 @@ function runWhenSocketConnected(callback) {
 }
 
 // 꾸미기 상점(동물 스킨 marble_skin): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
-// 장착이 바뀌면 js/marble-shop.js 가 'marble:refreshSkin' 을 보내고 서버가 출발대에 반영한다.
+// 장착은 js/marble-shop.js 가 'marble:equipSkin' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
 socket.on('connect', function () {
     if (window.MarbleShop) {
         MarbleShop.connect(socket);
@@ -1226,6 +1226,7 @@ socket.on('marble:stateUpdated', function (data) {
     if (data.votes) marbleState.votes = data.votes;
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
     if (data.preview !== undefined) marbleState.preview = data.preview;
+    if (data.mySkin !== undefined && window.MarbleShop) MarbleShop.syncRoomSkin(data.mySkin);   // requestState 응답에만 실림 — 내 방 장착 스킨(새로고침 재입장 동기화)
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이거나 룰렛 단계면 phase 는 rouletteStart/reveal 이 관리한다.
     if (data.phase === 'playing' && !isMarbleActive && marbleState.phase !== 'playing') {
         marbleState.phase = 'playing';

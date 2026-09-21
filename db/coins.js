@@ -9,7 +9,7 @@
 // 모든 식별자는 users.id (authedUserId). 닉네임(data.name) 사용 금지.
 const { getPool } = require('./pool');
 
-const SEED_COINS = 100; // 신규 지갑 시드 (지갑 최초 생성 시 1회)
+const SEED_COINS = 150; // 신규 지갑 시드 (지갑 최초 생성 시 1회) — 100 → 150 (2026-09-22, 데구리 스킨 80코인 기준: 첫 지갑으로 한 개 사고 남게)
 
 // 잔고 조회. 행 없으면 0.
 async function getBalance(userId) {

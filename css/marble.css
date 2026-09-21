@@ -106,7 +106,7 @@
 /* 동물 스킨 상점 (marble_skin) — 진입 버튼은 제목 줄 오른쪽, 카드 썸네일은 스킨 시트 idle 칸 캔버스 */
 .marble-pick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .marble-pick-head .marble-pick-title { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
-/* horse-race.css 의 button { width: 100% } 를 이긴다 — 제목 오른쪽에 작은 알약 하나 */
+/* horse-race.css 의 button { width: 100% } 를 이긴다 — 제목 오른쪽에 작은 알약 하나(상점·옷장은 팝업 안 탭) */
 .marble-pick-head .marble-shop-btn {
     display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; width: auto; margin: 0;
     border: 1.5px solid var(--marble-accent); background: var(--bg-white); color: var(--marble-accent);

@@ -41,8 +41,8 @@
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
-    <link rel="stylesheet" href="/css/horse-shop.css">
-    <link rel="stylesheet" href="/css/marble.css?v=21">
+    <link rel="stylesheet" href="/css/horse-shop.css?v=2">
+    <link rel="stylesheet" href="/css/marble.css?v=23">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -313,8 +313,8 @@
             <section id="marblePickSection">
                 <div class="marble-pick-head">
                     <div class="marble-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기 <span id="marblePickHint">(같은 동물을 여러 명이 골라도 돼요)</span></div>
-                    <!-- 동물 스킨 상점 (marble_skin) — 로그인 계정만 구매/장착, 모달은 js/marble-shop.js 가 채움 -->
-                    <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨 구매/장착">🎀 동물 스킨</button>
+                    <!-- 동물 스킨: 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 로그인 계정만, 모달은 js/marble-shop.js 가 채움 -->
+                    <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨 구매·장착">🎀 동물 스킨</button>
                 </div>
                 <div id="marblePicker" class="marble-picker">
                     <button type="button" class="marble-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
@@ -326,7 +326,7 @@
                     <button type="button" class="marble-creature-btn" data-creature="pufferfish" data-optional="1" onclick="pickCreature('pufferfish')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>복어</span></button>
                     <button type="button" class="marble-creature-btn" data-creature="raccoon" data-optional="1" onclick="pickCreature('raccoon')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>너구리</span></button>
                     <button type="button" class="marble-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
-                    <button type="button" class="marble-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>리본돼지</span></button>
+                    <button type="button" class="marble-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>돼지</span></button>
                 </div>
                 <div id="marblePickStatus" class="marble-pick-status"></div>
                 <!-- 꾸미기 상점 모달 마운트 (js/marble-shop.js) -->
@@ -482,9 +482,9 @@
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/shared/shop-shared.js"></script>
-    <script src="/js/marble-shop.js?v=2"></script>
-    <script src="/js/marble-render.js?v=57"></script>
-    <script src="/js/marble.js?v=29"></script>
+    <script src="/js/marble-shop.js?v=6"></script>
+    <script src="/js/marble-render.js?v=60"></script>
+    <script src="/js/marble.js?v=30"></script>
 
     <script>
         // ============================================

@@ -644,6 +644,8 @@ module.exports = (socket, io, ctx) => {
 
                     // 데구리: 진짜 disconnect로 떠난 유저의 동물 선택 정리 (leaveRoom과 짝, C-19).
                     // idle일 때만 재브로드캐스트(진행 중 playing/finished는 손대지 않음).
+                    // 끊긴 사용자의 데구리 방 장착 스킨 삭제 — leaveRoom(socket/rooms.js)과 짝(C-19). 장착은 그 방에서만 유지(socket/marble.js marble:equipSkin)
+                    if (gameState.marble && gameState.marble.skins) delete gameState.marble.skins[userName];
                     if (gameState.marble && gameState.marble.picks &&
                         gameState.marble.picks[userName] !== undefined) {
                         delete gameState.marble.picks[userName];

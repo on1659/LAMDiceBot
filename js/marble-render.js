@@ -98,14 +98,14 @@ var MarbleRender = (function () {
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
         '#4053d6', '#d63be2', '#b07033', '#aab6c4', '#3bc9a7', '#e6dfc8', '#5a6472', '#343344',
         '#ff7a1a', '#f2c014', '#8a8d2f', '#0e9488', '#5b3fd6', '#ff6f61', '#7d3a6a', '#46708f'];
-    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '리본돼지' };
+    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지' };
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 registerSkins 가 카탈로그에서 얹는다
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -155,22 +155,46 @@ var MarbleRender = (function () {
     function img(group, name) { var im = images[imgKey(group, name)]; return (im && im.complete && im.naturalWidth > 0) ? im : null; }
     // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백
     function sheet(group, b) { return (b.skin ? img(group, b.creature + '-' + b.skin) : null) || img(group, b.creature); }
+    function loadOne(group, name, onEach) {
+        var src = ASSETS[group][name];
+        if (!src) { images[imgKey(group, name)] = null; return false; }
+        var im = new Image();
+        im.onload = im.onerror = onEach || null;
+        im.src = src;
+        images[imgKey(group, name)] = im;
+        return true;
+    }
+    // 상점 스킨 시트 — 카탈로그(config/marble/cosmetics.json, socket/shop.js 와 같은 파일) 항목의 creature+skin 으로 '{creature}-{skin}[-sleep|-scuffle].png' 3장을 ASSETS 에 얹는다.
+    // 새 스킨 = 카탈로그 항목 + 시트 3장이면 끝(코드 수정 없음). loadAll 뒤에 불려도 그 자리에서 로드한다. 시트가 없으면 sheet() 가 기본 시트로 폴백.
+    var SKIN_CATALOG_URL = '/config/marble/cosmetics.json';
+    var SKIN_GROUPS = [['creatures', ''], ['sleep', '-sleep'], ['scuffle', '-scuffle']];
+    var loadKicked = false;   // loadAll 의 일괄 로드가 돌았는지 — 그 전에 등록된 스킨은 일괄 로드가 한 번에 싣고(중복 요청 X), 그 뒤 등록은 즉시 로드
+    function registerSkins(items) {
+        (items || []).forEach(function (it) {
+            if (!it || typeof it.creature !== 'string' || typeof it.skin !== 'string') return;
+            var key = it.creature + '-' + it.skin;
+            SKIN_GROUPS.forEach(function (g) {
+                if (ASSETS[g[0]][key]) return;
+                ASSETS[g[0]][key] = A + 'creatures/' + key + g[1] + '.png';
+                if (loadKicked) loadOne(g[0], key);
+            });
+        });
+    }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
-        var pending = 0;
-        Object.keys(ASSETS).forEach(function (group) {
-            Object.keys(ASSETS[group]).forEach(function (name) {
-                var src = ASSETS[group][name];
-                if (!src) { images[imgKey(group, name)] = null; return; }
-                var im = new Image();
-                pending++;
-                im.onload = im.onerror = function () { pending--; if (pending === 0 && onDone) onDone(); };
-                im.src = src;
-                images[imgKey(group, name)] = im;
+        var go = function () {
+            var pending = 0;
+            var each = function () { pending--; if (pending === 0 && onDone) onDone(); };
+            Object.keys(ASSETS).forEach(function (group) {
+                Object.keys(ASSETS[group]).forEach(function (name) { if (loadOne(group, name, each)) pending++; });
             });
-        });
-        if (pending === 0 && onDone) onDone();
+            loadKicked = true;
+            if (pending === 0 && onDone) onDone();
+        };
+        // 카탈로그를 못 받으면(file:// 개발 도구 등) 기본 시트만 — 스킨은 기본 모습으로 보인다
+        if (typeof fetch === 'function') fetch(SKIN_CATALOG_URL).then(function (r) { return r.ok ? r.json() : null; }).then(function (cat) { registerSkins(cat && cat.marble_skin); }).catch(function () {}).then(go);
+        else go();
     }
 
     function lerp(a, b, k) { return a + (b - a) * k; }
@@ -244,7 +268,7 @@ var MarbleRender = (function () {
 
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
+            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
@@ -977,7 +1001,8 @@ var MarbleRender = (function () {
             }
         }
         // 이름표: 공 옆에 주인 이름(플레이어 색 알약). 번호 대신 누구 동물인지 바로 읽히게. 긴 이름은 앞 6자 + …
-        function drawNameTag(b, cx, cy, strong) {
+        function drawNameTag(b, cx, cy, strong) { overlay(drawNameTagNow, [b, cx, cy, strong]); }
+        function drawNameTagNow(b, cx, cy, strong) {
             var name = String(b.owner || ''); if (name.length > 6) name = name.slice(0, 6) + '…';
             var hl = highlightMine && strong;   // 강조 모드: 내 이름표는 금색, 남의 것은 옅게
             ctx.save();
@@ -993,6 +1018,15 @@ var MarbleRender = (function () {
         function drawRing(b, x, y, r, strong) {
             ctx.save();
             if (highlightMine && strong) {   // 내 동물: 금색 굵은 링 + 흰 바깥 링 + 글로우
+        // z-order 위층 큐 — drawBalls 안에서만 켜진다. 이름표·zz·말풍선·표식처럼 머리 위에 붙는 것은 몸을 전부 그린 뒤에 한꺼번에 그려
+        // 옆 동물 몸에 가려지지 않게 한다. 밖(응원석·비석)에서는 큐가 없으니 그 자리에서 바로 그린다. 알파(대기 프리뷰 반투명)는 넣을 때 값을 기억한다
+        var overlayQ = null;
+        function overlay(fn, args) { if (overlayQ) overlayQ.push({ fn: fn, args: args, a: ctx.globalAlpha }); else fn.apply(null, args); }
+        function flushOverlays() {
+            var q = overlayQ; overlayQ = null; if (!q) return;
+            for (var i = 0; i < q.length; i++) { ctx.globalAlpha = q[i].a; q[i].fn.apply(null, q[i].args); }
+            ctx.globalAlpha = 1;
+        }
                 ctx.shadowColor = MY_RING; ctx.shadowBlur = 12;
                 ctx.strokeStyle = MY_RING; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
                 ctx.shadowBlur = 0; ctx.strokeStyle = MY_RING_OUTER; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, toScreenY(y), r + 3, 0, Math.PI * 2); ctx.stroke();
@@ -1105,6 +1139,10 @@ var MarbleRender = (function () {
             var sc = SRC_SCALE * 1.4;
             ctx.drawImage(c, x - 16 * sc, toScreenY(y) - 64 * sc, 32 * sc, 64 * sc);
             return true;
+        // zz(잠·졸음) — 2차 zz 스트립, 없으면 글자. y 는 세계 좌표(공 중심 기준)
+        function drawZz(x, y, frame, alpha, txt) {
+            if (!drawSprite('fx', 'zz', x, y - 4, 48, 48, { sx: frame * 48, sw: 48, alpha: alpha, scale: 1.3 })) label(txt, x, y, 'rgba(255,255,255,' + alpha.toFixed(2) + ')', 12);
+        }
         }
         // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
         function inSunZone(b) {   // 잔디 '자리'(타원) 안에 있을 때만 — 서버 SUN_SPOTS 와 동일
@@ -1188,11 +1226,15 @@ var MarbleRender = (function () {
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
             var rearByOwner = {};
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done') continue; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
-            for (i = 0; i < balls.length; i++) {
-                b = balls[i];
+            // z-order: 화면 아래(y 큰 쪽)가 앞 — y 오름차순으로 그려 겹치면 아래 놈이 위 놈을 가린다(같은 y 면 x·id 순으로 고정, 프레임마다 안 바뀜).
+            // 독수리에 들린 놈은 공중이라 모든 몸 위에, 이름표·zz 같은 머리 위 표식은 overlayQ 로 맨 위에
+            overlayQ = [];
+            var order = balls.slice().sort(function (a, c) { return a.y - c.y || a.x - c.x || a.id - c.id; }), carried = [];
+            for (i = 0; i < order.length; i++) {
+                b = order[i];
                 if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
                 mine = b.owner === myName;
-                if (b.state === 'carried') { drawEagleCarry(b, t, mine); continue; }
+                if (b.state === 'carried') { carried.push(b); continue; }
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
@@ -1210,7 +1252,7 @@ var MarbleRender = (function () {
                         else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 1, ix, iy + 4); }
                         else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 2, ix, iy + 4); }
                         else drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip);
-                        if (ia.growl) label('으르렁!', ix + (ia.flip ? -14 : 14), iy - 26 + Math.sin(idleClock / 60) * 1.5, '#fff', 11);
+                        if (ia.growl) overlay(label, ['으르렁!', ix + (ia.flip ? -14 : 14), iy - 26 + Math.sin(idleClock / 60) * 1.5, '#fff', 11]);
                         drawBadge(b, ix, iy, mine);
                         ctx.globalAlpha = 1;
                         continue;
@@ -1242,8 +1284,7 @@ var MarbleRender = (function () {
                     drawBadge(b, b.x, b.y, mine);
                     // zz
                     var zt = (t - b.napAt) % 900; var zy = b.y - 20 - zt / 45; var za = 1 - zt / 900;
-                    if (!img('fx', 'zz')) label(zt < 450 ? 'z' : 'Z', b.x + 14, zy, 'rgba(255,255,255,' + za.toFixed(2) + ')', 12);
-                    else drawSprite('fx', 'zz', b.x + 14, zy - 4, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za, scale: 1.3 });
+                    overlay(drawZz, [b.x + 14, zy, Math.floor(zt / 225), za, zt < 450 ? 'z' : 'Z']);
                     continue;
                 }
                 if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
@@ -1260,7 +1301,7 @@ var MarbleRender = (function () {
                         else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine);
                         var ztw = (t - b.walkStallAt) % 900, zyw = b.y - 20 - ztw / 45;
-                        if (!drawSprite('fx', 'zz', b.x + 14, zyw - 4, 48, 48, { sx: Math.floor(ztw / 225) * 48, sw: 48, alpha: 1 - ztw / 900, scale: 1.3 })) label('z', b.x + 14, zyw, '#fff', 12);
+                        overlay(drawZz, [b.x + 14, zyw, Math.floor(ztw / 225), 1 - ztw / 900, 'z']);
                         continue;
                     }
                     var ws = t - b.landAt;
@@ -1270,8 +1311,8 @@ var MarbleRender = (function () {
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
                     drawBadge(b, b.x, b.y, mine);
-                    if (b.walkSpeed >= 125) icon('dash', b.x - 18, b.y - 4, 13);   // 빠른 놈 표시
-                    else if (b.walkSpeed <= 72) icon('snail', b.x - 18, b.y - 4, 12);   // 굼벵이
+                    if (b.walkSpeed >= 125) overlay(icon, ['dash', b.x - 18, b.y - 4, 13]);   // 빠른 놈 표시
+                    else if (b.walkSpeed <= 72) overlay(icon, ['snail', b.x - 18, b.y - 4, 12]);   // 굼벵이
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawBadge(b, b.x, b.y, mine); continue; }
@@ -1321,6 +1362,7 @@ var MarbleRender = (function () {
             var st = (pieces.stand || [])[0]; if (!st) return null;
             var z = st.zone, cols = st.cols || 10;
             var finishedCount = 0;
+            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === myName);   // 공중 — 모든 몸 위
             for (var i = 0; i < balls.length; i++) if (balls[i].state === 'done') finishedCount++;
             var rows = Math.ceil(Math.max(1, finishedCount) / cols);
             var rowMap = {};
@@ -1331,6 +1373,7 @@ var MarbleRender = (function () {
             return { st: st, z: z, cols: cols, colW: z.w / cols, rows: rows, rowMap: rowMap, shownRows: Math.min(rows, STAND_MAX_ROWS), ln: ln, chute: chute };
         }
         // 스탠드 판자 + 도착 파이프(홈통) — 동물보다 먼저 그린다. 통로가 2~3열이면 아래 줄 동물 발이 통로 바닥 아래로 내려오는데, 뒤에 그리면 홈통이 그 발을 가린다
+            flushOverlays();   // 이름표·zz·표식 — 몸·깃발 위
         function drawStandBase(t) {
             var L = standLayout(); if (!L) return;
             var z = L.z, chute = L.chute;
@@ -1520,7 +1563,7 @@ var MarbleRender = (function () {
             drawGravestone(x, y + 8 - drop, since - GRAVE_DROP_MS);
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
-                label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);
+                label(b.owner + ' 님의 ' + (b.skinName || CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);   // 스킨을 끼면 스킨 이름(서버 skinName = 카탈로그 displayName)
                 label(data.target === 'first' ? '꼴찌 확정!' : '꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 당첨 순위가 1등(투표 룰렛)이면 당첨은 1등 — 비석은 꼴찌 연출로만
             }
         }
@@ -1802,5 +1845,5 @@ var MarbleRender = (function () {
         return R;
     }
 
-    return { create: create, loadAssets: loadAll, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
+    return { create: create, loadAssets: loadAll, registerSkins: registerSkins, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
 })();
