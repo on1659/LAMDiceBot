@@ -1279,6 +1279,14 @@ module.exports = (socket, io, ctx) => {
                     io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, crowd: gameState.marble.crowd });
                 }
             }
+            // 퇴장한 사용자의 데구리 당첨 순위 투표 삭제 (막대가 남지 않게 — 시작 시 집계는 참가자 표만 세므로 결과엔 영향 없음)
+            if (gameState.marble && gameState.marble.rankVotes &&
+                gameState.marble.rankVotes[socket.userName] !== undefined) {
+                delete gameState.marble.rankVotes[socket.userName];
+                if (gameState.marble.phase !== 'playing') {
+                    io.to(roomId).emit('marble:rankVotesUpdated', { votes: { ...gameState.marble.rankVotes } });
+                }
+            }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.
             // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.
         }

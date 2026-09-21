@@ -123,14 +123,17 @@ function createRoomGameState() {
         marble: {
             phase: 'idle',          // idle | playing | finished
             picks: {},              // { userName: creatureId }  creatureId ∈ socket/marble.js CREATURES(8종)
-            crowd: 'normal',        // 호스트 설정 마릿수 단계 few|normal|many (인당 수는 socket/marble-sim.js crowdBallsPerPlayer 가 인원으로 환산)
+            crowd: 'normal',        // 호스트 설정 마릿수 단계 solo|normal|many (인당 수는 socket/marble-sim.js crowdBallsPerPlayer 가 인원으로 환산)
+            rankVotes: {},          // { userName: 'first' | 'last' }  당첨 순위 투표(경마 userRankVotes 와 같은 방식, 선택지는 1등/꼴등 둘) — 시작 시 룰렛이 target 을 정한다
+            target: 'last',         // 이번 판 당첨 순위 'first' | 'last' (시작 시 결정, 투표 없으면 꼴등)
             participants: [],       // 시작 시점 사람 참가자 이름
             timeline: null,         // server-only: 시뮬 타임라인 { track, sampleMs, frames, events, finishOrder, simEndMs } (재진입 마스킹 대상 — reveal 1회 외 비노출)
-            result: null,           // server-only: { selected, rankings, successionList } (selected = 마지막 공 주인 = 당첨)
+            result: null,           // server-only: { selected, rankings, successionList } (selected = target 순위 주인 = 당첨)
             seed: 0,                // server-only
             round: 0,
             history: [],
             isActive: false,
+            revealTimeout: null,    // 룰렛/사유 표시 뒤 reveal 예약
             endTimeout: null,
             resetTimeout: null
         },

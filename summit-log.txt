@@ -1,4 +1,108 @@
 ========================================
+📋 Summit Log - 2026-09-21 (데구리 당첨 순위 투표 룰렛 + 경주 마무리·UI 정리 + 마릿수 3단계)
+========================================
+
+## 변경 파일
+- socket/marble.js: 당첨 순위 투표 핸들러(marble:voteRank), decideTarget() 룰렛 결정, rouletteStart/reasonHold → hold 뒤 reveal(revealTimeout), target 을 reveal/gameEnd/history 에 동봉, gameRules first-ball/last-ball, 강제 시작 문구 정리
+- socket/marble-sim.js: rankPlayers(..., target) — 'first' 면 1등이 selected·succession 반전. (동시 반영) CROWD_PRESETS 3단계(solo/normal/many)·MAX_BALLS 200→100·EAGLES_BY_CROWD 축소
+- socket/shared.js, socket/rooms.js: 준비 취소·퇴장 시 데구리 투표 삭제 + marble:rankVotesUpdated 브로드캐스트
+- utils/room-helpers.js: marble.rankVotes / target / revealTimeout 초기값
+- js/marble.js: 투표 칸 렌더(renderVoteSection), 룰렛 애니(playRouletteAnimation — 막대+빈 칸 순회, 경마와 같은 감속 곡선), 캔버스 중앙 팝업(moveVoteUiToCanvas/restoreVoteUiFromCanvas), 배너/사유, 시작 확인 팝업(강제 시작 버튼 대체), 순위 보기 버튼·주문 알림 제거, 내 동물 따라가기 sessionStorage, 안 고른 사람 이름표, MARBLE_CROWDS 3단계
+- js/marble-render.js: 1등 당첨 피날레(celebration/drawWinnerCelebration/drawCrown — 카메라 이동·왕관·색종이·깡충), 도착 스탠드 순위+이름 알약(지그재그), 피날레 문구 target 분기, 후미 흰 이름 라벨 제거
+- marble-multiplayer.html: 투표 섹션·타깃 배너·사유 카드·「동물 안 고른 사람」 섹션 추가, 강제 시작·순위 보기 버튼 제거, 마릿수 버튼 3개, 캐시 버전(css v16 / marble.js v25 / render v55)
+- css/marble.css: 투표 칸 축소·팝업(on-canvas) 크기, .spin-active, .marble-pick-status:empty
+- AutoTest/marble-determinism-test.js, marble-sim-dump.js: MAX_BALLS 상수 참조·crowd 주석 (마릿수 3단계에 맞춤)
+
+## 상세 변경 내역
+
+### 당첨 순위 투표 → 룰렛 (경마 N등 투표와 같은 방식, 선택지는 1등/꼴등 둘)
+- 준비한 사람만 marble:voteRank {target:'first'|'last'} — 같은 칸 재클릭 = 취소. 서버가 marble:rankVotesUpdated {votes} 브로드캐스트, 클라는 익명 막대로만 표시. 준비 취소·퇴장 시 표 삭제.
+- 시작 시 decideTarget(): 참가자 표만 집계, 득표 비례 가중 랜덤(서버 RNG). 표 있으면 marble:rouletteStart {segments, winning, animDurationMs, votes, reason} → 5.5s 스핀 + 3s 감상 후 reveal. 표 없으면 marble:reasonHold(3s, 기본 꼴등). 한쪽에만 몰려도 스핀(경마는 skip) — 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 연출을 항상 보여준다(사용자).
+- 시뮬은 룰렛이 도는 동안 미리 돌리고 남은 hold 만큼 기다렸다 reveal(revealTimeout). 시뮬 실패 시 gameAborted 로 화면 복구.
+- rankPlayers(target): rankings 는 그대로, selected/successionList 만 target 쪽으로. endGame 은 mb.target 을 history·gameEnd·DB gameRules 에 기록.
+- 클라 룰렛: 순회 칸 = 막대(표) + 표 없는 쪽은 박스 자체(.spin-active). 서버가 정한 winning 의 첫 막대에서 정지(.winner) → 배너 "N등을 찾아라!" + 사유. 감속 곡선(REPEAT 4, ease-out ^3, 40x, tailBoost, 마지막 30% 캡)은 js/horse-race.js 와 동일.
+- 룰렛 동안 배너·투표 칸·사유를 #marbleCanvasBox 안 .canvas-bars-overlay(경마 CSS)로 옮겨 정중앙 팝업 + 캔버스로 스크롤. reveal 때 0.5s 페이드 후 원위치(배너만 캔버스 위에 잔존). 준비 변동으로 재렌더돼도 룰렛 중엔 막대를 건드리지 않는다(voteUiPinned).
+
+### 1등 당첨 피날레 (렌더러)
+- target 'first' 면 비석 착지 +0.9s 에 카메라가 스탠드의 1등 동물(순위를 확정한 마지막 마리)로 이동, 왕관 낙하(쿵·먼지·별) → 금빛 글로우 + 색종이 반복 + 그 사람 동물 전부 금색 링·깡충, "🥇 1등 확정… 당첨! / ○○ 님". 홈통을 아직 굴러가는 중이면 자리에 앉은 뒤 시작, 접힌 줄이면 보이는 동물로 대체. HUD "1등 ○○ 님 당첨!", 비석 라벨은 "꼴찌 확정!"(당첨 아님).
+- 스탠드 배지 → "3 호스트" 알약(플레이어 색, 앞 6자). 칸 폭보다 넓을 수 있어 홀수 칸은 12px 위로 지그재그. 왕관 동물은 알약 생략.
+- 내 후미 동물 위 흰 글자 이름(옛 표시) 제거 — 알약과 겹쳐 두 번 떠 보였음.
+
+### 시작·마무리 UI
+- ⚡ 강제 시작 버튼 제거: 경주 시작 → 안 고른 사람 있으면 showCustomConfirm("자동 배정하고 바로 시작할까요?") → 확인 시 force. 서버 거절 문구에서 "(강제 시작하면 자동 배정)" 제거.
+- 피커 아래 긴 설명 문구 제거, "⏳ 동물 안 고른 사람" .not-rolled-tag 섹션(경마 "선택 안한 사람"과 같은 형식). 안 고른 상태의 빈 status 줄은 :empty 로 접음.
+- 🏆 순위 보기 버튼·reopenResult/lastResult 제거(끝나면 오버레이가 자동으로 뜸). 경주 끝 "주문받기가 시작됐어요" 알림 제거(순위 창과 겹침).
+- 내 동물 따라가기: localStorage → sessionStorage. 들어올 때마다 켜짐, 끄면 그 탭에서만.
+
+### 마릿수 3단계 (같은 워킹트리에서 진행된 변경을 함께 포함)
+- CROWD_PRESETS solo/normal(2·20)/many(4·50), MAX_BALLS 100, EAGLES_BY_CROWD {1,1,2}. 버튼 솔로/보통/많이. AutoTest 는 상수 참조로.
+
+### 검증
+- 5175/5174 2탭: 표 동기화·취소, 1등 vs 꼴등 룰렛 → 배너 → 경주 → 당첨=1위, 투표 없음 → 사유 카드 → 꼴등, 만장일치 → 스핀(빈 칸 하이라이트) → 8.5s reveal, 준비 취소 → 표 삭제, 시작 팝업 → force 자동 배정 알림, 팝업 룰렛 overlay 생성/제거·배너 복귀, 1등 피날레 스크린샷. marble-determinism-test ALL PASS. 콘솔 에러는 AdSense TagError(기존)뿐.
+- 함정: node server.js 는 자동 리로드가 없어 socket/* 변경은 재시작 필수 — 옛 프로세스(5174, 18:54)에서 "투표가 안 그려지고 바로 3,2,1" 제보가 나온 원인.
+
+========================================
+
+========================================
+📋 Summit Log - 2026-09-21 (9차 새 동물 리본돼지 — SpriteMake 배치 I, codex exec 3라운드)
+========================================
+
+## 변경 파일
+- assets/marble/creatures/ribbonpig.png (640×800), ribbonpig-sleep.png (640×160), ribbonpig-scuffle.png (640×320): 신규. md5 383d27d21aa948f2722d997753da2fac / 9fc54c569039daee046e936ae1c813d1 / cd8c39c48d29bc474b7341678728a2ab
+- assets/marble/marble-run.manifest.json: creaturesI 섹션
+- docs/spritemake-request/applied/2026-09-21-marble-run-creatures-i.md: 의뢰서(디자인·§4 리팩 규칙) → applied/
+- (코드 연결은 선행 커밋 884bacc — socket/marble.js CREATURES·js/marble.js·js/marble-render.js·선택 버튼·AutoTest, v49/v20)
+
+## 상세 변경 내역
+
+### [디자인]
+- 메이플 리본돼지의 "느낌"(분홍 돼지 + 빨간 나비 리본)만 — 형태·눈·비율 복제 금지 명시. 공은 리본이 표면 한 점에 붙어 회전이 읽힘, 꼬불 꼬리는 작은 혹. 28px 에서 분홍 원 + 위쪽 빨간 점.
+
+### [파이프라인 — 토끼 교훈 3개를 의뢰서에 선반영]
+- H 도구(컴포넌트 중심점 배정 리팩·run 게이트·despill) 사용, G 도구 금지 / r4c2 위에서 본 엎어짐 허용 / 배경은 초원색 초록(분홍과 멀고 잔디 위에서 림 안 보임).
+- Codex 세션 1개 3라운드: (1) 생성 — main 1차는 토끼 레퍼런스에 끌려 긴 귀(반려), 2차 채택; scuffle 1차 "!!" 마크·2차 투명 배경 빨간 림·3차 채택; sleep 1차. (2) Codex 가 main 2차를 "떨어진 리본·바닥 마크 = 이미지 문제"로 반려하고 3차(공 행 2번째 칸이 공이 아님)까지 간 뒤 main 보류 → 오버라이드: 실제 원인은 r0c1 의 "!!" 위성 마크가 중심점 기준으로 r1c1 에 배정돼 웅크림 칸이 축소된 것. 위성(<3% 면적)은 가장 가까운 본체 셀로 배정하고 본체만으로 스케일. 초록 우세 림 5%/4% → 배경 Δ60 또는 g>r+30&g>b+30 픽셀을 안쪽 색으로 교체(0%). (3) 위성이 바닥선 아래로 내려간 것(r0c1 bottom 159, r4c1 150) → 위성 픽셀 y>149 클립.
+- 최종 검증(Claude 독립): 캔버스·alpha 1~7=0·셀당 run 1개(r4c1 바운스 선은 의도된 위성)·접지 전부 150·공 116×112 중심 (80,80)·dup·공 4칸 상이·림 0%·md5 = QA 기록. 프리뷰 10마리 출발대 렌더 확인, determinism ALL PASS.
+
+### [주의]
+- 작업 트리에 다른 세션의 당첨 순위 투표 WIP(9파일 350줄)가 미커밋 상태로 공존 — 이번 커밋은 PNG·manifest·의뢰서·로그만 스테이징.
+
+========================================
+
+========================================
+📋 Summit Log - 2026-09-21 (8차 새 동물 토끼 — SpriteMake 배치 H, Claude 가 codex exec 로 직접 지휘)
+========================================
+
+## 변경 파일
+- assets/marble/creatures/rabbit.png (640×800 4×5), rabbit-sleep.png (640×160), rabbit-scuffle.png (640×320): 신규. md5 7685907938f7fd573646fb61c7c92639 / 08a947693d3ab44d1f7a9d011741f26f / fe4f54bfe75bb72fa706e1ce5d984811
+- assets/marble/marble-run.manifest.json: creaturesH 섹션(배치·md5·bbox 메모)
+- socket/marble.js: CREATURES 에 'rabbit' (9종, assignCreature 순환도 9종)
+- js/marble.js: MARBLE_CREATURES 에 'rabbit' (v18)
+- js/marble-render.js: CREATURE_NAMES rabbit:'토끼', ASSETS.creatures/sleep/scuffle 에 rabbit 3장 (v47)
+- marble-multiplayer.html: 동물 선택 버튼 🐰 토끼(data-optional — 시트 없으면 자동 숨김), ?v 갱신
+- AutoTest/devtools.html, marble-determinism-test.js, marble-sim-dump.js: CREATURES 목록 9종
+- docs/spritemake-request/applied/2026-09-21-marble-run-creatures-h.md: 의뢰서(디자인·프레임 순서·QA 게이트), 인수 완료로 applied/ 이동
+
+## 상세 변경 내역
+
+### [에셋 파이프라인 — 사람 개입 없이 Claude → Codex]
+- 의뢰서 → SpriteMake Symphony intake(`node tools/runner/request-batch.js`, 배치 ice-sprite-20260921-085437 는 접수 기록) → `codex exec`(ChatGPT.app 번들 CLI 0.155, image_generation)로 작업 배치 output/marble-run-creatures-h-2026-09-21/ 생성·리팩·QA·final/ 승격 → Claude 가 final/ 을 독립 검증(alpha≥8 bbox·셀당 조각 run·접지 y=150·공 기하·라벤더 림 비율·md5) 후 assets/ 복사.
+- 한 Codex 세션을 3라운드 resume 으로 이어감. Codex 가 게임 폴더에 쓰는 건 금지.
+
+### [Codex 라운드에서 잡은 결함 3건 — 이유와 수정]
+- (1) 반려 오판: Codex 가 main 3회 시도를 전부 "정면 뷰"로 반려. 원인은 r4c2(대자로 엎어져 귀가 얼굴 덮는 칸)를 정면으로 읽은 것 — 햄스터·판다 r4c2 도 위에서 본 포즈라 합격 처리, attempt-01 채택(02 는 뻣뻣한 직립, 03 은 마젠타 잔여).
+- (2) 리팩 격자 침범(7차 G 도구 결함, 구조 QA 는 PASS): 원본을 고정 분수 격자로 잘라 윗줄 발·아랫줄 귀 끝 조각이 딸려 옴 → clean_crop bbox 가 늘어나 공 본체 72px(런타임 18px), r3c1·scuffle r0c0 몸이 바닥에서 18~20px 뜸. 수정: 8-연결 컴포넌트를 중심점으로 셀 배정 + QA 에 셀당 y/x-run 1개 게이트. 이후 배치는 tools/*_creatures_h.py 를 쓸 것.
+- (3) 라벤더 림: 보라 배경으로 생성한 sleep·scuffle 가장자리 픽셀 16%/40% 가 배경색(기존 despill 은 빨강·마젠타만) → 안쪽 이웃 색으로 교체(픽셀 삭제 X, 접지 유지). 결과 0%.
+
+### [공 기하]
+- r2c0 공 bbox (20,26)-(140,135) = 120×109, 중심 (80,80.5) — 솜꼬리 돌출 때문에 폭 120 캡으로 균등 축소(본체 ~109, 108~120 게이트 안). 찌그러짐 칸 120×79. row1 col3 == row2 col0 diff 0. 공 4칸 픽셀 차 9천 이상(구분됨).
+
+### [검증]
+- node AutoTest/marble-determinism-test.js ALL PASS. game-lab/marble-preview.html(9인, 시드 7) 출발대 대기(서기)·공 렌더 확인, rabbit*.png 200. 404 는 기존 4차 미도착 4개뿐.
+- 로컬 5173 서버는 옛 프로세스 — socket/marble.js 바뀌었으니 재기동 필요.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (동물 선택 버튼 idle 애니 + 거북이 첫 칸 반전·복어 v2 배포)
 ========================================
 

@@ -44,6 +44,13 @@ var MarbleRender = (function () {
     var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
+    // 1등 당첨(투표 룰렛 target 'first') 축하 — 비석이 깔린 뒤 카메라가 스탠드의 1등 동물로 건너가 왕관을 씌우고 색종이를 뿌린다(사용자 2026-09-21: 비석 뒤가 멈춘 것처럼 보임)
+    var CROWN_DELAY_MS = 900;        // 비석 착지 → 1등 축하 시작까지
+    var CROWN_DROP_MS = 450;         // 왕관 낙하 시간
+    var CROWN_DROP_H = 120;          // 왕관 낙하 시작 높이(px)
+    var CONFETTI_MS = 2400;          // 색종이 한 번 흩날리는 시간(반복)
+    var CONFETTI_N = 36;             // 색종이 조각 수
+    var WIN_BOUNCE_MS = 520;         // 1등 동물들이 깡충 뛰는 주기
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
     // 골 앞 ZOOM_ZONE 안에 들어오면 줌인, 마지막 공은 서버가 준 slow 구간에서 슬로모.
     var CAM_LEAD = 0.22;             // 카메라 중심을 대상 공보다 아래(진행 방향)로 두는 비율(뷰 높이 기준)
@@ -91,14 +98,14 @@ var MarbleRender = (function () {
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
         '#4053d6', '#d63be2', '#b07033', '#aab6c4', '#3bc9a7', '#e6dfc8', '#5a6472', '#343344',
         '#ff7a1a', '#f2c014', '#8a8d2f', '#0e9488', '#5b3fd6', '#ff6f61', '#7d3a6a', '#46708f'];
-    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리' };
+    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '리본돼지' };
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -239,7 +246,7 @@ var MarbleRender = (function () {
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
             hudInfo = { remaining: balls.length, worst: [] };
             R.resize();
         };
@@ -373,7 +380,7 @@ var MarbleRender = (function () {
                 if (!rear || progress(b) < progress(rear)) rear = b;
             }
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
-            var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done');
+            var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done'), celNow = null;
             var hf = (pieces.holefield || [])[0];
             // 내 동물 따라가기(강조 모드): 내 동물 중 선두를 따라가다가, 내 것이 하나라도 들어가면 그때부터 내 것 중 꼴찌를 따라간다.
             // 내 것이 다 들어갔거나(myFocus 없음) 결승 프레임 구역에 들어오면 시스템 카메라로 돌아간다(프레임은 어차피 전원이 보인다)
@@ -400,6 +407,7 @@ var MarbleRender = (function () {
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
             else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; }   // 내 동물 따라가기
+            else if (loserDone && (celNow = celebration(t)) && celNow.since >= 0) { targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; }   // 1등 당첨 축하: 비석에서 스탠드의 1등 동물로 건너간다
             else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
@@ -1267,7 +1275,7 @@ var MarbleRender = (function () {
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
                 drawRing(b, b.x, b.y, BALL_R + 1, mine);   // 구를 때만 링 — 공 스프라이트(지름 28)에 딱 맞게
             }
-            // 깃발 + 내 이름표
+            // 후미 깃발 (내 이름은 공마다 붙는 이름표 알약이 이미 보여준다 — 예전 흰 글자 이름은 알약과 겹쳐 두 번 떠 보여 뺌, 사용자 2026-09-21)
             Object.keys(rearByOwner).forEach(function (owner) {
                 var rb = rearByOwner[owner]; if (!visible(rb.y, 60) || t < 0) return;
                 var fx = rb.x + 10, fy = rb.y - 24;
@@ -1276,7 +1284,6 @@ var MarbleRender = (function () {
                     ctx.save(); ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, toScreenY(fy)); ctx.lineTo(fx, toScreenY(fy) + 20); ctx.stroke();
                     ctx.fillStyle = ringColor(rb); ctx.beginPath(); ctx.moveTo(fx, toScreenY(fy)); ctx.lineTo(fx + 12 + wave, toScreenY(fy) + 4); ctx.lineTo(fx, toScreenY(fy) + 9); ctx.closePath(); ctx.fill(); ctx.restore();
                 }
-                if (owner === myName) label(owner, rb.x, rb.y - 34, '#fff', 12);
             });
         }
 
@@ -1319,6 +1326,83 @@ var MarbleRender = (function () {
                 ctx.restore();
             }
         }
+        // 스탠드에서 finishIdx 번째 자리(월드 좌표). 줄이 접혀 안 보이는 자리면 null
+        function standSlot(L, idx) {
+            var row = Math.floor(idx / L.cols), col = idx % L.cols;
+            if (L.rowMap[row] == null) return null;
+            return { x: L.z.x + L.colW * (col + 0.5), y: L.z.y + L.rowMap[row] * STAND_ROW_H + 18 };   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
+        }
+        // 1등 당첨 축하 정보 — target 'first' 이고 꼴찌 비석이 깔린 뒤. 왕관은 1등의 "가장 늦게 들어온" 동물(순위를 확정한 놈)에게.
+        // since < 0 이면 아직 시작 전(카메라는 비석에). 왕관 동물 자리가 접힌 줄이면 그 사람의 보이는 동물 중 제일 늦은 놈, 그것도 없으면 스탠드 가운데
+        var celCache = null;
+        function celebration(t) {
+            if (!data || data.target !== 'first' || !data.result || !data.result.selected || !data.finishOrder.length) return null;
+            var loserB = byId[data.finishOrder[data.finishOrder.length - 1]];
+            if (!loserB || loserB.state !== 'done') { celCache = null; return null; }
+            if (celCache && celCache.loserAt === loserB.finishAt) { celCache.since = t - celCache.startT; return celCache; }
+            var L = standLayout(); if (!L) return null;
+            var owner = data.result.selected, crownB = null, crownSlot = null, arrival = 0;
+            for (var i = 0; i < balls.length; i++) {
+                var b = balls[i];
+                if (b.owner !== owner || b.state !== 'done' || b.id === loserB.id) continue;
+                var slot = standSlot(L, b.finishIdx);
+                if (!slot) continue;
+                if (!crownB || b.finishIdx > crownB.finishIdx) { crownB = b; crownSlot = slot; }
+            }
+            if (crownB && L.chute) arrival = crownB.finishAt + ((L.chute.y - L.ln.y) + (L.chute.x - (L.z.x + 4))) / CHUTE_SPEED * 1000 + POOF_FX_MS;   // 홈통을 다 굴러 자리에 앉은 뒤
+            var x = crownSlot ? crownSlot.x : L.z.x + L.z.w / 2, y = crownSlot ? crownSlot.y : L.z.y + 18;
+            var startT = Math.max(loserB.finishAt + GRAVE_DROP_MS + CROWN_DELAY_MS, arrival);
+            celCache = { owner: owner, ball: crownB, x: x, y: y, startT: startT, loserAt: loserB.finishAt, crownLanded: false, since: t - startT };
+            return celCache;
+        }
+        // 1등 당첨 축하 연출: 왕관이 위에서 떨어져 1등 동물 머리에 얹히고(쿵 → 먼지), 색종이가 흩날리며 "1등 확정… 당첨!"
+        function drawWinnerCelebration(t) {
+            var cel = celebration(t);
+            if (!cel || cel.since < 0) return;
+            var x = cel.x, y = cel.y, since = cel.since;
+            var k = clamp(since / CROWN_DROP_MS, 0, 1);
+            var drop = (1 - k) * (1 - k) * CROWN_DROP_H;
+            if (!cel.crownLanded && k >= 1) { cel.crownLanded = true; fxList.push({ type: 'dust', x: x, y: y + 6, t0: t, dur: POOF_FX_MS }); fxList.push({ type: 'star', x: x, y: y - 20, t0: t, dur: POOF_FX_MS }); }
+            if (k >= 1) {   // 뒤에서 은은한 금빛 (동물은 drawCheerStand 가 이미 그렸으므로 왕관·글자만 위에)
+                ctx.save();
+                var glow = ctx.createRadialGradient(x, toScreenY(y - 10), 6, x, toScreenY(y - 10), 70);
+                glow.addColorStop(0, 'rgba(255,225,120,0.45)'); glow.addColorStop(1, 'rgba(255,225,120,0)');
+                ctx.fillStyle = glow; ctx.globalCompositeOperation = 'lighter'; ctx.beginPath(); ctx.arc(x, toScreenY(y - 10), 70, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                // 색종이: CONFETTI_MS 주기로 반복해서 위에서 흩날린다 (조각별 위상·색·흔들림은 해시로 고정 — 시크해도 같은 그림)
+                var ck = ((since - CROWN_DROP_MS) % CONFETTI_MS) / CONFETTI_MS;
+                for (var i = 0; i < CONFETTI_N; i++) {
+                    var h1 = hash01(i * 7 + 1), h2 = hash01(i * 7 + 2), h3 = hash01(i * 7 + 3);
+                    var pk = (ck + h1) % 1;
+                    var cx = x + (h2 - 0.5) * 150 + Math.sin((pk * 6 + h3 * 9)) * 10, cy = y - 90 + pk * 130;
+                    ctx.save();
+                    ctx.translate(cx, toScreenY(cy)); ctx.rotate(pk * 9 + h3 * 6);
+                    ctx.globalAlpha = pk < 0.85 ? 0.95 : (1 - pk) / 0.15;
+                    ctx.fillStyle = RING_COLORS[i % RING_COLORS.length];
+                    ctx.fillRect(-3, -2, 6, 4);
+                    ctx.restore();
+                }
+            }
+            var hop = cel.ball ? Math.abs(Math.sin((since / WIN_BOUNCE_MS + cel.ball.finishIdx * 0.37) * Math.PI)) * 9 : 0;
+            drawCrown(x, y - 6 - hop - BALL_R * 0.85 - 4 - drop, k >= 1 ? since - CROWN_DROP_MS : -1);
+            if (k >= 1) {   // 글자는 둘 다 동물 아래 — 위쪽은 홈통·스탠드 판자와 겹친다
+                label('🥇 1등 확정… 당첨!', x, y + 34, '#ffd166', 17);
+                label(cel.owner + ' 님', x, y + 54, '#fff', 14);
+            }
+        }
+        // 왕관 (코드 도형): 금색 3봉 + 빨간 보석. yBase = 머리 위(월드). sinceLand<120ms 동안 착지 눌림
+        function drawCrown(x, yBase, sinceLand) {
+            var w = 22, h = 14;
+            var squash = (sinceLand >= 0 && sinceLand < 120) ? 1 - 0.2 * (1 - sinceLand / 120) : 1;
+            ctx.save();
+            ctx.translate(x, toScreenY(yBase)); ctx.scale(1 / Math.sqrt(squash), squash);
+            ctx.fillStyle = '#f5c518'; ctx.strokeStyle = '#8a6a00'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h * 0.7); ctx.lineTo(-w / 4, -h * 0.35); ctx.lineTo(0, -h); ctx.lineTo(w / 4, -h * 0.35); ctx.lineTo(w / 2, -h * 0.7); ctx.lineTo(w / 2, 0); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#e23b3b'; ctx.beginPath(); ctx.arc(0, -h * 0.3, 2.2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#3b82e2'; ctx.beginPath(); ctx.arc(-w / 3, -h * 0.25, 1.6, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(w / 3, -h * 0.25, 1.6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
         // 도착 동물: 파이프 이동 중이면 그 위치에 공으로, 자리에 도착했으면 순위 배지와 함께 판자 위에
         function drawCheerStand(t) {
             var L = standLayout(); if (!L) return;
@@ -1330,9 +1414,9 @@ var MarbleRender = (function () {
                 if (b.state !== 'done') continue;
                 var idx = b.finishIdx;
                 if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 앞 판자벽 자리 비석(drawLastBall)
-                var row = Math.floor(idx / cols), col = idx % cols;
-                if (rowMap[row] == null) continue;
-                var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
+                var slot = standSlot(L, idx);
+                if (!slot) continue;
+                var x2 = slot.x, y2 = slot.y;
                 var since = t - b.finishAt;
                 if (chute) {   // 홈통: 골 x 에서 내려가 왼쪽 끝까지 다 굴러간 뒤 자기 자리로 순간이동 — 자리에서 내리면 5등이 4등보다 먼저 앉아 보였다(사용자 2026-09-21)
                     var endX = z.x + 4, d0 = chute.y - ln.y, d1 = chute.x - endX, dist = since / 1000 * CHUTE_SPEED;
@@ -1354,13 +1438,30 @@ var MarbleRender = (function () {
                 }
                 if (!visible(y2, 40)) continue;
                 var frame = since < 300 ? Math.min(1, Math.floor(since / 150)) : 2 + Math.floor((t / 260 + idx) % 2);
-                drawCreatureFrame(b, 3, frame, x2, y2 - 6, 0, 0.85);
-                // 순위 배지 (플레이어 색)
-                ctx.save();
-                ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(x2 - 13, toScreenY(y2) - 20, 8, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(String(idx + 1), x2 - 13, toScreenY(y2) - 19.5);
-                ctx.restore();
+                var cel = celebration(t), hop = 0;
+                if (cel && cel.since >= 0 && b.owner === cel.owner) {   // 1등 당첨 축하: 그 사람 동물 전부 금색 링을 두르고 깡충깡충
+                    hop = Math.abs(Math.sin((cel.since / WIN_BOUNCE_MS + idx * 0.37) * Math.PI)) * 9;
+                    ctx.save();   // 금색 링 + 글로우 (drawRing 은 이름표까지 그려 왕관과 겹치므로 직접)
+                    ctx.shadowColor = MY_RING; ctx.shadowBlur = 12; ctx.strokeStyle = MY_RING; ctx.lineWidth = 3.5;
+                    ctx.beginPath(); ctx.arc(x2, toScreenY(y2 - 6 - hop), BALL_R * 0.85 + 2, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+                }
+                drawCreatureFrame(b, 3, frame, x2, y2 - 6 - hop, 0, 0.85);
+                // 순위 + 주인 이름 알약(플레이어 색): "3 호스트" — 머리 위 (사용자 2026-09-21: 숫자만으론 누구 동물인지 안 읽힘).
+                // 칸 폭(colW)보다 넓어질 수 있어 홀수 칸은 한 단 위로 지그재그 — 같은 높이끼리는 두 칸 떨어져 안 겹친다. 이름은 앞 6자.
+                // 왕관 쓴 1등 동물은 알약 대신 아래 큰 글자(왕관과 겹침)
+                if (!(cel && cel.since >= 0 && cel.ball === b)) {
+                    var nm = String(b.owner || ''); if (nm.length > 6) nm = nm.slice(0, 6) + '…';
+                    var f = textBoost();
+                    ctx.save();
+                    ctx.font = 'bold ' + Math.round(8 * f) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    var tagTxt = (idx + 1) + ' ' + nm, tagW = Math.min(colW * 1.6, ctx.measureText(tagTxt).width + 7 * f), tagH = 12 * f;
+                    var tagY = toScreenY(y2 - hop) - 23 - ((idx % cols) % 2) * 12;
+                    ctx.fillStyle = ringColor(b); roundRect(x2 - tagW / 2, tagY - tagH / 2, tagW, tagH, 6 * f); ctx.fill();
+                    if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물은 흰 테두리
+                    ctx.fillStyle = '#fff'; ctx.fillText(tagTxt, x2, tagY + 0.5);
+                    ctx.restore();
+                }
                 if (since > 400 && ((t / 700 + idx * 3) % 9) < 1) {   // 간헐 응원 fx
                     if (!drawSprite('fx', 'cheer', x2, y2 - 30, 96, 96, { sx: Math.floor(t / 120) % 4 * 96, sw: 96 })) label('♪', x2 + 6, y2 - 30, ringColor(b), 12);
                 }
@@ -1393,7 +1494,7 @@ var MarbleRender = (function () {
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
                 label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);
-                label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);
+                label(data.target === 'first' ? '꼴찌 확정!' : '꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 당첨 순위가 1등(투표 룰렛)이면 당첨은 1등 — 비석은 꼴찌 연출로만
             }
         }
         // 비석 (코드 도형): 둥근 머리 회색 돌 + "꼴찌". yBase = 바닥(월드). sinceLand<120ms 동안 착지 눌림
@@ -1570,7 +1671,7 @@ var MarbleRender = (function () {
             var hw = view.w / view.ui, hh = view.h / view.ui;
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : '꼴찌 확정!');
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : (data.target === 'first' && data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : '꼴찌 확정!'));
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {
@@ -1627,6 +1728,7 @@ var MarbleRender = (function () {
             drawCheerStand(t);
             drawBasketFront(t);
             drawLastBall(t);
+            drawWinnerCelebration(t);
             drawFx(t);
             ctx.restore();
             drawHud(t);

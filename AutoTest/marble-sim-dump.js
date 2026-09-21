@@ -4,12 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const sim = require('../socket/marble-sim');
 
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon'];
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
 const players = parseInt(process.argv[2], 10) || 6;
 const nReq = parseInt(process.argv[3], 10) || 3;
 const seed = parseInt(process.argv[4], 10) || 12345;
 const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-timeline.json');
-const crowd = process.argv[6] || 'normal';   // solo | few | normal | many — 독수리 수(1/1/2/3)
+const crowd = process.argv[6] || 'normal';   // solo | normal | many — 독수리 수(1/1/2)
 
 (async () => {
     const participants = Array.from({ length: players }, (_, i) => `플레이어${i + 1}`);

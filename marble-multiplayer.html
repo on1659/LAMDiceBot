@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=11">
+    <link rel="stylesheet" href="/css/marble.css?v=16">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -227,19 +227,17 @@
                 <div class="schedule-open-row">
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
                 </div>
-                <!-- 마릿수 4단계(솔로=인당 1) — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
+                <!-- 마릿수 3단계(솔로=인당 1) — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
                 <div id="marbleHostSettings" class="marble-host-settings">
                     <label>동물 마릿수</label>
                     <div class="marble-crowd-group" role="group" aria-label="동물 마릿수">
                         <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')">🐾 솔로</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="few" onclick="setMarbleCrowd('few')">🐾🐾 조금</button>
                         <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')">🐾🐾🐾 보통</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')">🐾🐾🐾🐾 우르르</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')">🐾🐾🐾 많이</button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;">🐾 경주 시작</button>
-                    <button class="start-button" id="forceStartMarbleButton" onclick="forceStartMarble()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%);" title="동물을 안 고른 사람은 자동 배정하고 바로 시작">⚡ 강제 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
@@ -319,9 +317,31 @@
                     <button type="button" class="marble-creature-btn" data-creature="hamster" data-optional="1" onclick="pickCreature('hamster')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>햄스터</span></button>
                     <button type="button" class="marble-creature-btn" data-creature="pufferfish" data-optional="1" onclick="pickCreature('pufferfish')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>복어</span></button>
                     <button type="button" class="marble-creature-btn" data-creature="raccoon" data-optional="1" onclick="pickCreature('raccoon')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>너구리</span></button>
+                    <button type="button" class="marble-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
+                    <button type="button" class="marble-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>리본돼지</span></button>
                 </div>
                 <div id="marblePickStatus" class="marble-pick-status"></div>
+                <!-- 준비했는데 동물 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식) -->
+                <div id="notPickedSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 동물 안 고른 사람</div>
+                    <div id="notPickedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
             </section>
+            <!-- 당첨 순위 투표 — 경마 N등 투표와 같은 방식(득표 비례 룰렛), 선택지는 1등/꼴등 둘. 준비한 사람에게만 보인다. 스타일은 horse-race.css .rank-vote-* 재사용 -->
+            <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
+                <div class="rank-vote-title">🎯 당첨 순위 투표</div>
+                <div class="rank-vote-hint">1등이 당첨될지 꼴등이 당첨될지 한 표 던지세요. 방장이 시작을 누르면 룰렛이 정합니다. 아무도 안 던지면 꼴등 찾기.</div>
+                <div id="rankVoteBoxes" class="rank-vote-boxes">
+                    <div class="rank-vote-box" data-target="first" onclick="voteRank('first')"><div class="rank-vote-rank">🥇 1등</div><div class="rank-vote-bars"></div></div>
+                    <div class="rank-vote-box" data-target="last" onclick="voteRank('last')"><div class="rank-vote-rank">🐢 꼴등</div><div class="rank-vote-bars"></div></div>
+                </div>
+            </div>
+            <!-- 타깃 순위 배너 (룰렛 결과 ~ 경주 끝) + 결정 사유 (룰렛 결과 또는 투표 없음 안내) -->
+            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
+                <span class="trb-icon">🎯</span>
+                <span class="trb-text">꼴등을 찾아라!</span>
+            </div>
+            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
             <!-- 경주 캔버스 -->
             <section id="marbleStage">
                 <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) -->
@@ -343,7 +363,6 @@
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
                 <div id="marbleAfterRace" class="marble-after-race" style="display: none;">
                     <button type="button" class="marble-after-btn" id="marbleReplayButton" onclick="replayRace()">▶ 경주 다시 보기</button>
-                    <button type="button" class="marble-after-btn" onclick="reopenResult()">🏆 순위 보기</button>
                     <button type="button" class="marble-after-btn marble-after-btn-host" id="marbleResetButton" onclick="resetMarbleRound()" style="display: none;">🔄 다음 판 준비</button>
                 </div>
                 <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
@@ -451,8 +470,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=46"></script>
-    <script src="/js/marble.js?v=17"></script>
+    <script src="/js/marble-render.js?v=55"></script>
+    <script src="/js/marble.js?v=25"></script>
 
     <script>
         // ============================================
