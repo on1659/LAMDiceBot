@@ -11,7 +11,7 @@ const RESULT_HOLD_MS = 1500;      // 재생 끝(durationMs = 마지막 골인 + 
 const MARBLE_MIN_PLAYERS = 2;
 const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
