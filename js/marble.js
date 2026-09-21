@@ -287,8 +287,19 @@ function initOrderModule() {
         getEverPlayedUsers: function () { return everPlayedUsers; },
         getUsersList: function () { return currentUsers; },
         showCustomAlert: function (msg, type) { showCustomAlert(msg, type); },
-        onOrderStarted: function () { isOrderActive = true; },
-        onOrderEnded: function () { isOrderActive = false; },
+        // 경주가 끝나면 서버가 자동으로 주문받기를 연다(경마와 동일). 그런데 주문 칸은 캔버스보다 훨씬 위라 결승 화면을 보고 있는 사람은
+        // 열린 줄도 모른다 → 안내 + 결승 화면 아래에 [🍔 주문하러 가기] 버튼(주문 칸으로 스크롤). 결승 화면은 그대로 둔다
+        onOrderStarted: function () {
+            isOrderActive = true;
+            var ob = document.getElementById('marbleOrderRow');
+            if (ob) ob.style.display = '';
+            if (marbleState.phase === 'finished') showCustomAlert('🍔 주문받기가 시작됐어요! 아래 [주문하러 가기]를 눌러 주문을 적어주세요.', 'info');
+        },
+        onOrderEnded: function () {
+            isOrderActive = false;
+            var ob = document.getElementById('marbleOrderRow');
+            if (ob) ob.style.display = 'none';
+        },
         onOrdersUpdated: function (data) { ordersData = data; }
     });
 }
@@ -429,6 +440,13 @@ function showAfterRace(show) {
     if (reset) reset.style.display = (show && isHost) ? '' : 'none';
 }
 function reopenResult() { if (lastResult) showResultOverlay(lastResult); }
+function goToOrders() {
+    var sec = document.getElementById('ordersSection');
+    if (sec) { sec.classList.add('active'); sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    var input = document.getElementById('myOrderInput');
+    if (input && !input.disabled) setTimeout(function () { input.focus(); }, 500);
+}
+window.goToOrders = goToOrders;
 function resetMarbleRound() { socket.emit('marble:reset'); }
 window.reopenResult = reopenResult;
 window.resetMarbleRound = resetMarbleRound;
@@ -737,6 +755,24 @@ socket.on('roomJoined', function (data) {
     marbleInitModules();
 
     if (data.gameState) applyScheduledStart(data.gameState.scheduledStartAt, data.gameState.scheduledStartLabel);
+
+    // 재입장: 주문받기가 진행 중이면 주문 칸을 바로 연다 (경마 roomJoined 와 같은 복원 — orderStarted 는 1회성이라 재입장엔 안 온다)
+    if (data.isOrderActive) {
+        isOrderActive = true;
+        if (typeof OrderModule !== 'undefined' && OrderModule.setIsOrderActive) OrderModule.setIsOrderActive(true);
+        var osec = document.getElementById('ordersSection');
+        if (osec) { osec.classList.add('active'); osec.style.display = 'block'; }
+        var oin = document.getElementById('myOrderInput'), osave = document.getElementById('orderSaveButton');
+        if (oin) oin.disabled = false;
+        if (osave) osave.disabled = false;
+        var ob = document.getElementById('marbleOrderRow');
+        if (ob) ob.style.display = '';
+        if (isHost) {
+            var sb = document.getElementById('startOrderButton'), eb = document.getElementById('endOrderButton');
+            if (sb) sb.style.display = 'none';
+            if (eb) eb.style.display = 'block';
+        }
+    }
 
     // 재진입 복원 (서버 마스킹: phase/picks/crowd/round/history 만)
     if (data.gameState && data.gameState.marble) {

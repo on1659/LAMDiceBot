@@ -237,6 +237,11 @@
     font-weight: 700;
     cursor: pointer;
 }
+.marble-after-btn-order {
+    border-color: var(--yellow-500);
+    background: var(--yellow-50);
+    color: var(--yellow-900);
+}
 .marble-after-btn-host {
     background: var(--marble-gradient);
     color: var(--bg-white);
