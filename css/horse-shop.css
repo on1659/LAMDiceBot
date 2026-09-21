@@ -375,6 +375,15 @@ body.hshop-open {
     background: var(--horse-500, #8B4513);
     color: #fff;
 }
+/* 상점/옷장 분리 모드(어댑터 config.closet): 상점 뷰에서 소유 아이템은 장착 버튼 자리에 비활성 '보유 중' */
+.hshop-equip.hshop-owned, .hshop-equip.hshop-owned:disabled {
+    background: var(--gray-200, #e5e7eb);
+    border-color: var(--gray-200, #e5e7eb);
+    color: var(--text-muted, #6b7280);
+    cursor: default;
+}
+/* 옷장 빈 상태의 [상점 가기] — 전체폭 아님 */
+.hshop-empty .hshop-goto-shop { width: auto; margin-top: 12px; padding: 8px 18px; }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped);

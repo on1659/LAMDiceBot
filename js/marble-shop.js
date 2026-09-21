@@ -3,6 +3,7 @@
  *
  * 전역 `MarbleShop`. 공통 셸(인증/지갑/모달/구매/장착/잔고연출)은 js/shared/shop-shared.js
  * (window.ShopModule)이 담당. 이 어댑터는 데구리 고유부만 보유:
+ *   - 상점(구매)·옷장(장착) 분리: config.closet — 버튼 2개(openShop/openCloset), 공유 셸의 _view 가 카드 모양을 바꾼다
  *   - 스킨 미리보기(buildPreview hook) — 스킨 시트(creatures/{creature}-{skin}.png)의 idle 첫 칸을 캔버스에
  *   - 소유/구매 상태(itemState hook — tier/requires 없음)
  *   - 장착 = 방 단위(equipRequest hook → socket 'marble:equipSkin { cosmeticId }') — 계정 prefs 에 저장하지 않는다.
@@ -77,17 +78,25 @@
     ShopModule.init({
         mountId: 'marbleShopMount',
         catalogUrl: CATALOG_URL,
-        title: '꾸미기 상점',
-        subtitle: '데구리 · 동물 스킨',
+        title: '스킨 상점',
+        subtitle: '데구리 · 동물 스킨 구매',
+        closet: true,                 // 상점(구매)·옷장(장착) 분리 — 데구리만(사용자 2026-09-22). 상점 카드에는 장착 버튼이 없고, 옷장은 소유 스킨만
+        closetTitle: '옷장',
+        closetSubtitle: '데구리 · 내 스킨 장착',
         slots: [{ key: SLOT, label: '동물 스킨' }],   // 단일 슬롯 → 탭바 미렌더
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
-        noticeText: '동물 스킨은 경주 결과에 영향을 주지 않아요. 스킨의 동물을 골랐을 때 모두에게 보여요.',
         hooks: {
+            noticeText: function (slot, view) {
+                return view === 'closet'
+                    ? '장착은 이 방에서만 유지돼요. 방을 나가면 다시 골라 주세요. 스킨의 동물을 골랐을 때 모두에게 보여요.'
+                    : '동물 스킨은 경주 결과에 영향을 주지 않아요. 산 스킨은 옷장에서 장착해요.';
+            },
             buildPreview: buildSkinPreview,
             itemState: itemState,
             equipRequest: equipRequest,
             onEquipApplied: onEquipApplied,
-            onWalletSynced: applyRoomSkin   // wallet:get 이 준 계정 prefs 장착값 대신 방 장착값
+            onWalletSynced: applyRoomSkin,     // 인증 직후 wallet:get 이 준 계정 prefs 장착값 대신 방 장착값
+            onWalletRefreshed: applyRoomSkin   // 상점/옷장을 열 때마다의 wallet:get 도 같은 규칙(안 하면 옷장에 '장착중'이 안 보임)
         }
     });
 
@@ -97,6 +106,7 @@
         authenticate: function (token, done) { ShopModule.authenticate(token, done); },
         loadCatalog: function () { return ShopModule.loadCatalog(); },
         openShop: function () { ShopModule.openShop(); },
+        openCloset: function () { ShopModule.openCloset(); },
         closeShop: function () { ShopModule.closeShop(); },
         isAuthed: function () { return ShopModule.isAuthed(); },
         // 서버가 requestState 응답에 실어 준 내 방 장착 id(새로고침 재입장 동기화). undefined 면 무시
