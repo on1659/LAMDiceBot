@@ -3412,5 +3412,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinHamsterCookie": {
+    "batch": "marble-run-skin-hamster-cookie-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-hamster-cookie.md",
+    "note": "쿠키 햄스터 스킨(marble_skin_hamster_cookie). Codex exec 1세션, verify ALL_OK(림 0%, 공 112×112 중심 (80,80))",
+    "assets": {
+      "hamster-cookie": {
+        "image": "creatures/hamster-cookie.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/hamster-cookie.png",
+        "md5": "a831e9fef7ca7d13de622bf8aa2a2b89",
+        "qaStatus": "PASS"
+      },
+      "hamster-cookie-sleep": {
+        "image": "creatures/hamster-cookie-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/hamster-cookie-sleep.png",
+        "md5": "a83d275311b99121913aed9ee78e364f",
+        "qaStatus": "PASS"
+      },
+      "hamster-cookie-scuffle": {
+        "image": "creatures/hamster-cookie-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/hamster-cookie-scuffle.png",
+        "md5": "514ae0108444c99fc31ee1634aa25ac3",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
