@@ -2231,10 +2231,10 @@
     }
   },
   "creaturesG": {
-    "batch": "ice-sprite-character-tile-20260921-031318",
-    "status": "pending-generation",
+    "batch": "marble-run-creatures-g-2026-09-21",
+    "status": "all-9-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-g.md",
-    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 코드는 연결됨(socket/marble.js CREATURES, js/marble.js, js/marble-render.js ASSETS·CREATURE_NAMES, 선택 버튼 data-optional) — 파일이 없으면 선택 버튼이 숨고 자동 배정만 가능하다. 인수 시 md5/qaStatus 채우고 status 를 picked-up 으로",
+    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음",
     "assets": {
       "hamster": {
         "image": "creatures/hamster.png",
@@ -2262,8 +2262,8 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/hamster.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "28ed97c9ddc8d7daf0b8b98d637fe0fc",
+        "qaStatus": "PASS"
       },
       "hamster-sleep": {
         "image": "creatures/hamster-sleep.png",
@@ -2291,8 +2291,8 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/hamster-sleep.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "74d8e8b394c67b0038e74196e916f793",
+        "qaStatus": "PASS"
       },
       "hamster-scuffle": {
         "image": "creatures/hamster-scuffle.png",
@@ -2324,8 +2324,8 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/hamster-scuffle.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "5e168cb5cef8bab918f48829fb7ac4dd",
+        "qaStatus": "PASS"
       },
       "pufferfish": {
         "image": "creatures/pufferfish.png",
@@ -2353,8 +2353,8 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/pufferfish.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "6dae065f36b61e6c3f225240edb301b8",
+        "qaStatus": "PASS"
       },
       "pufferfish-sleep": {
         "image": "creatures/pufferfish-sleep.png",
@@ -2382,8 +2382,8 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-sleep.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "e0028f5a8ee197a718afb2742f1ccd78",
+        "qaStatus": "PASS"
       },
       "pufferfish-scuffle": {
         "image": "creatures/pufferfish-scuffle.png",
@@ -2415,8 +2415,8 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-scuffle.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "371d650aa8299f342395dfacd473eb48",
+        "qaStatus": "PASS"
       },
       "raccoon": {
         "image": "creatures/raccoon.png",
@@ -2444,8 +2444,8 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/raccoon.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "eac2613769948751f2b510f8f673a15b",
+        "qaStatus": "PASS"
       },
       "raccoon-sleep": {
         "image": "creatures/raccoon-sleep.png",
@@ -2473,8 +2473,8 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/raccoon-sleep.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "64510ec67b0d95f82eb38671b00f0bd5",
+        "qaStatus": "PASS"
       },
       "raccoon-scuffle": {
         "image": "creatures/raccoon-scuffle.png",
@@ -2506,8 +2506,8 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/raccoon-scuffle.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "7bc147671176ac1594d9d6a64c32619f",
+        "qaStatus": "PASS"
       }
     }
   }
