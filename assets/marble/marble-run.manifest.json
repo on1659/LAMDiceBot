@@ -2236,7 +2236,7 @@
     "batch": "marble-run-creatures-g-2026-09-21",
     "status": "all-9-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-g.md",
-    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음 / 13:33 복어 3장 v2(다리·발 제거) 교체, md5 갱신 / 2026-09-21 23:40 햄스터 v2 전면 재생성(배치 J, codex exec): 뒷모습 0·공 4칸 구분·오른쪽 향함·시트당 단일 배율(서기 117×120). 21:32 Codex 앱 세션의 정규화/커를-서클 리비전(왼쪽 향함 + r1c1 공)은 게임이 못 쓰는 상태라 폐기",
+    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음 / 13:33 복어 3장 v2(다리·발 제거) 교체, md5 갱신 / 2026-09-21 23:40 햄스터 v2 전면 재생성(배치 J, codex exec): 뒷모습 0·공 4칸 구분·오른쪽 향함·시트당 단일 배율(서기 117×120). 21:32 Codex 앱 세션의 정규화/커를-서클 리비전(왼쪽 향함 + r1c1 공)은 게임이 못 쓰는 상태라 폐기 / 2026-09-21 23:55 복어 규격 정규화(배치 K, 원본 v2 재리팩): 시트당 단일 배율, 서기 121×102, 공 108×112, 림 0% / 2026-09-21 23:55 너구리 규격 정규화(배치 K, 원본 재리팩): 서기 128×100, 공 120×106(꼬리 감은 폭 — 최대 치수 기준 계약 안, G 의 112×112 비균등 축소 폐기)",
     "assets": {
       "hamster": {
         "image": "creatures/hamster.png",
@@ -2355,7 +2355,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/pufferfish.png",
-        "md5": "b697fb3707e7eea7a1ffc6669e90affb",
+        "md5": "6018e343b4c581fe94194150558b652d",
         "qaStatus": "PASS",
         "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
@@ -2385,7 +2385,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-sleep.png",
-        "md5": "6abbfed3da48cd6ba0d301dec81c2978",
+        "md5": "fb5f08230b50169de3addce27add7e64",
         "qaStatus": "PASS",
         "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
@@ -2419,7 +2419,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/pufferfish-scuffle.png",
-        "md5": "7ea0b9ee03d670c6624bb860fd275cff",
+        "md5": "2d3b8386a067571f60965759132d913d",
         "qaStatus": "PASS",
         "note": "2026-09-21 13:33 재생성 v2 — 사람 같은 다리·발 제거(꼬리·가슴지느러미만), QA PASS"
       },
@@ -2449,7 +2449,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/raccoon.png",
-        "md5": "eac2613769948751f2b510f8f673a15b",
+        "md5": "0cfc7e0325f6f6d11cee97edfc8c7c0a",
         "qaStatus": "PASS"
       },
       "raccoon-sleep": {
@@ -2478,7 +2478,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/raccoon-sleep.png",
-        "md5": "64510ec67b0d95f82eb38671b00f0bd5",
+        "md5": "e739551f8fa14979038096d1ee9d83f3",
         "qaStatus": "PASS"
       },
       "raccoon-scuffle": {
@@ -2511,7 +2511,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/raccoon-scuffle.png",
-        "md5": "7bc147671176ac1594d9d6a64c32619f",
+        "md5": "806671a3acbfe3f261090643ded95d0d",
         "qaStatus": "PASS"
       }
     }
@@ -2520,7 +2520,7 @@
     "batch": "marble-run-creatures-h-2026-09-21",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-h.md",
-    "note": "8차 새 동물 토끼 × 시트 3장. 2026-09-21 18:55 Codex(exec, 세션 1개·3라운드)가 생성·리팩·QA, Claude 가 final/ 을 md5·bbox·조각(run)·라벤더 림 독립 검증 후 assets/marble/creatures/ 로 복사. 리팩은 연결 컴포넌트 중심점으로 셀 배정(고정 격자 침범 사고 수정) + 라벤더 배경 림 despill. 공 r2c0 bbox 120×109(꼬리 포함, 본체 ~109), 찌그러짐 칸 120×79. r4c2 대자로 엎어짐은 위에서 본 포즈 — 햄스터·판다와 같아서 합격",
+    "note": "8차 새 동물 토끼 × 시트 3장. 2026-09-21 18:55 Codex(exec, 세션 1개·3라운드)가 생성·리팩·QA, Claude 가 final/ 을 md5·bbox·조각(run)·라벤더 림 독립 검증 후 assets/marble/creatures/ 로 복사. 리팩은 연결 컴포넌트 중심점으로 셀 배정(고정 격자 침범 사고 수정) + 라벤더 배경 림 despill. 공 r2c0 bbox 120×109(꼬리 포함, 본체 ~109), 찌그러짐 칸 120×79. r4c2 대자로 엎어짐은 위에서 본 포즈 — 햄스터·판다와 같아서 합격 / 2026-09-21 23:55 토끼 규격 정규화(배치 K, 원본 재리팩): 서기 104×130(귀 포함), 공 120×109, 라벤더 림 0%",
     "assets": {
       "rabbit": {
         "image": "creatures/rabbit.png",
@@ -2548,7 +2548,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/rabbit.png",
-        "md5": "7685907938f7fd573646fb61c7c92639",
+        "md5": "39520281770728ba0e2ad7a8794abd67",
         "qaStatus": "PASS"
       },
       "rabbit-sleep": {
@@ -2577,7 +2577,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/rabbit-sleep.png",
-        "md5": "08a947693d3ab44d1f7a9d011741f26f",
+        "md5": "2da75435b215100a85c572dfc423a245",
         "qaStatus": "PASS"
       },
       "rabbit-scuffle": {
@@ -2610,7 +2610,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/rabbit-scuffle.png",
-        "md5": "fe4f54bfe75bb72fa706e1ce5d984811",
+        "md5": "b733f57e0d760b78c11bfd7e845168a0",
         "qaStatus": "PASS"
       }
     }
