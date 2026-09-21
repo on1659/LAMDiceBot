@@ -571,7 +571,6 @@
             }
         }
 
-
         // 광고 아이템은 ad-wallet(클라) 기준 — 별도 경로(서버 shop:buy/equip 미진입)
         if (isAdItem(item)) {
             renderAdCardBody(card, slot, item);
