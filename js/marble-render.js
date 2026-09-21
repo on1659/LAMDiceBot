@@ -155,6 +155,23 @@ var MarbleRender = (function () {
     function img(group, name) { var im = images[imgKey(group, name)]; return (im && im.complete && im.naturalWidth > 0) ? im : null; }
     // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백
     function sheet(group, b) { return (b.skin ? img(group, b.creature + '-' + b.skin) : null) || img(group, b.creature); }
+    // 서 있는 키(발 → 머리 꼭대기, 표시 px): 시트 row 0(idle 4칸)의 alpha≥8 최상단 행을 한 번 재서 시트별 캐시. 이름표를 머리 바로 위에 붙이려고 —
+    // 동물마다 키가 달라(리본돼지 ≈25px, 고슴도치 ≈32px) 고정 오프셋이면 작은 동물은 이름표가 떠 보인다(사용자 2026-09-22). 못 재면 규격 상한(서기 ≤130 src)
+    var STAND_H_MAX = 130 * SRC_SCALE;
+    var standHCache = {};
+    function standHeight(b) {
+        var im = sheet('creatures', b); if (!im) return STAND_H_MAX;
+        var key = im.src; if (standHCache[key] != null) return standHCache[key];
+        var h = STAND_H_MAX;
+        try {
+            var W = CELL * 4, c = document.createElement('canvas'); c.width = W; c.height = CELL;
+            var g = c.getContext('2d'); g.drawImage(im, 0, 0, W, CELL, 0, 0, W, CELL);
+            var d = g.getImageData(0, 0, W, CELL).data, top = -1;
+            for (var y = 0; y < 150 && top < 0; y++) for (var i = y * W * 4 + 3; i < (y + 1) * W * 4; i += 4) if (d[i] >= 8) { top = y; break; }
+            if (top >= 0) h = (150 - top) * SRC_SCALE;
+        } catch (e) { /* 교차 출처 등으로 못 읽으면 상한 */ }
+        return (standHCache[key] = h);
+    }
     function loadOne(group, name, onEach) {
         var src = ASSETS[group][name];
         if (!src) { images[imgKey(group, name)] = null; return false; }
@@ -1000,6 +1017,15 @@ var MarbleRender = (function () {
                 ctx.fillStyle = '#c8b28c'; ctx.beginPath(); ctx.arc(x, toScreenY(y), BALL_R, 0, Math.PI * 2); ctx.fill();
             }
         }
+        // z-order 위층 큐 — drawBalls 안에서만 켜진다. 이름표·zz·말풍선·표식처럼 머리 위에 붙는 것은 몸을 전부 그린 뒤에 한꺼번에 그려
+        // 옆 동물 몸에 가려지지 않게 한다. 밖(응원석·비석)에서는 큐가 없으니 그 자리에서 바로 그린다. 알파(대기 프리뷰 반투명)는 넣을 때 값을 기억한다
+        var overlayQ = null;
+        function overlay(fn, args) { if (overlayQ) overlayQ.push({ fn: fn, args: args, a: ctx.globalAlpha }); else fn.apply(null, args); }
+        function flushOverlays() {
+            var q = overlayQ; overlayQ = null; if (!q) return;
+            for (var i = 0; i < q.length; i++) { ctx.globalAlpha = q[i].a; q[i].fn.apply(null, q[i].args); }
+            ctx.globalAlpha = 1;
+        }
         // 이름표: 공 옆에 주인 이름(플레이어 색 알약). 번호 대신 누구 동물인지 바로 읽히게. 긴 이름은 앞 6자 + …
         function drawNameTag(b, cx, cy, strong) { overlay(drawNameTagNow, [b, cx, cy, strong]); }
         function drawNameTagNow(b, cx, cy, strong) {
@@ -1018,15 +1044,6 @@ var MarbleRender = (function () {
         function drawRing(b, x, y, r, strong) {
             ctx.save();
             if (highlightMine && strong) {   // 내 동물: 금색 굵은 링 + 흰 바깥 링 + 글로우
-        // z-order 위층 큐 — drawBalls 안에서만 켜진다. 이름표·zz·말풍선·표식처럼 머리 위에 붙는 것은 몸을 전부 그린 뒤에 한꺼번에 그려
-        // 옆 동물 몸에 가려지지 않게 한다. 밖(응원석·비석)에서는 큐가 없으니 그 자리에서 바로 그린다. 알파(대기 프리뷰 반투명)는 넣을 때 값을 기억한다
-        var overlayQ = null;
-        function overlay(fn, args) { if (overlayQ) overlayQ.push({ fn: fn, args: args, a: ctx.globalAlpha }); else fn.apply(null, args); }
-        function flushOverlays() {
-            var q = overlayQ; overlayQ = null; if (!q) return;
-            for (var i = 0; i < q.length; i++) { ctx.globalAlpha = q[i].a; q[i].fn.apply(null, q[i].args); }
-            ctx.globalAlpha = 1;
-        }
                 ctx.shadowColor = MY_RING; ctx.shadowBlur = 12;
                 ctx.strokeStyle = MY_RING; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
                 ctx.shadowBlur = 0; ctx.strokeStyle = MY_RING_OUTER; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, toScreenY(y), r + 3, 0, Math.PI * 2); ctx.stroke();
@@ -1041,9 +1058,11 @@ var MarbleRender = (function () {
             ctx.restore();
             drawNameTag(b, x, toScreenY(y) - r - 7 * textBoost(), strong);
         }
-        // 공이 아닐 때(서 있음·걷기·잠·엎어짐)의 표식: 링 없이 머리 옆 번호 배지만 — 링은 구를 때만(스프라이트 원에 딱 맞게)
+        // 공이 아닐 때(서 있음·걷기·잠·엎어짐)의 표식: 링 없이 머리 바로 위 이름표만 — 링은 구를 때만(스프라이트 원에 딱 맞게)
+        // y = 공 중심 기준점(서기 프레임은 발이 y+25.5). 머리 꼭대기 = 발 − 서 있는 키(standHeight). 머리와의 간격 3px 는 f(폰 확대)와 무관 — 알약 높이만 f 를 따른다
         function drawBadge(b, x, y, strong) {
-            var f = textBoost(); drawNameTag(b, x, toScreenY(y) - (22 + (b.id % 2) * 9) * f, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
+            var f = textBoost(), headTop = y + 25.5 - standHeight(b);
+            drawNameTag(b, x, toScreenY(headTop) - 3 - (6 + (b.id % 2) * 9) * f, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
         var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
@@ -1120,6 +1139,10 @@ var MarbleRender = (function () {
                 drawEagleSprite(pos.x, pos.y, left, tt + ei * 37);
             }
         }
+        // zz(잠·졸음) — 2차 zz 스트립, 없으면 글자. y 는 세계 좌표(공 중심 기준)
+        function drawZz(x, y, frame, alpha, txt) {
+            if (!drawSprite('fx', 'zz', x, y - 4, 48, 48, { sx: frame * 48, sw: 48, alpha: alpha, scale: 1.3 })) label(txt, x, y, 'rgba(255,255,255,' + alpha.toFixed(2) + ')', 12);
+        }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
         // 꼴찌 깃발 — 흰 천을 플레이어 색으로 틴트 (multiply 후 원본 알파 복원). (colorIdx, frame) 별 오프스크린 캐시
@@ -1139,10 +1162,6 @@ var MarbleRender = (function () {
             var sc = SRC_SCALE * 1.4;
             ctx.drawImage(c, x - 16 * sc, toScreenY(y) - 64 * sc, 32 * sc, 64 * sc);
             return true;
-        // zz(잠·졸음) — 2차 zz 스트립, 없으면 글자. y 는 세계 좌표(공 중심 기준)
-        function drawZz(x, y, frame, alpha, txt) {
-            if (!drawSprite('fx', 'zz', x, y - 4, 48, 48, { sx: frame * 48, sw: 48, alpha: alpha, scale: 1.3 })) label(txt, x, y, 'rgba(255,255,255,' + alpha.toFixed(2) + ')', 12);
-        }
         }
         // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
         function inSunZone(b) {   // 잔디 '자리'(타원) 안에 있을 때만 — 서버 SUN_SPOTS 와 동일
@@ -1343,6 +1362,7 @@ var MarbleRender = (function () {
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
                 drawRing(b, b.x, b.y, BALL_R + 1, mine);   // 구를 때만 링 — 공 스프라이트(지름 28)에 딱 맞게
             }
+            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === myName);   // 공중 — 모든 몸 위
             // 후미 깃발 (내 이름은 공마다 붙는 이름표 알약이 이미 보여준다 — 예전 흰 글자 이름은 알약과 겹쳐 두 번 떠 보여 뺌, 사용자 2026-09-21)
             Object.keys(rearByOwner).forEach(function (owner) {
                 var rb = rearByOwner[owner]; if (!visible(rb.y, 60) || t < 0) return;
@@ -1353,6 +1373,7 @@ var MarbleRender = (function () {
                     ctx.fillStyle = ringColor(rb); ctx.beginPath(); ctx.moveTo(fx, toScreenY(fy)); ctx.lineTo(fx + 12 + wave, toScreenY(fy) + 4); ctx.lineTo(fx, toScreenY(fy) + 9); ctx.closePath(); ctx.fill(); ctx.restore();
                 }
             });
+            flushOverlays();   // 이름표·zz·표식 — 몸·깃발 위
         }
 
         // ─── 응원석 + 피날레 ───
@@ -1362,7 +1383,6 @@ var MarbleRender = (function () {
             var st = (pieces.stand || [])[0]; if (!st) return null;
             var z = st.zone, cols = st.cols || 10;
             var finishedCount = 0;
-            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === myName);   // 공중 — 모든 몸 위
             for (var i = 0; i < balls.length; i++) if (balls[i].state === 'done') finishedCount++;
             var rows = Math.ceil(Math.max(1, finishedCount) / cols);
             var rowMap = {};
@@ -1373,7 +1393,6 @@ var MarbleRender = (function () {
             return { st: st, z: z, cols: cols, colW: z.w / cols, rows: rows, rowMap: rowMap, shownRows: Math.min(rows, STAND_MAX_ROWS), ln: ln, chute: chute };
         }
         // 스탠드 판자 + 도착 파이프(홈통) — 동물보다 먼저 그린다. 통로가 2~3열이면 아래 줄 동물 발이 통로 바닥 아래로 내려오는데, 뒤에 그리면 홈통이 그 발을 가린다
-            flushOverlays();   // 이름표·zz·표식 — 몸·깃발 위
         function drawStandBase(t) {
             var L = standLayout(); if (!L) return;
             var z = L.z, chute = L.chute;

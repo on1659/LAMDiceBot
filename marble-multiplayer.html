@@ -233,11 +233,11 @@
                 </div>
                 <!-- 마릿수 3단계(솔로=인당 1) — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
                 <div id="marbleHostSettings" class="marble-host-settings">
-                    <label>동물 마릿수</label>
-                    <div class="marble-crowd-group" role="group" aria-label="동물 마릿수">
-                        <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')"><i class="mi mi-paw"></i> 솔로</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')"><i class="mi mi-paw"></i><i class="mi mi-paw"></i> 보통</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')"><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i> 많이</button>
+                    <label>동물수</label>
+                    <div class="marble-crowd-group" role="group" aria-label="동물수">
+                        <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')" aria-label="솔로" title="솔로 — 인당 1마리"><i class="mi mi-paw"></i></button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')" aria-label="보통" title="보통"><i class="mi mi-paw"></i><i class="mi mi-paw"></i></button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')" aria-label="많이" title="많이"><span class="paw-stack"><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span></span></button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -312,7 +312,7 @@
             <!-- 동물 선택 (대기 중) -->
             <section id="marblePickSection">
                 <div class="marble-pick-head">
-                    <div class="marble-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기 <span id="marblePickHint">(같은 동물을 여러 명이 골라도 돼요)</span></div>
+                    <div class="marble-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
                     <!-- 동물 스킨: 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 로그인 계정만, 모달은 js/marble-shop.js 가 채움 -->
                     <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨 구매·장착">🎀 동물 스킨</button>
                 </div>
