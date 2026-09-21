@@ -1,4 +1,46 @@
 ========================================
+📋 Summit Log - 2026-09-21 (구멍 앞 몸싸움 + 동물 미선택 시작 거절·강제 시작 + 독수리 −50%·중력 −15% + 새 동물 3종 인수)
+========================================
+
+## 변경 파일
+- socket/marble-sim.js: 몸싸움 판정(scuffle/scuffleEnd 이벤트, land.dizzy, SCUFFLE_* 상수), 독수리 예산·휴식, GRAVITY 700→595
+- socket/marble.js: CREATURES 8종, canStartMarble(opts) 동물 미선택 거절, marble:start {force:true}
+- js/marble-render.js: ASSETS scuffle 그룹·dizzy-swirl fx·새 동물 3종 경로, 밀기/화들짝/낙하/기절 그리기, hasCreatureSprite (v45)
+- js/marble.js: 강제 시작 버튼 표시 조건·안 고른 사람 표시, 동물 8종, 시트 없는 동물 버튼 숨김 (v15)
+- marble-multiplayer.html: [⚡ 강제 시작] 버튼, 동물 선택 버튼 3개(data-optional)
+- assets/marble/creatures: *-scuffle 5장 + 햄스터·복어·너구리 시트 9장, fx/dizzy-swirl.png, marble-run.manifest.json(scuffleF·creaturesG)
+- docs: goal/applied/marble-lid-scuffle.md, spritemake-request/applied/(lid-scuffle-f, creatures-g), 새 lessons 후보는 메모리에만
+- update-log.md, summit-log.txt
+
+## 상세 변경 내역
+
+### [구멍 앞 몸싸움 — 연출, 순위 무관] 5465bbb 1191cb1 d954baf 4f372fa
+- 서버: 뚜껑 위 대기(lidHole/lidSince) 기록, 구멍마다 중심에 가까운 둘을 짝지어 scuffle{a,b,hole}, 뚜껑이 움직이면 scuffleEnd{startled:true} → 그 둘만 land.dizzy(stallKind 'dizzy' 500ms, 걷기 시작만 지연). 시작 조건: 뚜껑이 300ms 이상 더 닫혀 있고 속도 <90px/s, 대기 0ms, 유예 300ms(짧은 깜빡임 0건). "뚜껑에서 떠남" 즉시 종료는 튕김 오판으로 기각
+- 클라: 6차 scuffle 시트(4×2) 공 풀기 120ms → 밀기 4프레임 + 둘이 같이 x 흔들림 → 화들짝(⑤, '!' fx) → 파이프 안 낙하 포즈(⑥) → 착지 어지러움 A/B + dizzy-swirl. 시트 없으면 idle/faceplant 폴백
+- 판정은 서버 타임라인에만 있어 모든 클라가 같은 장면·같은 순위. 결정론 테스트 ALL PASS. 40시드 평균 경주 길이 +0.4s 이내
+- 교훈: 시뮬 변경의 경주 길이 영향은 같은 시드로 못 잰다(걷기 루프 rng 소비가 어긋나 다른 경주가 됨) → 40시드 평균으로 비교
+
+### [동물 미선택 시작 거절 + 방장 강제 시작] 0575159
+- canStartMarble(room, gameState, opts): scheduled/force 가 아니면 준비했는데 미선택인 이름을 돌려줌("○○님이 아직 동물을 안 골랐어요"). 예약 발화는 종전대로 자동 배정
+- marble:start {force:true}: 방장만, 미선택자 자동 배정 + roomNotice 방 공지. 클라는 미선택자 있을 때만 강제 시작 버튼 노출
+- 5174 소켓 테스트: 거절 문구·방장 전용·강제 시작 reveal·자동 배정·공지·진행 중 거절 통과
+
+### [피드백 튜닝] 441da46
+- 독수리: 예산 3/0.12/4 → 2/0.06/2, 결승전 예산 min(EAGLE_MAX_FINAL, 독수리 수), 휴식 1500/500 → 3000/1000. 25시드 납치/판 보통 6.8→4.0·조금 2.8→1.0·우르르 9.0→4.0
+- 중력 700 → 595(낙하 속도 ≈ −8%). 505(속도 −15%)는 90s 캡 판이 생겨 기각. 경주 길이 보통 71→68s·조금 58→53s·우르르 74→76s
+
+### [새 동물 3종 hamster/pufferfish/raccoon] c500c6c f01de36
+- 서버 CREATURES 8종(자동 배정 순환 포함), 클라 목록·이름표·에셋맵(creatures/sleep/scuffle), 선택 버튼 data-optional — 시트 로드 실패 시 숨김(R.hasCreatureSprite)이라 시트 도착 전 배포도 안전
+- SpriteMake 배치 marble-run-creatures-g-2026-09-21: 9장 QA PASS, md5 재검증 후 인수. 눈검사 메모: 햄스터 공 4칸 진흙·어질 구분 없음, 너구리 row3·4 마지막 칸 꼬리 경계 닿음
+- 미완: 거북이 idle row0 col2 가 왼쪽 보는 그림이라 대기·카운트다운·햇볕 걷기(idle 4칸 순환)에서 두리번 — 시트 교체 대기 중
+
+### [운영]
+- 옆 세션과 충돌 없이 하려고 별도 worktree + launch.json `sh -c "cd <worktree> && PORT=5175 node server.js"` 로 프리뷰, 리베이스 후 ff 머지. 옆 세션 커밋(8dcc125)이 파이프라인이 복사한 PNG 를 쓸어 담았으나 같은 blob 이라 무충돌
+- 미해결 질문: 꼴찌가 먼저 착지하고 그 뒤 직전 사람이 골인하면 cut 이 안 걸려 혼자 걷는 걸 본다(cut 은 착지가 골인보다 뒤일 때만). 수정안: cut = max(마지막 착지, 직전 골인) — 사용자 보류
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (게임 이름 마블런 → 데구리 + 09-20 저녁 방 통합·규칙 정리 세션분 기록)
 ========================================
 
