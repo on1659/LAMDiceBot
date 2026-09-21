@@ -2619,10 +2619,10 @@
     "batch": "marble-run-creatures-i-2026-09-21",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-i.md",
-    "note": "9차 새 동물 리본돼지 × 시트 3장. 2026-09-21 21:40 Codex(exec, 세션 1개·3라운드: 생성 → 위성 마크 재배정+초록 림 despill → 위성 y≤149 클립)가 생성·리팩·QA, Claude 가 final/ 을 bbox·run·림·md5 독립 검증 후 복사. main 은 attempt-02(Codex 가 위성 조각을 이미지 탓으로 반려한 것을 오버라이드), sleep 01, scuffle 03. 초록 배경 생성. 공 r2c0 bbox 116×112 중심 (80,80), 찌그러짐 칸 120×75. r4c1 바운스 마크는 의도된 위성(본체 0..112 + 선 118..149) / 2026-09-21 23:05 규격 정규화 v2: 시트당 단일 배율(서기 최대 셀 ≤134×130, 원조 5종 범위), 셀별 최대화 폐기. 서기 122×101·웅크림 118×86·공 116×112",
+    "note": "9차 새 동물 리본돼지 × 시트 3장. 2026-09-21 21:40 Codex(exec, 세션 1개·3라운드: 생성 → 위성 마크 재배정+초록 림 despill → 위성 y≤149 클립)가 생성·리팩·QA, Claude 가 final/ 을 bbox·run·림·md5 독립 검증 후 복사. main 은 attempt-02(Codex 가 위성 조각을 이미지 탓으로 반려한 것을 오버라이드), sleep 01, scuffle 03. 초록 배경 생성. 공 r2c0 bbox 116×112 중심 (80,80), 찌그러짐 칸 120×75. r4c1 바운스 마크는 의도된 위성(본체 0..112 + 선 118..149) / 2026-09-21 23:05 규격 정규화 v2: 시트당 단일 배율(서기 최대 셀 ≤134×130, 원조 5종 범위), 셀별 최대화 폐기. 서기 122×101·웅크림 118×86·공 116×112 / 2026-09-22 새벽: 돼지 기본을 리본 없는 시트(skinPigBase)로 바꾸면서 이 v2 머리리본 3장은 상점 스킨 marble_skin_ribbonpig_ribbon(\"리본돼지\", 80코인) 시트 ribbonpig-ribbon*.png 로 파일 이동(내용·md5 동일)",
     "assets": {
-      "ribbonpig": {
-        "image": "creatures/ribbonpig.png",
+      "ribbonpig-ribbon": {
+        "image": "creatures/ribbonpig-ribbon.png",
         "canvas": [
           640,
           800
@@ -2646,12 +2646,12 @@
         ],
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
-        "targetGamePath": "assets/marble/creatures/ribbonpig.png",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-ribbon.png",
         "md5": "7d5b35cf7421058c45a5c1dd3b52a49d",
         "qaStatus": "PASS"
       },
-      "ribbonpig-sleep": {
-        "image": "creatures/ribbonpig-sleep.png",
+      "ribbonpig-ribbon-sleep": {
+        "image": "creatures/ribbonpig-ribbon-sleep.png",
         "canvas": [
           640,
           160
@@ -2675,12 +2675,12 @@
           "waking",
           "sit-up"
         ],
-        "targetGamePath": "assets/marble/creatures/ribbonpig-sleep.png",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-ribbon-sleep.png",
         "md5": "85c3555cb9608b23fc6fca6d85c28d22",
         "qaStatus": "PASS"
       },
-      "ribbonpig-scuffle": {
-        "image": "creatures/ribbonpig-scuffle.png",
+      "ribbonpig-ribbon-scuffle": {
+        "image": "creatures/ribbonpig-ribbon-scuffle.png",
         "canvas": [
           640,
           320
@@ -2708,7 +2708,7 @@
           "dizzy-sit-a",
           "dizzy-sit-b"
         ],
-        "targetGamePath": "assets/marble/creatures/ribbonpig-scuffle.png",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-ribbon-scuffle.png",
         "md5": "1ec255ee0fdb183cffb3fcf8a8931517",
         "qaStatus": "PASS"
       }
@@ -2879,6 +2879,105 @@
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-scarf-scuffle.png",
         "md5": "9dc6883ef003abdbca29535ffb467111",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPigBase": {
+    "batch": "marble-run-skin-ribbonpig-base-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-ribbonpig-base.md",
+    "note": "돼지 기본 시트 = 리본 없는 그냥 돼지(v2 화풍·포즈·점눈 그대로, 머리 비움). 2026-09-22 새벽 Codex exec 1세션(attempt 01×3), Claude verify-creature.py 독립 검증: 림 0%, 공 120×109 중심 (80,80.5), r3c2 폭 136(2px 초과 허용). 옛 v2 리본 시트는 ribbonpig-ribbon* 스킨으로",
+    "assets": {
+      "ribbonpig": {
+        "image": "creatures/ribbonpig.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig.png",
+        "md5": "3e46586e84b05bd95074bfc09fbbf572",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-sleep": {
+        "image": "creatures/ribbonpig-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-sleep.png",
+        "md5": "dc53b06f5a61e708aa8ebf06ea4b9704",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-scuffle": {
+        "image": "creatures/ribbonpig-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-scuffle.png",
+        "md5": "1c6955ffc218cf1208886d376a6e5c19",
         "qaStatus": "PASS"
       }
     }

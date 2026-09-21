@@ -1087,6 +1087,17 @@
 
     function doEquip(slot, id) {
         if (!_socket || !_wallet.authed) return;
+        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equipSkin — 계정 prefs 에 저장하지 않음).
+        // hook(slot, id, done) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
+        if (_config && _config.hooks && _config.hooks.equipRequest) {
+            _config.hooks.equipRequest(slot, id, function (equipped) {
+                if (!equipped) { showShopToast('장착에 실패했어요.', 'error'); return; }
+                _wallet.equipped = equipped;
+                renderModal();
+                if (_config.hooks.onEquipApplied) _config.hooks.onEquipApplied(_wallet.equipped, true);
+            });
+            return;
+        }
         _socket.emit('shop:equip', { slot: slot, cosmeticId: id }, function (res) {
             if (res && res.ok) {
                 _wallet.equipped = res.equipped || {};

@@ -1,6 +1,8 @@
 {
   "marble_skin": [
-    { "id": "marble_skin_none",            "name": "기본 모습",       "rarity": "common", "defaultOwned": true, "emoji": "🐾" },
-    { "id": "marble_skin_ribbonpig_scarf", "name": "스카프 리본돼지", "rarity": "rare",   "emoji": "🎀", "price": 90, "creature": "ribbonpig", "skin": "scarf", "desc": "리본을 목에 스카프처럼 두른 리본돼지. 리본돼지를 고르면 적용돼요." }
+    { "id": "marble_skin_none",             "name": "기본 모습",       "displayName": "",           "rarity": "common", "defaultOwned": true, "emoji": "🐾" },
+    { "id": "marble_skin_ribbonpig_ribbon", "name": "리본돼지",        "displayName": "리본돼지",        "rarity": "rare", "emoji": "🎀", "price": 80, "creature": "ribbonpig", "skin": "ribbon", "desc": "머리에 빨간 나비 리본을 단 돼지. 돼지를 고르면 적용돼요." },
+    { "id": "marble_skin_ribbonpig_scarf",  "name": "스카프 리본돼지", "displayName": "스카프 리본돼지", "rarity": "rare", "emoji": "🧣", "price": 80, "creature": "ribbonpig", "skin": "scarf",  "desc": "빨간 리본을 목에 스카프처럼 두른 시큰둥한 돼지. 돼지를 고르면 적용돼요." },
+    { "id": "marble_skin_hedgehog_cherry",  "name": "벚꽃 고슴도치",   "displayName": "벚꽃 고슴도치",   "rarity": "rare", "emoji": "🌸", "price": 80, "creature": "hedgehog",  "skin": "cherry", "desc": "가시가 벚꽃빛 연분홍으로 물든 고슴도치. 고슴도치를 고르면 적용돼요." }
   ]
 }
