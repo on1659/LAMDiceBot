@@ -73,13 +73,13 @@ const ChatModule = (function () {
     let _titleFlashInterval = null; // 타이틀 깜박임 타이머
     let _baseEmojiKeys = []; // 기본 이모지 키 목록 (삭제 불가)
 
-    // 디바이스 아이콘 — 공용 스프라이트 id (js/shared/ui-icons.js)
+    // 디바이스 아이콘 — 채팅 이름줄 배지는 이모지 유지(사용자 결정 2026-09-22: 스프라이트보다 이모지가 낫다)
     function getDeviceIcon(deviceType) {
         switch (deviceType) {
-            case 'ios': return 'apple';
-            case 'android': return 'phone';
+            case 'ios': return '🍎';
+            case 'android': return '📱';
             case 'pc':
-            default: return 'pc';
+            default: return '💻';
         }
     }
 
@@ -495,27 +495,22 @@ const ChatModule = (function () {
         };
     }
 
-    // 유저명 텍스트 생성 (배지 없는 평문 — 알림·로그용)
+    // 유저명 텍스트 생성 — 배지(순위 메달·호스트 왕관·기기)는 이모지 그대로(채팅 이름줄은 스프라이트 대상 아님)
     function buildUserNameText(data) {
-        return data.userName + (data.userName === _currentUser ? ' (나)' : '');
-    }
-
-    // 유저명 노드 생성 — 배지(순위 메달·호스트 왕관·기기)는 스프라이트 <i>, 이름은 텍스트 노드 (innerHTML 미사용)
-    function buildUserNameNodes(data) {
-        const frag = document.createDocumentFragment();
-        const icon = (id) => { frag.appendChild(UIIcons.el(id)); frag.appendChild(document.createTextNode(' ')); };
+        let text = '';
 
         // 배지 표시 (서버가 채팅 메시지에 포함시킨 badgeRank 사용)
         if (_showBadges && data.badgeRank) {
-            if (data.badgeRank === 1) icon('medal');
-            else if (data.badgeRank === 2) icon('silver');
-            else if (data.badgeRank === 3) icon('bronze');
+            if (data.badgeRank === 1) text += '🥇 ';
+            else if (data.badgeRank === 2) text += '🥈 ';
+            else if (data.badgeRank === 3) text += '🥉 ';
         }
 
-        if (data.isHost) icon('crown');
-        if (data.deviceType) icon(getDeviceIcon(data.deviceType));
-        frag.appendChild(document.createTextNode(buildUserNameText(data)));
-        return frag;
+        if (data.isHost) text += '👑 ';
+        if (data.deviceType) text += getDeviceIcon(data.deviceType) + ' ';
+        text += data.userName;
+        if (data.userName === _currentUser) text += ' (나)';
+        return text;
     }
 
     // 멘션 하이라이팅
@@ -656,7 +651,7 @@ const ChatModule = (function () {
 
             const userNameSpan = document.createElement('span');
             userNameSpan.style.cssText = `font-weight: 600; color: ${isMe ? myColor : themeColor}; margin-right: 8px;`;
-            userNameSpan.replaceChildren(buildUserNameNodes(chatMessage));
+            userNameSpan.textContent = buildUserNameText(chatMessage);
 
             const messageSpan = document.createElement('span');
             messageSpan.style.color = '#333';
@@ -680,7 +675,7 @@ const ChatModule = (function () {
 
             const userNameSpan = document.createElement('span');
             userNameSpan.style.cssText = `font-weight: 600; color: ${isMe ? myColor : themeColor}; margin-right: 8px;`;
-            userNameSpan.replaceChildren(buildUserNameNodes(chatMessage));
+            userNameSpan.textContent = buildUserNameText(chatMessage);
 
             const messageSpan = document.createElement('span');
             messageSpan.style.color = '#333';
@@ -1238,7 +1233,7 @@ const ChatModule = (function () {
 
             const userName = document.createElement('span');
             userName.style.cssText = `font-weight: 600; color: ${themeColor}; margin-right: 8px;`;
-            userName.replaceChildren(buildUserNameNodes(msg));
+            userName.textContent = buildUserNameText(msg);
 
             const msgText = document.createElement('span');
             msgText.style.color = '#333';
@@ -1262,7 +1257,7 @@ const ChatModule = (function () {
 
             const userName = document.createElement('span');
             userName.style.cssText = `font-weight: 600; color: ${themeColor}; margin-right: 8px;`;
-            userName.replaceChildren(buildUserNameNodes(msg));
+            userName.textContent = buildUserNameText(msg);
 
             const msgText = document.createElement('span');
             msgText.style.color = '#333';
@@ -1667,7 +1662,6 @@ const ChatModule = (function () {
         createTimeReactionsContainer,
         attachHoverEvents,
         buildUserNameText,
-        buildUserNameNodes,
         scrollToBottom,
         openImageModal,
         showImageUploadModal,

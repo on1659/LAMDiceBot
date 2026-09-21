@@ -2742,26 +2742,22 @@
         function getDeviceIcon(deviceType) {
             switch(deviceType) {
                 case 'ios':
-                    return 'apple';
+                    return '🍎';
                 case 'android':
-                    return 'phone';
+                    return '📱';
                 case 'pc':
                 default:
-                    return 'pc';
+                    return '💻';
             }
         }
 
-        // 채팅 이름 표시 — 왕관(방장)·기기 아이콘·이름·(나) 를 노드로 그린다.
-        // 아이콘이 <i> 라 텍스트로는 판정할 수 없으므로 상태를 dataset 에 두고, diceRolled 로 기기 아이콘이 뒤늦게 오면 통째로 다시 그린다.
-        function renderChatUserName(span, userName, isHost, deviceIconId, isMe) {
+        // 채팅 이름 표시 — 왕관(방장)·기기·이름·(나). 채팅 이름줄 배지는 이모지 유지(사용자 결정 2026-09-22: 스프라이트보다 이모지가 낫다).
+        // 상태는 dataset 에 두고, diceRolled 로 기기 아이콘이 뒤늦게 오면 통째로 다시 그린다.
+        function renderChatUserName(span, userName, isHost, deviceIcon, isMe) {
             span.dataset.host = isHost ? '1' : '';
-            span.dataset.device = deviceIconId || '';
+            span.dataset.device = deviceIcon || '';
             span.dataset.me = isMe ? '1' : '';
-            const nodes = [];
-            if (isHost) nodes.push(UIIcons.el('crown'), ' ');
-            if (deviceIconId) nodes.push(UIIcons.el(deviceIconId), ' ');
-            nodes.push(userName + (isMe ? ' (나)' : ''));
-            span.replaceChildren(...nodes);
+            span.textContent = (isHost ? '👑 ' : '') + (deviceIcon ? deviceIcon + ' ' : '') + userName + (isMe ? ' (나)' : '');
         }
         
         // 주사위 연출 효과 함수들
