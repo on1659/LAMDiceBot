@@ -3511,5 +3511,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRaccoonNinja": {
+    "batch": "marble-run-skin-raccoon-ninja-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-raccoon-ninja.md",
+    "note": "닌자 너구리 스킨(marble_skin_raccoon_ninja). Codex exec 1세션, verify: 림 0%, 공 120×103 중심 (80,80.5); r2c3(어질어질 공) 위 별 마크가 y-run 2개로 잡힘 — 의도된 위성(기본 r4c3 별과 같은 예외)이라 허용",
+    "assets": {
+      "raccoon-ninja": {
+        "image": "creatures/raccoon-ninja.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/raccoon-ninja.png",
+        "md5": "b11bc9230e895d27aa9cdbd765022131",
+        "qaStatus": "PASS"
+      },
+      "raccoon-ninja-sleep": {
+        "image": "creatures/raccoon-ninja-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-ninja-sleep.png",
+        "md5": "700622b2b19af3d47a9ba998ab2e0368",
+        "qaStatus": "PASS"
+      },
+      "raccoon-ninja-scuffle": {
+        "image": "creatures/raccoon-ninja-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-ninja-scuffle.png",
+        "md5": "097fb9c1305c8ac3636afcbed42b6b57",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
