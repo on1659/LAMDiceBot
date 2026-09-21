@@ -3214,5 +3214,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinTurtleMelon": {
+    "batch": "marble-run-skin-turtle-melon-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-turtle-melon.md",
+    "note": "수박 거북이 스킨(marble_skin_turtle_melon). Codex exec 1세션 main 3차(1·2차는 Codex 반려 — 원본 확인 결과 둘 다 양호, 2차는 r3 일부 왼쪽 향함), verify ALL_OK(림 0%, 공 110×112). 약점: sleep 시트 누움 칸이 서 있는 자세에 가깝다",
+    "assets": {
+      "turtle-melon": {
+        "image": "creatures/turtle-melon.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/turtle-melon.png",
+        "md5": "107eb2a9efe761512d57365d5a532341",
+        "qaStatus": "PASS"
+      },
+      "turtle-melon-sleep": {
+        "image": "creatures/turtle-melon-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/turtle-melon-sleep.png",
+        "md5": "0c2a1a9a2714971153eac6ec7325a4b7",
+        "qaStatus": "PASS"
+      },
+      "turtle-melon-scuffle": {
+        "image": "creatures/turtle-melon-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/turtle-melon-scuffle.png",
+        "md5": "29f1ec7f39bf2157f230b111ee707c36",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
