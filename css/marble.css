@@ -110,7 +110,8 @@
 .marble-pick-head .marble-shop-btn {
     display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; width: auto; margin: 0;
     border: 1.5px solid var(--marble-accent); background: var(--bg-white); color: var(--marble-accent);
-    font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    font-weight: 700; font-size: 12px; line-height: 1; padding: 5px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    box-shadow: none;
 }
 .marble-pick-head .marble-shop-btn:hover { background: rgba(0, 0, 0, 0.04); }
 .mshop-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; }
