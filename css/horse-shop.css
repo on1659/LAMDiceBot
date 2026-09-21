@@ -384,6 +384,11 @@ body.hshop-open {
 }
 /* 옷장 빈 상태의 [상점 가기] — 전체폭 아님 */
 .hshop-empty .hshop-goto-shop { width: auto; margin-top: 12px; padding: 8px 18px; }
+/* 분리 모드 상점 카드: 이름 줄 오른쪽에 가격(카드 세로 길이 절약), 뷰 탭 [상점|옷장] */
+.hshop-namerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.hshop-namerow .hshop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hshop-price.hshop-price--inline { margin-top: 0; flex: 0 0 auto; }
+.hshop-viewtabs { padding-bottom: 0; }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped);

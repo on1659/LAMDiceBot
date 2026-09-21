@@ -556,6 +556,21 @@
 
         card.appendChild(thumb);
         card.appendChild(nm);
+        // 분리 모드: 가격을 이름 줄 오른쪽에(카드 세로 길이 절약, 사용자 2026-09-22) — 아래 가격 노드는 만들지 않는다
+        var priceInline = false;
+        if (closetMode() && !isAdItem(item)) {
+            var st0 = itemStateFor(item);
+            if (_view === 'shop' && !st0.owned && Number.isFinite(item.price)) {
+                var namerow = document.createElement('div');
+                namerow.className = 'hshop-namerow';
+                var pr = document.createElement('span');
+                pr.className = 'hshop-price hshop-price--inline';
+                setIconValue(pr, 'coin', item.price);
+                card.replaceChild(namerow, nm); namerow.appendChild(nm); namerow.appendChild(pr);
+                priceInline = true;
+            }
+        }
+
 
         // 광고 아이템은 ad-wallet(클라) 기준 — 별도 경로(서버 shop:buy/equip 미진입)
         if (isAdItem(item)) {
@@ -586,7 +601,7 @@
         }
         // 가격 노드는 미소유 + price가 유한할 때만 (D6: spin defaultOwned 무가격 대응)
         var price = null;
-        if (!state.owned && Number.isFinite(item.price)) {
+        if (!priceInline && !state.owned && Number.isFinite(item.price)) {
             price = document.createElement('div');
             price.className = 'hshop-price';
             setIconValue(price, 'coin', item.price);
@@ -607,7 +622,7 @@
                     btn.disabled = true;
                 }
             } else {
-                btn.textContent = Number.isFinite(item.price) ? '구매 (' + item.price + ')' : '구매';
+                btn.textContent = (Number.isFinite(item.price) && !priceInline) ? '구매 (' + item.price + ')' : '구매';   // 가격이 이름 줄에 있으면 버튼은 '구매'만
                 btn.addEventListener('click', function () { requestBuy(item, btn); });
             }
         } else {
@@ -930,6 +945,20 @@
         }
     }
 
+    // 분리 모드 탭바 [상점 | 옷장] — 같은 팝업에서 뷰만 바꾼다(사용자 2026-09-22: 팝업 하나에 탭)
+    function renderViewTabs() {
+        var bar = document.createElement('div');
+        bar.className = 'hshop-tabs hshop-viewtabs';
+        [['shop', '🛍 ' + (_config.shopTabLabel || '상점')], ['closet', '👗 ' + (_config.closetTabLabel || _config.closetTitle || '옷장')]].forEach(function (t) {
+            var tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'hshop-tab' + (_view === t[0] ? ' is-active' : '');
+            tab.textContent = t[1];
+            tab.addEventListener('click', function () { if (_view === t[0]) return; _view = t[0]; renderModal(); });
+            bar.appendChild(tab);
+        });
+        return bar;
+    }
     // 옷장 본문 — 슬롯 순서대로 소유(defaultOwned 포함) 아이템 카드. 하나도 없으면 빈 상태 + [상점 가기]
     function buildClosetBody() {
         var body = document.createElement('div');
@@ -1039,6 +1068,7 @@
             cnotice.className = 'hshop-notice';
             cnotice.textContent = noticeFor(_activeTab);
             panel.appendChild(header);
+            panel.appendChild(renderViewTabs());
             panel.appendChild(cnotice);
             panel.appendChild(buildClosetBody());
             overlay.appendChild(panel);
@@ -1107,6 +1137,7 @@
         var gachaArea = buildGachaArea(_activeMainShop, !!coinLockMsg);
 
         panel.appendChild(header);
+        if (closetMode()) panel.appendChild(renderViewTabs());
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         panel.appendChild(notice);
