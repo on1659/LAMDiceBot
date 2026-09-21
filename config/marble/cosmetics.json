@@ -1,0 +1,6 @@
+{
+  "marble_skin": [
+    { "id": "marble_skin_none",            "name": "기본 모습",       "rarity": "common", "defaultOwned": true, "emoji": "🐾" },
+    { "id": "marble_skin_ribbonpig_scarf", "name": "스카프 리본돼지", "rarity": "rare",   "emoji": "🎀", "price": 90, "creature": "ribbonpig", "skin": "scarf", "desc": "리본을 목에 스카프처럼 두른 리본돼지. 리본돼지를 고르면 적용돼요." }
+  ]
+}

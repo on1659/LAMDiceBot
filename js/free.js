@@ -39,14 +39,15 @@
         marble:   '데구리'
     };
 
-    var GAME_EMOJI = {
-        dice:     '🎲',
-        roulette: '🎰',
-        horse:    '🐎',
-        bridge:   '🌉',
-        ladder:   '🪜',
-        'spin-arena': '⚔️',
-        marble:   '🐾'
+    // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})
+    var GAME_ICON = {
+        dice:     'dice',
+        roulette: 'slot',
+        horse:    'horse',
+        bridge:   'bridge',
+        ladder:   'ladder',
+        'spin-arena': 'swords',
+        marble:   'paw'
     };
 
     // 게임별 로딩 화면 그라데이션 (theme.css 색상 기준)
@@ -772,14 +773,14 @@
             document.head.appendChild(style);
         }
 
-        var emoji = GAME_EMOJI[selectedGame] || '🎮';
+        var icon = GAME_ICON[selectedGame] || 'gamepad';
         var gradient = GAME_GRADIENT[selectedGame] || GAME_GRADIENT.dice;
         var el = document.createElement('div');
         el.id = 'freeDirectLoading';
         el.setAttribute('aria-live', 'polite');
         el.style.background = gradient;
         el.innerHTML = ''
-            + '<div class="fdl-emoji">' + emoji + '</div>'
+            + '<div class="fdl-emoji"><i class="ui ui-hero ui-' + icon + '"></i></div>'
             + '<div class="fdl-title">방으로 입장하는 중</div>'
             + '<div class="fdl-sub">잠시만 기다려주세요</div>'
             + '<div class="fdl-spinner"></div>';

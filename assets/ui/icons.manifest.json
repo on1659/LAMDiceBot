@@ -1,0 +1,1105 @@
+{
+ "batch": "ui-icons-shared-m-2026-09-22",
+ "status": "picked-up",
+ "pickedUpAt": "2026-09-22",
+ "request": "docs/spritemake-request/2026-09-22-ui-icons-shared-m.md",
+ "md5": "6a44aec375cc65fece23bf7654deaa50",
+ "sha256": "86e2460a5c7323cd336df1b96a4e502df83a5c96ec89c53ea4b7588e273044b9",
+ "note": "11차 공용 UI 아이콘 아틀라스 — 전 게임 페이지·로비·공유 모듈의 OS 이모지 대체. index 0~32 는 데구리 10차(L) 셀을 픽셀 그대로 복사(셀별 md5 일치), 33~96 은 Codex exec 1세션(시트 A/B + 단독 재생성 4회)이 gpt-image-2 로 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화, Claude 가 97셀 bbox·중심·alpha 1~7·마젠타·L md5·20/32px 3배경 대조로 독립 검증 후 복사. 소비처: css/ui-icons.css .ui-{id}, js/shared/ui-icons.js UI_ICON_CELL, js/marble-render.js(캔버스), css/marble.css .mi-*(별칭). 97~99 는 빈 셀.",
+ "image": "icons.png",
+ "canvas": [
+  1280,
+  1280
+ ],
+ "grid": [
+  10,
+  10
+ ],
+ "cell": [
+  128,
+  128
+ ],
+ "anchor": [
+  64,
+  64
+ ],
+ "contentBox": [
+  104,
+  104
+ ],
+ "indexFormula": "row*10+col",
+ "emptyCells": [
+  97,
+  98,
+  99
+ ],
+ "cells": {
+  "paw": {
+   "index": 0,
+   "cell": "r0c0",
+   "bbox": [
+    12,
+    19,
+    116,
+    109
+   ],
+   "source": "L verbatim"
+  },
+  "target": {
+   "index": 1,
+   "cell": "r0c1",
+   "bbox": [
+    12,
+    13,
+    116,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "medal": {
+   "index": 2,
+   "cell": "r0c2",
+   "bbox": [
+    26,
+    12,
+    102,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "snail": {
+   "index": 3,
+   "cell": "r0c3",
+   "bbox": [
+    12,
+    28,
+    116,
+    101
+   ],
+   "source": "L verbatim"
+  },
+  "trophy": {
+   "index": 4,
+   "cell": "r0c4",
+   "bbox": [
+    12,
+    14,
+    116,
+    114
+   ],
+   "source": "L verbatim"
+  },
+  "burger": {
+   "index": 5,
+   "cell": "r0c5",
+   "bbox": [
+    12,
+    15,
+    116,
+    113
+   ],
+   "source": "L verbatim"
+  },
+  "list": {
+   "index": 6,
+   "cell": "r0c6",
+   "bbox": [
+    22,
+    12,
+    106,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "memo": {
+   "index": 7,
+   "cell": "r0c7",
+   "bbox": [
+    12,
+    16,
+    116,
+    113
+   ],
+   "source": "L verbatim"
+  },
+  "people": {
+   "index": 8,
+   "cell": "r0c8",
+   "bbox": [
+    12,
+    18,
+    116,
+    111
+   ],
+   "source": "L verbatim"
+  },
+  "bulb": {
+   "index": 9,
+   "cell": "r0c9",
+   "bbox": [
+    23,
+    12,
+    106,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "check": {
+   "index": 10,
+   "cell": "r1c0",
+   "bbox": [
+    13,
+    13,
+    116,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "hourglass": {
+   "index": 11,
+   "cell": "r1c1",
+   "bbox": [
+    25,
+    12,
+    104,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "clock": {
+   "index": 12,
+   "cell": "r1c2",
+   "bbox": [
+    18,
+    12,
+    111,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "flask": {
+   "index": 13,
+   "cell": "r1c3",
+   "bbox": [
+    19,
+    12,
+    110,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "expand": {
+   "index": 14,
+   "cell": "r1c4",
+   "bbox": [
+    12,
+    16,
+    116,
+    113
+   ],
+   "source": "L verbatim"
+  },
+  "replay": {
+   "index": 15,
+   "cell": "r1c5",
+   "bbox": [
+    18,
+    12,
+    110,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "play": {
+   "index": 16,
+   "cell": "r1c6",
+   "bbox": [
+    21,
+    12,
+    107,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "stop": {
+   "index": 17,
+   "cell": "r1c7",
+   "bbox": [
+    14,
+    12,
+    115,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "refresh": {
+   "index": 18,
+   "cell": "r1c8",
+   "bbox": [
+    15,
+    12,
+    113,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "chat": {
+   "index": 19,
+   "cell": "r1c9",
+   "bbox": [
+    12,
+    18,
+    116,
+    110
+   ],
+   "source": "L verbatim"
+  },
+  "scroll": {
+   "index": 20,
+   "cell": "r2c0",
+   "bbox": [
+    14,
+    12,
+    114,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "lock": {
+   "index": 21,
+   "cell": "r2c1",
+   "bbox": [
+    22,
+    12,
+    107,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "crown": {
+   "index": 22,
+   "cell": "r2c2",
+   "bbox": [
+    12,
+    23,
+    116,
+    105
+   ],
+   "source": "L verbatim"
+  },
+  "person": {
+   "index": 23,
+   "cell": "r2c3",
+   "bbox": [
+    19,
+    12,
+    110,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "warn": {
+   "index": 24,
+   "cell": "r2c4",
+   "bbox": [
+    12,
+    15,
+    116,
+    114
+   ],
+   "source": "L verbatim"
+  },
+  "info": {
+   "index": 25,
+   "cell": "r2c5",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "book": {
+   "index": 26,
+   "cell": "r2c6",
+   "bbox": [
+    14,
+    12,
+    114,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "home": {
+   "index": 27,
+   "cell": "r2c7",
+   "bbox": [
+    12,
+    15,
+    116,
+    114
+   ],
+   "source": "L verbatim"
+  },
+  "flag": {
+   "index": 28,
+   "cell": "r2c8",
+   "bbox": [
+    20,
+    12,
+    109,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "sun": {
+   "index": 29,
+   "cell": "r2c9",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "hole": {
+   "index": 30,
+   "cell": "r3c0",
+   "bbox": [
+    12,
+    30,
+    116,
+    98
+   ],
+   "source": "L verbatim"
+  },
+  "dash": {
+   "index": 31,
+   "cell": "r3c1",
+   "bbox": [
+    12,
+    25,
+    116,
+    103
+   ],
+   "source": "L verbatim"
+  },
+  "x": {
+   "index": 32,
+   "cell": "r3c2",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "L verbatim"
+  },
+  "dice": {
+   "index": 33,
+   "cell": "r3c3",
+   "bbox": [
+    15,
+    12,
+    113,
+    116
+   ],
+   "source": "M"
+  },
+  "slot": {
+   "index": 34,
+   "cell": "r3c4",
+   "bbox": [
+    12,
+    22,
+    116,
+    106
+   ],
+   "source": "M"
+  },
+  "horse": {
+   "index": 35,
+   "cell": "r3c5",
+   "bbox": [
+    12,
+    14,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "bridge": {
+   "index": 36,
+   "cell": "r3c6",
+   "bbox": [
+    12,
+    26,
+    116,
+    103
+   ],
+   "source": "M"
+  },
+  "ladder": {
+   "index": 37,
+   "cell": "r3c7",
+   "bbox": [
+    31,
+    12,
+    97,
+    116
+   ],
+   "source": "M"
+  },
+  "swords": {
+   "index": 38,
+   "cell": "r3c8",
+   "bbox": [
+    12,
+    16,
+    116,
+    113
+   ],
+   "source": "M"
+  },
+  "pirate": {
+   "index": 39,
+   "cell": "r3c9",
+   "bbox": [
+    13,
+    12,
+    115,
+    116
+   ],
+   "source": "M"
+  },
+  "gamepad": {
+   "index": 40,
+   "cell": "r4c0",
+   "bbox": [
+    12,
+    30,
+    116,
+    99
+   ],
+   "source": "M"
+  },
+  "confetti": {
+   "index": 41,
+   "cell": "r4c1",
+   "bbox": [
+    15,
+    12,
+    114,
+    116
+   ],
+   "source": "M"
+  },
+  "party": {
+   "index": 42,
+   "cell": "r4c2",
+   "bbox": [
+    17,
+    13,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "silver": {
+   "index": 43,
+   "cell": "r4c3",
+   "bbox": [
+    23,
+    12,
+    105,
+    116
+   ],
+   "source": "M"
+  },
+  "bronze": {
+   "index": 44,
+   "cell": "r4c4",
+   "bbox": [
+    23,
+    12,
+    105,
+    116
+   ],
+   "source": "M"
+  },
+  "checker": {
+   "index": 45,
+   "cell": "r4c5",
+   "bbox": [
+    14,
+    12,
+    114,
+    116
+   ],
+   "source": "M"
+  },
+  "sparkle": {
+   "index": 46,
+   "cell": "r4c6",
+   "bbox": [
+    18,
+    12,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "star": {
+   "index": 47,
+   "cell": "r4c7",
+   "bbox": [
+    12,
+    13,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "skull": {
+   "index": 48,
+   "cell": "r4c8",
+   "bbox": [
+    14,
+    12,
+    115,
+    116
+   ],
+   "source": "M"
+  },
+  "rain": {
+   "index": 49,
+   "cell": "r4c9",
+   "bbox": [
+    12,
+    16,
+    116,
+    112
+   ],
+   "source": "M"
+  },
+  "fog": {
+   "index": 50,
+   "cell": "r5c0",
+   "bbox": [
+    12,
+    30,
+    116,
+    98
+   ],
+   "source": "M"
+  },
+  "cloudsun": {
+   "index": 51,
+   "cell": "r5c1",
+   "bbox": [
+    12,
+    19,
+    116,
+    110
+   ],
+   "source": "M"
+  },
+  "coin": {
+   "index": 52,
+   "cell": "r5c2",
+   "bbox": [
+    13,
+    12,
+    115,
+    116
+   ],
+   "source": "M"
+  },
+  "gift": {
+   "index": 53,
+   "cell": "r5c3",
+   "bbox": [
+    15,
+    12,
+    113,
+    116
+   ],
+   "source": "M"
+  },
+  "recycle": {
+   "index": 54,
+   "cell": "r5c4",
+   "bbox": [
+    12,
+    12,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "box": {
+   "index": 55,
+   "cell": "r5c5",
+   "bbox": [
+    12,
+    14,
+    116,
+    114
+   ],
+   "source": "M"
+  },
+  "bag": {
+   "index": 56,
+   "cell": "r5c6",
+   "bbox": [
+    20,
+    12,
+    109,
+    116
+   ],
+   "source": "M"
+  },
+  "cart": {
+   "index": 57,
+   "cell": "r5c7",
+   "bbox": [
+    12,
+    16,
+    116,
+    112
+   ],
+   "source": "M"
+  },
+  "palette": {
+   "index": 58,
+   "cell": "r5c8",
+   "bbox": [
+    12,
+    18,
+    116,
+    110
+   ],
+   "source": "M"
+  },
+  "tag": {
+   "index": 59,
+   "cell": "r5c9",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "clapper": {
+   "index": 60,
+   "cell": "r6c0",
+   "bbox": [
+    14,
+    12,
+    114,
+    116
+   ],
+   "source": "M"
+  },
+  "camera": {
+   "index": 61,
+   "cell": "r6c1",
+   "bbox": [
+    12,
+    22,
+    116,
+    107
+   ],
+   "source": "M"
+  },
+  "tv": {
+   "index": 62,
+   "cell": "r6c2",
+   "bbox": [
+    12,
+    13,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "sound": {
+   "index": 63,
+   "cell": "r6c3",
+   "bbox": [
+    12,
+    22,
+    116,
+    107
+   ],
+   "source": "M"
+  },
+  "soundlow": {
+   "index": 64,
+   "cell": "r6c4",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "mute": {
+   "index": 65,
+   "cell": "r6c5",
+   "bbox": [
+    12,
+    14,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "pencil": {
+   "index": 66,
+   "cell": "r6c6",
+   "bbox": [
+    13,
+    12,
+    115,
+    116
+   ],
+   "source": "M"
+  },
+  "door": {
+   "index": 67,
+   "cell": "r6c7",
+   "bbox": [
+    18,
+    12,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "link": {
+   "index": 68,
+   "cell": "r6c8",
+   "bbox": [
+    12,
+    15,
+    116,
+    113
+   ],
+   "source": "M"
+  },
+  "mail": {
+   "index": 69,
+   "cell": "r6c9",
+   "bbox": [
+    12,
+    34,
+    116,
+    95
+   ],
+   "source": "M"
+  },
+  "pin": {
+   "index": 70,
+   "cell": "r7c0",
+   "bbox": [
+    18,
+    12,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "key": {
+   "index": 71,
+   "cell": "r7c1",
+   "bbox": [
+    16,
+    12,
+    113,
+    116
+   ],
+   "source": "M"
+  },
+  "chart": {
+   "index": 72,
+   "cell": "r7c2",
+   "bbox": [
+    13,
+    12,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "calendar": {
+   "index": 73,
+   "cell": "r7c3",
+   "bbox": [
+    15,
+    12,
+    113,
+    116
+   ],
+   "source": "M"
+  },
+  "wave": {
+   "index": 74,
+   "cell": "r7c4",
+   "bbox": [
+    12,
+    25,
+    116,
+    103
+   ],
+   "source": "M"
+  },
+  "eye": {
+   "index": 75,
+   "cell": "r7c5",
+   "bbox": [
+    12,
+    26,
+    116,
+    102
+   ],
+   "source": "M"
+  },
+  "grad": {
+   "index": 76,
+   "cell": "r7c6",
+   "bbox": [
+    12,
+    24,
+    116,
+    104
+   ],
+   "source": "M"
+  },
+  "question": {
+   "index": 77,
+   "cell": "r7c7",
+   "bbox": [
+    29,
+    12,
+    100,
+    116
+   ],
+   "source": "M"
+  },
+  "pc": {
+   "index": 78,
+   "cell": "r7c8",
+   "bbox": [
+    12,
+    20,
+    116,
+    108
+   ],
+   "source": "M"
+  },
+  "phone": {
+   "index": 79,
+   "cell": "r7c9",
+   "bbox": [
+    31,
+    12,
+    98,
+    116
+   ],
+   "source": "M"
+  },
+  "apple": {
+   "index": 80,
+   "cell": "r8c0",
+   "bbox": [
+    17,
+    12,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "fire": {
+   "index": 81,
+   "cell": "r8c1",
+   "bbox": [
+    20,
+    12,
+    109,
+    116
+   ],
+   "source": "M"
+  },
+  "rocket": {
+   "index": 82,
+   "cell": "r8c2",
+   "bbox": [
+    15,
+    12,
+    114,
+    116
+   ],
+   "source": "M"
+  },
+  "dizzy": {
+   "index": 83,
+   "cell": "r8c3",
+   "bbox": [
+    12,
+    24,
+    116,
+    105
+   ],
+   "source": "M"
+  },
+  "carrot": {
+   "index": 84,
+   "cell": "r8c4",
+   "bbox": [
+    16,
+    12,
+    112,
+    116
+   ],
+   "source": "M"
+  },
+  "banana": {
+   "index": 85,
+   "cell": "r8c5",
+   "bbox": [
+    12,
+    14,
+    116,
+    114
+   ],
+   "source": "M"
+  },
+  "snow": {
+   "index": 86,
+   "cell": "r8c6",
+   "bbox": [
+    18,
+    12,
+    111,
+    116
+   ],
+   "source": "M"
+  },
+  "barrier": {
+   "index": 87,
+   "cell": "r8c7",
+   "bbox": [
+    15,
+    12,
+    113,
+    116
+   ],
+   "source": "M"
+  },
+  "ghost": {
+   "index": 88,
+   "cell": "r8c8",
+   "bbox": [
+    14,
+    12,
+    115,
+    116
+   ],
+   "source": "M"
+  },
+  "tomb": {
+   "index": 89,
+   "cell": "r8c9",
+   "bbox": [
+    12,
+    13,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "bolt": {
+   "index": 90,
+   "cell": "r9c0",
+   "bbox": [
+    27,
+    12,
+    102,
+    116
+   ],
+   "source": "M"
+  },
+  "d1": {
+   "index": 91,
+   "cell": "r9c1",
+   "bbox": [
+    12,
+    13,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "d2": {
+   "index": 92,
+   "cell": "r9c2",
+   "bbox": [
+    12,
+    12,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "d3": {
+   "index": 93,
+   "cell": "r9c3",
+   "bbox": [
+    12,
+    14,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "d4": {
+   "index": 94,
+   "cell": "r9c4",
+   "bbox": [
+    12,
+    13,
+    116,
+    116
+   ],
+   "source": "M"
+  },
+  "d5": {
+   "index": 95,
+   "cell": "r9c5",
+   "bbox": [
+    12,
+    13,
+    116,
+    115
+   ],
+   "source": "M"
+  },
+  "d6": {
+   "index": 96,
+   "cell": "r9c6",
+   "bbox": [
+    12,
+    13,
+    116,
+    116
+   ],
+   "source": "M"
+  }
+ }
+}

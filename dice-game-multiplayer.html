@@ -36,6 +36,8 @@
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
 
     <style>
         * {
@@ -1732,11 +1734,14 @@
         }
 
         .history-item.winner-glow::before {
-            content: '✨';
+            content: '';
+            width: 24px;
+            height: 24px;
+            /* = .ui-sparkle (css/ui-icons.css) — 의사요소엔 클래스를 못 붙여 배경을 직접 적는다 */
+            background: url("/assets/ui/icons.png?v=1") no-repeat 66.6667% 44.4444% / 1000% 1000%;
             position: absolute;
             top: -8px;
             right: -8px;
-            font-size: 20px;
             animation: sparkle 1.5s ease-in-out infinite;
             z-index: 1;
             filter: drop-shadow(0 0 3px rgba(var(--yellow-gold-rgb),0.8));
@@ -1944,7 +1949,7 @@
     </header>
     <div class="container">
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 30px;">
-            <h1 class="brand-title" style="margin: 0; white-space: nowrap;">🎲 LAM Dice :)</h1>
+            <h1 class="brand-title" style="margin: 0; white-space: nowrap;"><i class="ui ui-dice"></i> LAM Dice :)</h1>
             <div id="visitorStats" style="text-align: right;">
                 <div style="font-size:11px;margin-bottom:2px;">전체 서버 통합</div>
                 <div>오늘 방문자 <strong id="todayVisitorCount">0</strong>명 &middot; 플레이 <strong id="todayPlayCount">0</strong>회</div>
@@ -1958,8 +1963,8 @@
             <div id="serverInfoBar" style="display:none;">
                 <button class="btn-ghost" onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();">← 서버 목록</button>
                 <span id="serverInfoName"></span>
-                <span id="serverInfoUserName" style="display: none;">👤 </span>
-                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()">👥 멤버</button>
+                <span id="serverInfoUserName" style="display: none;"><i class="ui ui-person"></i> </span>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()"><i class="ui ui-people"></i> 멤버</button>
             </div>
             <div id="freeCreateRoomBox" class="create-room-button-section" style="display: none;">
                 <div class="input-group">
@@ -1971,9 +1976,9 @@
                 <div class="room-header">
                     <h2>방 목록 <span class="count" id="roomCount"></span></h2>
                     <div class="room-header-actions">
-                        <button class="btn-ranking" onclick="RankingModule.show()">🏆 <span class="btn-ranking-text">랭킹</span></button>
+                        <button class="btn-ranking" onclick="RankingModule.show()"><i class="ui ui-trophy"></i> <span class="btn-ranking-text">랭킹</span></button>
                         <button class="btn-create" onclick="showCreateRoomPage()">+ 방 만들기</button>
-                        <button class="btn-refresh" onclick="refreshRooms()">↺</button>
+                        <button class="btn-refresh" onclick="refreshRooms()"><i class="ui ui-replay"></i></button>
                     </div>
                 </div>
                 <div class="rooms-list" id="roomsList">
@@ -2000,7 +2005,7 @@
             
             <!-- 업데이트 내역 -->
             <div class="update-log-section">
-                <h2>📝 업데이트 내역</h2>
+                <h2><i class="ui ui-memo"></i> 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent">업데이트 내역을 불러오는 중...</div>
             </div>
         </div>
@@ -2037,27 +2042,27 @@
             
             <!-- 게임 타입 선택 -->
             <div class="input-group">
-                <label class="field-label">🎮 게임 타입</label>
+                <label class="field-label"><i class="ui ui-gamepad"></i> 게임 타입</label>
                 <div class="game-type-grid">
                     <label class="game-type-option" style="--gt-color: var(--game-type-dice); --gt-rgb: var(--dice-500-rgb);">
                         <input type="radio" name="gameType" value="dice" />
-                        <span class="gt-emoji">🎲</span>
+                        <span class="gt-emoji"><i class="ui ui-dice"></i></span>
                         <span class="gt-name">주사위</span>
                     </label>
                     <label class="game-type-option" style="--gt-color: var(--game-type-roulette); --gt-rgb: var(--roulette-500-rgb);">
                         <input type="radio" name="gameType" value="roulette" />
-                        <span class="gt-emoji">🎰</span>
+                        <span class="gt-emoji"><i class="ui ui-slot"></i></span>
                         <span class="gt-name">룰렛</span>
                     </label>
                     <label id="horseRaceLabel" class="game-type-option" style="--gt-color: var(--game-type-horse); --gt-rgb: var(--game-type-horse-rgb);">
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked />
-                        <span class="gt-emoji">🐎</span>
+                        <span class="gt-emoji"><i class="ui ui-horse"></i></span>
                         <span class="gt-name">경마</span>
                         <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="bridgeLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
-                        <span class="gt-emoji">🌉</span>
+                        <span class="gt-emoji"><i class="ui ui-bridge"></i></span>
                         <span class="gt-name">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
@@ -2065,27 +2070,27 @@
                     <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
                     <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
-                        <span class="gt-emoji">🪜</span>
+                        <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
                         <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                         <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
-                        <span class="gt-emoji">🌀</span>
+                        <span class="gt-emoji"><i class="ui ui-swords"></i></span>
                         <span class="gt-name">회전 칼날</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="pirateLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-pirate); --gt-rgb: var(--pirate-500-rgb);">
                         <input type="radio" name="gameType" value="pirate" id="pirateRadio" />
-                        <span class="gt-emoji">🏴‍☠️</span>
+                        <span class="gt-emoji"><i class="ui ui-pirate"></i></span>
                         <span class="gt-name">해적 룰렛</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <!-- 데구리: 베타 테스트로 공개(2026-09-21) — 배지 "베타" -->
                     <label id="marbleLabel" class="game-type-option" style="--gt-color: var(--game-type-marble); --gt-rgb: var(--marble-500-rgb);">
                         <input type="radio" name="gameType" value="marble" id="marbleRadio" />
-                        <span class="gt-emoji">🐾</span>
+                        <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
@@ -2141,7 +2146,7 @@
             
             <!-- 재접속 알림 -->
             <div class="reconnect-notice" id="reconnectNotice" style="display: none;">
-                <strong>🔄 재접속하셨습니다!</strong>
+                <strong><i class="ui ui-refresh"></i> 재접속하셨습니다!</strong>
                 <p id="reconnectMessage"></p>
             </div>
 
@@ -2150,7 +2155,7 @@
 
             <!-- 2. 게임 룰 섹션 -->
             <div class="game-rules-section" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div class="dice-settings-title">📋 게임 룰</div>
+                <div class="dice-settings-title"><i class="ui ui-list"></i> 게임 룰</div>
                 
                 <!-- 방장 전용: 게임 룰 선택 라디오 버튼 -->
                 <div id="gameRulesRadioSection" style="display: none; margin-bottom: 15px;">
@@ -2203,9 +2208,9 @@
             <!-- 접속자 리스트 -->
             <div class="users-section">
                 <div class="users-title">
-                    👥 접속자 (<span id="userCount">0</span>명)
+                    <i class="ui ui-people"></i> 접속자 (<span id="userCount">0</span>명)
                     <span id="dragHint" style="display: none; font-size: 12px; color: var(--dice-500); font-weight: normal; margin-left: 10px;">
-                        💡 드래그로 준비 시킬 수 있습니다.
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
                     </span>
                 </div>
                 <div class="users-list" id="usersList">
@@ -2216,14 +2221,14 @@
             <!-- 방 폭파까지 남은 시간 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
             
             <!-- 준비 상태 -->
             <div class="ready-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500); display: none;" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
                     <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList" style="min-height: 50px;">
@@ -2236,7 +2241,7 @@
 
             <!-- 예약 — 누르면 팝업에서 시각을 정한다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
             <div class="schedule-open-row" id="scheduleOpenRow" style="display: none;">
-                <button type="button" id="scheduleOpenButton" class="schedule-open-button" onclick="openScheduleModal()">⏰ 예약</button>
+                <button type="button" id="scheduleOpenButton" class="schedule-open-button" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
             </div>
 
             <!-- Host 전용 컨트롤 -->
@@ -2251,9 +2256,9 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection">
                 <div class="history-title-wrapper">
-                    <div class="users-title">🍔 주문받기</div>
+                    <div class="users-title"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" class="order-button" style="background: var(--dice-gradient); padding: 8px 16px; font-size: 14px;">📋 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" class="order-button" style="background: var(--dice-gradient); padding: 8px 16px; font-size: 14px;"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -2264,7 +2269,7 @@
                 
                 <!-- 주문하지 않은 사람 목록 -->
                 <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
-                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
+                    <div class="not-rolled-title" style="margin-top: 15px;"><i class="ui ui-hourglass"></i> 주문하지 않은 사람</div>
                     <div class="not-rolled-list" id="notOrderedList">
                         <!-- 주문하지 않은 사람 목록 -->
                     </div>
@@ -2274,7 +2279,7 @@
                 <div class="my-order-box">
                     <div class="my-order-title">
                         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; white-space:nowrap;">
-                            <span>📝</span>
+                            <span><i class="ui ui-memo"></i></span>
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
@@ -2285,7 +2290,7 @@
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
-                            <span>📋 자주 쓰는 메뉴</span>
+                            <span><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
                             <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--bg-white); border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
@@ -2320,7 +2325,7 @@
                 
                 <!-- 관전자 주문 목록 -->
                 <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-light);">
-                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
                     <div class="order-list" id="spectatorOrderList">
                     </div>
                 </div>
@@ -2333,7 +2338,7 @@
 
             <!-- 진행 상황 표시 -->
             <div class="progress-section" id="progressSection" style="display: none;">
-                <div class="progress-title">📊 진행 상황</div>
+                <div class="progress-title"><i class="ui ui-chart"></i> 진행 상황</div>
                 <div class="progress-bar-container">
                     <div class="progress-bar" id="progressBar"></div>
                 </div>
@@ -2344,7 +2349,7 @@
 
             <!-- 주사위를 굴리지 않은 사람 -->
             <div class="not-rolled-section" id="notRolledSection" style="display: none;">
-                <div class="not-rolled-title">⏳ 주사위를 굴리지 않은 사람</div>
+                <div class="not-rolled-title"><i class="ui ui-hourglass"></i> 주사위를 굴리지 않은 사람</div>
                 <div class="not-rolled-list" id="notRolledList">
                     <!-- 미완료자 목록 -->
                 </div>
@@ -2353,7 +2358,7 @@
             <!-- 채팅 섹션 -->
             <div class="chat-history-wrapper">
                 <div class="chat-section">
-                    <div class="users-title" style="margin-bottom: 10px;">💬 채팅 </div>
+                    <div class="users-title" style="margin-bottom: 10px;"><i class="ui ui-chat"></i> 채팅 </div>
                     <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-500);">
                         <div style="color: var(--text-muted); text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
@@ -2363,7 +2368,7 @@
                             <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-500); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
                             <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
                         </div>
-                        <span id="diceIdleEmoji" style="font-size: 28px; cursor: pointer; user-select: none;" onclick="rollDiceButton()" title="주사위 굴리기">🎲</span>
+                        <span id="diceIdleEmoji" style="font-size: 28px; cursor: pointer; user-select: none;" onclick="rollDiceButton()" title="주사위 굴리기"><i class="ui ui-dice"></i></span>
                         <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: var(--dice-gradient);">전송</button>
                     </div>
                 </div>
@@ -2387,7 +2392,7 @@
     <!-- 기록 섹션 (오른쪽 고정) -->
     <div class="history-section">
         <div class="history-title-wrapper">
-            <div class="history-title" id="historyTitle">📜 게임 기록 - 연습경기</div>
+            <div class="history-title" id="historyTitle"><i class="ui ui-scroll"></i> 게임 기록 - 연습경기</div>
             <div class="sort-buttons">
                 <button class="sort-button active" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
                 <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
@@ -2527,7 +2532,7 @@
             const membersBtn = document.getElementById('serverMembersBtn');
             if (currentServerId) {
                 if (_restoredServerName) {
-                    document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
+                    document.getElementById('serverInfoName').replaceChildren(UIIcons.el('pc'), ` ${_restoredServerName}`);
                     document.getElementById('serverInfoName').style.display = '';
                     document.title = `${_restoredServerName} - LAM Dice :)`;
                 }
@@ -2542,7 +2547,7 @@
             const userNameSpan = document.getElementById('serverInfoUserName');
             // 서버 모드에서만 이름 span 표시 (자유 모드는 입력란 사용)
             if (userName && userNameSpan && currentServerId) {
-                userNameSpan.textContent = `👤 ${userName}`;
+                userNameSpan.replaceChildren(UIIcons.el('person'), ` ${userName}`);
                 userNameSpan.style.display = '';
             }
             const globalInput = document.getElementById('globalUserNameInput');
@@ -2733,7 +2738,7 @@
             }
         }
         
-        // 디바이스 타입에 따른 아이콘 반환
+        // 디바이스 타입에 따른 아이콘 id 반환 (css/ui-icons.css 의 .ui-{id})
         function getDeviceIcon(deviceType) {
             switch(deviceType) {
                 case 'ios':
@@ -2744,6 +2749,15 @@
                 default:
                     return '💻';
             }
+        }
+
+        // 채팅 이름 표시 — 왕관(방장)·기기·이름·(나). 채팅 이름줄 배지는 이모지 유지(사용자 결정 2026-09-22: 스프라이트보다 이모지가 낫다).
+        // 상태는 dataset 에 두고, diceRolled 로 기기 아이콘이 뒤늦게 오면 통째로 다시 그린다.
+        function renderChatUserName(span, userName, isHost, deviceIcon, isMe) {
+            span.dataset.host = isHost ? '1' : '';
+            span.dataset.device = deviceIcon || '';
+            span.dataset.me = isMe ? '1' : '';
+            span.textContent = (isHost ? '👑 ' : '') + (deviceIcon ? deviceIcon + ' ' : '') + userName + (isMe ? ' (나)' : '');
         }
         
         // 주사위 연출 효과 함수들
@@ -3222,7 +3236,7 @@
             if (roomsList.length === 0) {
                 roomsListEl.innerHTML = `
                     <div style="text-align: center; padding: 40px 20px;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">🎲</div>
+                        <div style="font-size: 48px; margin-bottom: 12px;"><i class="ui ui-xl ui-dice"></i></div>
                         <div style="color: var(--text-secondary); font-size: 16px; margin-bottom: 8px;">아직 방이 없어요</div>
                         <div style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;">첫 번째 방을 만들어보세요!</div>
                         <button onclick="showCreateRoomPage()" style="background: var(--dice-gradient); width: auto; padding: 10px 24px;">방 만들기</button>
@@ -3259,32 +3273,32 @@
                 
                 // 비공개 방 표시
                 const privateBadge = room.isPrivate
-                    ? '<span class="room-lock">🔒 비공개</span>'
+                    ? '<span class="room-lock"><i class="ui ui-lock"></i> 비공개</span>'
                     : '';
 
                 // 게임 타입 태그 표시 (액센트 색은 .game-* 클래스의 --accent 변수가 담당)
-                let gameTypeIcon = '🎲';
+                let gameTypeIcon = UIIcons.tag('dice');
                 let gameTypeLabel = '주사위';
                 if (room.gameType === 'roulette') {
-                    gameTypeIcon = '🎰';
+                    gameTypeIcon = UIIcons.tag('slot');
                     gameTypeLabel = '룰렛';
                 } else if (room.gameType === 'horse-race') {
-                    gameTypeIcon = '🐎';
+                    gameTypeIcon = UIIcons.tag('horse');
                     gameTypeLabel = '경마';
                 } else if (room.gameType === 'bridge') {
-                    gameTypeIcon = '🌉';
+                    gameTypeIcon = UIIcons.tag('bridge');
                     gameTypeLabel = 'Untitle';
                 } else if (room.gameType === 'ladder') {
-                    gameTypeIcon = '🪜';
+                    gameTypeIcon = UIIcons.tag('ladder');
                     gameTypeLabel = '사다리타기';
                 } else if (room.gameType === 'spin-arena') {
-                    gameTypeIcon = '🌀';
+                    gameTypeIcon = UIIcons.tag('swords');
                     gameTypeLabel = '회전 칼날';
                 } else if (room.gameType === 'pirate') {
-                    gameTypeIcon = '🏴‍☠️';
+                    gameTypeIcon = UIIcons.tag('pirate');
                     gameTypeLabel = '해적 룰렛';
                 } else if (room.gameType === 'marble') {
-                    gameTypeIcon = '🐾';
+                    gameTypeIcon = UIIcons.tag('paw');
                     gameTypeLabel = '데구리';
                 }
                 
@@ -3315,10 +3329,10 @@
                         <div class="room-details">
                             <span class="room-game-name">${gameTypeLabel}</span>
                             <span class="room-detail-sep">&middot;</span>
-                            <span>👤 ${room.hostName}</span>
+                            <span><i class="ui ui-person"></i> ${room.hostName}</span>
                             <span class="room-detail-sep">&middot;</span>
-                            <span>👥 ${room.playerCount}명</span>
-                            ${remainingTimeText ? `<span class="room-detail-sep">&middot;</span><span>⏱ ${remainingTimeText}</span>` : ''}
+                            <span><i class="ui ui-people"></i> ${room.playerCount}명</span>
+                            ${remainingTimeText ? `<span class="room-detail-sep">&middot;</span><span><i class="ui ui-clock"></i> ${remainingTimeText}</span>` : ''}
                         </div>
                     </div>
                     <span class="room-status ${statusClass}">${statusText}</span>
@@ -3501,7 +3515,7 @@
         
         // 비밀번호 입력 모달 표시
         function showPasswordModal(roomId, userName) {
-            const password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
+            const password = prompt('비공개 방입니다.\n비밀번호를 입력해주세요:');
             
             if (password === null) {
                 // 취소
@@ -3597,22 +3611,22 @@
                 case 'error':
                     bgColor = 'var(--status-danger-bg)';
                     borderColor = 'var(--red-300)';
-                    icon = '⚠️';
+                    icon = UIIcons.tag('warn');
                     break;
                 case 'warning':
                     bgColor = 'var(--panel-attention)';
                     borderColor = 'var(--yellow-400)';
-                    icon = '⚠️';
+                    icon = UIIcons.tag('warn');
                     break;
                 case 'success':
                     bgColor = 'var(--status-success-bg)';
                     borderColor = 'var(--status-success)';
-                    icon = '✅';
+                    icon = UIIcons.tag('check');
                     break;
                 default:
                     bgColor = 'var(--status-info-bg)';
                     borderColor = 'var(--purple-500)';
-                    icon = 'ℹ️';
+                    icon = UIIcons.tag('info');
             }
             
             // 얼럿 오버레이 생성
@@ -3737,22 +3751,22 @@
                     case 'error':
                         bgColor = 'var(--status-danger-bg)';
                         borderColor = 'var(--red-300)';
-                        icon = '⚠️';
+                        icon = UIIcons.tag('warn');
                         break;
                     case 'warning':
                         bgColor = 'var(--panel-attention)';
                         borderColor = 'var(--yellow-400)';
-                        icon = '⚠️';
+                        icon = UIIcons.tag('warn');
                         break;
                     case 'success':
                         bgColor = 'var(--status-success-bg)';
                         borderColor = 'var(--status-success)';
-                        icon = '✅';
+                        icon = UIIcons.tag('check');
                         break;
                     default:
                         bgColor = 'var(--status-info-bg)';
                         borderColor = 'var(--purple-500)';
-                        icon = 'ℹ️';
+                        icon = UIIcons.tag('info');
                 }
                 
                 // Confirm 오버레이 생성
@@ -3960,7 +3974,7 @@
                     margin-bottom: 25px;
                     font-weight: 600;
                 `;
-                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;"><i class="ui ui-person"></i></span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
                 
                 // 버튼 컨테이너
                 const buttonContainer = document.createElement('div');
@@ -4398,7 +4412,7 @@
                 const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
                 const hasMagicWord = (roomName || '').includes('이더테스트');
                 if (!isLocal && !hasMagicWord && !localStorage.getItem('bridgeDevAccess')) {
-                    showCustomAlert('🚧 Untitle은 현재 개발 중입니다. 곧 만나요!', 'info');
+                    showCustomAlert(UIIcons.tag('barrier') + ' Untitle은 현재 개발 중입니다. 곧 만나요!', 'info');
                     return;
                 }
                 // 매직 워드 제거 (방 제목 정리)
@@ -4799,7 +4813,7 @@
             // 게임 기록 제목 설정
             const historyTitle = document.getElementById('historyTitle');
             if (historyTitle) {
-                historyTitle.textContent = isGameActive ? '📜 게임' : '📜 연습';
+                historyTitle.replaceChildren(UIIcons.el('scroll'), isGameActive ? ' 게임' : ' 연습');
             }
             
             // 비공개 방 비밀번호 표시
@@ -4820,7 +4834,7 @@
             // IP 차단 옵션이 활성화된 경우에만 아이콘 표시
             if (data.blockIPPerUser) {
                 const ipBlockIcon = document.createElement('span');
-                ipBlockIcon.textContent = '🔐';
+                ipBlockIcon.replaceChildren(UIIcons.el('lock'));
                 ipBlockIcon.title = 'IP당 하나의 아이디만 입장 허용';
                 ipBlockIcon.style.fontSize = '16px';
                 roomStatusIcons.appendChild(ipBlockIcon);
@@ -4833,11 +4847,11 @@
             document.getElementById('roomNameText').textContent = data.roomName || '방';
             // 서버명 표시 (상단 바 맨 왼쪽 + 방 제목 아래)
             const _serverName = (data && data.serverName) || currentServerName || '';
-            const serverLabel = _serverName ? `🖥️ ${_serverName}` : '🖥️ 자유방';
+            const serverLabel = _serverName ? ` ${_serverName}` : ' 자유방';
             const serverNameEl = document.getElementById('currentServerNameDisplay');
-            if (serverNameEl) { serverNameEl.textContent = serverLabel; serverNameEl.style.display = ''; }
+            if (serverNameEl) { serverNameEl.replaceChildren(UIIcons.el('pc'), serverLabel); serverNameEl.style.display = ''; }
             const headerServerEl = document.getElementById('headerServerNameDisplay');
-            if (headerServerEl) { headerServerEl.textContent = serverLabel; headerServerEl.style.display = 'inline-block'; headerServerEl.style.visibility = 'visible'; }
+            if (headerServerEl) { headerServerEl.replaceChildren(UIIcons.el('pc'), serverLabel); headerServerEl.style.display = 'inline-block'; headerServerEl.style.visibility = 'visible'; }
             
             document.getElementById('usernameDisplay').textContent = currentUser;
 
@@ -5770,7 +5784,7 @@
         function showScheduleNotice(text) {
             const notice = document.getElementById('scheduleNotice');
             if (!notice) return;
-            notice.textContent = text;
+            UIIcons.setIconText(notice, text); // 서버 안내 문자열(⏰ 포함 가능)도 같은 경로
             notice.style.display = 'block';
         }
 
@@ -5798,15 +5812,15 @@
             }
             if (openButton) {
                 // 1분 미만 남으면 초 카운트다운을 오른쪽에 덧붙인다
-                let label = '⏰ 예약';
+                let label = ' 예약';
                 if (scheduledStartAt !== null) {
-                    label = `⏰ ${scheduledStartLabel || '예약됨'}`;
+                    label = ` ${scheduledStartLabel || '예약됨'}`;
                     const remainMs = scheduledStartAt - Date.now();
                     if (remainMs < 60 * 1000) {
                         label += ` · 시작 ${Math.max(0, Math.ceil(remainMs / 1000))}초 전`;
                     }
                 }
-                openButton.textContent = label;
+                openButton.replaceChildren(UIIcons.el('clock'), label);
                 openButton.classList.toggle('is-armed', scheduledStartAt !== null);
             }
             updateScheduleModal();
@@ -6043,7 +6057,7 @@
             }
             
             // 게임 기록 제목 변경
-            document.getElementById('historyTitle').textContent = '📜 게임';
+            document.getElementById('historyTitle').replaceChildren(UIIcons.el('scroll'), ' 게임');
             
             // 굴린 인원 업데이트
             updateRolledUsersCount();
@@ -6239,7 +6253,7 @@
                 // currentGameHistory는 현재 게임의 기록만 포함됨
                 
                 // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
-                document.getElementById('historyTitle').textContent = '📜 게임';
+                document.getElementById('historyTitle').replaceChildren(UIIcons.el('scroll'), ' 게임');
                 
                 // 굴린 인원 업데이트
                 updateRolledUsersCount();
@@ -6436,7 +6450,7 @@
 
         // 주사위 이모지 랜덤 애니메이션 (5초마다 30% 확률)
         (function() {
-            const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+            const faces = ['d1','d2','d3','d4','d5','d6'];
             setInterval(function() {
                 if (Math.random() > 0.6) return;
                 const el = document.getElementById('diceIdleEmoji');
@@ -6444,12 +6458,12 @@
                 el.style.transition = 'transform 0.1s';
                 let count = 0;
                 const spin = setInterval(function() {
-                    el.textContent = faces[Math.floor(Math.random() * 6)];
+                    el.replaceChildren(UIIcons.el(faces[Math.floor(Math.random() * 6)]));
                     el.style.transform = 'rotate(' + (count * 60) + 'deg)';
                     count++;
                     if (count >= 8) {
                         clearInterval(spin);
-                        el.textContent = '🎲';
+                        el.replaceChildren(UIIcons.el('dice'));
                         el.style.transform = 'rotate(0deg)';
                     }
                 }, 80);
@@ -6536,26 +6550,9 @@
                 const userNameSpan = lastDiceCommandMsg.querySelector('span[data-user-name-display="' + record.user + '"]');
                 if (userNameSpan && record.deviceType) {
                     const deviceIcon = getDeviceIcon(record.deviceType);
-                    const currentText = userNameSpan.textContent;
-                    // 아이콘이 없으면 추가 (항상 표시되도록 보장)
-                    if (!currentText.includes(deviceIcon)) {
-                        // 호스트 아이콘이 있으면 그 뒤에, 없으면 맨 앞에 디바이스 아이콘 추가
-                        if (currentText.includes('👑')) {
-                            userNameSpan.textContent = currentText.replace('👑', `👑 ${deviceIcon}`);
-                        } else {
-                            userNameSpan.textContent = `${deviceIcon} ${currentText}`;
-                        }
-                    } else {
-                        // 아이콘이 이미 있지만 사라졌을 수 있으므로 다시 확인하여 추가
-                        // (나) 텍스트를 제외한 순수 이름 부분에 아이콘이 있는지 확인
-                        const nameWithoutMe = currentText.replace(' (나)', '');
-                        if (!nameWithoutMe.includes(deviceIcon)) {
-                            if (currentText.includes('👑')) {
-                                userNameSpan.textContent = currentText.replace('👑', `👑 ${deviceIcon}`);
-                            } else {
-                                userNameSpan.textContent = `${deviceIcon} ${currentText}`;
-                            }
-                        }
+                    // 아이콘이 없으면 추가 (항상 표시되도록 보장) — 아이콘은 <i> 노드라 텍스트로 못 찾는다. dataset 상태로 판정해 통째로 다시 그린다
+                    if (userNameSpan.dataset.device !== deviceIcon) {
+                        renderChatUserName(userNameSpan, record.user, userNameSpan.dataset.host === '1', deviceIcon, userNameSpan.dataset.me === '1');
                     }
                 }
                 
@@ -6780,16 +6777,14 @@
                 const userTag = document.createElement('div');
                 userTag.className = 'user-tag' + (user.isHost ? ' host' : '');
                 
-                let content = user.name;
+                userTag.append(user.name);
                 if (user.isHost) {
-                    content += ' 👑';
+                    userTag.append(' ', UIIcons.el('crown'));
                 }
                 
                 if (user.name === currentUser) {
-                    content += ' (나)';
+                    userTag.append(' (나)');
                 }
-                
-                userTag.textContent = content;
                 
                 // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
                 if (isHost && user.name !== currentUser) {
@@ -7568,7 +7563,7 @@
                         
                         const titleDiv = document.createElement('div');
                         titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
-                        titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
+                        titleDiv.replaceChildren(UIIcons.el('party'), ' 주사위 다 굴렸습니다!');
                         messageDiv.appendChild(titleDiv);
                         
                         // gameEnded 이벤트가 발생할 때까지 최대 3초 대기 (서버에서 currentGameHistory를 받기 위해)
@@ -7603,7 +7598,7 @@
                             if (winnerInfo.error) {
                                 // 에러 메시지 표시
                                 winnerDiv.style.color = 'var(--red-400)';
-                                winnerDiv.textContent = `⚠️ ${winnerInfo.error}`;
+                                winnerDiv.replaceChildren(UIIcons.el('warn'), ` ${winnerInfo.error}`);
                             } else if (winnerInfo.isCustom) {
                                 // 커스텀 룰 (GPT 판단)
                                 // 게임 룰 가져오기
@@ -7630,19 +7625,19 @@
                                 }
                             } else if (winnerInfo.isTie) {
                                 if (winnerInfo.type === '하이') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`);
                                 } else if (winnerInfo.type === '로우') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`);
                                 } else if (winnerInfo.type === '니어') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움, 동점)`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움, 동점)`);
                                 }
                             } else {
                                 if (winnerInfo.type === '하이') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result})`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winner} (${winnerInfo.result})`);
                                 } else if (winnerInfo.type === '로우') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result})`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winner} (${winnerInfo.result})`);
                                 } else if (winnerInfo.type === '니어') {
-                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움)`;
+                                    winnerDiv.replaceChildren(UIIcons.el('trophy'), ` 당첨: ${winnerInfo.winner} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움)`);
                                 }
                             }
                             
@@ -7662,7 +7657,7 @@
                             
                             const errorDiv = document.createElement('div');
                             errorDiv.style.cssText = 'font-size: 14px; color: var(--red-400); margin-top: 8px;';
-                            errorDiv.textContent = '⚠️ 당첨자 정보를 계산할 수 없습니다. (기록: ' + currentHistory.length + '개, 룰: ' + (gameRules || '없음') + ')';
+                            errorDiv.replaceChildren(UIIcons.el('warn'), ' 당첨자 정보를 계산할 수 없습니다. (기록: ' + currentHistory.length + '개, 룰: ' + (gameRules || '없음') + ')');
                             messageDiv.appendChild(errorDiv);
                         }
                         
@@ -7759,7 +7754,7 @@
                 } else if (titleLine) {
                     const titleDiv = document.createElement('div');
                     titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
-                    titleDiv.textContent = '🎮 게임 시작';
+                    titleDiv.replaceChildren(UIIcons.el('gamepad'), ' 게임 시작');
                     messageDiv.appendChild(titleDiv);
                 }
                 
@@ -7786,7 +7781,7 @@
                 headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 6px;';
                 
                 const aiIcon = document.createElement('span');
-                aiIcon.textContent = '✨';
+                aiIcon.replaceChildren(UIIcons.el('sparkle'));
                 aiIcon.style.marginRight = '6px';
                 
                 const userNameSpan = document.createElement('span');
@@ -7833,19 +7828,10 @@
                 const userNameSpan = document.createElement('span');
                 userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-500); margin-right: 8px;';
                 userNameSpan.setAttribute('data-user-name-display', chatMessage.userName);
-                // 디바이스 아이콘 추가
-                let userNameText = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
-                if (chatMessage.deviceType) {
-                    const deviceIcon = getDeviceIcon(chatMessage.deviceType);
-                    if (chatMessage.isHost) {
-                        userNameText = `👑 ${deviceIcon} ${chatMessage.userName}`;
-                    } else {
-                        userNameText = `${deviceIcon} ${chatMessage.userName}`;
-                    }
-                }
-                userNameSpan.textContent = userNameText;
-                if (chatMessage.userName === currentUser) {
-                    userNameSpan.textContent += ' (나)';
+                // 왕관·디바이스 아이콘·이름 (스프라이트 노드, 상태는 dataset — diceRolled 가 기기 아이콘을 뒤늦게 끼워 넣는다)
+                const isMe = chatMessage.userName === currentUser;
+                renderChatUserName(userNameSpan, chatMessage.userName, !!chatMessage.isHost, chatMessage.deviceType ? getDeviceIcon(chatMessage.deviceType) : '', isMe);
+                if (isMe) {
                     userNameSpan.style.color = 'var(--dice-600)';
                 }
                 
@@ -8007,19 +7993,10 @@
                 // 일반 메시지는 왼쪽 정렬
                 const userNameSpan = document.createElement('span');
                 userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-500); margin-right: 8px;';
-                // 디바이스 아이콘 추가
-                let userNameText = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
-                if (chatMessage.deviceType) {
-                    const deviceIcon = getDeviceIcon(chatMessage.deviceType);
-                    if (chatMessage.isHost) {
-                        userNameText = `👑 ${deviceIcon} ${chatMessage.userName}`;
-                    } else {
-                        userNameText = `${deviceIcon} ${chatMessage.userName}`;
-                    }
-                }
-                userNameSpan.textContent = userNameText;
-                if (chatMessage.userName === currentUser) {
-                    userNameSpan.textContent += ' (나)';
+                // 왕관·디바이스 아이콘·이름 (스프라이트 노드)
+                const isMe = chatMessage.userName === currentUser;
+                renderChatUserName(userNameSpan, chatMessage.userName, !!chatMessage.isHost, chatMessage.deviceType ? getDeviceIcon(chatMessage.deviceType) : '', isMe);
+                if (isMe) {
                     userNameSpan.style.color = 'var(--dice-600)';
                 }
                 
@@ -8474,7 +8451,7 @@
                         <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
                         <div class="history-time">${record.time}</div>
                     </div>
-                    <div class="history-result">🎲 ${record.result}</div>
+                    <div class="history-result"><i class="ui ui-dice"></i> ${record.result}</div>
                 `;
                 historyList.appendChild(item);
             });
@@ -8504,10 +8481,10 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 주사위 게임 안내</h2>
         <p>LAMDice 주사위 게임은 친구들과 실시간으로 즐기는 무료 온라인 멀티플레이어 게임입니다. High(높은 수 승리), Low(낮은 수 승리), Near(목표 수에 가까운 수 승리), Custom(사용자 정의 규칙) 등 다양한 규칙을 선택할 수 있습니다. 모든 주사위는 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="/pages/dice-rules-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 주사위 규칙 가이드</a>
-            <a href="/pages/probability-analysis.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📊 확률 분석 및 팁</a>
-            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+            <a href="/pages/dice-rules-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 주사위 규칙 가이드</a>
+            <a href="/pages/probability-analysis.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-chart"></i> 확률 분석 및 팁</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-lock"></i> 공정성 원리</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-home"></i> 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
     </section>
@@ -8588,7 +8565,7 @@
         {
             target: '#diceIdleEmoji',
             title: '5단계: 주사위 굴리기 — 버튼',
-            content: '게임이 시작되면 이 🎲 아이콘을 클릭해서 주사위를 굴릴 수 있습니다.',
+            content: '게임이 시작되면 이 주사위 아이콘을 클릭해서 주사위를 굴릴 수 있습니다.',
             position: 'top'
         },
         {
@@ -8721,7 +8698,7 @@
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
     <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
-            <h3 style="margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <h3 style="margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
             <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">

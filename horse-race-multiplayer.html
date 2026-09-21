@@ -13,16 +13,16 @@
       (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
-    <title>LAM Horse Race 🐎</title>
+    <title>LAM Horse Race</title>
     <meta name="description" content="친구와 함께하는 실시간 레이스. 1등·꼴등을 맞히는 내기로 관전하세요.">
-    <meta property="og:title" content="LAM Horse Race 🐎">
+    <meta property="og:title" content="LAM Horse Race">
     <meta property="og:description" content="친구와 함께하는 실시간 레이스. 1등·꼴등을 맞히는 내기로 관전하세요.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/horse-race">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="LAM Horse Race 🐎">
+    <meta name="twitter:title" content="LAM Horse Race">
     <meta name="twitter:description" content="친구와 함께하는 실시간 레이스. 1등·꼴등을 맞히는 내기로 관전하세요.">
     <link rel="canonical" href="https://lamdice.com/horse-race">
 
@@ -36,6 +36,8 @@
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -184,7 +186,7 @@
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--horse-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
-            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🐎</div>
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-horse"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
@@ -214,16 +216,16 @@
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
 
             <!-- 접속자 목록 -->
             <div class="users-section" id="usersSection">
                 <div class="users-title">
-                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
                     <span id="dragHint" style="display: none; font-size: 12px; color: var(--horse-accent); font-weight: normal; margin-left: 10px;">
-                        💡 드래그로 준비 시킬 수 있습니다.
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
                     </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
@@ -244,7 +246,7 @@
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
                     <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
@@ -257,8 +259,8 @@
             <!-- 탈것 선택 섹션 -->
             <div class="horse-selection-section" id="horseSelectionSection">
                 <div class="horse-selection-header">
-                    <div class="users-title" style="margin: 0;">🏁 탈것 선택</div>
-                    <button type="button" class="hshop-open-btn" onclick="HorseShop.openShop()" title="내 탈것 꾸미기" style="display:none;">🛒 꾸미기 상점</button>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-checker"></i> 탈것 선택</div>
+                    <button type="button" class="hshop-open-btn" onclick="HorseShop.openShop()" title="내 탈것 꾸미기" style="display:none;"><i class="ui ui-cart"></i> 꾸미기 상점</button>
                     <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
                         <input type="checkbox" id="autoSelectHorseToggle">
                         <span class="auto-select-toggle-slider"></span>
@@ -273,14 +275,14 @@
                 </div>
                 <!-- N등 투표 섹션 -->
                 <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
-                    <div class="rank-vote-title">🎯 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning, #f59e0b);">(베타)</span></div>
+                    <div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning, #f59e0b);">(베타)</span></div>
                     <div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>
                     <div id="rankVoteBoxes" class="rank-vote-boxes"></div>
                     <div id="rankVoteWarn" class="rank-vote-warn" style="display: none;"></div>
                 </div>
                 <!-- 탈것 선택 안한 사람 -->
                 <div id="notSelectedVehicleSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 선택 안한 사람</div>
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="ui ui-hourglass"></i> 선택 안한 사람</div>
                     <div id="notSelectedVehicleList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
             </div>
@@ -294,7 +296,7 @@
                      예약 중이면 버튼 글자가 "⏰ 22:45"로 바뀌어 언제로 걸었는지 버튼만 봐도 안다.
                      시작 버튼들과 성격이 달라 같은 줄에 세우지 않고 위에 오른쪽 정렬로 둔다. -->
                 <div class="schedule-open-row">
-                    <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
+                    <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
@@ -304,7 +306,7 @@
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
                 <div id="endGameSection" style="display: none; margin-bottom: 10px;">
-                    <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;">🏁 게임 종료</button>
+                    <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;"><i class="ui ui-checker"></i> 게임 종료</button>
                 </div>
                 <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
@@ -312,9 +314,9 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: var(--horse-accent); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; color: var(--horse-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--horse-gradient); color: var(--text-primary); font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--horse-gradient); color: var(--text-primary); font-weight: 600;"><i class="ui ui-list"></i> 주문리스트</button>
                         <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
                         <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
@@ -322,7 +324,7 @@
                 
                 <!-- 주문하지 않은 사람 목록 -->
                 <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="ui ui-hourglass"></i> 주문하지 않은 사람</div>
                     <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
                 
@@ -330,7 +332,7 @@
                 <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-shrink:0; white-space:nowrap;">
-                            <span>📝</span>
+                            <span><i class="ui ui-memo"></i></span>
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
@@ -341,7 +343,7 @@
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--horse-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-weight: bold; color: var(--horse-accent);">📋 자주 쓰는 메뉴</span>
+                            <span style="font-weight: bold; color: var(--horse-accent);"><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
                             <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -381,7 +383,7 @@
 
             <!-- 타깃 등수 배너 (경주 중 항상 표시) -->
             <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
-                <span class="trb-icon">🎯</span>
+                <span class="trb-icon"><i class="ui ui-target"></i></span>
                 <span class="trb-text"><span id="targetRankBannerNum">?</span>등을 찾아라!</span>
             </div>
             <!-- 결정 사유 (왜 이 등수가 정해졌는지 안내) -->
@@ -394,13 +396,13 @@
                 <div class="track-top-btn-row">
                     <!-- 트랙 전체화면 토글 — 기능 감지로 숨기지 않는다(미지원 브라우저는 CSS 의사 전체화면 폴백).
                          PiP로 트랙이 다른 창에 가 있는 동안에는 JS가 숨긴다. 핸들러는 js/horse-race.js가 바인딩 -->
-                    <button id="raceFullscreenBtn" class="race-fullscreen-btn" type="button">⛶ 전체화면</button>
+                    <button id="raceFullscreenBtn" class="race-fullscreen-btn" type="button"><i class="ui ui-expand"></i> 전체화면</button>
                     <!-- 트랙 PiP(작은 창) 토글 — Document PiP 지원 데스크톱 브라우저에서 상시 노출(래퍼 표시 구간).
                          열면 트랙이 창으로 들어가 전 단계(선택/룰렛/카운트다운/레이스)를 그대로 보여주고, 닫으면 본 화면으로 복귀.
                          인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->
-                    <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;">📺 작은 창으로</button>
+                    <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;"><i class="ui ui-tv"></i> 작은 창으로</button>
                     <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
-                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--bg-white); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;">📷 시스템 카메라</button>
+                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--bg-white); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
                 </div>
                 <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
                      둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
@@ -431,14 +433,14 @@
             <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-clapper"></i> 다시보기</button>
 
                 </div>
             </div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-chat"></i> 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -463,14 +465,14 @@
 
     <!-- 기록 섹션 -->
     <div class="history-section" id="historySection">
-        <div class="history-title">📜 게임 기록</div>
+        <div class="history-title"><i class="ui ui-scroll"></i> 게임 기록</div>
         <div id="historyList"></div>
     </div>
 
     <!-- N등 룰렛 오버레이 -->
     <div class="roulette-overlay" id="rouletteOverlay" style="display: none;">
         <div class="roulette-card">
-            <div class="roulette-title">🎯 N등 룰렛</div>
+            <div class="roulette-title"><i class="ui ui-target"></i> N등 룰렛</div>
             <div class="roulette-subtitle" id="rouletteSubtitle">득표 비례로 타깃 등수를 정합니다</div>
             <div class="roulette-track-wrap">
                 <div class="roulette-pointer">▼</div>
@@ -483,7 +485,7 @@
     <!-- 결과 오버레이 -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
-            <div class="result-title">🎊 순위 발표 🎊</div>
+            <div class="result-title"><i class="ui ui-confetti"></i> 순위 발표 <i class="ui ui-confetti"></i></div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
             <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
         </div>
@@ -493,7 +495,7 @@
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
     <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
-            <h3 style="color: var(--horse-accent); margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <h3 style="color: var(--horse-accent); margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
             <!-- 예약이 걸려 있을 때만 보인다 -->
@@ -527,7 +529,7 @@
 
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
-            <h3 style="color: var(--horse-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <h3 style="color: var(--horse-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
             <div style="display: flex; gap: 10px;">
@@ -571,10 +573,10 @@
 
                 let borderColor, icon;
                 switch(type) {
-                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
-                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
-                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
-                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
                 }
 
                 const confirmOverlay = document.createElement('div');
@@ -818,10 +820,10 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 레이스 게임 안내</h2>
         <p>LAMDice 레이스는 친구들과 함께 즐기는 무료 온라인 경주 게임입니다. 다양한 탈것 중 1등과 꼴등을 예측하여 포인트를 걸고 결과를 관전하세요. 레이스 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="/pages/horse-race-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 레이스 규칙 가이드</a>
-            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+            <a href="/pages/horse-race-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 레이스 규칙 가이드</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-lock"></i> 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-home"></i> 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a></p>
     </section>
@@ -895,7 +897,7 @@
                 wrap.className = 'rank-vote-section';
                 wrap.style.cssText = 'display:block; margin:14px 0;';
                 wrap.innerHTML = ''
-                    + '<div class="rank-vote-title">🎯 당첨 등수 투표 <span style="font-size:11px;font-weight:600;color:var(--btn-warning,#f59e0b);">(베타)</span></div>'
+                    + '<div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size:11px;font-weight:600;color:var(--btn-warning,#f59e0b);">(베타)</span></div>'
                     + '<div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>'
                     + '<div class="rank-vote-boxes">'
                     +   '<div class="rank-vote-box selected"><div class="rank-vote-rank">1등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div><div class="rank-vote-bar"></div></div></div>'
@@ -940,7 +942,7 @@
                 if (document.getElementById('tutorialFakeReplay')) return;
                 var btn = document.createElement('button');
                 btn.id = 'tutorialFakeReplay';
-                btn.textContent = '🎬 다시보기';
+                btn.replaceChildren(UIIcons.el('clapper'), ' 다시보기');
                 btn.style.cssText = 'display:block; margin:15px auto; padding:12px 25px; font-size:15px; background:var(--bg-white); color:var(--horse-accent); border:2px solid var(--horse-accent); border-radius:8px; font-weight:bold; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
                 var ref = document.getElementById('replaySection');
                 if (ref && ref.parentNode) {
@@ -962,18 +964,22 @@
                 var list = document.getElementById('historyList');
                 if (!list) return;
                 var wrap = document.createElement('div');
+                // 메달 아이콘 + 실제 탈것 썸(vehicleThumb, js/horse-race.js) + 이름 — 실제 기록 카드와 같은 구성
+                var medalTags = [UIIcons.tag('medal'), UIIcons.tag('silver'), UIIcons.tag('bronze')];
                 wrap.id = 'tutorialFakeHistory';
                 var fakeRecords = [
-                    { round: 3, targetLabel: '1등', medals: ['🥇 1등 🐎 말 — 이더', '🥈 2등 🦄 유니콘 — 감자', '🥉 3등 🐫 낙타 — 램다이스'], winner: '🎊 당첨: 이더', time: '3/8 14:30' },
-                    { round: 2, targetLabel: '꼴등', medals: ['🥇 1등 🦌 사슴 — 감자', '🥈 2등 🐎 말 — 램다이스', '🥉 3등 🦄 유니콘 — 이더'], winner: '🎊 당첨: 이더', time: '3/8 14:22' },
-                    { round: 1, targetLabel: '2등', medals: ['🥇 1등 🐫 낙타 — 램다이스', '🥈 2등 🦌 사슴 — 이더', '🥉 3등 🐎 말 — 감자'], winner: '🎊 당첨: 이더', time: '3/8 14:15' }
+                    { round: 3, targetLabel: '1등', rows: [['horse', '말', '이더'], ['rabbit', '토끼', '감자'], ['turtle', '거북이', '램다이스']], time: '3/8 14:30' },
+                    { round: 2, targetLabel: '꼴등', rows: [['car', '자동차', '감자'], ['horse', '말', '램다이스'], ['rabbit', '토끼', '이더']], time: '3/8 14:22' },
+                    { round: 1, targetLabel: '2등', rows: [['turtle', '거북이', '램다이스'], ['car', '자동차', '이더'], ['horse', '말', '감자']], time: '3/8 14:15' }
                 ];
                 fakeRecords.forEach(function(r) {
-                    var rankHtml = r.medals.map(function(m, i) {
+                    var rankHtml = r.rows.map(function(row, i) {
+                        var m = medalTags[i] + ' ' + (i + 1) + '등 ' + vehicleThumb(row[0], 16) + ' ' + row[1] + ' — ' + row[2];
                         var bg = i === 0 ? 'var(--result-gold-light)' : i === 1 ? 'var(--result-silver-light)' : 'var(--result-bronze-light)';
                         return '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:' + bg + ';border-radius:4px;margin-bottom:4px;font-size:12px;">' + m + '</div>';
                     }).join('');
-                    var targetBadge = '<span style="margin-left:6px;padding:2px 5px;background:var(--horse-500);color:var(--bg-white);border-radius:4px;font-size:9px;font-weight:bold;white-space:nowrap;">🎯' + r.targetLabel + '</span>';
+                    var winner = UIIcons.tag('confetti') + ' 당첨: 이더';
+                    var targetBadge = '<span style="margin-left:6px;padding:2px 5px;background:var(--horse-500);color:var(--bg-white);border-radius:4px;font-size:9px;font-weight:bold;white-space:nowrap;">' + UIIcons.tag('target') + r.targetLabel + '</span>';
                     wrap.innerHTML += '<div style="background:var(--yellow-50);padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--yellow-200);">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;">' +
                             '<div style="font-weight:bold;color:var(--horse-accent);font-size:14px;white-space:nowrap;">' + r.round + '라운드' + targetBadge + '</div>' +
@@ -983,7 +989,7 @@
                             '</div>' +
                         '</div>' +
                         '<div style="margin-bottom:8px;">' + rankHtml + '</div>' +
-                        '<div style="font-size:13px;color:var(--horse-600);font-weight:bold;text-align:center;padding:5px;background:var(--yellow-50);border-radius:4px;">' + r.winner + '</div>' +
+                        '<div style="font-size:13px;color:var(--horse-600);font-weight:bold;text-align:center;padding:5px;background:var(--yellow-50);border-radius:4px;">' + winner + '</div>' +
                     '</div>';
                 });
                 list.insertBefore(wrap, list.firstChild);
@@ -1003,7 +1009,7 @@
                 if (document.getElementById('tutorialFakeEndGame')) return;
                 var btn = document.createElement('button');
                 btn.id = 'tutorialFakeEndGame';
-                btn.textContent = '🏁 게임 종료';
+                btn.replaceChildren(UIIcons.el('checker'), ' 게임 종료');
                 btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color:white; border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
                 var ref = document.getElementById('endGameSection');
                 if (ref && ref.parentNode) {
@@ -1031,7 +1037,7 @@
                 var div = document.createElement('div');
                 div.id = 'tutorialFakeOrders';
                 div.style.cssText = 'margin:15px 0; padding:15px; background:var(--bg-white); border:2px solid var(--horse-accent); border-radius:12px; text-align:center; font-family:"Jua","Segoe UI",sans-serif;';
-                div.innerHTML = '<div style="font-weight:bold; color:var(--horse-accent); font-size:16px; margin-bottom:8px;">🍔 주문받기</div><div style="color:var(--text-muted); font-size:13px;">방장이 주문받기를 시작하면 여기에 주문 화면이 나타납니다.</div>';
+                div.innerHTML = '<div style="font-weight:bold; color:var(--horse-accent); font-size:16px; margin-bottom:8px;"><i class="ui ui-burger"></i> 주문받기</div><div style="color:var(--text-muted); font-size:13px;">방장이 주문받기를 시작하면 여기에 주문 화면이 나타납니다.</div>';
                 var ref = document.getElementById('ordersSection');
                 if (ref && ref.parentNode) {
                     ref.parentNode.insertBefore(div, ref);

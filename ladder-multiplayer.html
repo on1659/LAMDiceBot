@@ -12,16 +12,16 @@
       (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
-    <title>LAM 사다리타기 🪜</title>
+    <title>LAM 사다리타기</title>
     <meta name="description" content="친구와 함께하는 실시간 사다리타기. 6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 사람을 가립니다. 동률이면 토너먼트로 끝까지 한 명을 가려요.">
-    <meta property="og:title" content="LAM 사다리타기 🪜">
+    <meta property="og:title" content="LAM 사다리타기">
     <meta property="og:description" content="친구와 함께하는 실시간 사다리타기. 6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 꼴등을 가립니다. 동률이면 토너먼트로 끝까지 한 명을 가려요.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/ladder">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="LAM 사다리타기 🪜">
+    <meta name="twitter:title" content="LAM 사다리타기">
     <meta name="twitter:description" content="6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 꼴등을 가리는 실시간 사다리타기. 동률이면 토너먼트로 한 명을 끝까지 가려요.">
     <link rel="canonical" href="https://lamdice.com/ladder">
 
@@ -31,6 +31,8 @@
     </script>
 
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,7 +74,7 @@
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--ladder-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
-            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🪜</div>
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-ladder"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
@@ -99,16 +101,16 @@
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
 
             <!-- 접속자 목록 -->
             <div class="users-section" id="usersSection">
                 <div class="users-title">
-                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
                     <span id="dragHint" style="display: none; font-size: 12px; color: var(--ladder-accent); font-weight: normal; margin-left: 10px;">
-                        💡 드래그로 준비 시킬 수 있습니다.
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
                     </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
@@ -129,7 +131,7 @@
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
                     <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
@@ -143,11 +145,11 @@
                 <div class="ladder-setup-bar">
                     <span class="ladder-bar-spacer" aria-hidden="true"></span>
                     <div class="ladder-setup-main">
-                        <span class="ladder-setup-label">🪜 내려갈 칸을 고르세요</span>
+                        <span class="ladder-setup-label"><i class="ui ui-ladder"></i> 내려갈 칸을 고르세요</span>
                     </div>
                     <!-- 상점 버튼 — 하강 토큰 스킨(per-viewer 외형). spin-arena .spin-shop-btn 패턴 -->
                     <span class="ladder-shop-slot">
-                        <button type="button" class="ladder-shop-btn" onclick="if(window.LadderShop)LadderShop.openShop()" title="토큰 스킨 구매/장착">🛍️ 토큰 스킨</button>
+                        <button type="button" class="ladder-shop-btn" onclick="if(window.LadderShop)LadderShop.openShop()" title="토큰 스킨 구매/장착"><i class="ui ui-bag"></i> 토큰 스킨</button>
                     </span>
                 </div>
                 <!-- 꾸미기 상점 모달 마운트 (js/ladder-shop.js가 채움) -->
@@ -177,7 +179,7 @@
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startLadderButton" onclick="startLadder()" disabled style="flex: 1;">
-                        🪜 사다리 시작
+                        <i class="ui ui-ladder"></i> 사다리 시작
                     </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
@@ -187,23 +189,23 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: var(--ladder-accent); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; color: var(--ladder-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--ladder-gradient); color: var(--text-primary); font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--ladder-gradient); color: var(--text-primary); font-weight: 600;"><i class="ui ui-list"></i> 주문리스트</button>
                         <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--ladder-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
                         <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--ladder-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
 
                 <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="ui ui-hourglass"></i> 주문하지 않은 사람</div>
                     <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
 
                 <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-shrink:0; white-space:nowrap;">
-                            <span>📝</span><span>내 주문</span>
+                            <span><i class="ui ui-memo"></i></span><span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
                                 style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
@@ -212,7 +214,7 @@
 
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--ladder-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-weight: bold; color: var(--ladder-accent);">📋 자주 쓰는 메뉴</span>
+                            <span style="font-weight: bold; color: var(--ladder-accent);"><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
                             <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -248,7 +250,7 @@
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--ladder-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div style="font-weight: bold; color: var(--ladder-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-chat"></i> 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -272,18 +274,18 @@
 
     <!-- 기록 섹션 -->
     <div class="history-section" id="historySection">
-        <div class="history-title">📜 게임 기록</div>
+        <div class="history-title"><i class="ui ui-scroll"></i> 게임 기록</div>
         <div id="historyList"></div>
     </div>
 
     <!-- 결과 오버레이 -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
-            <div class="result-title">🎊 결과 발표 🎊</div>
+            <div class="result-title"><i class="ui ui-confetti"></i> 결과 발표 <i class="ui ui-confetti"></i></div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
             <!-- 빠른 재준비(경마식): 결과 위에서 바로 다음 판 준비 → 4초 대기 없이 라운드 연속 -->
             <div class="ladder-result-actions">
-                <button id="ladderNextRoundBtn" onclick="readyForNextRound()" class="ladder-next-round-btn">🪜 다음 판 준비</button>
+                <button id="ladderNextRoundBtn" onclick="readyForNextRound()" class="ladder-next-round-btn"><i class="ui ui-ladder"></i> 다음 판 준비</button>
                 <button onclick="closeResultOverlay()" class="ladder-result-close-btn">결과 닫기</button>
             </div>
         </div>
@@ -292,7 +294,7 @@
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
-            <h3 style="color: var(--ladder-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <h3 style="color: var(--ladder-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
             <div style="display: flex; gap: 10px;">
@@ -324,10 +326,10 @@
             if (existingAlert) existingAlert.remove();
             let borderColor, icon;
             switch(type) {
-                case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
-                case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
-                case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
-                default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
+                case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
+                case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
+                default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
             }
             const alertOverlay = document.createElement('div');
             alertOverlay.id = 'customAlert';
@@ -355,10 +357,10 @@
                 if (existing) existing.remove();
                 let borderColor, icon;
                 switch(type) {
-                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
-                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
-                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
-                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
                 }
                 const confirmOverlay = document.createElement('div');
                 confirmOverlay.id = 'customConfirm';
@@ -466,7 +468,7 @@
         {
             target: '#hostControls',
             title: '6단계: 사다리 시작 (방장)',
-            content: '방장이 "🪜 사다리 시작"을 누르면, 모두가 그린 사다리를 잠깐 보여준 뒤 막대기가 사라지고 다시 그려집니다. 「3·2·1 시작!」과 함께 고른 칸의 토큰들이 내려가며 사다리가 중간중간 바뀌고, 당첨 칸에 걸린 꼴등이 정해져요. 당첨 위치와 결과는 서버가 공정하게 정합니다.',
+            content: '방장이 "사다리 시작"을 누르면, 모두가 그린 사다리를 잠깐 보여준 뒤 막대기가 사라지고 다시 그려집니다. 「3·2·1 시작!」과 함께 고른 칸의 토큰들이 내려가며 사다리가 중간중간 바뀌고, 당첨 칸에 걸린 꼴등이 정해져요. 당첨 위치와 결과는 서버가 공정하게 정합니다.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         }
@@ -525,9 +527,9 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 사다리타기 게임 안내</h2>
         <p>LAMDice 사다리타기는 친구들과 함께 즐기는 무료 온라인 게임입니다. 6칸 중 내려갈 칸을 하나 고르고(여러 명이 같은 칸을 골라 운명을 함께할 수 있어요) 숨김 막대기를 그린 뒤, 사다리를 타고 내려가 시작 시 무작위로 한 번 섞이는 "당첨" 칸에 걸린 꼴등을 가립니다. 당첨에 걸린 사람이 여럿이면 그 인원만 다시 칸을 골라 토너먼트로 끝까지 한 명의 꼴등을 가려요. 막대기는 본인에게만 전부 보이고 남에게는 하나만 보이며, 당첨 위치·막대기 정리·사다리 변형은 모두 서버가 공정하게 결정합니다. 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-lock"></i> 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-home"></i> 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
     </section>

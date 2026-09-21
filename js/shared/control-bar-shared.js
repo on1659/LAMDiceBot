@@ -10,7 +10,7 @@
  *       gameKey: 'dice',              // localStorage 키 접두사
  *       onLeave: function() { logout(); },
  *       extraBadges: [                // 게임별 추가 뱃지 (옵션)
- *         { id: 'turboBadge', html: '🚀 터보', className: 'turbo-badge', style: '...' }
+ *         { id: 'turboBadge', html: '<i class="ui ui-rocket"></i> 터보', className: 'turbo-badge', style: '...' }
  *       ],
  *       onEditRoomName: function() { editRoomName(); }  // 방제 편집 콜백 (옵션)
  *     });
@@ -43,7 +43,7 @@
         var volumePercent = Math.round(_storedVolume * 100);
         var btn = document.getElementById('volumeBtn');
         var slider = document.getElementById('volumeSlider');
-        if (btn) btn.textContent = isMuted ? '🔇' : (_masterVolume < 0.5 ? '🔈' : '🔊');
+        if (btn) btn.replaceChildren(UIIcons.el(isMuted ? 'mute' : (_masterVolume < 0.5 ? 'soundlow' : 'sound')));
         if (slider) {
             slider.value = isMuted ? 0 : volumePercent;
             slider.classList.toggle('muted', isMuted);
@@ -88,7 +88,7 @@
         }
 
         var editIcon = cfg.onEditRoomName
-            ? '<span class="edit-icon" id="editRoomNameButton" style="display: none;">✏️</span>'
+            ? '<span class="edit-icon" id="editRoomNameButton" style="display: none;"><i class="ui ui-pencil"></i></span>'
             : '';
 
         mount.innerHTML =
@@ -98,18 +98,18 @@
                         '<span id="roomNameText">방 제목</span>' +
                     '</span>' +
                     editIcon +
-                    '<span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>' +
+                    '<span class="host-badge" id="hostBadge" style="display: none;"><i class="ui ui-crown"></i> 호스트</span>' +
                     extraHtml +
                 '</div>' +
                 '<div class="control-bar-meta">' +
                     '<span id="roomStatusIcons" style="display: none;"></span>' +
                     '<span class="username-display" id="usernameDisplay"></span>' +
                     '<div class="volume-control">' +
-                        '<button class="volume-btn" id="volumeBtn" type="button">🔊</button>' +
+                        '<button class="volume-btn" id="volumeBtn" type="button"><i class="ui ui-sound"></i></button>' +
                         '<input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">' +
                     '</div>' +
                 '</div>' +
-                '<button id="leaveBtn" class="control-bar-btn leave-btn">🚪 나가기</button>' +
+                '<button id="leaveBtn" class="control-bar-btn leave-btn"><i class="ui ui-door"></i> 나가기</button>' +
             '</div>';
 
         // Event listeners

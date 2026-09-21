@@ -760,12 +760,12 @@ const OrderModule = (function () {
 
         modal.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div style="font-size:18px; font-weight:700; color:#5568d3;">⭐ 내 디폴트 주문</div>
+                <div style="font-size:18px; font-weight:700; color:#5568d3;"><i class="ui ui-star"></i> 내 디폴트 주문</div>
                 <button id="defaultModalClose" style="background:none; border:none; font-size:24px; color:#718096; cursor:pointer; width:32px; height:32px; border-radius:50%;">×</button>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#f0f2f8; padding:4px; border-radius:10px; margin-bottom:16px;">
-                <button id="defaultModeTabFixed" class="default-mode-tab" data-mode="fixed">🎯 고정 메뉴</button>
-                <button id="defaultModeTabRandom" class="default-mode-tab" data-mode="random" disabled title="준비 중인 기능입니다">🎲 매번 랜덤 (준비중)</button>
+                <button id="defaultModeTabFixed" class="default-mode-tab" data-mode="fixed"><i class="ui ui-target"></i> 고정 메뉴</button>
+                <button id="defaultModeTabRandom" class="default-mode-tab" data-mode="random" disabled title="준비 중인 기능입니다"><i class="ui ui-dice"></i> 매번 랜덤 (준비중)</button>
             </div>
             <div id="defaultModeFixed" class="default-mode-content"></div>
             <div id="defaultModeRandom" class="default-mode-content"></div>
@@ -910,7 +910,7 @@ const OrderModule = (function () {
 
         const explainer = document.createElement('div');
         explainer.style.cssText = 'background:linear-gradient(135deg,#fff8e1 0%,#fff3e0 100%); border:1.5px solid #ffc107; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:#856404; line-height:1.6;';
-        explainer.innerHTML = '<strong style="font-size:14px;">🎲 매번 랜덤 모드</strong><br>주문받기가 시작될 때마다 아래 메뉴 풀에서 <strong>랜덤 1개</strong>를 자동으로 골라 주문합니다.';
+        explainer.innerHTML = '<strong style="font-size:14px;"><i class="ui ui-dice"></i> 매번 랜덤 모드</strong><br>주문받기가 시작될 때마다 아래 메뉴 풀에서 <strong>랜덤 1개</strong>를 자동으로 골라 주문합니다.';
 
         const toggleRow = document.createElement('label');
         toggleRow.style.cssText = 'display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; margin-bottom:16px; cursor:pointer; '

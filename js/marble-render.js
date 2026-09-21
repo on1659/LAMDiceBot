@@ -103,9 +103,9 @@ var MarbleRender = (function () {
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -135,8 +135,14 @@ var MarbleRender = (function () {
             'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
             'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png',   // 5차
             'dizzy-swirl': A + 'fx/dizzy-swirl.png'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
-        }
+        },
+        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.png') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
+    // 공용 UI 아이콘 아틀라스 — 10×10 격자, 셀 128 소스(→32px). js/shared/ui-icons.js 의 UI_ICON_CELL/UI_ICON_COLS 와 같은 배치(의뢰서 docs/spritemake-request/2026-09-22-ui-icons-shared-m.md)
+    var ICON_COLS = (typeof UI_ICON_COLS === 'number') ? UI_ICON_COLS : 10, ICON_PX = 128;
+    var ICON_CELL = (typeof UI_ICON_CELL === 'object' && UI_ICON_CELL) ? UI_ICON_CELL : { paw: 0, target: 1, medal: 2, snail: 3, trophy: 4, burger: 5, list: 6, memo: 7, people: 8, bulb: 9, check: 10, hourglass: 11,
+        clock: 12, flask: 13, expand: 14, replay: 15, play: 16, stop: 17, refresh: 18, chat: 19, scroll: 20, lock: 21, crown: 22, person: 23,
+        warn: 24, info: 25, book: 26, home: 27, flag: 28, sun: 29, hole: 30, dash: 31, x: 32 };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
         'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48] };
@@ -147,6 +153,8 @@ var MarbleRender = (function () {
     var loadStarted = false;
     function imgKey(group, name) { return group + ':' + name; }
     function img(group, name) { var im = images[imgKey(group, name)]; return (im && im.complete && im.naturalWidth > 0) ? im : null; }
+    // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백
+    function sheet(group, b) { return (b.skin ? img(group, b.creature + '-' + b.skin) : null) || img(group, b.creature); }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
@@ -236,7 +244,7 @@ var MarbleRender = (function () {
 
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
+            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
@@ -496,6 +504,25 @@ var MarbleRender = (function () {
             ctx.strokeText(text, x, toScreenY(y)); ctx.fillText(text, x, toScreenY(y));
             ctx.restore();
         }
+        // UI 아이콘(월드 좌표, 중앙 앵커). size = 표시 px(label 의 글자 크기와 같은 단위 — textBoost 적용). 시트 없으면 안 그린다(이모지 폴백 없음)
+        function icon(name, x, y, size) {
+            var i = ICON_CELL[name]; if (i == null) return false;
+            return drawSprite('ui', 'icons', x, y, ICON_PX, ICON_PX, { sx: (i % ICON_COLS) * ICON_PX, sy: Math.floor(i / ICON_COLS) * ICON_PX, scale: size * textBoost() / (ICON_PX * SRC_SCALE) });
+        }
+        // 아이콘 + 글자를 한 덩어리로 가운데 정렬 — label 과 같은 글꼴. 시트 없으면 글자만 가운데
+        function iconLabel(name, text, x, y, color, size) {
+            var f = textBoost(), fs = Math.round((size || 11) * f);
+            ctx.save(); ctx.font = 'bold ' + fs + 'px "Jua", sans-serif'; var tw = ctx.measureText(text).width; ctx.restore();
+            var isz = fs * 1.15, gap = 4 * f, left = x - (isz + gap + tw) / 2;
+            if (icon(name, left + isz / 2, y, isz / f)) label(text, left + isz + gap + tw / 2, y, color, size);
+            else label(text, x, y, color, size);
+        }
+        // 화면 좌표(HUD)용 — drawSprite 는 월드 좌표라 못 쓴다. x,y = 왼쪽 위
+        function iconScreen(name, x, y, size) {
+            var im = img('ui', 'icons'), i = ICON_CELL[name]; if (!im || i == null) return false;
+            ctx.drawImage(im, (i % ICON_COLS) * ICON_PX, Math.floor(i / ICON_COLS) * ICON_PX, ICON_PX, ICON_PX, x, y, size, size);
+            return true;
+        }
         function roundRect(x, y, w, h, r) {
             ctx.beginPath();
             ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -592,7 +619,7 @@ var MarbleRender = (function () {
                 }
                 // 팻말: 구역 입구 왼쪽
                 drawSprite('stage', 'signpost', z.x + 26, z.y + 6, 64, 96, { anchor: 'bottom' });
-                label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
+                iconLabel('sun', '햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
                 label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
             (pieces.pit || []).forEach(function (pt) {
@@ -874,7 +901,7 @@ var MarbleRender = (function () {
                     label(cover >= 1 ? '닫힘' : '골', h.x, h.y - 14, cover >= 1 ? '#ffb3a0' : '#ffe08a', 11);
                     if (h.period) label(i === 0 ? '자주 열림' : i === hf.holes.length - 1 ? '가끔 열림' : '', h.x, h.y + hf.pipeH + 10, '#fff', 10);
                 });
-                label('🕳 골 구멍 — 골에 가까울수록 뚜껑이 가끔 열려요', z.x + z.w / 2, z.y - 16, '#fff', 13);
+                iconLabel('hole', '골 구멍 — 골에 가까울수록 뚜껑이 가끔 열려요', z.x + z.w / 2, z.y - 16, '#fff', 13);
             });
             (pieces.lane || []).forEach(function (ln) {
                 if (!visible(ln.y, 80)) return;
@@ -939,7 +966,7 @@ var MarbleRender = (function () {
         // ─── 동물 ───
         function ringColor(b) { return RING_COLORS[b.colorIdx % RING_COLORS.length]; }
         function drawCreatureFrame(b, row, col, x, y, rot, scale) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             var sc = (scale || 1) * SRC_SCALE;
             if (im) {
                 ctx.save(); ctx.translate(x, toScreenY(y)); if (rot) ctx.rotate(rot);
@@ -987,7 +1014,7 @@ var MarbleRender = (function () {
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
         var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
         function drawMiniIcon(b, sx, sy, size, strong) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             var r = size / 2;
             ctx.save();
             if (im) {
@@ -1090,7 +1117,7 @@ var MarbleRender = (function () {
             var row, col;
             if (since < SUN_UNCURL_MS) { row = 3; col = since < SUN_UNCURL_MS / 2 ? 0 : 1; }
             else { row = 0; col = Math.floor((since - SUN_UNCURL_MS) / 140) % 4; }
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             if (!im) { drawCreatureFrame(b, 2, 0, b.x, b.y, 0); return; }
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.scale(b.dir, 1);
@@ -1100,7 +1127,7 @@ var MarbleRender = (function () {
 
         // 6차 scuffle 시트 한 셀(row 0 밀기 / row 1 화들짝·낙하·어지러움). flip = 왼쪽을 보게 좌우 반전. 시트 없으면 false
         function drawScuffleFrame(b, row, col, x, y, flip) {
-            var im = img('scuffle', b.creature); if (!im) return false;
+            var im = sheet('scuffle', b); if (!im) return false;
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
             ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
@@ -1130,7 +1157,7 @@ var MarbleRender = (function () {
         }
         // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
         function drawCreatureFlipped(b, row, col, x, y, flip) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             if (!im) { drawCreatureFrame(b, row, col, x, y); return; }
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
@@ -1150,7 +1177,7 @@ var MarbleRender = (function () {
         function drawDizzy(b, t) {
             var since = Math.max(0, t - b.walkStallAt), fr = Math.floor(since / DIZZY_SWAP_MS) % 2;
             if (!drawScuffleFrame(b, 1, 2 + fr, b.x, b.y + 6, false)) drawCreatureFrame(b, 4, 3, b.x, b.y - 4);
-            if (!drawSprite('fx', 'dizzy-swirl', b.x, b.y - 14, 48, 48, { sx: fr * 48, sw: 48, anchor: 'bottom', scale: 1.3 })) label('💫', b.x, b.y - 22, '#fff', 13);
+            drawSprite('fx', 'dizzy-swirl', b.x, b.y - 14, 48, 48, { sx: fr * 48, sw: 48, anchor: 'bottom', scale: 1.3 });
         }
 
         function drawBalls(t) {
@@ -1209,7 +1236,7 @@ var MarbleRender = (function () {
                 }
                 if (b.state === 'nap') {
                     // 잠든 포즈 — 2차 sleep 스트립 없으면 1차 faceplant col 2(엎어짐) 프레임
-                    var sl = img('sleep', b.creature);
+                    var sl = sheet('sleep', b);
                     if (sl) { var sf = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sl, sf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                     else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
                     drawBadge(b, b.x, b.y, mine);
@@ -1228,7 +1255,7 @@ var MarbleRender = (function () {
                         drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz
-                        var slw = img('sleep', b.creature);
+                        var slw = sheet('sleep', b);
                         if (slw) { var sfw = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(slw, sfw * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                         else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine);
@@ -1239,12 +1266,12 @@ var MarbleRender = (function () {
                     var ws = t - b.landAt;
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
                     var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
-                    var wim = img('creatures', b.creature);
+                    var wim = sheet('creatures', b);
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
                     drawBadge(b, b.x, b.y, mine);
-                    if (b.walkSpeed >= 125) label('💨', b.x - 18, b.y - 4, '#fff', 11);   // 빠른 놈 표시
-                    else if (b.walkSpeed <= 72) label('🐢', b.x - 18, b.y - 4, '#fff', 10);   // 굼벵이
+                    if (b.walkSpeed >= 125) icon('dash', b.x - 18, b.y - 4, 13);   // 빠른 놈 표시
+                    else if (b.walkSpeed <= 72) icon('snail', b.x - 18, b.y - 4, 12);   // 굼벵이
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawBadge(b, b.x, b.y, mine); continue; }
@@ -1256,9 +1283,9 @@ var MarbleRender = (function () {
                 }
                 if (hf0 && t - b.startledAt < FALL_POSE_MS && b.y > hf0.floorY && drawScuffleFrame(b, 1, 1, b.x, b.y, !b.scuffleLeft)) { drawBadge(b, b.x, b.y, mine); continue; }   // 시트 없으면 공 그대로
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
-                if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
+                if (t - b.wakeAt < WAKE_POSE_MS && sheet('sleep', b)) {
                     var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
-                    ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(img('sleep', b.creature), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
+                    ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sheet('sleep', b), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
                     drawBadge(b, b.x, b.y, mine);
                     continue;
                 }
@@ -1386,7 +1413,7 @@ var MarbleRender = (function () {
             var hop = cel.ball ? Math.abs(Math.sin((since / WIN_BOUNCE_MS + cel.ball.finishIdx * 0.37) * Math.PI)) * 9 : 0;
             drawCrown(x, y - 6 - hop - BALL_R * 0.85 - 4 - drop, k >= 1 ? since - CROWN_DROP_MS : -1);
             if (k >= 1) {   // 글자는 둘 다 동물 아래 — 위쪽은 홈통·스탠드 판자와 겹친다
-                label('🥇 1등 확정… 당첨!', x, y + 34, '#ffd166', 17);
+                iconLabel('medal', '1등 확정… 당첨!', x, y + 34, '#ffd166', 17);
                 label(cel.owner + ' 님', x, y + 54, '#fff', 14);
             }
         }
@@ -1463,7 +1490,7 @@ var MarbleRender = (function () {
                     ctx.restore();
                 }
                 if (since > 400 && ((t / 700 + idx * 3) % 9) < 1) {   // 간헐 응원 fx
-                    if (!drawSprite('fx', 'cheer', x2, y2 - 30, 96, 96, { sx: Math.floor(t / 120) % 4 * 96, sw: 96 })) label('♪', x2 + 6, y2 - 30, ringColor(b), 12);
+                    drawSprite('fx', 'cheer', x2, y2 - 30, 96, 96, { sx: Math.floor(t / 120) % 4 * 96, sw: 96 });
                 }
             }
         }
@@ -1537,11 +1564,11 @@ var MarbleRender = (function () {
                         if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); }
                         label('뿅!', x, y - 26 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14);
                         break;
-                    case 'star': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10 - k * 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); break;
+                    case 'star': if (!visible(y, 40)) return; drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 }); break;
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
-                    case 'spring': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
+                    case 'spring': if (!visible(y, 40)) return; drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 }); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -1678,7 +1705,7 @@ var MarbleRender = (function () {
                 ctx.font = 'bold 12px "Jua", sans-serif';
                 var y = view.narrow ? 52 : 8, w = 150;   // 폰: 우상단 전체화면 버튼(36px) 아래로
                 ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(hw - w - 8, y, w, 22 + hudInfo.worst.length * 18, 8); ctx.fill();
-                ctx.fillStyle = '#ffd166'; ctx.fillText('🚩 꼴찌 후보', hw - w, y + 5);
+                ctx.fillStyle = '#ffd166'; ctx.fillText('꼴찌 후보', iconScreen('flag', hw - w, y + 4, 14) ? hw - w + 17 : hw - w, y + 5);
                 hudInfo.worst.forEach(function (b, i) {
                     var yy = y + 24 + i * 18;
                     drawMiniIcon(b, hw - w + 9, yy + 7, HUD_ICON_PX, b.owner === myName);
@@ -1765,8 +1792,8 @@ var MarbleRender = (function () {
 
         // 동물 아이콘(피커 버튼용) — row 0 col 0 서 있는 프레임
         R.hasCreatureSprite = function (creature) { return !!img('creatures', creature); };   // 선택 버튼 노출 판정(시트 미도착 동물 숨김)
-        R.drawCreatureIcon = function (iconCanvas, creature, col) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0)
-            var c = iconCanvas.getContext('2d'); var im = img('creatures', creature);
+        R.drawCreatureIcon = function (iconCanvas, creature, col, skin) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0). skin = 상점 스킨 접미사(있으면 그 시트, 없으면 기본)
+            var c = iconCanvas.getContext('2d'); var im = (skin ? img('creatures', creature + '-' + skin) : null) || img('creatures', creature);
             c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
             if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, (col || 0) * CELL, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
             else { c.fillStyle = '#c8b28c'; c.beginPath(); c.arc(iconCanvas.width / 2, iconCanvas.height / 2, iconCanvas.width / 3, 0, Math.PI * 2); c.fill(); }

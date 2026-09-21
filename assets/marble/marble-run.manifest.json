@@ -2713,5 +2713,174 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "uiIconsL": {
+    "batch": "marble-run-ui-icons-l-2026-09-21",
+    "status": "migrated",
+    "request": "docs/spritemake-request/applied/2026-09-21-marble-run-ui-icons-l.md",
+    "note": "10차 UI 아이콘 아틀라스 1장 — 데구리 페이지·캔버스의 OS 이모지 33곳 전면 교체. 2026-09-21 23:39 Codex(exec 1세션: 전체 시트 4회 + 시험관 단독 1회 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화·QA)가 생성, Claude 가 셀 bbox·중심·alpha 1~7·마젠타 잔류·20/32px 대조 시트로 독립 검증 후 복사. 소비처: css/marble.css .mi-{id}(background-position (col×20)%,(row×20)%), js/marble-render.js ICON_CELL. 여백 3칸(index 33~35)은 투명. — 2026-09-22 11차: 33셀을 저장소 공용 아틀라스 assets/ui/icons.png(10×10, index 0~32 동일 순서, 픽셀 동일) 로 이관. assets/marble/ui/icons.png 삭제, css/marble.css .mi-* 는 공용 셀 별칭, js/marble-render.js 는 UI_ICON_CELL 사용. 공용 manifest: assets/ui/icons.manifest.json",
+    "assets": {
+      "icons": {
+        "image": "../ui/icons.png",
+        "canvas": [
+          1280,
+          1280
+        ],
+        "grid": [
+          10,
+          10
+        ],
+        "cell": [
+          128,
+          128
+        ],
+        "anchor": [
+          64,
+          64
+        ],
+        "contentBox": [
+          104,
+          104
+        ],
+        "cells": {
+          "0": "paw",
+          "1": "target",
+          "2": "medal",
+          "3": "snail",
+          "4": "trophy",
+          "5": "burger",
+          "6": "list",
+          "7": "memo",
+          "8": "people",
+          "9": "bulb",
+          "10": "check",
+          "11": "hourglass",
+          "12": "clock",
+          "13": "flask",
+          "14": "expand",
+          "15": "replay",
+          "16": "play",
+          "17": "stop",
+          "18": "refresh",
+          "19": "chat",
+          "20": "scroll",
+          "21": "lock",
+          "22": "crown",
+          "23": "person",
+          "24": "warn",
+          "25": "info",
+          "26": "book",
+          "27": "home",
+          "28": "flag",
+          "29": "sun",
+          "30": "hole",
+          "31": "dash",
+          "32": "x"
+        },
+        "targetGamePath": "assets/marble/ui/icons.png",
+        "md5": "7c29535ebbe0aa049f9707e62ed4ec3d",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "creaturesL": {
+    "batch": "marble-run-creatures-l-2026-09-22",
+    "status": "all-3-picked-up-as-skin",
+    "request": "docs/spritemake-request/2026-09-22-marble-run-ribbonpig-v3-l.md",
+    "note": "리본돼지 v3 목 스카프 — 교체가 아니라 상점 스킨(marble_skin_ribbonpig_scarf, config/marble/cosmetics.json)으로 인수. 시트 이름 규칙 {creature}-{skin}[-sleep|-scuffle].png. 2026-09-22 codex exec 배치 L(K 도구: 단일 배율·위성·림 despill), main attempt-03·sleep 02·scuffle 01, Claude 독립 검증 PASS(서기 112×94, 공 110×112, 림 0%)",
+    "assets": {
+      "ribbonpig-scarf": {
+        "image": "creatures/ribbonpig-scarf.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "skinOf": "ribbonpig",
+        "cosmeticId": "marble_skin_ribbonpig_scarf",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-scarf.png",
+        "md5": "0acf91ee89287170833b284347c93afd",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-scarf-sleep": {
+        "image": "creatures/ribbonpig-scarf-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-scarf-sleep.png",
+        "md5": "91befa237addf43dace704d2365be729",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-scarf-scuffle": {
+        "image": "creatures/ribbonpig-scarf-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-scarf-scuffle.png",
+        "md5": "9dc6883ef003abdbca29535ffb467111",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

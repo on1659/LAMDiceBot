@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-09-22 (데구리 동물 스킨 상점 — marble_skin 슬롯 + 스카프 리본돼지 스킨, 배치 L)
+========================================
+
+## 변경 파일
+- config/marble/cosmetics.json: 신규 카탈로그 — marble_skin 슬롯 { marble_skin_none(defaultOwned), marble_skin_ribbonpig_scarf(rare 90, creature:'ribbonpig', skin:'scarf') }. socket/shop.js 가 자동 enumerate
+- db/cosmetics.js: EQUIP_SLOTS += 'marble_skin' (PUBLIC_HORSE_SLOTS/AD_EQUIP_SLOTS 무관)
+- socket/shop.js: module.exports.getCatalogItem(id) — 읽기 전용 카탈로그 조회 export
+- utils/room-helpers.js: marble.skins {} (CRLF 유지)
+- socket/marble.js: resolveSkin(mb,name,authedUserId)=prefs.equipped.marble_skin→카탈로그 creature/skin (게스트 null); skinFor; idlePreview balls.skin; marble:pick 뒤 resolve→변경 시 재emit; marble:requestState 재resolve; 신규 marble:refreshSkin(페이로드 없음, rateOk); startMarble: simulate 뒤 attachSkins(소유 getOwned 재검증) → revealBalls.skin
+- js/marble-render.js: sheet(group,b) 헬퍼(스킨 시트 '{creature}-{skin}' → 없으면 기본 폴백) — creatures 5·sleep 4·scuffle 1 호출부 전부 교체; ASSETS 3맵에 'ribbonpig-scarf'; payload.balls.skin; drawCreatureIcon(…, skin)
+- js/marble-shop.js: 신규 ShopModule 어댑터(mount marbleShopMount, 단일 슬롯, 미리보기=스킨 시트 idle 칸 캔버스, onEquipApplied→marble:refreshSkin, getEquippedSkin)
+- js/marble.js: connect 시 MarbleShop.connect/loadCatalog/authenticate(userAuth), window.marbleRendererForShop, 선택 버튼 아이콘에 장착 스킨 반영 + '스킨' 배지 (v29)
+- marble-multiplayer.html: 제목 줄 오른쪽 [🎀 동물 스킨] 버튼, #marbleShopMount, horse-shop.css, shop-shared.js + marble-shop.js, marble.css v20/marble-render v57
+- css/marble.css: .marble-pick-head/.marble-shop-btn/.mshop-*/.skin-badge
+- assets/marble/creatures/ribbonpig-scarf{,-sleep,-scuffle}.png: 배치 L(codex exec, K 도구) 인수 — md5 0acf91ee… / 91befa23… / 9dc6883e…, manifest creaturesL
+- AutoTest/qa-marble-skin-shop-test.js: 신규 소켓 통합 테스트(계정 등록→코인→buy/equip→방→pick→preview.skin, 게스트 없음, 해제) 10/10 PASS
+- docs/goal/marble-creature-skins-shop.md(명세) / docs/spritemake-request/applied/2026-09-22-marble-run-ribbonpig-v3-l.md(의뢰서)
+
+## 상세 변경 내역
+
+### [결정]
+- 사용자: "리본돼지 v3(목 스카프)는 교체 대신 상점 스킨으로". v2 머리리본 = 기본 유지, v3 = marble_skin_ribbonpig_scarf. 기존 상점 스택 재사용 — 새 경제 없음.
+- 원 컨셉 이미지(메이플 리본돼지) 특징만: 목 스카프 리본(매듭·꼬리 목 뒤), 반쯤 감은 시큰둥 눈(화들짝 칸만 번쩍), 큰 납작 코, 갈색 발굽. 형태 복제 아님.
+
+### [공정성·계약]
+- 스킨은 layoutBalls/simulate 입력이 아니다 — simulate 뒤 attachSkins 로 b.skin 만 얹음. marble-determinism-test ALL PASS. marble:pick/stateUpdated/reveal 은 additive 필드(skin)만 추가 — 구 클라 무영향.
+- 서버 권위: 클라는 refreshSkin 신호만 보내고 서버가 prefs.equipped+user_cosmetics 를 읽는다. 시작 시 소유 재검증. 게스트는 항상 스킨 없음.
+
+### [검증]
+- 소켓 통합 테스트 10/10 PASS(5174). 브라우저: 실제 방에서 장착 계정의 리본돼지가 출발대에 스카프 시트로, 선택 버튼 아이콘·'스킨' 배지 표시. game-lab 프리뷰에 skin 주입 → 스카프 시트 로드·렌더 확인. 모바일 375px 모달 OK.
+- (추가 커밋) 사용자 요청 "동물스킨 풀어줘" → shop-shared.js 에 어댑터 옵션 `init({ coinShopOpen: true })` 추가, marble-shop.js 만 켬. 경마·사다리·회전 코인샵은 그대로 준비 중. 브라우저에서 구매(90)→장착중→'스킨' 배지→출발대 skin=scarf 확인.
+- **주의: js/shared/shop-shared.js 의 COIN_SHOP_COMING_SOON=true 가 코인샵 전 게임 공통 게이트** — 라이브에선 "코인샵은 준비 중" 안내만 보이고 구매/장착 UI 는 안 열린다(경마·사다리·회전 코인샵과 동일 상태). 서버 경로는 열려 있음. 오픈은 그 플래그 1줄(제품 결정).
+
+### [동시 세션 협업]
+- 같은 작업 트리에서 UI 아이콘 아틀라스·광고 세션이 동시 편집 중 — 헝크 단위 스테이징(git apply --cached --unidiff-zero). marble-multiplayer.html 제목 줄의 #marblePickHint span 은 HEAD 그대로 보존(다른 세션 WIP 가 제거 중이라 내 커밋엔 포함시키지 않음).
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (데구리 당첨 순위 투표 룰렛 + 경주 마무리·UI 정리 + 마릿수 3단계)
 ========================================
 

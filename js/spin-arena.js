@@ -105,7 +105,7 @@ function spinScale(n) { return n <= 6 ? 1 : Math.sqrt(6 / n); }
 
 // 미션/상태 텍스트 — 토너먼트 평이한 한국어(2탭 동일). 이긴 사람=안전, 진 사람=다음 라운드, 끝까지 진 1명=당첨.
 function spinMissionText() {
-    return '⚔️ 듀얼에서 이기면 안전 · 끝까지 지면 당첨';
+    return '듀얼에서 이기면 안전 · 끝까지 지면 당첨';
 }
 
 // localhost 체크
@@ -469,7 +469,8 @@ function updateStartButton() {
     var rc = readyCount();
     var canStart = isHost && spinReplay.phase === 'idle' && rc >= 2;
     startBtn.disabled = !canStart;
-    startBtn.textContent = rc < 2 ? '게임 시작 (2명 이상 준비)' : '⚔️ 회전 칼날 시작';
+    if (rc < 2) startBtn.textContent = '게임 시작 (2명 이상 준비)';
+    else startBtn.replaceChildren(UIIcons.el('swords'), ' 회전 칼날 시작');
 }
 
 // ── 스킨 피커 (#spinSkinPicker) ──
@@ -488,15 +489,15 @@ function renderSkinPicker() {
     function ownsSkin(id) { return ownedSkins.indexOf(id) >= 0; }
 
     var html = '<div class="spin-skin-head">' +
-        '<div class="spin-skin-title">⚔️ 내 칼날 스킨 고르기</div>' +
-        '<button type="button" class="spin-shop-btn" onclick="SpinShop.openShop()" title="스킨 구매/스킨업">🛍️ 스킨 상점</button>' +
+        '<div class="spin-skin-title">' + UIIcons.tag('swords') + ' 내 칼날 스킨 고르기</div>' +
+        '<button type="button" class="spin-shop-btn" onclick="SpinShop.openShop()" title="스킨 구매/스킨업">' + UIIcons.tag('bag') + ' 스킨 상점</button>' +
         '</div>';
     if (rc < 2) {
         html += '<div class="spin-skin-hint">준비한 사람이 2명 이상이면 스킨을 고를 수 있어요. (먼저 "준비" 버튼을 눌러주세요)</div>';
     } else if (!ready) {
         html += '<div class="spin-skin-hint">준비하면 칼날 스킨을 고를 수 있어요. 안 골라도 시작 시 자동 배정됩니다.</div>';
     } else {
-        html += '<div class="spin-skin-hint">무료 스킨은 여기서 바로 골라요. 🔒 유료·스킨업 스킨은 🛍️ 상점에서 장착해요. (결과와 무관한 외형)</div>';
+        html += '<div class="spin-skin-hint">무료 스킨은 여기서 바로 골라요. ' + UIIcons.tag('lock') + ' 유료·스킨업 스킨은 ' + UIIcons.tag('bag') + ' 상점에서 장착해요. (결과와 무관한 외형)</div>';
     }
 
     // 16색 스와치 — 색별로 보유 최고 티어를 자동 사용(t2 보유 시 Ⅱ 배지 + t2 선택).
@@ -527,7 +528,7 @@ function renderSkinPicker() {
             'aria-label="' + escapeHtml(sk.name) + ' 스킨' + (mine ? ' 선택됨' : '') + (locked ? ' 잠금 — 상점에서 구매' : '') + '">' +
             '<span class="spin-skin-dot" style="background:' + sk.color + ';box-shadow:' + dotShadow + ';"></span>' +
             '<span class="spin-skin-name">' + nameHtml + '</span>' +
-            (locked ? '<span class="spin-skin-lock">🔒 상점</span>' : '') +
+            (locked ? '<span class="spin-skin-lock">' + UIIcons.tag('lock') + ' 상점</span>' : '') +
             '<span class="spin-skin-owners">' + ownersHtml + '</span>' +
             '</div>';
     }
@@ -1019,16 +1020,18 @@ function drawCharFace(ctx, scale) {
 // 네임태그(식별 보조) — 반투명 pill 배경 + 텍스트 외곽선으로 소형 스케일·겹침에서도 대비 확보.
 // 본인(isMe)은 스킨 blade 색 테두리 + 밝은 글자로 강조. 순수 시각(결과 무관). 활성/비석/미리보기 3곳 공용.
 // scl: 인원 가변 스케일, accent: 본인 강조 색(null이면 일반), dim: 미준비/관전 반투명(0~1).
-function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, prefix, dim) {
+function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, iconId, dim) {
     if (!label) return;
     var fontPx = isMe ? Math.max(12.5 * scl, 10) : Math.max(11 * scl, 9);   // 본인은 약간 크게(#4 식별 강조)
-    var txt = (prefix || '') + label;
+    var txt = label;
     ctx.save();
     ctx.font = 'bold ' + fontPx + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (dim != null && dim < 1) ctx.globalAlpha = dim;
-    var tw = ctx.measureText(txt).width;
+    // iconId(준비 표시 등) — 공용 스프라이트를 텍스트 왼쪽에 그린다. 자리만 먼저 확보(아틀라스 미로딩이면 빈 칸).
+    var iconPx = iconId ? fontPx * 1.2 : 0, iconGap = iconId ? Math.max(3 * scl, 2) : 0;
+    var tw = ctx.measureText(txt).width + iconPx + iconGap;
     var padX = Math.max(5 * scl, 4), padY = Math.max(2.5 * scl, 2);
     var pillW = tw + padX * 2, pillH = fontPx + padY * 2;
     var rad = pillH / 2;
@@ -1051,9 +1054,11 @@ function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, prefix, dim) {
     // 텍스트 외곽선 + 본체 — 내 캐릭터=노랑(항상), 상대=흰색 (#5)
     ctx.lineWidth = Math.max(3 * scl, 2.4);
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(txt, x, y);
+    var tx = x + (iconPx + iconGap) / 2;   // 아이콘 폭만큼 텍스트를 오른쪽으로
+    if (iconId) UIIcons.draw(ctx, iconId, x - tw / 2 + iconPx / 2, y, iconPx);
+    ctx.strokeText(txt, tx, y);
     ctx.fillStyle = isMe ? '#ffe24a' : '#ffffff';
-    ctx.fillText(txt, x, y);
+    ctx.fillText(txt, tx, y);
     ctx.restore();
 }
 
@@ -1223,11 +1228,11 @@ function drawDuel(ctx, duel, localT, vp, isFeatured) {
             var dp = prefersReducedMotion ? 1 : clamp((localT - duel.decideMs) / TOMBSTONE_DROP_MS, 0, 1);
             var ease = 1 - (1 - dp) * (1 - dp);
             var tombY = restY - (1 - ease) * TOMBSTONE_DROP_H * sc;
+            // 비석 아이콘(공용 스프라이트, 중심 기준) — 옛 26px 글리프(alphabetic 기준선 tombY)의 중심으로 환산
+            var tombPx = 26 * Math.max(sc, 0.6);
             ctx.save();
-            ctx.font = (26 * Math.max(sc, 0.6)) + 'px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
             ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6;
-            ctx.fillText('🪦', rx, tombY);
+            UIIcons.draw(ctx, 'tomb', rx, tombY - tombPx * 0.4, tombPx);
             ctx.restore();
             // 비석은 회색 폴백 바디(작게)로 바닥 표시 — 사라지지 않게 라운드 내 잔류
             ctx.save();
@@ -1486,10 +1491,7 @@ function drawBracketOverview(ctx, canvas, bracket, progress) {
         var mA = spinSlotMeta(d.slotA), mB = spinSlotMeta(d.slotB);
         // 좌측 이름(dot+nm), 중앙 ⚔, 우측 이름
         nameWithDot(mA, p.x + 6, p.y, 'left');
-        ctx.save();
-        ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = HUD_GOLD; ctx.fillText('⚔', p.x + p.w * 0.5, p.y);
-        ctx.restore();
+        UIIcons.draw(ctx, 'swords', p.x + p.w * 0.5, p.y, 14);
         nameWithDot(mB, p.x + p.w * 0.58, p.y, 'left');
     }
     for (var bi = 0; bi < byes.length; bi++) {
@@ -1901,8 +1903,7 @@ function drawSpinIdleFrame(now) {
 
         // 이름표(식별 보조) — pill 배경 + 외곽선. 본인 강조, 미준비자는 반투명.
         var isMePrev = (entry.name === currentUser);
-        var prefix = entry.ready ? '✅ ' : '';
-        drawSpinNameTag(ctx, px, py + labelY, entry.name, s, isMePrev, entry.skin.blade || '#ffd24a', prefix, entry.ready ? 1 : 0.55);
+        drawSpinNameTag(ctx, px, py + labelY, entry.name, s, isMePrev, entry.skin.blade || '#ffd24a', entry.ready ? 'check' : '', entry.ready ? 1 : 0.55);
     }
 
     // 중앙 안내 문구 (새 참가 모델: 입장 = 표시, 준비 = 참가)
@@ -1911,11 +1912,13 @@ function drawSpinIdleFrame(now) {
     ctx.textAlign = 'center';
     ctx.font = 'bold 15px sans-serif';
     ctx.fillStyle = 'rgba(238,242,251,0.85)';
-    var mainMsg;
+    var mainMsg, mainIcon = null;
     if (n === 0) mainMsg = '입장하면 캐릭터가 등장해요';
-    else if (rc >= 2) mainMsg = '⚔️ 시작을 기다리는 중...';
+    else if (rc >= 2) { mainMsg = '시작을 기다리는 중...'; mainIcon = 'swords'; }
     else mainMsg = '2명 이상 준비하면 시작할 수 있어요';
     ctx.fillText(mainMsg, cx, cy - 4);
+    // 문구 왼쪽에 공용 스프라이트(alphabetic 기준선 cy-4 → 중심 ≈ cy-9)
+    if (mainIcon) UIIcons.draw(ctx, mainIcon, cx - ctx.measureText(mainMsg).width / 2 - 12, cy - 9, 18);
     ctx.font = '12px sans-serif';
     ctx.fillStyle = 'rgba(174,182,194,0.8)';
     ctx.fillText('준비하면 참가 · 최대 ' + MAX_SLOTS + '명 (현재 준비 ' + rc + '명)', cx, cy + 16);
@@ -2026,13 +2029,13 @@ function updateReplayButton() {
     if (!btn) return;
     if (spinReplay.isReplayMode) {
         btn.style.display = '';
-        btn.textContent = '⏹ 다시보기 중단';
+        btn.replaceChildren(UIIcons.el('stop'), ' 다시보기 중단');
         return;
     }
     var canReplay = !!savedReveal && !spinReplay.raf &&
         (spinReplay.phase === 'finished' || spinReplay.phase === 'idle');
     btn.style.display = canReplay ? '' : 'none';
-    btn.textContent = '🎬 다시보기';
+    btn.replaceChildren(UIIcons.el('clapper'), ' 다시보기');
 }
 
 function toggleSpinReplay() {
@@ -2169,6 +2172,7 @@ function drawSpinCountdownFrame(payload, cdStart) {
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
     ctx.strokeText(mtxt, ARENA_CX, ARENA_H - 16);
     ctx.fillStyle = HUD_GOLD; ctx.fillText(mtxt, ARENA_CX, ARENA_H - 16);
+    UIIcons.draw(ctx, 'swords', ARENA_CX - ctx.measureText(mtxt).width / 2 - 11, ARENA_H - 16, 17);   // 문구 왼쪽 아이콘(baseline middle)
     ctx.restore();
 }
 
@@ -2276,11 +2280,11 @@ function startSpinReplay(payload, opts) {
     var status = document.getElementById('gameStatus');
     if (status) {
         if (isReplay) {
-            status.textContent = '🎬 다시보기 재생 중...';
+            status.replaceChildren(UIIcons.el('clapper'), ' 다시보기 재생 중...');
         } else if (spinReplay.overflowSpectator) {
             status.textContent = '준비 선착 ' + MAX_SLOTS + '명 초과 — 이번 판은 관전입니다';
         } else {
-            status.textContent = spinMissionText();
+            status.replaceChildren(UIIcons.el('swords'), ' ' + spinMissionText());
         }
         status.className = 'game-status active';
     }
@@ -2317,8 +2321,8 @@ function showSpinResult(result) {
         rankingsEl.innerHTML = ordered.map(function (r) {
             var isSel = selected && r.name === selected;
             var tag = isSel
-                ? '<span class="spin-result-tag loser">⚔️ 당첨 (끝까지 패배)</span>'
-                : '<span class="spin-result-tag pass">✅ 안전</span>';
+                ? '<span class="spin-result-tag loser">' + UIIcons.tag('swords') + ' 당첨 (끝까지 패배)</span>'
+                : '<span class="spin-result-tag pass">' + UIIcons.tag('check') + ' 안전</span>';
             return '<div class="spin-result-row' + (isSel ? ' loser' : '') + '">' +
                 '<span class="spin-result-name">' + escapeHtml(r.name) + '</span>' + tag + '</div>';
         }).join('');
@@ -2328,7 +2332,8 @@ function showSpinResult(result) {
 
     var status = document.getElementById('gameStatus');
     if (status) {
-        status.textContent = selected ? '⚔️ ' + selected + ' 님 당첨!' : '게임 종료 — 당첨자 없음';
+        if (selected) status.replaceChildren(UIIcons.el('swords'), ' ' + selected + ' 님 당첨!');
+        else status.textContent = '게임 종료 — 당첨자 없음';
         status.className = 'game-status finished';
     }
 }
@@ -2426,7 +2431,7 @@ function renderSpinHistory() {
     list.innerHTML = spinHistory.slice(0, 30).map(function (h) {
         return '<div style="padding:8px 12px;border-bottom:1px solid var(--gray-200,#e5e7eb);">' +
             '<span style="color:var(--spin-arena-accent);font-weight:bold;">' + h.round + '판</span>' +
-            ' — ⚔️ <span style="font-weight:600;">' + escapeHtml(h.selected || '없음') + '</span> 당첨</div>';
+            ' — ' + UIIcons.tag('swords') + ' <span style="font-weight:600;">' + escapeHtml(h.selected || '없음') + '</span> 당첨</div>';
     }).join('');
 }
 
@@ -2520,7 +2525,7 @@ function renderUsersList(userArray) {
         if (user.isHost) tag.classList.add('host');
         if (user.name === currentUser) tag.classList.add('me');
         var content = escapeHtml(user.name);
-        if (user.isHost) content += ' 👑';
+        if (user.isHost) content += ' ' + UIIcons.tag('crown');
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
 
@@ -2557,7 +2562,7 @@ function showPlayerActionDialog(playerName) {
         content.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(0,0,0,0.2);border:2px solid var(--spin-arena-accent);';
         var msg = document.createElement('div');
         msg.style.cssText = 'font-size:18px;line-height:1.6;color:var(--text-primary);text-align:center;margin-bottom:25px;font-weight:600;';
-        msg.innerHTML = '<span style="font-size:24px;margin-right:8px;">👤</span>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
+        msg.innerHTML = '<span style="font-size:24px;margin-right:8px;">' + UIIcons.tag('person') + '</span>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
         var box = document.createElement('div');
         box.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
         function mkBtn(text, bg, val) {

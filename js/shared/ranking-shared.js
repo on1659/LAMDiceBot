@@ -24,16 +24,20 @@ const RankingModule = (function () {
     let _calDay = null;   // 'YYYY-MM-DD' 펼쳐 놓은 날
 
     // server_game_records에 실제로 기록되는 7종 전부 (팝업 게임 탭은 4종만 커버해서 재사용 불가)
+    // { icon: 공용 아이콘 id(css/ui-icons.css), text: 표시 이름 } — 탭 라벨 객체와 같은 꼴
     const CAL_GAME_LABELS = {
-        'dice': '🎲 주사위',
-        'horse': '🐎 경마',
-        'roulette': '🎰 룰렛',
-        'ladder': '🪜 사다리타기',
-        'pirate': '🏴‍☠️ 해적 룰렛',
-        'spin-arena': '🌀 회전 칼날',
-        'bridge': '🌉 다리 건너기',
-        'marble': '🐾 데구리'
+        'dice': { icon: 'dice', text: '주사위' },
+        'horse': { icon: 'horse', text: '경마' },
+        'roulette': { icon: 'slot', text: '룰렛' },
+        'ladder': { icon: 'ladder', text: '사다리타기' },
+        'pirate': { icon: 'pirate', text: '해적 룰렛' },
+        'spin-arena': { icon: 'swords', text: '회전 칼날' },
+        'bridge': { icon: 'bridge', text: '다리 건너기' },
+        'marble': { icon: 'paw', text: '데구리' }
     };
+    // 라벨 객체 렌더 — textContent 자리(탭·칩)는 노드로, innerHTML 템플릿(달력)은 문자열로. text 는 상수만.
+    function setIconLabel(el, t) { el.replaceChildren(UIIcons.el(t.icon), ' ' + t.text); }
+    function iconLabelHtml(t) { return UIIcons.tag(t.icon) + ' ' + t.text; }
     const CAL_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
     // 제스처 상태
@@ -764,8 +768,8 @@ const RankingModule = (function () {
             <div class="rk-panel">
                 <div class="rk-header">
                     <button class="rk-back-btn" onclick="RankingModule.hide()">&#8592;</button>
-                    <span class="rk-header-title">🏆 랭킹 · 시즌 ${_currentSeason}</span>
-                    <button class="rk-reset-btn" style="display:${(_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none'}" onclick="RankingModule._showConfirm()">&#128260;</button>
+                    <span class="rk-header-title"><i class="ui ui-trophy"></i> 랭킹 · 시즌 ${_currentSeason}</span>
+                    <button class="rk-reset-btn" style="display:${(_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none'}" onclick="RankingModule._showConfirm()"><i class="ui ui-refresh"></i></button>
                 </div>
                 <div id="ranking-confirm-slot"></div>
                 <div id="ranking-season-bar"></div>
@@ -970,12 +974,12 @@ const RankingModule = (function () {
         tabsEl.innerHTML = '';
         if (_viewingSeason) _currentMainTab = 'overall';
         const mainTabs = _viewingSeason
-            ? [{ label: '🏆 종합', key: 'overall' }]
-            : [{ label: '🏆 종합', key: 'overall' }, { label: '🎮 게임별', key: 'games' }];
+            ? [{ icon: 'trophy', text: '종합', key: 'overall' }]
+            : [{ icon: 'trophy', text: '종합', key: 'overall' }, { icon: 'gamepad', text: '게임별', key: 'games' }];
         mainTabs.forEach((t) => {
             const btn = document.createElement('button');
             btn.className = 'rk-tab' + (t.key === _currentMainTab ? ' active' : '');
-            btn.textContent = t.label;
+            setIconLabel(btn, t);
             btn.dataset.tab = t.key;
             btn.onclick = () => switchMainTab(t.key);
             tabsEl.appendChild(btn);
@@ -987,13 +991,13 @@ const RankingModule = (function () {
             overallSubTabsEl.innerHTML = '';
             _currentOverallSubTab = 'rank';
             const overallSubTabs = [
-                { label: '🏅 순위', key: 'rank', color: '#667eea' },
-                { label: '👥 참여', key: 'participant', color: '#27ae60' }
+                { icon: 'medal', text: '순위', key: 'rank', color: '#667eea' },
+                { icon: 'people', text: '참여', key: 'participant', color: '#27ae60' }
             ];
             overallSubTabs.forEach((t, i) => {
                 const chip = document.createElement('button');
                 chip.className = 'rk-game-chip';
-                chip.textContent = t.label;
+                setIconLabel(chip, t);
                 chip.dataset.overallSub = t.key;
                 chip.dataset.color = t.color;
                 if (i === 0) {
@@ -1013,20 +1017,20 @@ const RankingModule = (function () {
         gameTabsEl.innerHTML = '';
         gameTabsEl.style.display = _currentMainTab === 'games' ? 'flex' : 'none';
         const gameTabs = [
-            { label: '🎲 주사위', key: 'dice', color: '#667eea' },
-            { label: '🐎 경마', key: 'horse', color: '#e67e22' },
-            { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' },
-            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' }
+            { icon: 'dice', text: '주사위', key: 'dice', color: '#667eea' },
+            { icon: 'horse', text: '경마', key: 'horse', color: '#e67e22' },
+            { icon: 'slot', text: '룰렛', key: 'roulette', color: '#7c4dff' },
+            { icon: 'ladder', text: '사다리타기', key: 'ladder', color: '#f59e0b' }
         ];
         // 데구리은 미출시(로비 라벨 devFlags) — 기록이 있거나 데구리 방에서 연 경우에만 탭을 보인다
-        if (marbleTabVisible(data)) gameTabs.push({ label: '🐾 데구리', key: 'marble', color: '#3fa65b' });
+        if (marbleTabVisible(data)) gameTabs.push({ icon: 'paw', text: '데구리', key: 'marble', color: '#3fa65b' });
         if (data.orders) {
-            gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
+            gameTabs.push({ icon: 'burger', text: '주문', key: 'orders', color: '#e91e63' });
         }
         gameTabs.forEach((t) => {
             const chip = document.createElement('button');
             chip.className = 'rk-game-chip';
-            chip.textContent = t.label;
+            setIconLabel(chip, t);
             chip.dataset.game = t.key;
             chip.dataset.color = t.color;
             if (t.key === _currentGameTab) {
@@ -1044,13 +1048,13 @@ const RankingModule = (function () {
         if (horseSubTabsEl) {
             horseSubTabsEl.innerHTML = '';
             const horseSubTabs = [
-                { label: '🏆 경마 순위', key: 'rank', color: '#e67e22' },
-                { label: '📊 탈것 통계', key: 'vehicles', color: '#e67e22' }
+                { icon: 'trophy', text: '경마 순위', key: 'rank', color: '#e67e22' },
+                { icon: 'chart', text: '탈것 통계', key: 'vehicles', color: '#e67e22' }
             ];
             horseSubTabs.forEach((t) => {
                 const chip = document.createElement('button');
                 chip.className = 'rk-game-chip';
-                chip.textContent = t.label;
+                setIconLabel(chip, t);
                 chip.dataset.horseSub = t.key;
                 chip.dataset.color = t.color;
                 if (t.key === _horseSubTab) {
@@ -1192,7 +1196,8 @@ const RankingModule = (function () {
                         <tbody>`;
         vehicles.forEach(v => {
             const t = _vehicleThemes ? _vehicleThemes[v.id] : null;
-            const label = t ? ((t.emoji || '') + ' ' + (t.name || VN[v.id] || v.id)).trim() : (VN[v.id] || v.id);
+            const label = t ? (t.name || VN[v.id] || v.id) : (VN[v.id] || v.id);
+            const thumb = vehicleThumbHtml(v.id, 28);
             const appearances = Number(v.appearances) || 0;
             const picks = Number(v.picks) || 0;
             const r = v.ranks || [0, 0, 0, 0, 0, 0];
@@ -1201,7 +1206,7 @@ const RankingModule = (function () {
             const pickAvg = appearances > 0 ? (picks / appearances).toFixed(1) : '0.0';
             const lowSample = appearances < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
             tableHtml += `<tr${lowSample ? ' class="rk-low-sample"' : ''}>
-                <td>${esc(label)}</td>
+                <td>${thumb}${esc(label)}</td>
                 <td>${appearances}</td>
                 <td>${pickAvg}명</td>
                 <td>${winRate}%${lowSample ? '<span class="rk-low-label">기록 부족</span>' : ''}</td>
@@ -1303,7 +1308,7 @@ const RankingModule = (function () {
 
     function emptyMsg(text) {
         return `<div class="rk-empty">
-            <div class="rk-empty-icon">🎮</div>
+            <div class="rk-empty-icon"><i class="ui ui-xl ui-gamepad"></i></div>
             <div>${text}</div>
         </div>`;
     }
@@ -1332,6 +1337,15 @@ const RankingModule = (function () {
 
     function isMe(name) {
         return !!_userName && name === _userName;
+    }
+
+    // 경마 탈것 썸네일 — 경마 페이지(js/horse-race-sprites.js 로드)에서만 인라인 SVG, 그 외엔 빈 문자열(탈것 통계 탭은 경마 전용)
+    function vehicleThumbHtml(vehicleId, px) {
+        if (typeof getVehicleSVG !== 'function') return '';
+        const svgs = getVehicleSVG(vehicleId);
+        const frame = svgs && ((svgs.idle && svgs.idle.frame1) || (svgs.run && svgs.run.frame1) || svgs.frame1);
+        if (!frame) return '';
+        return `<span class="rk-vthumb" style="display:inline-block;width:${px}px;height:${Math.round(px * 0.75)}px;vertical-align:middle;margin-right:4px;">${frame.replace(/<svg\b/, '<svg style="width:100%;height:100%"')}</span>`;
     }
 
     function esc(str) {
@@ -1525,7 +1539,7 @@ const RankingModule = (function () {
         const titleEl = _overlay.querySelector('.rk-header-title');
         if (titleEl) {
             const viewing = _viewingSeason || _currentSeason;
-            titleEl.textContent = `🏆 랭킹 · 시즌 ${viewing}`;
+            titleEl.replaceChildren(UIIcons.el('trophy'), ` 랭킹 · 시즌 ${viewing}`);
         }
     }
 
@@ -1614,13 +1628,12 @@ const RankingModule = (function () {
             if (!vehicles.length) { slot.innerHTML = ''; return; }
             const themes = await loadVehicleThemesOnce();
             if (isStale()) return;
-            const medals = ['🥇', '🥈', '🥉'];
+            const medals = [UIIcons.tag('medal'), UIIcons.tag('silver'), UIIcons.tag('bronze')];
             const chips = vehicles.slice(0, 3).map((v, i) => {
                 const t = themes ? themes[v.vehicle_id] : null;
                 const name = (t && t.name) || VEHICLE_NAME_MAP[v.vehicle_id] || v.vehicle_id;
-                const emoji = (t && t.emoji) || '';
                 const wins = Number(v.rank_1) || 0;
-                return `<span class="rk-vchamp-chip rk-vchamp-${i + 1}">${medals[i]} ${esc(emoji + name)} ${wins}승</span>`;
+                return `<span class="rk-vchamp-chip rk-vchamp-${i + 1}">${medals[i]} ${vehicleThumbHtml(v.vehicle_id, 24)}${esc(name)} ${wins}승</span>`;
             });
             slot.innerHTML = `
                 <div class="rk-vchamp-bar">
@@ -1647,7 +1660,7 @@ const RankingModule = (function () {
                 <label class="rk-cal-toggle" title="날짜별로 누가 당첨됐는지 봅니다">
                     <input type="checkbox" id="ranking-cal-toggle"${_calendarOn ? ' checked' : ''}>
                     <span class="rk-cal-toggle-slider"></span>
-                    <span class="rk-cal-toggle-label">📅 달력</span>
+                    <span class="rk-cal-toggle-label"><i class="ui ui-calendar"></i> 달력</span>
                 </label>
             </div>`;
         const cb = document.getElementById('ranking-cal-toggle');
@@ -1788,7 +1801,7 @@ const RankingModule = (function () {
         if (!idx.months.length) {
             // 어느 범위가 비었는지 알려준다 — 전체가 빈 건지 이 게임만 빈 건지 구분이 안 되면 고장으로 읽힌다
             const only = calGameFilter();
-            const what = only ? (CAL_GAME_LABELS[only] || '이 게임') : '';
+            const what = only ? (CAL_GAME_LABELS[only] ? iconLabelHtml(CAL_GAME_LABELS[only]) : '이 게임') : '';
             el.innerHTML = emptyMsg(only ? `아직 ${what} 기록이 없습니다.` : '아직 기록이 없습니다.');
             return;
         }
@@ -1858,10 +1871,10 @@ const RankingModule = (function () {
         const dd = parseInt(_calDay.slice(8, 10), 10);
         const wd = CAL_WEEKDAYS[new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay()];
         const rows = list.map((s, i) => {
-            const label = CAL_GAME_LABELS[s.gameType] || '🎮 기타 게임';
+            const label = iconLabelHtml(CAL_GAME_LABELS[s.gameType] || { icon: 'gamepad', text: '기타 게임' });
             const won = !!(s.winners && s.winners.some(isMe));
             const winners = (s.winners && s.winners.length)
-                ? `<span class="rk-cal-win">👑 ${s.winners.map(n => `<span${isMe(n) ? ' class="rk-cal-me"' : ''}>${esc(n)}</span>`).join(', ')}</span>`
+                ? `<span class="rk-cal-win"><i class="ui ui-crown"></i> ${s.winners.map(n => `<span${isMe(n) ? ' class="rk-cal-me"' : ''}>${esc(n)}</span>`).join(', ')}</span>`
                 : '<span class="rk-cal-win rk-cal-nowin">당첨자 없음</span>';
             return `<div class="rk-cal-drow${won ? ' rk-me' : ''}">
                 <span class="rk-cal-seq">${i + 1}차</span>

@@ -618,7 +618,7 @@ function updateStartButton() {
     if (startBtn) {
         var canStart = isHost && pirateState.phase !== 'selecting' && !isPirateActive && rc >= PIRATE_MIN_PLAYERS;
         startBtn.disabled = !canStart;
-        startBtn.textContent = rc < PIRATE_MIN_PLAYERS ? '🏴‍☠️ 해적 룰렛 시작 (2명 이상 준비)' : '🏴‍☠️ 해적 룰렛 시작';
+        startBtn.replaceChildren(UIIcons.el('pirate'), rc < PIRATE_MIN_PLAYERS ? ' 해적 룰렛 시작 (2명 이상 준비)' : ' 해적 룰렛 시작');
     }
     // 진행 중에는 제한시간 슬라이더 비활성
     var slider = document.getElementById('pirateTimeLimitSlider');
@@ -921,14 +921,14 @@ function showResultOverlay(data) {
     if (box) {
         var html = '';
         if (data.loser) {
-            html += '<div class="pirate-result-loser">🏴‍☠️ 당첨(벌칙): ' + escapeHtml(data.loser) + '</div>';
+            html += '<div class="pirate-result-loser">' + UIIcons.tag('pirate') + ' 당첨(벌칙): ' + escapeHtml(data.loser) + '</div>';
         } else {
             html += '<div class="pirate-result-loser">당첨자가 없습니다</div>';
         }
         var survivors = data.survivors || [];
         if (survivors.length) {
             var names = survivors.map(function (n) { return '<b>' + escapeHtml(n) + '</b>'; }).join(', ');
-            html += '<div class="pirate-result-survivors">😌 안전: ' + names + '</div>';
+            html += '<div class="pirate-result-survivors">' + UIIcons.tag('check') + ' 안전: ' + names + '</div>';
         }
         box.innerHTML = html;
     }
@@ -949,7 +949,7 @@ function renderHistory(history) {
         var h = history[i];
         html += '<div style="padding: 8px 12px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between;">' +
             '<span style="color: var(--text-secondary);">' + h.round + '판</span>' +
-            '<span style="font-weight: 700; color: var(--red-500);">🏴‍☠️ ' + escapeHtml(h.loser || '-') + '</span>' +
+            '<span style="font-weight: 700; color: var(--red-500);">' + UIIcons.tag('pirate') + ' ' + escapeHtml(h.loser || '-') + '</span>' +
             '</div>';
     }
     list.innerHTML = html;
@@ -1102,7 +1102,7 @@ function renderUsersList(userArray) {
         if (user.isHost) tag.classList.add('host');
         if (user.name === currentUser) tag.classList.add('me');
         var content = escapeHtml(user.name);
-        if (user.isHost) content += ' 👑';
+        if (user.isHost) content += ' ' + UIIcons.tag('crown');
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
 
@@ -1139,7 +1139,7 @@ function showPlayerActionDialog(playerName) {
         content.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(0,0,0,0.2);border:2px solid var(--pirate-accent);';
         var msg = document.createElement('div');
         msg.style.cssText = 'font-size:18px;line-height:1.6;color:var(--text-primary);text-align:center;margin-bottom:25px;font-weight:600;';
-        msg.innerHTML = '<span style="font-size:24px;margin-right:8px;">👤</span>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
+        msg.innerHTML = '<span style="font-size:24px;margin-right:8px;">' + UIIcons.tag('person') + '</span>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
         var box = document.createElement('div');
         box.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
         function mkBtn(text, bg, val) {

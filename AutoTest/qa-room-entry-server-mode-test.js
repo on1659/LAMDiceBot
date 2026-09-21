@@ -295,7 +295,7 @@ async function waitEnterWithRetry(page, maxRetry = 2) {
             await wait(600);
             const t7 = await p7.evaluate(() => ({
                 toasts: window.__toastLog,
-                loginModal: document.body.innerText.indexOf('🔑 로그인') !== -1,
+                loginModal: !!document.querySelector('.ss-pw-box h3 .ui-key, #ss-login-btn .ui-key'),   // 11차: '🔑 로그인' 이모지 → 스프라이트(.ui-key) — 로그인 모달 제목 또는 로그인 버튼
                 nameKey: localStorage.getItem('diceGameUserName'),
                 inputRO: document.getElementById('globalUserNameInput') ? document.getElementById('globalUserNameInput').readOnly : null
             }));

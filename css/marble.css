@@ -32,6 +32,53 @@
     display: block;
 }
 
+/* ===== UI 아이콘 — 11차(2026-09-22)부터 저장소 공용 아틀라스 assets/ui/icons.png 로 이관 (css/ui-icons.css .ui-*, js/shared/ui-icons.js).
+   .mi / .mi-{id} 는 같은 셀을 가리키는 별칭 — 데구리 마크업의 mi mi-* 는 ui ui-* 와 동일. 새 코드는 ui ui-* 를 쓰고, 이 블록은 마크업 이관이 끝나면 지운다.
+   캔버스 쪽은 js/marble-render.js 가 공용 UI_ICON_CELL 을 읽는다. */
+.mi {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.25em;
+    background: url('/assets/ui/icons.png?v=1') no-repeat 0 0 / 1000% 1000%;
+    flex-shrink: 0;
+}
+.mi-paw       { background-position: 0% 0%; }
+.mi-target    { background-position: 11.1111% 0%; }
+.mi-medal     { background-position: 22.2222% 0%; }
+.mi-snail     { background-position: 33.3333% 0%; }
+.mi-trophy    { background-position: 44.4444% 0%; }
+.mi-burger    { background-position: 55.5556% 0%; }
+.mi-list      { background-position: 66.6667% 0%; }
+.mi-memo      { background-position: 77.7778% 0%; }
+.mi-people    { background-position: 88.8889% 0%; }
+.mi-bulb      { background-position: 100% 0%; }
+.mi-check     { background-position: 0% 11.1111%; }
+.mi-hourglass { background-position: 11.1111% 11.1111%; }
+.mi-clock     { background-position: 22.2222% 11.1111%; }
+.mi-flask     { background-position: 33.3333% 11.1111%; }
+.mi-expand    { background-position: 44.4444% 11.1111%; }
+.mi-replay    { background-position: 55.5556% 11.1111%; }
+.mi-play      { background-position: 66.6667% 11.1111%; }
+.mi-stop      { background-position: 77.7778% 11.1111%; }
+.mi-refresh   { background-position: 88.8889% 11.1111%; }
+.mi-chat      { background-position: 100% 11.1111%; }
+.mi-scroll    { background-position: 0% 22.2222%; }
+.mi-lock      { background-position: 11.1111% 22.2222%; }
+.mi-crown     { background-position: 22.2222% 22.2222%; }
+.mi-person    { background-position: 33.3333% 22.2222%; }
+.mi-warn      { background-position: 44.4444% 22.2222%; }
+.mi-info      { background-position: 55.5556% 22.2222%; }
+.mi-book      { background-position: 66.6667% 22.2222%; }
+.mi-home      { background-position: 77.7778% 22.2222%; }
+.mi-flag      { background-position: 88.8889% 22.2222%; }
+.mi-sun       { background-position: 100% 22.2222%; }
+.mi-hole      { background-position: 0% 33.3333%; }
+.mi-dash      { background-position: 11.1111% 33.3333%; }
+.mi-x         { background-position: 22.2222% 33.3333%; }
+/* 로딩 화면 발자국 — 80px 이모지 자리 */
+.mi-loading { width: 80px; height: 80px; margin: 0 auto 20px; display: block; animation: bounce 1s infinite; }
+
 /* ===== 동물 선택 (대기 중) ===== */
 #marblePickSection {
     margin: 0 0 20px;
@@ -54,6 +101,25 @@
     font-size: 12px;
     color: var(--text-muted);
     margin-left: 4px;
+}
+
+/* 동물 스킨 상점 (marble_skin) — 진입 버튼은 제목 줄 오른쪽, 카드 썸네일은 스킨 시트 idle 칸 캔버스 */
+.marble-pick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.marble-pick-head .marble-pick-title { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+/* horse-race.css 의 button { width: 100% } 를 이긴다 — 제목 오른쪽에 작은 알약 하나 */
+.marble-pick-head .marble-shop-btn {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; width: auto; margin: 0;
+    border: 1.5px solid var(--marble-accent); background: var(--bg-white); color: var(--marble-accent);
+    font-weight: 700; font-size: 12px; line-height: 1; padding: 5px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    box-shadow: none;
+}
+.marble-pick-head .marble-shop-btn:hover { background: rgba(0, 0, 0, 0.04); }
+.mshop-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; }
+.mshop-icon { width: 56px; height: 56px; image-rendering: pixelated; }
+.mshop-glyph { font-size: 30px; line-height: 1; }
+.marble-creature-btn .skin-badge {
+    position: absolute; top: -8px; left: -8px; padding: 0 6px; height: 20px; line-height: 20px; border-radius: 10px;
+    background: #e0435c; color: #fff; font-size: 11px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .marble-picker {

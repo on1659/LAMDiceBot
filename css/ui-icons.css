@@ -1,0 +1,112 @@
+/* ===== 공용 UI 아이콘 — OS 이모지 대체 (assets/ui/icons.png, 10×10 셀 128px)
+   의뢰서 docs/spritemake-request/applied/2026-09-22-ui-icons-shared-m.md. 셀 순서는 js/shared/ui-icons.js UI_ICON_IDS 와 같다 — 이 파일은 그 배열에서 생성.
+   <i class="ui ui-dice"></i> — 글자 크기를 따라간다(1.2em). index = row×10+col → background-position (col×100/9)% (row×100/9)%. ===== */
+.ui {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.25em;
+    background: url("/assets/ui/icons.png?v=1") no-repeat 0 0 / 1000% 1000%;
+    flex-shrink: 0;
+}
+/* 크기 변형 — 게임 카드·로딩 화면·빈 상태 */
+.ui.ui-lg { width: 1.6em; height: 1.6em; vertical-align: -0.35em; }
+.ui.ui-xl { width: 48px; height: 48px; vertical-align: middle; }
+.ui.ui-hero { width: 80px; height: 80px; display: block; margin: 0 auto; }   /* 감싸는 div 가 margin-bottom·bounce 를 가진다 */
+.ui-paw       { background-position: 0% 0%; }
+.ui-target    { background-position: 11.1111% 0%; }
+.ui-medal     { background-position: 22.2222% 0%; }
+.ui-snail     { background-position: 33.3333% 0%; }
+.ui-trophy    { background-position: 44.4444% 0%; }
+.ui-burger    { background-position: 55.5556% 0%; }
+.ui-list      { background-position: 66.6667% 0%; }
+.ui-memo      { background-position: 77.7778% 0%; }
+.ui-people    { background-position: 88.8889% 0%; }
+.ui-bulb      { background-position: 100% 0%; }
+.ui-check     { background-position: 0% 11.1111%; }
+.ui-hourglass { background-position: 11.1111% 11.1111%; }
+.ui-clock     { background-position: 22.2222% 11.1111%; }
+.ui-flask     { background-position: 33.3333% 11.1111%; }
+.ui-expand    { background-position: 44.4444% 11.1111%; }
+.ui-replay    { background-position: 55.5556% 11.1111%; }
+.ui-play      { background-position: 66.6667% 11.1111%; }
+.ui-stop      { background-position: 77.7778% 11.1111%; }
+.ui-refresh   { background-position: 88.8889% 11.1111%; }
+.ui-chat      { background-position: 100% 11.1111%; }
+.ui-scroll    { background-position: 0% 22.2222%; }
+.ui-lock      { background-position: 11.1111% 22.2222%; }
+.ui-crown     { background-position: 22.2222% 22.2222%; }
+.ui-person    { background-position: 33.3333% 22.2222%; }
+.ui-warn      { background-position: 44.4444% 22.2222%; }
+.ui-info      { background-position: 55.5556% 22.2222%; }
+.ui-book      { background-position: 66.6667% 22.2222%; }
+.ui-home      { background-position: 77.7778% 22.2222%; }
+.ui-flag      { background-position: 88.8889% 22.2222%; }
+.ui-sun       { background-position: 100% 22.2222%; }
+.ui-hole      { background-position: 0% 33.3333%; }
+.ui-dash      { background-position: 11.1111% 33.3333%; }
+.ui-x         { background-position: 22.2222% 33.3333%; }
+.ui-dice      { background-position: 33.3333% 33.3333%; }
+.ui-slot      { background-position: 44.4444% 33.3333%; }
+.ui-horse     { background-position: 55.5556% 33.3333%; }
+.ui-bridge    { background-position: 66.6667% 33.3333%; }
+.ui-ladder    { background-position: 77.7778% 33.3333%; }
+.ui-swords    { background-position: 88.8889% 33.3333%; }
+.ui-pirate    { background-position: 100% 33.3333%; }
+.ui-gamepad   { background-position: 0% 44.4444%; }
+.ui-confetti  { background-position: 11.1111% 44.4444%; }
+.ui-party     { background-position: 22.2222% 44.4444%; }
+.ui-silver    { background-position: 33.3333% 44.4444%; }
+.ui-bronze    { background-position: 44.4444% 44.4444%; }
+.ui-checker   { background-position: 55.5556% 44.4444%; }
+.ui-sparkle   { background-position: 66.6667% 44.4444%; }
+.ui-star      { background-position: 77.7778% 44.4444%; }
+.ui-skull     { background-position: 88.8889% 44.4444%; }
+.ui-rain      { background-position: 100% 44.4444%; }
+.ui-fog       { background-position: 0% 55.5556%; }
+.ui-cloudsun  { background-position: 11.1111% 55.5556%; }
+.ui-coin      { background-position: 22.2222% 55.5556%; }
+.ui-gift      { background-position: 33.3333% 55.5556%; }
+.ui-recycle   { background-position: 44.4444% 55.5556%; }
+.ui-box       { background-position: 55.5556% 55.5556%; }
+.ui-bag       { background-position: 66.6667% 55.5556%; }
+.ui-cart      { background-position: 77.7778% 55.5556%; }
+.ui-palette   { background-position: 88.8889% 55.5556%; }
+.ui-tag       { background-position: 100% 55.5556%; }
+.ui-clapper   { background-position: 0% 66.6667%; }
+.ui-camera    { background-position: 11.1111% 66.6667%; }
+.ui-tv        { background-position: 22.2222% 66.6667%; }
+.ui-sound     { background-position: 33.3333% 66.6667%; }
+.ui-soundlow  { background-position: 44.4444% 66.6667%; }
+.ui-mute      { background-position: 55.5556% 66.6667%; }
+.ui-pencil    { background-position: 66.6667% 66.6667%; }
+.ui-door      { background-position: 77.7778% 66.6667%; }
+.ui-link      { background-position: 88.8889% 66.6667%; }
+.ui-mail      { background-position: 100% 66.6667%; }
+.ui-pin       { background-position: 0% 77.7778%; }
+.ui-key       { background-position: 11.1111% 77.7778%; }
+.ui-chart     { background-position: 22.2222% 77.7778%; }
+.ui-calendar  { background-position: 33.3333% 77.7778%; }
+.ui-wave      { background-position: 44.4444% 77.7778%; }
+.ui-eye       { background-position: 55.5556% 77.7778%; }
+.ui-grad      { background-position: 66.6667% 77.7778%; }
+.ui-question  { background-position: 77.7778% 77.7778%; }
+.ui-pc        { background-position: 88.8889% 77.7778%; }
+.ui-phone     { background-position: 100% 77.7778%; }
+.ui-apple     { background-position: 0% 88.8889%; }
+.ui-fire      { background-position: 11.1111% 88.8889%; }
+.ui-rocket    { background-position: 22.2222% 88.8889%; }
+.ui-dizzy     { background-position: 33.3333% 88.8889%; }
+.ui-carrot    { background-position: 44.4444% 88.8889%; }
+.ui-banana    { background-position: 55.5556% 88.8889%; }
+.ui-snow      { background-position: 66.6667% 88.8889%; }
+.ui-barrier   { background-position: 77.7778% 88.8889%; }
+.ui-ghost     { background-position: 88.8889% 88.8889%; }
+.ui-tomb      { background-position: 100% 88.8889%; }
+.ui-bolt      { background-position: 0% 100%; }
+.ui-d1        { background-position: 11.1111% 100%; }
+.ui-d2        { background-position: 22.2222% 100%; }
+.ui-d3        { background-position: 33.3333% 100%; }
+.ui-d4        { background-position: 44.4444% 100%; }
+.ui-d5        { background-position: 55.5556% 100%; }
+.ui-d6        { background-position: 66.6667% 100%; }

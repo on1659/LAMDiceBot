@@ -4,6 +4,8 @@ const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const sim = require('./marble-sim');
+const { getEquipped, getOwned } = require('../db/cosmetics');   // 동물 스킨(상점 marble_skin 슬롯) — 서버가 장착 상태를 읽어 공에 붙인다
+const { getCatalogItem } = require('./shop');
 
 // ─── 공유 상수 (js/marble.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운 — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산
@@ -19,6 +21,28 @@ const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1�
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
+
+// ─── 동물 스킨 (상점 marble_skin 슬롯, docs/goal/marble-creature-skins-shop.md) ───
+// mb.skins[name] = { id, creature, skin } | null. 서버가 prefs.equipped.marble_skin 을 읽어 카탈로그(creature/skin)로 푼다 — 클라가 보낸 값은 없다.
+// 시뮬 입력이 아니다: layoutBalls 뒤에 공에 skin 문자열만 얹는다(시트 이름 = creature-skin). 게스트(authedUserId 없음)는 항상 null.
+async function resolveSkin(mb, name, authedUserId) {
+    let resolved = null;
+    if (Number.isInteger(authedUserId)) {
+        try {
+            const eq = await getEquipped(authedUserId);
+            const item = eq && eq.marble_skin ? getCatalogItem(eq.marble_skin) : null;
+            if (item && typeof item.creature === 'string' && typeof item.skin === 'string') resolved = { id: item.id, creature: item.creature, skin: item.skin };
+        } catch (e) { console.warn('[데구리] 스킨 조회 실패:', e.message); }
+    }
+    const prev = mb.skins[name];
+    mb.skins[name] = resolved;
+    return JSON.stringify(prev || null) !== JSON.stringify(resolved || null);   // 바뀌었으면 true → 호출부가 상태를 다시 뿌린다
+}
+// 고른 동물이 스킨의 동물일 때만 시트 이름 접미사를 돌려준다(다른 동물을 고르면 스킨은 무시, 장착은 유지).
+function skinFor(mb, name, creature) {
+    const s = mb.skins && mb.skins[name];
+    return (s && s.creature === creature) ? s.skin : undefined;
+}
 
 function clearMarbleTimers(mb) {
     if (mb.revealTimeout) { clearTimeout(mb.revealTimeout); mb.revealTimeout = null; }
@@ -75,6 +99,25 @@ function canStartMarble(room, gameState, opts) {
     return null;
 }
 
+// 시작 시 공에 스킨 얹기 — 장착(resolveSkin)은 이미 서버가 읽은 값이지만, 시작 시점에 소유를 한 번 더 확인한다(spin-arena 잠금 스킨과 같은 규칙).
+// 실패하면 조용히 스킨 없음. 결과(순위·타임라인)와 무관한 순수 외형.
+async function attachSkins(balls, gameState) {
+    const mb = gameState.marble;
+    if (!mb || !mb.skins) return;
+    const verified = {};   // name -> skin 문자열
+    for (const name of Object.keys(mb.skins)) {
+        const s = mb.skins[name];
+        if (!s) continue;
+        const user = gameState.users.find(u => u.name === name);
+        if (!user || !Number.isInteger(user.authedUserId)) continue;
+        try {
+            const owned = await getOwned(user.authedUserId);
+            if (owned.indexOf(s.id) !== -1) verified[name] = s;
+        } catch (e) { /* 조회 실패 = 스킨 없음 */ }
+    }
+    balls.forEach(b => { const s = verified[b.owner]; if (s && s.creature === b.creature) b.skin = s.skin; });
+}
+
 // 시작 실행 — 배치 + 시뮬 사전계산 + reveal. socket 을 참조하지 않는다(수동 시작과 예약 발화가 같은 경로).
 // ctx 는 { rooms, updateRoomsList } 만 보장된다(예약 발화 경로).
 async function startMarble(room, gameState, io, ctx) {
@@ -124,6 +167,7 @@ async function startMarble(room, gameState, io, ctx) {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
         const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
+        await attachSkins(balls, gameState);   // 시뮬 뒤 — 스킨은 물리·순위에 절대 안 들어간다
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
@@ -139,7 +183,7 @@ async function startMarble(room, gameState, io, ctx) {
     // 통로 걷기도 경주 구간(추월 있음). 캡까지 못 들어간 공은 sim 이 진행도 순으로 정산해 뒤에 붙인다.
     // 당첨 = 룰렛이 정한 순위(mb.target)의 주인 — 'last' 꼴찌(기본) / 'first' 1등.
     const rank = sim.rankPlayers(balls, result.finishOrder, participants, mb.target);
-    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
+    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, skin: b.skin }));   // skin: 있을 때만(없으면 undefined → JSON 에서 빠짐)
     const payload = {
         durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
         balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
@@ -269,7 +313,7 @@ module.exports = (socket, io, ctx) => {
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
             track: sim.buildTrack(Math.max(1, balls.length), null, mb.crowd),
-            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner) })),
+            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), skin: skinFor(mb, b.owner, b.creature) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };
     }
@@ -292,6 +336,19 @@ module.exports = (socket, io, ctx) => {
         if (!user) return;
         mb.picks[user.name] = data.creatureId;
         emitState(room, gameState);
+        // 장착 스킨을 서버가 읽어 온다(게스트는 null). 바뀌었으면 출발대에 반영해 다시 뿌림
+        resolveSkin(mb, user.name, socket.authedUserId).then(changed => { if (changed && ctx.rooms[room.roomId]) emitState(room, gameState); });
+    });
+
+    // 상점에서 marble_skin 을 장착/해제한 뒤 클라가 보낸다(페이로드 없음 — 서버가 prefs.equipped 를 직접 읽는다).
+    socket.on('marble:refreshSkin', () => {
+        if (!rateOk()) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        resolveSkin(gameState.marble, user.name, socket.authedUserId).then(() => { if (ctx.rooms[room.roomId]) emitState(room, gameState); });
     });
 
     // 당첨 순위 투표 (준비한 사람, 경주 전) — 1등/꼴등 중 한 표. 같은 칸을 다시 누르면 취소 (경마 voteRank 와 같은 규칙)
@@ -347,6 +404,9 @@ module.exports = (socket, io, ctx) => {
         const room = getCurrentRoom();
         if (!gameState || !room || room.gameType !== 'marble') return;
         socket.emit('marble:stateUpdated', publicState(gameState));
+        // 재입장·재연결: 내 스킨을 다시 읽어 바뀌었으면 방 전체에 반영
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (user) resolveSkin(gameState.marble, user.name, socket.authedUserId).then(changed => { if (changed && ctx.rooms[room.roomId]) emitState(room, gameState); });
     });
 
     // 게임 시작 (호스트) — 검문은 canStartMarble, 실행은 startMarble (예약 발화와 같은 경로)
