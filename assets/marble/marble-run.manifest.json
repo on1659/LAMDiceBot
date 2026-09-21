@@ -2614,5 +2614,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creaturesI": {
+    "batch": "marble-run-creatures-i-2026-09-21",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-i.md",
+    "note": "9차 새 동물 리본돼지 × 시트 3장. 2026-09-21 21:40 Codex(exec, 세션 1개·3라운드: 생성 → 위성 마크 재배정+초록 림 despill → 위성 y≤149 클립)가 생성·리팩·QA, Claude 가 final/ 을 bbox·run·림·md5 독립 검증 후 복사. main 은 attempt-02(Codex 가 위성 조각을 이미지 탓으로 반려한 것을 오버라이드), sleep 01, scuffle 03. 초록 배경 생성. 공 r2c0 bbox 116×112 중심 (80,80), 찌그러짐 칸 120×75. r4c1 바운스 마크는 의도된 위성(본체 0..112 + 선 118..149)",
+    "assets": {
+      "ribbonpig": {
+        "image": "creatures/ribbonpig.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig.png",
+        "md5": "383d27d21aa948f2722d997753da2fac",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-sleep": {
+        "image": "creatures/ribbonpig-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-sleep.png",
+        "md5": "9fc54c569039daee046e936ae1c813d1",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-scuffle": {
+        "image": "creatures/ribbonpig-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-scuffle.png",
+        "md5": "cd8c39c48d29bc474b7341678728a2ab",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
