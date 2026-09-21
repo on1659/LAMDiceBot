@@ -3610,5 +3610,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinHedgehogKnight": {
+    "batch": "marble-run-skin-hedgehog-knight-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-hedgehog-knight.md",
+    "note": "기사 고슴도치 스킨(marble_skin_hedgehog_knight). Codex exec 1세션, verify: 림 0%, 공 114×112 중심 (80,80); r0c2 높이 136·r4c0 x-run 2개는 '!!' 위성 마크 — 허용",
+    "assets": {
+      "hedgehog-knight": {
+        "image": "creatures/hedgehog-knight.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/hedgehog-knight.png",
+        "md5": "46db9b6bf0df492fbda75273aa7143fd",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-knight-sleep": {
+        "image": "creatures/hedgehog-knight-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/hedgehog-knight-sleep.png",
+        "md5": "aee16e580ffa97b83812bbeafcaadd9c",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-knight-scuffle": {
+        "image": "creatures/hedgehog-knight-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/hedgehog-knight-scuffle.png",
+        "md5": "955b490f24b6b15cd4ef0504bb28a516",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

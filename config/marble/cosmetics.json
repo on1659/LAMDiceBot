@@ -13,6 +13,7 @@
     {"id": "marble_skin_turtle_melon", "name": "수박 거북이", "displayName": "수박 거북이", "rarity": "rare", "emoji": "🍉", "price": 80, "creature": "turtle", "skin": "melon", "desc": "등딱지가 수박, 배는 빨간 수박 속인 거북이. 공이 되면 수박 공! 거북이를 고르면 적용돼요."},
     {"id": "marble_skin_panda_red", "name": "레서판다", "displayName": "레서판다", "rarity": "rare", "emoji": "🦊", "price": 80, "creature": "panda", "skin": "red", "desc": "적갈색 털에 흰 얼굴 무늬, 귀 테두리가 흰 레서판다. 판다를 고르면 적용돼요."},
     {"id": "marble_skin_hamster_cookie", "name": "쿠키 햄스터", "displayName": "쿠키 햄스터", "rarity": "rare", "emoji": "🍪", "price": 80, "creature": "hamster", "skin": "cookie", "desc": "크림색 털에 초코칩 얼룩이 박힌 햄스터. 공이 되면 쿠키! 햄스터를 고르면 적용돼요."},
-    {"id": "marble_skin_raccoon_ninja", "name": "닌자 너구리", "displayName": "닌자 너구리", "rarity": "rare", "emoji": "🥷", "price": 80, "creature": "raccoon", "skin": "ninja", "desc": "이마에 빨간 닌자 머리띠를 두른 너구리. 표정은 여전히 심드렁. 너구리를 고르면 적용돼요."}
+    {"id": "marble_skin_raccoon_ninja", "name": "닌자 너구리", "displayName": "닌자 너구리", "rarity": "rare", "emoji": "🥷", "price": 80, "creature": "raccoon", "skin": "ninja", "desc": "이마에 빨간 닌자 머리띠를 두른 너구리. 표정은 여전히 심드렁. 너구리를 고르면 적용돼요."},
+    {"id": "marble_skin_hedgehog_knight", "name": "기사 고슴도치", "displayName": "기사 고슴도치", "rarity": "rare", "emoji": "🛡️", "price": 80, "creature": "hedgehog", "skin": "knight", "desc": "작은 은색 투구와 가슴 갑옷을 갖춘 고슴도치. 가시는 투구 위로 삐죽. 고슴도치를 고르면 적용돼요."}
   ]
 }
