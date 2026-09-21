@@ -6411,7 +6411,7 @@ socket.on('connect', () => {
         window.HorseShop.connect(socket);
         try {
             var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            if (_auth && _auth.token) window.HorseShop.authenticate(_auth.token);
+            if (_auth) window.HorseShop.authenticate(_auth.token || null);   // 토큰 없음/만료는 셸이 자동 연장
         } catch (e) {}
     }
 

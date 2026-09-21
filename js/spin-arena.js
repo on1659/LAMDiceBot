@@ -170,7 +170,7 @@ socket.on('connect', function () {
         SpinShop.connect(socket);
         try {
             var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            if (_auth && _auth.token) SpinShop.authenticate(_auth.token);
+            if (_auth) SpinShop.authenticate(_auth.token || null);   // 토큰 없음/만료는 셸이 자동 연장
         } catch (e) {}
     }
 });

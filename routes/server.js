@@ -8,7 +8,7 @@ const {
     getServerRecords, comparePassword
 } = require('../db/servers');
 const { register: authRegister, login: authLogin, getUserByName, getChatLayoutStats } = require('../db/auth');
-const { issueToken } = require('../db/auth-tokens');
+const { issueToken, refreshToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking, getWinnerCalendar } = require('../db/ranking');
 const { getSeasonVehicleStats } = require('../db/vehicle-stats');
@@ -96,19 +96,32 @@ router.post('/auth/login', async (req, res) => {
     }
 });
 
-// ── 토큰 부트스트랩 (PIN 없이 재발급) ──
+// ── 토큰 연장 (만료 토큰 → 새 토큰, PIN 없이) ──
+// 서명이 유효한 토큰은 우리 서버가 발급한 것이 확실하므로, 만료 후 유예 기간
+// (REFRESH_GRACE_MS) 안이면 같은 계정으로 새 토큰을 준다. 클라(js/shared/auth-token-shared.js)가
+// socket:authenticate 실패 시 자동 호출 → 플레이 중인 유저는 재로그인 없이 상점을 계속 쓴다.
+router.post('/auth/refresh', (req, res) => {
+    const { token } = req.body || {};
+    const renewed = refreshToken(token);
+    if (!renewed) return res.status(401).json({ error: '로그인이 만료되었어요. 다시 로그인해 주세요.' });
+    res.json({ user: { id: renewed.userId, name: renewed.name }, token: renewed.token });
+});
+
+// ── 토큰 부트스트랩 (토큰 없는 구세대 userAuth 전용, PIN 없이 발급) ──
 // 상점/지갑 토큰 신원 계층 도입(2026-06) 전에 로그인한 사용자는 userAuth에
-// 토큰이 없다. 이들이 "재로그인 없이" 상점을 쓰도록, 이름이 실제 계정과
-// 일치하면 토큰을 발급한다.
+// 토큰이 없다. 이들이 "재로그인 없이" 상점을 쓰도록, 이름·id가 실제 계정과
+// 일치하면 토큰을 발급한다(사용자 결정 2026-09-22 — 클라는 token 필드가 없을 때만 호출).
 // ⚠️ 의도적으로 느슨함(PIN 무검증): 이름은 공개라 사칭이 가능하다. 그래서 이
 //    토큰은 "플레이머니 상점/지갑" 전용 신뢰 등급이다. 현금화/실거래는 절대
 //    이 토큰으로 인가하지 말 것 — 향후 구글 OAuth 검증 게이트로 분리한다.
 router.post('/auth/token', async (req, res) => {
     try {
-        const { name } = req.body || {};
+        const { name, id } = req.body || {};
         if (!name || typeof name !== 'string') return res.status(400).json({ error: '이름이 필요합니다.' });
         const user = await getUserByName(name);
         if (!user) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
+        // 로그인 응답으로 저장된 userAuth.id 와 대조 — 이름만 아는 제3자의 발급 요청을 한 단계 더 거른다.
+        if (id !== undefined && Number(id) !== user.id) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
         const token = issueToken(user.id, user.name);
         res.json({ user: { id: user.id, name: user.name }, token });
     } catch (e) {

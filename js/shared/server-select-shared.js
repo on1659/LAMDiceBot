@@ -377,20 +377,33 @@ const ServerSelectModule = (function () {
             _saveName(_authRestore.name);
         }
 
-        // 토큰 만료 감지 — token 필드가 있는 userAuth만 1회 검증.
-        // token 없는 구세대 userAuth는 만료 취급하지 않는다. 자동 재발급(/api/auth/token) 사용 금지.
+        // 토큰 만료 감지 — 만료(auth 거부)면 AuthToken.renew(js/shared/auth-token-shared.js)로 자동
+        // 연장을 1회 시도하고, 그래도 안 되면(유예 기간 초과) 로그아웃 + 재로그인 안내.
+        // token 없는 구세대 userAuth 는 조용히 부트스트랩만 시도한다(실패해도 로그아웃하지 않음).
+        // 사용자 결정 2026-09-22: 플레이 중인 유저는 아무것도 안 해도 상점을 바로 쓸 수 있어야 한다.
         // 콜백 성공/무응답이면 아무것도 하지 않는다 (오탐 로그아웃 방지).
-        if (_authRestore && _authRestore.token) {
-            _socket.emit('socket:authenticate', { token: _authRestore.token }, function (res) {
-                if (res && res.ok === false && res.reason === 'auth') {
-                    localStorage.removeItem('userAuth'); // 로그아웃 처리 (이름 키는 유지)
-                    const expiredInput = document.getElementById('globalUserNameInput');
-                    if (expiredInput) expiredInput.readOnly = false; // 로그인 잠금 해제 (logout()과 대칭)
-                    _updateLoginBtn(null);
-                    _showToast('로그인이 만료되었어요. 다시 로그인해주세요.');
-                    showLoginModal();
+        const _expireLogin = () => {
+            localStorage.removeItem('userAuth'); // 로그아웃 처리 (이름 키는 유지)
+            const expiredInput = document.getElementById('globalUserNameInput');
+            if (expiredInput) expiredInput.readOnly = false; // 로그인 잠금 해제 (logout()과 대칭)
+            _updateLoginBtn(null);
+            _showToast('로그인이 만료되었어요. 다시 로그인해주세요.');
+            showLoginModal();
+        };
+        const _validateToken = (token, allowRenew) => {
+            _socket.emit('socket:authenticate', { token }, function (res) {
+                if (!(res && res.ok === false && res.reason === 'auth')) return;
+                if (allowRenew && window.AuthToken) {
+                    window.AuthToken.renew((newToken) => { if (newToken) _validateToken(newToken, false); else _expireLogin(); });
+                } else {
+                    _expireLogin();
                 }
             });
+        };
+        if (_authRestore && _authRestore.token) {
+            _validateToken(_authRestore.token, true);
+        } else if (_authRestore && _authRestore.name && window.AuthToken) {
+            window.AuthToken.renew(() => {});
         }
     }
 

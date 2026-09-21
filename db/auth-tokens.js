@@ -21,6 +21,10 @@
 const crypto = require('crypto');
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7일
+// 만료 후에도 서명이 유효하면 이 기간 안에서는 재발급(refreshToken)으로 새 토큰을 받을 수 있다.
+// 서명이 곧 "우리 서버가 발급했다"는 증명이라 PIN 없이도 안전하게 연장 가능(사용자 결정 2026-09-22:
+// 플레이 중인 유저가 재로그인 없이 상점을 바로 쓰게). 이 기간을 넘기면 로비에서 재로그인.
+const REFRESH_GRACE_MS = 1000 * 60 * 60 * 24 * 30; // 30일
 
 // 비밀키 우선순위:
 //   1) AUTH_TOKEN_SECRET 환경변수 (배포 오버라이드)
@@ -76,9 +80,9 @@ function issueToken(userId, name) {
     return encodedPayload + '.' + sign(encodedPayload);
 }
 
-// socket:authenticate 에서 호출. 유효하면 { userId, name }, 아니면 null.
+// 서명 검증 + payload 파싱 (만료는 보지 않는다). 서명 통과 시 payload, 아니면 null.
 // 서명 검증을 통과한 후에만 payload를 신뢰·파싱한다.
-function verifyToken(token) {
+function parseSignedPayload(token) {
     if (!token || typeof token !== 'string') return null;
 
     const dot = token.indexOf('.');
@@ -101,9 +105,24 @@ function verifyToken(token) {
         return null; // 형식 깨짐
     }
     if (!payload || !Number.isInteger(payload.u) || typeof payload.e !== 'number') return null;
-    if (payload.e <= Date.now()) return null; // 만료
+    return payload;
+}
 
+// socket:authenticate 에서 호출. 유효하면 { userId, name }, 아니면 null.
+function verifyToken(token) {
+    const payload = parseSignedPayload(token);
+    if (!payload) return null;
+    if (payload.e <= Date.now()) return null; // 만료
     return { userId: payload.u, name: payload.n };
 }
 
-module.exports = { issueToken, verifyToken, initAuthSecret };
+// POST /api/auth/refresh 에서 호출. 서명이 유효하고 만료 후 REFRESH_GRACE_MS 이내면
+// 같은 계정으로 새 토큰을 발급한다 → { userId, name, token }. 아니면 null.
+function refreshToken(token) {
+    const payload = parseSignedPayload(token);
+    if (!payload) return null;
+    if (payload.e + REFRESH_GRACE_MS <= Date.now()) return null; // 유예 기간도 지남 → 재로그인
+    return { userId: payload.u, name: payload.n, token: issueToken(payload.u, payload.n) };
+}
+
+module.exports = { issueToken, verifyToken, refreshToken, initAuthSecret };

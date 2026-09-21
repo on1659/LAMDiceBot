@@ -313,8 +313,15 @@
     }
 
     // 토큰으로 socket 인증 → 성공 시 지갑 동기화. 매 connect마다 호출 가능(멱등).
-    function authenticate(token, done) {
-        if (!_socket || !token) { if (done) done(false); return; }
+    // 토큰이 없거나(구세대 userAuth) 서버가 auth 로 거부하면(만료) AuthToken.renew 로 새 토큰을
+    // 받아 1회 재시도 — 유저가 재로그인 없이 상점을 바로 쓰게(사용자 결정 2026-09-22).
+    function authenticate(token, done, isRetry) {
+        if (!_socket) { if (done) done(false); return; }
+        if (!token) {
+            if (!isRetry) return renewAndRetry(done);
+            if (done) done(false);
+            return;
+        }
         _socket.emit('socket:authenticate', { token: token }, function (res) {
             if (res && res.ok) {
                 _wallet.authed = true;
@@ -325,10 +332,21 @@
                     }
                     if (done) done(true);
                 });
+            } else if (res && res.reason === 'auth' && !isRetry) {
+                renewAndRetry(done);
             } else {
                 _wallet.authed = false;
                 if (done) done(false);
             }
+        });
+    }
+
+    // 토큰 재발급(js/shared/auth-token-shared.js) 후 재인증. 모듈 미로드/실패면 미인증 확정.
+    function renewAndRetry(done) {
+        if (!window.AuthToken) { _wallet.authed = false; if (done) done(false); return; }
+        window.AuthToken.renew(function (newToken) {
+            if (newToken) authenticate(newToken, done, true);
+            else { _wallet.authed = false; if (done) done(false); }
         });
     }
 
@@ -1087,6 +1105,17 @@
 
     function doEquip(slot, id) {
         if (!_socket || !_wallet.authed) return;
+        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equipSkin — 계정 prefs 에 저장하지 않음).
+        // hook(slot, id, done) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
+        if (_config && _config.hooks && _config.hooks.equipRequest) {
+            _config.hooks.equipRequest(slot, id, function (equipped) {
+                if (!equipped) { showShopToast('장착에 실패했어요.', 'error'); return; }
+                _wallet.equipped = equipped;
+                renderModal();
+                if (_config.hooks.onEquipApplied) _config.hooks.onEquipApplied(_wallet.equipped, true);
+            });
+            return;
+        }
         _socket.emit('shop:equip', { slot: slot, cosmeticId: id }, function (res) {
             if (res && res.ok) {
                 _wallet.equipped = res.equipped || {};
@@ -1507,19 +1536,14 @@
             }
             if (_wallet.authed) {
                 refreshWallet(openWithModal);
-            } else if (token) {
+            } else {
+                // 토큰 없음/만료는 authenticate 안에서 자동 연장 1회 시도. 그래도 실패면
+                // 게스트 허용 시 ad-티어로 dead-end 방지, 아니면 로그인 안내.
                 authenticate(token, function (ok) {
                     if (ok) { openWithModal(); return; }
-                    // 인증 실패(만료 토큰 등): 게스트 허용 시 ad-티어로 dead-end 방지, 아니면 로그인 안내.
                     if (allowsGuestShop()) openWithModal();
                     else denyGuest();
                 });
-            } else if (allowsGuestShop()) {
-                // 게스트(토큰 없음) + 허용: ad-티어만. _wallet.authed=false 유지.
-                openWithModal();
-            } else {
-                // 게스트 + 불허: 기존 동작 — 로그인 안내.
-                denyGuest();
             }
         }).catch(function () {
             if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');

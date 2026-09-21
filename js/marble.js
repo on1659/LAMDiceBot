@@ -96,7 +96,7 @@ socket.on('connect', function () {
         MarbleShop.loadCatalog().then(function () { renderPickStatus(); });   // 카탈로그가 있어야 장착 id → creature/skin 을 풀 수 있다(배지·아이콘)
         try {
             var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            if (_auth && _auth.token) MarbleShop.authenticate(_auth.token, function () { renderPickStatus(); });
+            if (_auth) MarbleShop.authenticate(_auth.token || null, function () { renderPickStatus(); });   // 토큰 없음/만료는 셸이 자동 연장
         } catch (e) {}
     }
 });
