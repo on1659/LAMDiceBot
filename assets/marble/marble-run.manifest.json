@@ -361,7 +361,9 @@
           "fps": 9,
           "loop": true
         }
-      }
+      },
+      "md5": "4500deee7e613563101c06ea660782e0",
+      "revision": "2026-09-21 idle row0 col0 좌우 반전(원본이 왼쪽 보기라 통로 걷기 0·1칸 교대·대기·카운트다운에서 고개가 홱홱 돌았음). 픽셀 반전만, 다른 19칸·공 계약 동일"
     },
     "panda": {
       "image": "creatures/panda.png",
