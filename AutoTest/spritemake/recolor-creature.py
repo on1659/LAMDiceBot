@@ -39,9 +39,8 @@ PRESETS = {
         'gold': {
             'outline_v': 0.22,
             'rules': [
-                {'hue': [20, 60], 'sat': [0.0, 0.28], 'val': [0.75, 1.01]},                                  # 크림 배·얼굴 보호
-                {'hue': [0, 360], 'sat': [0.0, 0.45], 'val': [0.22, 0.75], 'set_hue': 44, 'sat_add': 0.55, 'val_mul': 1.25, 'val_max': 0.95},   # 회갈색 갑옷 → 금
-                {'hue': [0, 60], 'sat': [0.28, 1.01], 'val': [0.22, 1.01], 'set_hue': 44, 'sat_add': 0.15, 'val_mul': 1.1, 'val_max': 0.95},    # 갈색 톤 → 금
+                {'hue': [10, 55], 'sat': [0.0, 0.6], 'val': [0.76, 1.01]},                                   # 크림·살구 얼굴·배·발 보호(sat≈0.4 val≈0.93) — 갑옷 갈색은 val≈0.63 라 걸리지 않음
+                {'hue': [345, 36], 'sat': [0.42, 1.01], 'val': [0.22, 1.01], 'set_hue': 46, 'sat_mul': 1.15, 'val_mul': 1.4, 'val_max': 0.98},   # 갈색 갑옷·음영 → 밝은 금(음영은 어두운 금)
             ],
         },
     },
@@ -60,18 +59,18 @@ PRESETS = {
         'black': {
             'outline_v': 0.22, 'outline_val_mul': 0.6,
             'rules': [
-                {'hue': [300, 20], 'sat': [0.12, 1.01], 'val': [0.22, 1.01]},                                # 분홍(귀 안쪽·코·볼) 보호
-                {'hue': [0, 360], 'sat': [0.0, 0.14], 'val': [0.55, 1.01], 'set_hue': 230, 'sat_add': 0.08, 'val_mul': 0.36},   # 흰/연회색 털 → 진회색
-                {'hue': [0, 360], 'sat': [0.0, 0.25], 'val': [0.22, 0.55], 'val_mul': 0.6},                  # 그림자 회색 → 더 어둡게
+                {'hue': [320, 20], 'sat': [0.28, 1.01], 'val': [0.5, 1.01]},                                 # 분홍(귀 안쪽·코·볼·공 띠) 보호 — 털 음영(분홍빛 흰색 sat≈0.23)은 제외
+                {'hue': [0, 360], 'sat': [0.0, 0.28], 'val': [0.5, 1.01], 'set_hue': 230, 'sat_add': 0.08, 'val_mul': 0.34},   # 흰 털·분홍빛 음영 → 진회색
+                {'hue': [0, 360], 'sat': [0.0, 1.01], 'val': [0.22, 0.5], 'val_mul': 0.45},                  # 외곽선(연한 분홍회색) → 검게
             ],
         },
     },
     'turtle': {
         # 바다 거북이: 초록 → 청록/파랑
         'ocean': {
-            'outline_v': 0.22,
+            'outline_v': 0.0,   # 거북이 외곽선은 짙은 초록(3,40,5) — 외곽선까지 같이 돌려 남색 외곽선으로(안 돌리면 파란 몸에 초록 테)
             'rules': [
-                {'hue': [60, 170], 'sat': [0.18, 1.01], 'val': [0.22, 1.01], 'shift_hue': 95},               # 초록 계열 전부 → 파랑 계열(등딱지 진초록 → 파랑, 몸 연두 → 청록)
+                {'hue': [60, 170], 'sat': [0.18, 1.01], 'val': [0.0, 1.01], 'shift_hue': 95},                # 초록 계열 전부 → 파랑 계열(등딱지 진초록 → 파랑, 몸 연두 → 청록, 외곽선 → 남색)
             ],
         },
     },
@@ -81,7 +80,9 @@ PRESETS = {
             'outline_v': 0.22,
             'rules': [
                 {'hue': [25, 60], 'sat': [0.0, 0.30], 'val': [0.72, 1.01]},                                  # 크림 볼·배 보호
-                {'hue': [10, 50], 'sat': [0.30, 1.01], 'val': [0.22, 1.01], 'sat_mul': 0.08, 'val_mul': 0.9},   # 주황 털 → 회색
+                {'hue': [335, 359.9], 'sat': [0.6, 1.01], 'val': [0.22, 0.6]},                               # 코(진분홍) 보호
+                {'hue': [0, 25], 'sat': [0.5, 1.01], 'val': [0.22, 0.6], 'sat_mul': 0.15, 'val_mul': 0.75},   # 적갈색 외곽선 → 진회색
+                {'hue': [10, 50], 'sat': [0.30, 1.01], 'val': [0.22, 1.01], 'sat_mul': 0.06, 'val_mul': 0.74},   # 주황 털 → 중간 회색
             ],
         },
     },
@@ -162,9 +163,10 @@ def make(creature, skin):
     preset = PRESETS[creature][skin]
     for suf in SHEETS:
         src = SRC / f'{creature}{suf}.png'; dst = SRC / f'{creature}-{skin}{suf}.png'
-        out = apply_preset(Image.open(src), preset)
+        base = Image.open(src); out = apply_preset(base, preset)
+        assert np.array_equal(np.array(base.convert('RGBA'))[..., 3], np.array(out)[..., 3]), 'alpha changed'   # 픽셀 정렬 100% — 기하(접지·공 bbox·run)는 기본 시트와 동일
         out.save(dst, optimize=True)
-        print('wrote', dst)
+        print('wrote', dst, '(alpha identical to base)')
 
 
 def compare(creature, skin, out_path):

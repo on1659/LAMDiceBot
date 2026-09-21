@@ -2981,5 +2981,139 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creaturesR": {
+    "batch": "local-recolor",
+    "status": "generated-locally",
+    "tool": "AutoTest/spritemake/recolor-creature.py",
+    "note": "색만 바뀌는 상점 스킨 = 기본 시트의 결정론 HSV 리컬러(SpriteMake 배치 없음). 알파 채널은 기본 시트와 100% 동일(접지·공 bbox·run 게이트 = 기본과 같음). 규칙은 스크립트 PRESETS. 2026-09-22 새벽",
+    "assets": {
+      "hedgehog-cherry": {
+        "image": "creatures/hedgehog-cherry.png",
+        "base": "creatures/hedgehog.png",
+        "baseMd5": "f0e071083edacde47b990c8b554b80d9",
+        "md5": "7dd9e078f99275d0a8912c6cb750cd65",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "hedgehog-cherry-sleep": {
+        "image": "creatures/hedgehog-cherry-sleep.png",
+        "base": "creatures/hedgehog-sleep.png",
+        "baseMd5": "e872815bfa7698ca079c41ba18cfacf6",
+        "md5": "99611ad6773d6d8d796b2077636db52b",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "hedgehog-cherry-scuffle": {
+        "image": "creatures/hedgehog-cherry-scuffle.png",
+        "base": "creatures/hedgehog-scuffle.png",
+        "baseMd5": "c57bceed993e15b98fd7ae941f4e0567",
+        "md5": "5ee3fd9bdf42e7b360cbcd924c50bd9a",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "armadillo-gold": {
+        "image": "creatures/armadillo-gold.png",
+        "base": "creatures/armadillo.png",
+        "baseMd5": "f88d56f3e968e3662568568b96a7d508",
+        "md5": "73683e51d1804ae47fc9a2743f24b035",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "armadillo-gold-sleep": {
+        "image": "creatures/armadillo-gold-sleep.png",
+        "base": "creatures/armadillo-sleep.png",
+        "baseMd5": "2d82ffe956a0088723a2a2fd427897de",
+        "md5": "cb57a957def70ffa384e71e9e4fe3162",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "armadillo-gold-scuffle": {
+        "image": "creatures/armadillo-gold-scuffle.png",
+        "base": "creatures/armadillo-scuffle.png",
+        "baseMd5": "3ef90f79bc05465ccab095ec8677d006",
+        "md5": "92da368246636e2fbec7389ba4ccb2d3",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "pufferfish-blue": {
+        "image": "creatures/pufferfish-blue.png",
+        "base": "creatures/pufferfish.png",
+        "baseMd5": "6018e343b4c581fe94194150558b652d",
+        "md5": "c2e1569a5d3e998a72437720f4c6b4e6",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "pufferfish-blue-sleep": {
+        "image": "creatures/pufferfish-blue-sleep.png",
+        "base": "creatures/pufferfish-sleep.png",
+        "baseMd5": "fb5f08230b50169de3addce27add7e64",
+        "md5": "db233e9c8d4904a98be1565082056358",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "pufferfish-blue-scuffle": {
+        "image": "creatures/pufferfish-blue-scuffle.png",
+        "base": "creatures/pufferfish-scuffle.png",
+        "baseMd5": "2d3b8386a067571f60965759132d913d",
+        "md5": "fd2e77075b9274943f7536b6582e5e62",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "rabbit-black": {
+        "image": "creatures/rabbit-black.png",
+        "base": "creatures/rabbit.png",
+        "baseMd5": "39520281770728ba0e2ad7a8794abd67",
+        "md5": "b139748947943eec7b5f965bdbcf5096",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "rabbit-black-sleep": {
+        "image": "creatures/rabbit-black-sleep.png",
+        "base": "creatures/rabbit-sleep.png",
+        "baseMd5": "2da75435b215100a85c572dfc423a245",
+        "md5": "2917936ec95a644d8e2ac0abf16d1290",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "rabbit-black-scuffle": {
+        "image": "creatures/rabbit-black-scuffle.png",
+        "base": "creatures/rabbit-scuffle.png",
+        "baseMd5": "b733f57e0d760b78c11bfd7e845168a0",
+        "md5": "0861ff676510f83317dd4c73c94a40cd",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "turtle-ocean": {
+        "image": "creatures/turtle-ocean.png",
+        "base": "creatures/turtle.png",
+        "baseMd5": "4500deee7e613563101c06ea660782e0",
+        "md5": "7d1cb132efbc74698ba0522b6f6878f8",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "turtle-ocean-sleep": {
+        "image": "creatures/turtle-ocean-sleep.png",
+        "base": "creatures/turtle-sleep.png",
+        "baseMd5": "ec432c18c70e6f918dccc8b5b5f76931",
+        "md5": "4894f126b8e7cc9d154a980e397b2aa7",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "turtle-ocean-scuffle": {
+        "image": "creatures/turtle-ocean-scuffle.png",
+        "base": "creatures/turtle-scuffle.png",
+        "baseMd5": "d281fa8a48579ef5f1602b4d38edce32",
+        "md5": "11f374d4b932963dc0a9cf692997df7f",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "hamster-grey": {
+        "image": "creatures/hamster-grey.png",
+        "base": "creatures/hamster.png",
+        "baseMd5": "45cb14afd124c5c3f63815faf7d3141c",
+        "md5": "ed488c20d2eb3053936d66de4efc1e8e",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "hamster-grey-sleep": {
+        "image": "creatures/hamster-grey-sleep.png",
+        "base": "creatures/hamster-sleep.png",
+        "baseMd5": "78428bb41346cfb784b8b55e8020e9e4",
+        "md5": "2c5b2cde8303b7960eb9812ee3aea866",
+        "qaStatus": "PASS(alpha==base)"
+      },
+      "hamster-grey-scuffle": {
+        "image": "creatures/hamster-grey-scuffle.png",
+        "base": "creatures/hamster-scuffle.png",
+        "baseMd5": "3ba08135d60b68d72b8aa57bfb817084",
+        "md5": "d1cd6eeb4d04b0c2969c06027eceb52a",
+        "qaStatus": "PASS(alpha==base)"
+      }
+    }
   }
 }
