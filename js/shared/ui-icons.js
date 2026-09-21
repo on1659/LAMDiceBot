@@ -1,6 +1,6 @@
 /**
  * 공용 UI 아이콘 — OS 이모지 대체 (assets/ui/icons.png, 10×10 셀 128px)
- * 의뢰서: docs/spritemake-request/2026-09-22-ui-icons-shared-m.md
+ * 의뢰서: docs/spritemake-request/applied/2026-09-22-ui-icons-shared-m.md
  *
  * 마크업:  <i class="ui ui-dice"></i>  (css/ui-icons.css, 글자 크기를 따라감 1.2em)
  * 문자열:  UIIcons.tag('dice')            → '<i class="ui ui-dice"></i>'  (innerHTML 템플릿 안에서)

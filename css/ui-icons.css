@@ -1,5 +1,5 @@
 /* ===== 공용 UI 아이콘 — OS 이모지 대체 (assets/ui/icons.png, 10×10 셀 128px)
-   의뢰서 docs/spritemake-request/2026-09-22-ui-icons-shared-m.md. 셀 순서는 js/shared/ui-icons.js UI_ICON_IDS 와 같다 — 이 파일은 그 배열에서 생성.
+   의뢰서 docs/spritemake-request/applied/2026-09-22-ui-icons-shared-m.md. 셀 순서는 js/shared/ui-icons.js UI_ICON_IDS 와 같다 — 이 파일은 그 배열에서 생성.
    <i class="ui ui-dice"></i> — 글자 크기를 따라간다(1.2em). index = row×10+col → background-position (col×100/9)% (row×100/9)%. ===== */
 .ui {
     display: inline-block;
