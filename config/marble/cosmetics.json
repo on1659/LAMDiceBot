@@ -8,6 +8,7 @@
     {"id": "marble_skin_pufferfish_blue", "name": "파란 복어", "displayName": "파란 복어", "rarity": "rare", "emoji": "💧", "price": 80, "creature": "pufferfish", "skin": "blue", "desc": "하늘색 몸에 남색 점무늬 복어. 복어를 고르면 적용돼요."},
     {"id": "marble_skin_rabbit_black", "name": "검정 토끼", "displayName": "검정 토끼", "rarity": "rare", "emoji": "🖤", "price": 80, "creature": "rabbit", "skin": "black", "desc": "까만 털에 분홍 귀속·코가 돋보이는 토끼. 토끼를 고르면 적용돼요."},
     {"id": "marble_skin_turtle_ocean", "name": "바다 거북이", "displayName": "바다 거북이", "rarity": "rare", "emoji": "🌊", "price": 80, "creature": "turtle", "skin": "ocean", "desc": "등딱지가 깊은 바다색인 거북이. 거북이를 고르면 적용돼요."},
-    {"id": "marble_skin_hamster_grey", "name": "회색 햄스터", "displayName": "회색 햄스터", "rarity": "rare", "emoji": "🩶", "price": 80, "creature": "hamster", "skin": "grey", "desc": "회색 털에 크림색 볼을 가진 햄스터. 햄스터를 고르면 적용돼요."}
+    {"id": "marble_skin_hamster_grey", "name": "회색 햄스터", "displayName": "회색 햄스터", "rarity": "rare", "emoji": "🩶", "price": 80, "creature": "hamster", "skin": "grey", "desc": "회색 털에 크림색 볼을 가진 햄스터. 햄스터를 고르면 적용돼요."},
+    {"id": "marble_skin_pillbug_rainbow", "name": "무지개 공벌레", "displayName": "무지개 공벌레", "rarity": "rare", "emoji": "🌈", "price": 80, "creature": "pillbug", "skin": "rainbow", "desc": "등판 마디마다 무지개 색을 두른 공벌레. 공이 되면 무지개 공! 공벌레를 고르면 적용돼요."}
   ]
 }

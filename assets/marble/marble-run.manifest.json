@@ -3115,5 +3115,104 @@
         "qaStatus": "PASS(alpha==base)"
       }
     }
+  },
+  "skinPillbugRainbow": {
+    "batch": "marble-run-skin-pillbug-rainbow-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-pillbug-rainbow.md",
+    "note": "무지개 공벌레 스킨(marble_skin_pillbug_rainbow). 2026-09-22 새벽 Codex exec 1세션, 회색 배경, Claude verify-creature.py ALL_OK(림 0%, 공 113×112 중심 (80.5,80), 서기 132×106). 몸싸움 시트 밀기 칸이 마디가 길게 늘어난 편(스킨이라 허용)",
+    "assets": {
+      "pillbug-rainbow": {
+        "image": "creatures/pillbug-rainbow.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/pillbug-rainbow.png",
+        "md5": "02fa7111309e25ba96662ceb076bab98",
+        "qaStatus": "PASS"
+      },
+      "pillbug-rainbow-sleep": {
+        "image": "creatures/pillbug-rainbow-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/pillbug-rainbow-sleep.png",
+        "md5": "66f00ae3b09f66d850e3fdd95b487d9b",
+        "qaStatus": "PASS"
+      },
+      "pillbug-rainbow-scuffle": {
+        "image": "creatures/pillbug-rainbow-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/pillbug-rainbow-scuffle.png",
+        "md5": "d71ba424a0fbf120923f833ac760d099",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

@@ -168,6 +168,7 @@ var MarbleRender = (function () {
     // 새 스킨 = 카탈로그 항목 + 시트 3장이면 끝(코드 수정 없음). loadAll 뒤에 불려도 그 자리에서 로드한다. 시트가 없으면 sheet() 가 기본 시트로 폴백.
     var SKIN_CATALOG_URL = '/config/marble/cosmetics.json';
     var SKIN_GROUPS = [['creatures', ''], ['sleep', '-sleep'], ['scuffle', '-scuffle']];
+    var loadKicked = false;   // loadAll 의 일괄 로드가 돌았는지 — 그 전에 등록된 스킨은 일괄 로드가 한 번에 싣고(중복 요청 X), 그 뒤 등록은 즉시 로드
     function registerSkins(items) {
         (items || []).forEach(function (it) {
             if (!it || typeof it.creature !== 'string' || typeof it.skin !== 'string') return;
@@ -175,7 +176,7 @@ var MarbleRender = (function () {
             SKIN_GROUPS.forEach(function (g) {
                 if (ASSETS[g[0]][key]) return;
                 ASSETS[g[0]][key] = A + 'creatures/' + key + g[1] + '.png';
-                if (loadStarted) loadOne(g[0], key);
+                if (loadKicked) loadOne(g[0], key);
             });
         });
     }
@@ -188,6 +189,7 @@ var MarbleRender = (function () {
             Object.keys(ASSETS).forEach(function (group) {
                 Object.keys(ASSETS[group]).forEach(function (name) { if (loadOne(group, name, each)) pending++; });
             });
+            loadKicked = true;
             if (pending === 0 && onDone) onDone();
         };
         // 카탈로그를 못 받으면(file:// 개발 도구 등) 기본 시트만 — 스킨은 기본 모습으로 보인다
