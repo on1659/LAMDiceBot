@@ -1,4 +1,69 @@
 ========================================
+📋 Summit Log - 2026-09-22 새벽 (데구리 동물 10종 스킨 15개 + 방 단위 장착 + 코인 경제 조정 — 무인 야간 작업)
+========================================
+
+## 변경 파일
+- socket/marble.js: prefs 기반 resolveSkin/marble:refreshSkin 삭제 → marble:equipSkin { cosmeticId|null } (ack {ok, skin}); skinFromItem/skinFields(skin+skinName); attachSkins 가 skinName 도 얹음; startMarble 에 mb.coinRef(generateSessionId 1회); endGame 뒤 awardRaceCoins(+COIN_RACE_JOIN=10, 인증 참가자, 멱등, wallet:updated); requestState 응답에만 mySkin; exports awardRaceCoins/COIN_RACE_JOIN(테스트용)
+- socket/rooms.js, socket/chat.js(CRLF 유지): leaveRoom/disconnect 에서 mb.skins[name] 삭제(C-19 짝)
+- db/coins.js: SEED_COINS 100 → 150
+- js/shared/shop-shared.js: doEquip 에 hooks.equipRequest(slot,id,done) 추가 — 어댑터가 shop:equip 대신 다른 경로. 다른 게임 무영향(훅 없음)
+- js/marble-shop.js: equipRequest→marble:equipSkin, _roomSkinId, onWalletSynced 에서 prefs 장착값을 방 값으로 덮음(applyRoomSkin), syncRoomSkin(mySkin), getEquippedSkin 은 방 값 기준
+- js/marble.js: stateUpdated.mySkin → MarbleShop.syncRoomSkin; 주석 갱신 (v30)
+- js/marble-render.js: 스킨 시트 자동 등록 — loadAll 이 /config/marble/cosmetics.json fetch → registerSkins 가 '{creature}-{skin}[-sleep|-scuffle]' 3장 ASSETS 에 추가(loadOne, loadKicked 로 중복 요청 방지); 하드코딩 'ribbonpig-scarf' 항목 제거; setTimeline 이 skinName 복사; 비석 라벨 b.skinName || CREATURE_NAMES; export registerSkins (v60)
+- marble-multiplayer.html: ?v 범프(marble-shop 3, marble-render 60, marble 30)
+- config/marble/cosmetics.json: 스킨 15개(전부 rare·80코인·displayName) + marble_skin_none. 스카프 90→80
+- assets/marble/creatures/: 신규 42장 — ribbonpig*(기본 교체, 리본 없음) / ribbonpig-ribbon*(옛 v2 이동) / 리컬러 6종×3 / 생성 7종×3
+- assets/marble/marble-run.manifest.json: creaturesI 키 ribbonpig→ribbonpig-ribbon(파일 이동 기록), skinPigBase, creaturesR(리컬러 18장 base/skin md5), skinPillbugRainbow·skinTurtleMelon·skinPandaRed·skinHamsterCookie·skinRaccoonNinja·skinHedgehogKnight·skinRabbitTophat
+- AutoTest/spritemake/recolor-creature.py(신규): HSV 규칙 리컬러(analyze/make/compare), PRESETS 6종, 알파 동일 assert
+- AutoTest/spritemake/pickup-skin.py(신규): 배치 final → assets + manifest 섹션(md5 대조, 덮어쓰기 거부)
+- AutoTest/qa-marble-skin-shop-test.js: 카탈로그 전 스킨 buy→equipSkin→pick→skin/skinName, picks 불변, 게스트 auth 거절, 해제, mySkin, 재입장 초기화, awardRaceCoins 멱등, SEED 150 (29+ PASS)
+- docs/goal/marble-skins-all-creatures.md(명세, 영문) / docs/spritemake-request/2026-09-22-marble-skin-*.md(의뢰서 8개 → applied/)
+- update-log.md, summit-log.txt
+
+## 상세 변경 내역
+
+### [결정·해석 — 아침에 확인할 것]
+- "돈지급을 매 게임당 150원" → 첫 지갑 150(SEED_COINS)으로 해석(게임당은 +10). 프롬프트 문서 §1 그대로.
+- 돼지: 명세대로 기본 = 리본 없는 새 돼지(Codex 배치 marble-run-skin-ribbonpig-base, K 규격), 옛 v2 머리리본 시트 = 스킨 marble_skin_ribbonpig_ribbon("리본돼지"). CREATURE_NAMES.ribbonpig='돼지'(다른 세션 dfde3b6 이 먼저 커밋).
+  ※ 새벽 01:2x 메시지 "work/deguri 일반돼지로 바꾸고 작은 리본돼지는 스킨으로": ~/Documents/Codex/2026-09-21/new-chat-2/work/deguri 의 ribbonpig.png(md5 383d27d2…)는 **현 게임 리본돼지와 같은 그림의 9차 원본(K 규격 이전, 서기 150폭)** 이라 리본 있음 — "일반돼지"로 보신 건 착오로 판단하고 명세(B)로 진행. 큰 리본돼지를 기본으로 원하시면 그 3장을 assets/marble/creatures/ribbonpig*.png 로 덮고 manifest 만 갱신하면 됨(코드 무관).
+- 장착 = 방 단위: prefs 저장 X. shop-shared.js 에 훅 1개 추가한 것은 프롬프트 §3 파일 목록 밖이지만 "prefs 저장 X" 를 지키려면 불가피(공유 셸이 shop:equip 을 하드코딩).
+- 이름 표시: 렌더러에서 동물 이름이 실제로 보이는 곳은 비석 라벨뿐(이름표·HUD 후보는 주인 이름만) → 비석만 skinName 적용. 상점 카드 name = displayName.
+
+### [스킨 15개]
+| 동물 | 스킨 | 이름 | 방식 | 배치/도구 | 커밋 |
+| ribbonpig | ribbon | 리본돼지 | 파일 이동(v2) | creaturesI | 6a800c7 |
+| ribbonpig | scarf | 스카프 리본돼지 | 기존(배치 L) 가격 80 | creaturesL | 6a800c7 |
+| hedgehog | cherry | 벚꽃 고슴도치 | 리컬러 | recolor-creature.py | 6a800c7/eef4e58 |
+| armadillo | gold | 황금 아르마딜로 | 리컬러 | 〃 | eef4e58 |
+| pufferfish | blue | 파란 복어 | 리컬러 | 〃 | eef4e58 |
+| rabbit | black | 검정 토끼 | 리컬러 | 〃 | eef4e58 |
+| turtle | ocean | 바다 거북이 | 리컬러(외곽선까지 회전) | 〃 | eef4e58 |
+| hamster | grey | 회색 햄스터 | 리컬러 | 〃 | eef4e58 |
+| pillbug | rainbow | 무지개 공벌레 | 생성 | marble-run-skin-pillbug-rainbow | 8a9db88 |
+| turtle | melon | 수박 거북이 | 생성 | marble-run-skin-turtle-melon | 8381230 |
+| panda | red | 레서판다 | 생성 | marble-run-skin-panda-red | 0196051 |
+| hamster | cookie | 쿠키 햄스터 | 생성 | marble-run-skin-hamster-cookie | 65c235b |
+| raccoon | ninja | 닌자 너구리 | 생성 | marble-run-skin-raccoon-ninja | d1bd689 |
+| hedgehog | knight | 기사 고슴도치 | 생성 | marble-run-skin-hedgehog-knight | 3af36ce |
+| rabbit | tophat | 신사 토끼 | 생성 | marble-run-skin-rabbit-tophat | edfd9f4 |
++ 기본 돼지 시트 교체(배치 marble-run-skin-ribbonpig-base, md5 3e46586e…/dc53b06f…/1c6955ff…) — 6a800c7
+
+### [검증]
+- node -c 전체 OK, AutoTest/marble-determinism-test.js ALL PASS(스킨은 시뮬 입력 아님)
+- 생성 시트 verify-creature.py: 전부 림 0%·공 OK·서기 ≤134×130. 예외로 허용한 것: 돼지 기본 r3c2 폭 136(2px), 닌자 r2c3 별 마크 y-run, 기사 r0c2 높이 136·r4c0 x-run('!!' 마크) — 모두 위성 마크
+- 리컬러: 알파 채널이 기본과 100% 동일(스크립트 assert). 기본 시트가 1차 배치(고슴도치 등)라 verify 의 위성 run 게이트는 기본과 같이 FAIL — 리컬러 판정 기준은 "알파==기본"
+- qa-marble-skin-shop-test.js 5174: ALL PASS(스킨 15종 buy/equip/pick/skinName, picks 불변, 게스트 거절, 해제, 재입장 초기화, 코인 멱등)
+- 실제 한 판 e2e(스크래치 스크립트): reveal balls 에 skin/skinName, 종료 후 wallet:updated +10 (로컬 방장 wallet:get 은 1,000,000 top-up 이라 이벤트로 확인)
+- 브라우저(dev-5174): 상점 카드 15개 캔버스 미리보기, 리본돼지 구매→장착→출발대 반영(머리 리본), 해제→민머리 돼지, 선택 버튼 '돼지 1명'·'스킨' 배지, 모바일 375px 모달 2열 정상. game-lab 프리뷰 스킨 주입 스크린샷(스크래치 marble-skins-preview-2026-09-22.jpg, 사용자에게 전송)
+- 콘솔 404(gravestone/gap-mark/lane-dirt/suck-swirl)와 문서 폭 380px(.container)은 기존 이슈
+
+### [알려진 약점·미결]
+- 수박 거북이 sleep 시트 누움 칸이 서 있는 자세에 가깝다(잠자기 연출에서 눕지 않음). 무지개 공벌레 몸싸움 밀기 칸은 마디가 길게 늘어난 편.
+- 스킨 시트를 게임 밖(devtools file://)에서 보려면 카탈로그 fetch 가 실패해 기본 시트로 폴백된다(의도).
+- 다른 세션 WIP(광고 스티키·crowd 기본 solo·이름표 높이·auth-token 갱신 등)는 워킹트리에 그대로 두고 스테이징하지 않았다.
+========================================
+
+========================================
 📋 Summit Log - 2026-09-22 (데구리 동물 스킨 상점 — marble_skin 슬롯 + 스카프 리본돼지 스킨, 배치 L)
 ========================================
 

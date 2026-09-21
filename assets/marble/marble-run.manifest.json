@@ -2886,7 +2886,7 @@
   "skinPigBase": {
     "batch": "marble-run-skin-ribbonpig-base-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-ribbonpig-base.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-ribbonpig-base.md",
     "note": "돼지 기본 시트 = 리본 없는 그냥 돼지(v2 화풍·포즈·점눈 그대로, 머리 비움). 2026-09-22 새벽 Codex exec 1세션(attempt 01×3), Claude verify-creature.py 독립 검증: 림 0%, 공 120×109 중심 (80,80.5), r3c2 폭 136(2px 초과 허용). 옛 v2 리본 시트는 ribbonpig-ribbon* 스킨으로",
     "assets": {
       "ribbonpig": {
@@ -3119,7 +3119,7 @@
   "skinPillbugRainbow": {
     "batch": "marble-run-skin-pillbug-rainbow-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-pillbug-rainbow.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-pillbug-rainbow.md",
     "note": "무지개 공벌레 스킨(marble_skin_pillbug_rainbow). 2026-09-22 새벽 Codex exec 1세션, 회색 배경, Claude verify-creature.py ALL_OK(림 0%, 공 113×112 중심 (80.5,80), 서기 132×106). 몸싸움 시트 밀기 칸이 마디가 길게 늘어난 편(스킨이라 허용)",
     "assets": {
       "pillbug-rainbow": {
@@ -3218,7 +3218,7 @@
   "skinTurtleMelon": {
     "batch": "marble-run-skin-turtle-melon-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-turtle-melon.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-turtle-melon.md",
     "note": "수박 거북이 스킨(marble_skin_turtle_melon). Codex exec 1세션 main 3차(1·2차는 Codex 반려 — 원본 확인 결과 둘 다 양호, 2차는 r3 일부 왼쪽 향함), verify ALL_OK(림 0%, 공 110×112). 약점: sleep 시트 누움 칸이 서 있는 자세에 가깝다",
     "assets": {
       "turtle-melon": {
@@ -3317,7 +3317,7 @@
   "skinPandaRed": {
     "batch": "marble-run-skin-panda-red-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-panda-red.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-panda-red.md",
     "note": "레서판다 스킨(marble_skin_panda_red). Codex exec 1세션, verify ALL_OK(림 0%, 공 120×107 중심 (80,80.5)). 줄무늬 꼬리는 몸 뒤에 살짝만 보임",
     "assets": {
       "panda-red": {
@@ -3416,7 +3416,7 @@
   "skinHamsterCookie": {
     "batch": "marble-run-skin-hamster-cookie-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-hamster-cookie.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-hamster-cookie.md",
     "note": "쿠키 햄스터 스킨(marble_skin_hamster_cookie). Codex exec 1세션, verify ALL_OK(림 0%, 공 112×112 중심 (80,80))",
     "assets": {
       "hamster-cookie": {
@@ -3515,7 +3515,7 @@
   "skinRaccoonNinja": {
     "batch": "marble-run-skin-raccoon-ninja-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-raccoon-ninja.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-raccoon-ninja.md",
     "note": "닌자 너구리 스킨(marble_skin_raccoon_ninja). Codex exec 1세션, verify: 림 0%, 공 120×103 중심 (80,80.5); r2c3(어질어질 공) 위 별 마크가 y-run 2개로 잡힘 — 의도된 위성(기본 r4c3 별과 같은 예외)이라 허용",
     "assets": {
       "raccoon-ninja": {
@@ -3614,7 +3614,7 @@
   "skinHedgehogKnight": {
     "batch": "marble-run-skin-hedgehog-knight-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-hedgehog-knight.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-hedgehog-knight.md",
     "note": "기사 고슴도치 스킨(marble_skin_hedgehog_knight). Codex exec 1세션, verify: 림 0%, 공 114×112 중심 (80,80); r0c2 높이 136·r4c0 x-run 2개는 '!!' 위성 마크 — 허용",
     "assets": {
       "hedgehog-knight": {
@@ -3713,7 +3713,7 @@
   "skinRabbitTophat": {
     "batch": "marble-run-skin-rabbit-tophat-2026-09-22",
     "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/2026-09-22-marble-skin-rabbit-tophat.md",
+    "request": "docs/spritemake-request/applied/2026-09-22-marble-skin-rabbit-tophat.md",
     "note": "신사 토끼 스킨(marble_skin_rabbit_tophat). Codex exec 1세션, verify ALL_OK(림 0~0.1%, 공 109×112 중심 (80.5,80))",
     "assets": {
       "rabbit-tophat": {
