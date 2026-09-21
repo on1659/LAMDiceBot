@@ -1663,10 +1663,10 @@ var MarbleRender = (function () {
 
         // 동물 아이콘(피커 버튼용) — row 0 col 0 서 있는 프레임
         R.hasCreatureSprite = function (creature) { return !!img('creatures', creature); };   // 선택 버튼 노출 판정(시트 미도착 동물 숨김)
-        R.drawCreatureIcon = function (iconCanvas, creature) {
+        R.drawCreatureIcon = function (iconCanvas, creature, col) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0)
             var c = iconCanvas.getContext('2d'); var im = img('creatures', creature);
             c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
-            if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, 0, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
+            if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, (col || 0) * CELL, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
             else { c.fillStyle = '#c8b28c'; c.beginPath(); c.arc(iconCanvas.width / 2, iconCanvas.height / 2, iconCanvas.width / 3, 0, Math.PI * 2); c.fill(); }
         };
 

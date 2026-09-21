@@ -220,6 +220,7 @@ window.addEventListener('DOMContentLoaded', function () {
                 var ic = btn.querySelector('.marble-creature-icon');
                 if (ic) renderer.drawCreatureIcon(ic, cid);
             });
+            startPickerIconAnim();
             if (!isMarbleActive) renderer.drawIdle(marbleState.preview, currentUser);
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
@@ -290,6 +291,25 @@ function initOrderModule() {
         onOrderEnded: function () { isOrderActive = false; },
         onOrdersUpdated: function (data) { ordersData = data; }
     });
+}
+
+// 동물 선택 버튼 아이콘 idle 애니 — 시트 row 0 을 발구르기 위주로(0·1 반복 + 가끔 힐끗·윙크), 동물마다 위상을 달리해 줄맞춰 움직이지 않게.
+// 선택창이 숨겨졌거나(경주 중) 탭이 뒤로 가면 그리지 않는다
+var PICKER_ICON_FRAMES = [0, 1, 0, 1, 0, 1, 2, 3], PICKER_ICON_MS = 230;
+var pickerIconTimer = null;
+function startPickerIconAnim() {
+    if (pickerIconTimer || !renderer) return;
+    var btns = Array.prototype.slice.call(document.querySelectorAll('.marble-creature-btn'));
+    var section = document.getElementById('marblePickSection');
+    pickerIconTimer = setInterval(function () {
+        if (document.hidden || (section && section.style.display === 'none')) return;
+        var step = Math.floor(performance.now() / PICKER_ICON_MS);
+        btns.forEach(function (btn, i) {
+            if (btn.style.display === 'none') return;
+            var ic = btn.querySelector('.marble-creature-icon'); if (!ic) return;
+            renderer.drawCreatureIcon(ic, btn.getAttribute('data-creature'), PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length]);
+        });
+    }, PICKER_ICON_MS);
 }
 
 // 글로벌 함수 (HTML onclick)

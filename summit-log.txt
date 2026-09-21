@@ -1,4 +1,27 @@
 ========================================
+📋 Summit Log - 2026-09-21 (동물 선택 버튼 idle 애니 + 거북이 첫 칸 반전·복어 v2 배포)
+========================================
+
+## 변경 파일
+- js/marble-render.js: drawCreatureIcon(iconCanvas, creature, col) — idle 행 칸 지정 (v46)
+- js/marble.js: startPickerIconAnim — 선택 버튼 아이콘 setInterval 230ms, 프레임 [0,1,0,1,0,1,2,3], 버튼마다 위상 3칸씩 어긋남, 선택창 숨김·탭 비활성 시 스킵 (v16)
+- marble-multiplayer.html: ?v 갱신
+- (이전 커밋) assets/marble/creatures/turtle.png row0 col0 좌우 반전(원본이 왼쪽 보기 → 통로 걷기 0·1칸 교대·대기·아이콘에서 고개 홱홱), pufferfish 3장 v2(다리 제거), manifest md5
+- update-log.md, summit-log.txt
+
+## 상세 변경 내역
+### [동물 선택 버튼 애니]
+- 아이콘은 첫 프레임 정지 그림이었음 → 시트 row 0 을 발구르기 위주로 순환. 2·3칸(힐끗·윙크)은 8스텝 중 2번만 나오게 해 정면으로 자주 돌아보는 느낌 방지
+- 부하: 56×56 캔버스 8개 × 4.3fps, 경주 중(선택창 display:none)·document.hidden 이면 그리지 않음
+### [거북이 반전 — 진단 정정]
+- 앞서 "row0 col2 가 왼쪽 보기"로 잘못 짚었음. 검은 눈동자 무게중심으로 재판정하니 왼쪽 칸은 col0(첫 칸). 그 칸만 픽셀 반전, 나머지 19칸·공 계약 바이트 동일 검증
+- GPT 배치 marble-run-turtle-direction-revision 은 세 시트 전 칸을 왼쪽으로 뒤집는 작업이라 폐기. 13:56 파이프라인이 게임 파일을 덮어쓴 것을 git checkout 으로 되돌림 — 재복사되면 같은 조치
+### [운영]
+- Railway 실서버가 assets/docs 만 바뀐 커밋을 SKIPPED — summit-log 한 줄로 트리거해 c662106 SUCCESS. Watch Paths 수정 요청함
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (구멍 앞 몸싸움 + 동물 미선택 시작 거절·강제 시작 + 독수리 −50%·중력 −15% + 새 동물 3종 인수)
 ========================================
 
