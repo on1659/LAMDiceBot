@@ -88,6 +88,20 @@ function runWhenSocketConnected(callback) {
     });
 }
 
+// 꾸미기 상점(동물 스킨 marble_skin): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
+// 장착이 바뀌면 js/marble-shop.js 가 'marble:refreshSkin' 을 보내고 서버가 출발대에 반영한다.
+socket.on('connect', function () {
+    if (window.MarbleShop) {
+        MarbleShop.connect(socket);
+        MarbleShop.loadCatalog().then(function () { renderPickStatus(); });   // 카탈로그가 있어야 장착 id → creature/skin 을 풀 수 있다(배지·아이콘)
+        try {
+            var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
+            if (_auth && _auth.token) MarbleShop.authenticate(_auth.token, function () { renderPickStatus(); });
+        } catch (e) {}
+    }
+});
+window.onMarbleSkinChanged = function () { renderPickStatus(); };   // 장착 직후 선택 버튼 배지·아이콘 갱신
+
 // 사운드 헬퍼
 function getMarbleSoundEnabled() { return localStorage.getItem('marbleSoundEnabled') !== 'false'; }
 function getMarbleVolume() { var v = parseFloat(localStorage.getItem('marbleSoundVolume')); return isNaN(v) ? 1.0 : v; }
@@ -215,6 +229,7 @@ window.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('marbleCanvas');
     if (canvas && typeof MarbleRender !== 'undefined') {
         renderer = MarbleRender.create(canvas);
+        window.marbleRendererForShop = renderer;   // js/marble-shop.js 미리보기(drawCreatureIcon)용
         renderer.setHighlight(getMyHighlight());
         updateHighlightButton();
         MarbleRender.loadAssets(function () {
@@ -323,7 +338,8 @@ function startPickerIconAnim() {
         btns.forEach(function (btn, i) {
             if (btn.style.display === 'none') return;
             var ic = btn.querySelector('.marble-creature-icon'); if (!ic) return;
-            renderer.drawCreatureIcon(ic, btn.getAttribute('data-creature'), PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length]);
+            var cidI = btn.getAttribute('data-creature'), skinI = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
+            renderer.drawCreatureIcon(ic, cidI, PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length], (skinI && skinI.creature === cidI) ? skinI.skin : null);
         });
     }, PICKER_ICON_MS);
 }
@@ -411,6 +427,11 @@ function renderPickStatus() {
         if (!badge) { badge = document.createElement('span'); badge.className = 'pick-count'; btn.appendChild(badge); }
         badge.textContent = counts[id] ? counts[id] + '명' : '';
         badge.style.display = counts[id] ? '' : 'none';
+        // 장착한 상점 스킨의 동물이면 배지 — 이 동물을 고르면 스킨 모습으로 나온다
+        var eqSkin = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
+        var skinBadge = btn.querySelector('.skin-badge');
+        if (!skinBadge) { skinBadge = document.createElement('span'); skinBadge.className = 'skin-badge'; skinBadge.textContent = '스킨'; btn.appendChild(skinBadge); }
+        skinBadge.style.display = (eqSkin && eqSkin.creature === id) ? '' : 'none';
         btn.disabled = marbleState.phase === 'playing' || isMarbleActive;
     });
     var locked = marbleState.phase === 'playing' || isMarbleActive;

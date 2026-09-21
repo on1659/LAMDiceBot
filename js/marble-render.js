@@ -103,9 +103,9 @@ var MarbleRender = (function () {
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png', 'ribbonpig-scarf': A + 'creatures/ribbonpig-scarf-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -153,6 +153,8 @@ var MarbleRender = (function () {
     var loadStarted = false;
     function imgKey(group, name) { return group + ':' + name; }
     function img(group, name) { var im = images[imgKey(group, name)]; return (im && im.complete && im.naturalWidth > 0) ? im : null; }
+    // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백
+    function sheet(group, b) { return (b.skin ? img(group, b.creature + '-' + b.skin) : null) || img(group, b.creature); }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
@@ -242,7 +244,7 @@ var MarbleRender = (function () {
 
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
+            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
@@ -964,7 +966,7 @@ var MarbleRender = (function () {
         // ─── 동물 ───
         function ringColor(b) { return RING_COLORS[b.colorIdx % RING_COLORS.length]; }
         function drawCreatureFrame(b, row, col, x, y, rot, scale) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             var sc = (scale || 1) * SRC_SCALE;
             if (im) {
                 ctx.save(); ctx.translate(x, toScreenY(y)); if (rot) ctx.rotate(rot);
@@ -1012,7 +1014,7 @@ var MarbleRender = (function () {
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
         var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
         function drawMiniIcon(b, sx, sy, size, strong) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             var r = size / 2;
             ctx.save();
             if (im) {
@@ -1115,7 +1117,7 @@ var MarbleRender = (function () {
             var row, col;
             if (since < SUN_UNCURL_MS) { row = 3; col = since < SUN_UNCURL_MS / 2 ? 0 : 1; }
             else { row = 0; col = Math.floor((since - SUN_UNCURL_MS) / 140) % 4; }
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             if (!im) { drawCreatureFrame(b, 2, 0, b.x, b.y, 0); return; }
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.scale(b.dir, 1);
@@ -1125,7 +1127,7 @@ var MarbleRender = (function () {
 
         // 6차 scuffle 시트 한 셀(row 0 밀기 / row 1 화들짝·낙하·어지러움). flip = 왼쪽을 보게 좌우 반전. 시트 없으면 false
         function drawScuffleFrame(b, row, col, x, y, flip) {
-            var im = img('scuffle', b.creature); if (!im) return false;
+            var im = sheet('scuffle', b); if (!im) return false;
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
             ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
@@ -1155,7 +1157,7 @@ var MarbleRender = (function () {
         }
         // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
         function drawCreatureFlipped(b, row, col, x, y, flip) {
-            var im = img('creatures', b.creature);
+            var im = sheet('creatures', b);
             if (!im) { drawCreatureFrame(b, row, col, x, y); return; }
             var sc = SRC_SCALE;
             ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
@@ -1234,7 +1236,7 @@ var MarbleRender = (function () {
                 }
                 if (b.state === 'nap') {
                     // 잠든 포즈 — 2차 sleep 스트립 없으면 1차 faceplant col 2(엎어짐) 프레임
-                    var sl = img('sleep', b.creature);
+                    var sl = sheet('sleep', b);
                     if (sl) { var sf = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sl, sf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                     else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
                     drawBadge(b, b.x, b.y, mine);
@@ -1253,7 +1255,7 @@ var MarbleRender = (function () {
                         drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz
-                        var slw = img('sleep', b.creature);
+                        var slw = sheet('sleep', b);
                         if (slw) { var sfw = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(slw, sfw * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
                         else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine);
@@ -1264,7 +1266,7 @@ var MarbleRender = (function () {
                     var ws = t - b.landAt;
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
                     var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
-                    var wim = img('creatures', b.creature);
+                    var wim = sheet('creatures', b);
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
                     drawBadge(b, b.x, b.y, mine);
@@ -1281,9 +1283,9 @@ var MarbleRender = (function () {
                 }
                 if (hf0 && t - b.startledAt < FALL_POSE_MS && b.y > hf0.floorY && drawScuffleFrame(b, 1, 1, b.x, b.y, !b.scuffleLeft)) { drawBadge(b, b.x, b.y, mine); continue; }   // 시트 없으면 공 그대로
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
-                if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
+                if (t - b.wakeAt < WAKE_POSE_MS && sheet('sleep', b)) {
                     var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
-                    ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(img('sleep', b.creature), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
+                    ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sheet('sleep', b), wf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore();
                     drawBadge(b, b.x, b.y, mine);
                     continue;
                 }
@@ -1790,8 +1792,8 @@ var MarbleRender = (function () {
 
         // 동물 아이콘(피커 버튼용) — row 0 col 0 서 있는 프레임
         R.hasCreatureSprite = function (creature) { return !!img('creatures', creature); };   // 선택 버튼 노출 판정(시트 미도착 동물 숨김)
-        R.drawCreatureIcon = function (iconCanvas, creature, col) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0)
-            var c = iconCanvas.getContext('2d'); var im = img('creatures', creature);
+        R.drawCreatureIcon = function (iconCanvas, creature, col, skin) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0). skin = 상점 스킨 접미사(있으면 그 시트, 없으면 기본)
+            var c = iconCanvas.getContext('2d'); var im = (skin ? img('creatures', creature + '-' + skin) : null) || img('creatures', creature);
             c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
             if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, (col || 0) * CELL, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
             else { c.fillStyle = '#c8b28c'; c.beginPath(); c.arc(iconCanvas.width / 2, iconCanvas.height / 2, iconCanvas.width / 3, 0, Math.PI * 2); c.fill(); }
