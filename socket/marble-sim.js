@@ -30,7 +30,7 @@ const START_SPACING = 30;
 // ─── 물리 ───
 const TRACK_W = 800;
 const BALL_R = 14;                // 표시 지름 28
-const GRAVITY = 700;              // px/s² (+y = 언덕 아래). Marble Roulette(box2d g=10m/s²≈300px/s², 공기저항 0)보다 공이 2배 커서 2배
+const GRAVITY = 595;              // px/s² (+y = 언덕 아래). 700 → 595(−15%, 낙하 속도 ≈ −8%): 기믹을 못 보고 지나간다는 피드백(2026-09-21). 505(속도 −15%)는 90s 캡에 걸리는 판이 생겨 기각. Marble Roulette(box2d g≈300px/s²)보다 공이 2배 커서 2배 기준
 const DRAG = 0;                   // 공기저항 없음 — 그냥 중력으로 떨어진다(Marble Roulette 과 동일). 속도는 MAX_SPEED 안전 캡만
 const MAX_SPEED = 1400;           // px/s 상한 (스텝당 7px < 공 반지름 → 터널링 없음)
 const WALL_RESTITUTION = 0.45;
@@ -113,8 +113,8 @@ const EAGLES_BY_CROWD = { solo: 1, few: 1, normal: 2, many: 3 };   // 마릿수 
 //    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
 //    초반 예산은 마릿수에 비례(max(2, n×0.15)) — 2회면 4마리 남을 때까지 독수리가 논다 + 구멍밭에 몰려 못 내려가는 무리를 독수리가 덜어 준다(사용자 3차).
 //    초반엔 뚜껑 앞에서 기다리는 놈 우선(2배), 막판엔 달리는 놈 우선(3배)
-const EAGLE_MAX_EARLY_MIN = 3, EAGLE_MAX_EARLY_RATIO = 0.12, EAGLE_MAX_FINAL = 4;   // 초반 빈도 −20%(사용자 2026-09-21 "너무 열일"): 4/0.15 → 3/0.12. 결승전(FINAL) 4회는 그대로
-const EAGLE_REST_MS = 1500, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE). 초반 1200 → 1500(빈도 −20%), 결승전은 그대로
+const EAGLE_MAX_EARLY_MIN = 2, EAGLE_MAX_EARLY_RATIO = 0.06, EAGLE_MAX_FINAL = 2;   // 빈도 −50% 더(피드백 2026-09-21): 3/0.12/4 → 2/0.06/2. 결승전 예산은 독수리 수로도 캡(few 1마리 → 1회). 25시드: 납치 6.8→4.0(보통)·2.8→1.0(조금)·9.0→4.0(우르르)
+const EAGLE_REST_MS = 3000, EAGLE_REST_FINAL_MS = 1000;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE). 1500/500 → 3000/1000(빈도 −50%)
 const EAGLE_WAIT_WEIGHT_EARLY = 2;
 const EAGLE_FINAL_ALIVE = 4;
 const EAGLE_STAGGER_MS = 700;     // 독수리마다 첫 출격 시차
@@ -690,7 +690,7 @@ async function simulate(balls, seed, track) {
         // ── 독수리(마릿수 단계별 1~3마리): 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리씩 채 간다 ──
         if (holefield && !eagleFinal && finishedCount >= n - EAGLE_FINAL_ALIVE) { eagleFinal = true; eagleCount = 0; }
         if (holefield) for (let ei = 0; ei < eagles.length; ei++) {
-            const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? EAGLE_MAX_FINAL : Math.max(EAGLE_MAX_EARLY_MIN, Math.floor(n * EAGLE_MAX_EARLY_RATIO)))) break;
+            const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? Math.min(EAGLE_MAX_FINAL, eagles.length) : Math.max(EAGLE_MAX_EARLY_MIN, Math.floor(n * EAGLE_MAX_EARLY_RATIO)))) break;   // 결승전 예산은 독수리 수를 넘지 않는다(소인원 1마리 → 1회)
             const cands = [], wWalk = eagleFinal ? EAGLE_WALK_WEIGHT : 1, wWait = eagleFinal ? 1 : EAGLE_WAIT_WEIGHT_EARLY;
             for (const b of B) {
                 if (b.eagledBy[ei]) continue;   // 내가 잡았던 놈은 다시 안 잡는다(다른 독수리는 상관없음)
