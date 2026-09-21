@@ -389,7 +389,7 @@ body.hshop-open {
 .hshop-namerow .hshop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hshop-price.hshop-price--inline { margin-top: 0; flex: 0 0 auto; }
 .hshop-viewtabs { padding-bottom: 0; }
-.hshop-groupchips { flex: none; flex-wrap: wrap; overflow: visible; padding: 10px 16px 0; margin-bottom: 0; gap: 6px; }   /* 뷰 탭 아래 동물 필터 — 줄바꿈으로 전부 보이게(가로 스크롤은 PC 에서 뒤쪽 동물을 못 고름) */
+.hshop-groupchips { flex: none; flex-wrap: wrap; justify-content: center; overflow: visible; padding: 10px 16px 0; margin-bottom: 0; gap: 6px; }   /* 줄마다 가운데 정렬 — 왼쪽 끝에 붙으면 불안정해 보임(사용자 2026-09-22) */   /* 뷰 탭 아래 동물 필터 — 줄바꿈으로 전부 보이게(가로 스크롤은 PC 에서 뒤쪽 동물을 못 고름) */
 .hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
 .hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(255,255,255,0.7); }
 .hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(255,255,255,0.9); }
