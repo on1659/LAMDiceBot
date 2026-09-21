@@ -55,6 +55,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
 
         sockA = io(URL, { transports: ['websocket'] });
         await once(sockA, 'connect');
+        sockA.on('rateLimitError', m => { console.error('FAIL — 소켓 rate limit(socket/index.js 10초 50회)에 걸림: ' + m); pass = false; });   // 걸리면 ack 가 안 와 멈추므로 바로 드러내기
         const auth = await emitAck(sockA, 'socket:authenticate', { token: reg.token });
         check(auth && auth.ok, '소켓 인증', JSON.stringify(auth));
 
@@ -67,6 +68,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
             const buy = await emitAck(sockA, 'shop:buy', { cosmeticId: s.id });
             check(buy && buy.ok, 'shop:buy ' + s.id, buy && buy.ok ? '' : JSON.stringify(buy));
         }
+        await wait(10500);   // 소켓 rate limit 윈도(10초 50회) 리셋 — 스킨 15개면 buy+equip+pick 이 50회를 넘는다
 
         // 데구리 방 생성 → 장착은 방 안에서만(marble:equipSkin)
         sockA.emit('createRoom', { userName: acct, roomName: 'qa스킨방' + uniq, isPrivate: false, gameType: 'marble', expiryHours: 1, ...dev });
@@ -83,7 +85,9 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
             const b = myBall(st, acct);
             check(!!st && b.skinName === s.displayName, s.creature + ' 선택 → preview.balls skin=' + s.skin + ' skinName=' + s.displayName, st ? '' : 'skin 미도착');
             check(st && st.picks[acct] === s.creature, 'picks[' + acct + '] 는 기본 creatureId(' + s.creature + ') 그대로(카운팅 불변)');
+            await wait(300);   // 15종 × 2회 emit 이 한 윈도에 몰리지 않게
         }
+        await wait(10500);   // 아래 게스트·해제·재입장 검사(≈15회)를 새 윈도에서
         const w = await emitAck(sockA, 'wallet:get', {});
         check(w && w.ok && !w.equipped.marble_skin, '계정 prefs.equipped.marble_skin 은 비어 있음(장착은 방에만)', JSON.stringify(w && w.equipped));
 
