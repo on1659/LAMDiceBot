@@ -3313,5 +3313,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinPandaRed": {
+    "batch": "marble-run-skin-panda-red-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-panda-red.md",
+    "note": "레서판다 스킨(marble_skin_panda_red). Codex exec 1세션, verify ALL_OK(림 0%, 공 120×107 중심 (80,80.5)). 줄무늬 꼬리는 몸 뒤에 살짝만 보임",
+    "assets": {
+      "panda-red": {
+        "image": "creatures/panda-red.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/panda-red.png",
+        "md5": "f5551b9f0ee9e9d44143164d2d423f1f",
+        "qaStatus": "PASS"
+      },
+      "panda-red-sleep": {
+        "image": "creatures/panda-red-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-red-sleep.png",
+        "md5": "2eb41756899ec10478e6cfca7ccedb3d",
+        "qaStatus": "PASS"
+      },
+      "panda-red-scuffle": {
+        "image": "creatures/panda-red-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-red-scuffle.png",
+        "md5": "4d124cb960ca9c07dbfce886b6b39790",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
