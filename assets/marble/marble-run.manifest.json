@@ -3709,5 +3709,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRabbitTophat": {
+    "batch": "marble-run-skin-rabbit-tophat-2026-09-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-22-marble-skin-rabbit-tophat.md",
+    "note": "신사 토끼 스킨(marble_skin_rabbit_tophat). Codex exec 1세션, verify ALL_OK(림 0~0.1%, 공 109×112 중심 (80.5,80))",
+    "assets": {
+      "rabbit-tophat": {
+        "image": "creatures/rabbit-tophat.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/rabbit-tophat.png",
+        "md5": "a8873444886903ff908fae84b2723e81",
+        "qaStatus": "PASS"
+      },
+      "rabbit-tophat-sleep": {
+        "image": "creatures/rabbit-tophat-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/rabbit-tophat-sleep.png",
+        "md5": "9049a8e2ecf6fef821f953813b9bc2d3",
+        "qaStatus": "PASS"
+      },
+      "rabbit-tophat-scuffle": {
+        "image": "creatures/rabbit-tophat-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/rabbit-tophat-scuffle.png",
+        "md5": "57d88e595dd65fc54eaaf940095f13d1",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
