@@ -2236,7 +2236,7 @@
     "batch": "marble-run-creatures-g-2026-09-21",
     "status": "all-9-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-g.md",
-    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음 / 13:33 복어 3장 v2(다리·발 제거) 교체, md5 갱신",
+    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 2026-09-21 12:56 파이프라인이 final/ 을 assets/marble/creatures/ 로 복사, md5 9/9 QA 일치·크기 검증. 코드 연결은 이미 됨(선택 버튼은 시트가 로드되면 자동 표시). 눈검사 메모: 햄스터 공 4칸이 진흙·어질어질 구분 없이 같은 줄무늬 공, 너구리 row3·row4 마지막 칸 꼬리가 셀 왼쪽 경계에 닿음 / 13:33 복어 3장 v2(다리·발 제거) 교체, md5 갱신 / 2026-09-21 23:40 햄스터 v2 전면 재생성(배치 J, codex exec): 뒷모습 0·공 4칸 구분·오른쪽 향함·시트당 단일 배율(서기 117×120). 21:32 Codex 앱 세션의 정규화/커를-서클 리비전(왼쪽 향함 + r1c1 공)은 게임이 못 쓰는 상태라 폐기",
     "assets": {
       "hamster": {
         "image": "creatures/hamster.png",
@@ -2264,7 +2264,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/hamster.png",
-        "md5": "28ed97c9ddc8d7daf0b8b98d637fe0fc",
+        "md5": "45cb14afd124c5c3f63815faf7d3141c",
         "qaStatus": "PASS"
       },
       "hamster-sleep": {
@@ -2293,7 +2293,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/hamster-sleep.png",
-        "md5": "74d8e8b394c67b0038e74196e916f793",
+        "md5": "78428bb41346cfb784b8b55e8020e9e4",
         "qaStatus": "PASS"
       },
       "hamster-scuffle": {
@@ -2326,7 +2326,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/hamster-scuffle.png",
-        "md5": "5e168cb5cef8bab918f48829fb7ac4dd",
+        "md5": "3ba08135d60b68d72b8aa57bfb817084",
         "qaStatus": "PASS"
       },
       "pufferfish": {
@@ -2619,7 +2619,7 @@
     "batch": "marble-run-creatures-i-2026-09-21",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-i.md",
-    "note": "9차 새 동물 리본돼지 × 시트 3장. 2026-09-21 21:40 Codex(exec, 세션 1개·3라운드: 생성 → 위성 마크 재배정+초록 림 despill → 위성 y≤149 클립)가 생성·리팩·QA, Claude 가 final/ 을 bbox·run·림·md5 독립 검증 후 복사. main 은 attempt-02(Codex 가 위성 조각을 이미지 탓으로 반려한 것을 오버라이드), sleep 01, scuffle 03. 초록 배경 생성. 공 r2c0 bbox 116×112 중심 (80,80), 찌그러짐 칸 120×75. r4c1 바운스 마크는 의도된 위성(본체 0..112 + 선 118..149)",
+    "note": "9차 새 동물 리본돼지 × 시트 3장. 2026-09-21 21:40 Codex(exec, 세션 1개·3라운드: 생성 → 위성 마크 재배정+초록 림 despill → 위성 y≤149 클립)가 생성·리팩·QA, Claude 가 final/ 을 bbox·run·림·md5 독립 검증 후 복사. main 은 attempt-02(Codex 가 위성 조각을 이미지 탓으로 반려한 것을 오버라이드), sleep 01, scuffle 03. 초록 배경 생성. 공 r2c0 bbox 116×112 중심 (80,80), 찌그러짐 칸 120×75. r4c1 바운스 마크는 의도된 위성(본체 0..112 + 선 118..149) / 2026-09-21 23:05 규격 정규화 v2: 시트당 단일 배율(서기 최대 셀 ≤134×130, 원조 5종 범위), 셀별 최대화 폐기. 서기 122×101·웅크림 118×86·공 116×112",
     "assets": {
       "ribbonpig": {
         "image": "creatures/ribbonpig.png",
@@ -2647,7 +2647,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/ribbonpig.png",
-        "md5": "383d27d21aa948f2722d997753da2fac",
+        "md5": "7d5b35cf7421058c45a5c1dd3b52a49d",
         "qaStatus": "PASS"
       },
       "ribbonpig-sleep": {
@@ -2676,7 +2676,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-sleep.png",
-        "md5": "9fc54c569039daee046e936ae1c813d1",
+        "md5": "85c3555cb9608b23fc6fca6d85c28d22",
         "qaStatus": "PASS"
       },
       "ribbonpig-scuffle": {
@@ -2709,7 +2709,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-scuffle.png",
-        "md5": "cd8c39c48d29bc474b7341678728a2ab",
+        "md5": "1ec255ee0fdb183cffb3fcf8a8931517",
         "qaStatus": "PASS"
       }
     }
