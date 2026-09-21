@@ -98,6 +98,14 @@
                 return order.map(function (c) { return { key: c, label: names[c] || c }; });
             },
             itemGroup: function (item) { return item.creature || null; },
+            // 칩 아이콘 = 그 동물 기본 시트의 서 있는 얼굴(선택 버튼과 같은 그림) — 스킨과 무관하게 기본 모습
+            groupIcon: function (creature) {
+                var R = window.marbleRendererForShop;
+                if (!R || typeof R.drawCreatureIcon !== 'function') return null;
+                var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
+                R.drawCreatureIcon(cv, creature, 0, null);
+                return cv;
+            },
             buildPreview: buildSkinPreview,
             itemState: itemState,
             equipRequest: equipRequest,

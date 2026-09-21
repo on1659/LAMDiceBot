@@ -89,13 +89,15 @@
         [{ key: 'all', label: '전체' }].concat(_config.hooks.groups() || []).forEach(function (cd) {
             var chip = document.createElement('button');
             chip.type = 'button';
-            chip.className = 'hshop-inv-chip' + (_groupFilter === cd.key ? ' is-active' : '');
-            chip.textContent = cd.label;
+            chip.className = 'hshop-inv-chip hshop-groupchip' + (_groupFilter === cd.key ? ' is-active' : '');
+            // 어댑터가 그룹 아이콘(동물 얼굴 캔버스)을 주면 이름 앞에 — 글자만 있는 칩보다 한눈에 고르기 쉽다. 칩은 줄바꿈으로 전부 보인다(가로 스크롤 X)
+            var icon = null;
+            if (cd.key !== 'all' && _config.hooks.groupIcon) { try { icon = _config.hooks.groupIcon(cd.key); } catch (e) { icon = null; } }
+            if (icon) chip.appendChild(icon);
+            var lb = document.createElement('span'); lb.textContent = cd.label; chip.appendChild(lb);
             chip.addEventListener('click', function () { if (_groupFilter === cd.key) return; _groupFilter = cd.key; renderModal(); });
             chips.appendChild(chip);
         });
-        // 활성 칩이 가로 스크롤 밖(오른쪽)에 있으면 보이게 — 마운트 뒤 한 프레임 후
-        requestAnimationFrame(function () { var a = chips.querySelector('.is-active'); if (a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
         return chips;
     }
     var _invPreviewVehicle = null; // 인벤토리 미리보기 탈것 id(null=어댑터 폴백: 내 탈것 또는 'car')
