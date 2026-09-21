@@ -32,6 +32,53 @@
     display: block;
 }
 
+/* ===== UI 아이콘 — OS 이모지 대체 (assets/marble/ui/icons.png, 6×6 셀 128px, 의뢰서 docs/spritemake-request/applied/2026-09-21-marble-run-ui-icons-l.md) =====
+   <i class="mi mi-paw"></i> — 글자 크기를 따라간다(1.2em). 셀 index = row×6+col → background-position (col×20)% (row×20)%.
+   캔버스 쪽은 js/marble-render.js ICON_CELL 이 같은 배치를 읽는다 — 셀을 옮기면 양쪽 다 고칠 것. */
+.mi {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.25em;
+    background: url('/assets/marble/ui/icons.png?v=1') no-repeat 0 0 / 600% 600%;
+    flex-shrink: 0;
+}
+.mi-paw       { background-position: 0% 0%; }
+.mi-target    { background-position: 20% 0%; }
+.mi-medal     { background-position: 40% 0%; }
+.mi-snail     { background-position: 60% 0%; }
+.mi-trophy    { background-position: 80% 0%; }
+.mi-burger    { background-position: 100% 0%; }
+.mi-list      { background-position: 0% 20%; }
+.mi-memo      { background-position: 20% 20%; }
+.mi-people    { background-position: 40% 20%; }
+.mi-bulb      { background-position: 60% 20%; }
+.mi-check     { background-position: 80% 20%; }
+.mi-hourglass { background-position: 100% 20%; }
+.mi-clock     { background-position: 0% 40%; }
+.mi-flask     { background-position: 20% 40%; }
+.mi-expand    { background-position: 40% 40%; }
+.mi-replay    { background-position: 60% 40%; }
+.mi-play      { background-position: 80% 40%; }
+.mi-stop      { background-position: 100% 40%; }
+.mi-refresh   { background-position: 0% 60%; }
+.mi-chat      { background-position: 20% 60%; }
+.mi-scroll    { background-position: 40% 60%; }
+.mi-lock      { background-position: 60% 60%; }
+.mi-crown     { background-position: 80% 60%; }
+.mi-person    { background-position: 100% 60%; }
+.mi-warn      { background-position: 0% 80%; }
+.mi-info      { background-position: 20% 80%; }
+.mi-book      { background-position: 40% 80%; }
+.mi-home      { background-position: 60% 80%; }
+.mi-flag      { background-position: 80% 80%; }
+.mi-sun       { background-position: 100% 80%; }
+.mi-hole      { background-position: 0% 100%; }
+.mi-dash      { background-position: 20% 100%; }
+.mi-x         { background-position: 40% 100%; }
+/* 로딩 화면 발자국 — 80px 이모지 자리 */
+.mi-loading { width: 80px; height: 80px; margin: 0 auto 20px; display: block; animation: bounce 1s infinite; }
+
 /* ===== 동물 선택 (대기 중) ===== */
 #marblePickSection {
     margin: 0 0 20px;

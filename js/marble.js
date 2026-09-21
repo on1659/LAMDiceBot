@@ -389,7 +389,7 @@ function updateStartButton() {
     var canStart = isHost && marbleState.phase !== 'playing' && !isMarbleActive && rc >= MARBLE_MIN_PLAYERS;
     if (startBtn) {
         startBtn.disabled = !canStart;
-        startBtn.textContent = rc < MARBLE_MIN_PLAYERS ? '🐾 경주 시작 (2명 이상 준비)' : '🐾 경주 시작';
+        startBtn.innerHTML = '<i class="mi mi-paw"></i> ' + (rc < MARBLE_MIN_PLAYERS ? '경주 시작 (2명 이상 준비)' : '경주 시작');
     }
     var locked = (marbleState.phase === 'playing' || isMarbleActive);
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
@@ -438,9 +438,11 @@ function renderPickStatus() {
     }
 }
 
-function setGameStatus(text, cls) {
+function setGameStatus(text, cls, icon) {
     var el = document.getElementById('gameStatus');
-    if (el) { el.textContent = text; el.className = 'game-status ' + (cls || 'waiting'); }
+    if (!el) return;
+    el.textContent = text; el.className = 'game-status ' + (cls || 'waiting');
+    if (icon) el.insertAdjacentHTML('afterbegin', '<i class="mi mi-' + icon + '"></i> ');   // 본문은 textContent 로 넣고 아이콘만 태그로 — 이름 등 유저 문자열이 HTML 로 해석되지 않게
 }
 
 // ============================================
@@ -667,7 +669,7 @@ function updateHighlightButton() {
     var btn = document.getElementById('marbleHighlightBtn');
     if (!btn) return;
     var on = getMyHighlight();
-    btn.textContent = on ? '🐾 내 동물 따라가는 중' : '🐾 내 동물 따라가기';
+    btn.innerHTML = '<i class="mi mi-paw"></i> ' + (on ? '내 동물 따라가는 중' : '내 동물 따라가기');
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
@@ -690,7 +692,7 @@ window.toggleMyHighlight = toggleMyHighlight;
 var replaying = false, replayEndTimer = null;
 function setReplayUi(on) {
     var btn = document.getElementById('marbleReplayButton');
-    if (btn) btn.textContent = on ? '■ 그만 보기' : '▶ 경주 다시 보기';
+    if (btn) btn.innerHTML = on ? '<i class="mi mi-stop"></i> 그만 보기' : '<i class="mi mi-play"></i> 경주 다시 보기';
     var badge = document.getElementById('marbleReplayBadge');
     if (badge) badge.style.display = on ? '' : 'none';
 }
@@ -727,7 +729,7 @@ function showResultOverlay(data) {
     if (box) {
         var html = '';
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
-        if (data.selected) html += '<div class="marble-result-selected">🐾 당첨자: ' + escapeHtml(data.selected) + ' <small>(' + targetLabel + ')</small></div>';
+        if (data.selected) html += '<div class="marble-result-selected"><i class="mi mi-paw"></i> 당첨자: ' + escapeHtml(data.selected) + ' <small>(' + targetLabel + ')</small></div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
         // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 골에 들어간 순서. 1위가 제일 먼저 다 들어간 사람, 마지막이 꼴찌.
         // 당첨(강조)은 룰렛이 정한 순위(target)의 주인 — 꼴찌일 수도, 1위일 수도
@@ -736,7 +738,7 @@ function showResultOverlay(data) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
                 var isSelected = r.name === data.selected;
                 var isLast = r.rank === rk.length;
-                return '<li class="' + (isSelected ? 'loser' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + (isSelected ? ' 🎯' : '') + '</li>';
+                return '<li class="' + (isSelected ? 'loser' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + (isSelected ? ' <i class="mi mi-target"></i>' : '') + '</li>';
             }).join('') + '</ol>';
         }
         box.innerHTML = html;
@@ -757,7 +759,7 @@ function renderHistory(history) {
         var h = history[i];
         html += '<div style="padding: 8px 12px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between;">' +
             '<span style="color: var(--text-secondary);">' + h.round + '판</span>' +
-            '<span style="font-weight: 700; color: var(--red-500);">🐾 ' + escapeHtml(h.selected || '-') + (h.target === 'first' ? ' <small style="font-weight: 600; color: var(--text-muted);">(1등)</small>' : '') + '</span></div>';
+            '<span style="font-weight: 700; color: var(--red-500);"><i class="mi mi-paw"></i> ' + escapeHtml(h.selected || '-') + (h.target === 'first' ? ' <small style="font-weight: 600; color: var(--text-muted);">(1등)</small>' : '') + '</span></div>';
     }
     list.innerHTML = html;
 }
@@ -860,13 +862,14 @@ function cancelScheduledStart() { socket.emit('cancelScheduledStart'); }
 function updateScheduleControls() {
     var openBtn = document.getElementById('scheduleOpenButton');
     if (openBtn) {
-        var text = '⏰ 예약';
+        var text = '예약';
         if (scheduledStartAt) {
-            text = '⏰ ' + (scheduledStartLabel || '예약됨');
+            text = scheduledStartLabel || '예약됨';
             var remainMs = scheduledStartAt - Date.now();
             if (remainMs < SCHEDULE_TICK_MS * 60) text += ' · 시작 ' + Math.max(0, Math.ceil(remainMs / 1000)) + '초 전';
         }
         openBtn.textContent = text;
+        openBtn.insertAdjacentHTML('afterbegin', '<i class="mi mi-clock"></i> ');
         openBtn.classList.toggle('is-armed', !!scheduledStartAt);
     }
     updateScheduleModal();
@@ -883,7 +886,8 @@ function renderScheduleBadge() {
     if (!el) return;
     if (scheduleNoticeTimer) return;   // 안내 표시 중 — 같은 요소라 카운트다운이 덮어쓰면 안 된다
     if (!scheduledStartAt) { el.style.display = 'none'; el.textContent = ''; return; }
-    el.textContent = '⏰ ' + formatScheduleRemain(scheduledStartAt - Date.now()) + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : '');
+    el.textContent = formatScheduleRemain(scheduledStartAt - Date.now()) + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : '');
+    el.insertAdjacentHTML('afterbegin', '<i class="mi mi-clock"></i> ');
     el.style.display = 'block';
     updateScheduleControls();
 }
@@ -1048,7 +1052,7 @@ function renderUsersList(userArray) {
         if (user.isHost) tag.classList.add('host');
         if (user.name === currentUser) tag.classList.add('me');
         var content = escapeHtml(user.name);
-        if (user.isHost) content += ' 👑';
+        if (user.isHost) content += ' <i class="mi mi-crown"></i>';
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
         if (isHost && user.name !== currentUser) {
@@ -1092,7 +1096,7 @@ function showPlayerActionDialog(playerName) {
         content.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(0,0,0,0.2);border:2px solid var(--marble-accent);';
         var msg = document.createElement('div');
         msg.style.cssText = 'font-size:18px;line-height:1.6;color:var(--text-primary);text-align:center;margin-bottom:25px;font-weight:600;';
-        msg.innerHTML = '<span style="font-size:24px;margin-right:8px;">👤</span>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
+        msg.innerHTML = '<i class="mi mi-person" style="font-size:24px;margin-right:8px;"></i>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
         var box = document.createElement('div');
         box.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
         var esc = function (e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); resolve('cancel'); } };
@@ -1226,7 +1230,7 @@ socket.on('marble:rouletteStart', function (data) {
     marbleState.target = data.winning;
     marbleState.targetReason = data.reason || '';
     enterRoulettePhase();
-    setGameStatus('🎯 당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active');
+    setGameStatus('당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active', 'target');
     playRouletteAnimation(data);
 });
 
@@ -1237,7 +1241,7 @@ socket.on('marble:reasonHold', function (data) {
     enterRoulettePhase();
     var section = document.getElementById('rankVoteSection');   // 표가 없으니 빈 막대 칸은 접고 사유 카드만
     if (section) section.style.display = 'none';
-    setGameStatus('🎯 당첨 순위 확인 중…', 'active');
+    setGameStatus('당첨 순위 확인 중…', 'active', 'target');
     updateTargetBanner(marbleState.target, true, marbleState.targetReason);
 });
 
@@ -1260,7 +1264,7 @@ socket.on('marble:reveal', function (data) {
     var dragHint = document.getElementById('dragHint');
     if (dragHint) dragHint.style.display = 'none';
     var isFirst = marbleState.target === 'first';
-    setGameStatus('🐾 출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '자기 동물을 제일 먼저 모두 도착시킨 사람(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active');
+    setGameStatus('출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '자기 동물을 제일 먼저 모두 도착시킨 사람(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active', 'paw');
 
     var begin = function () {
         renderer.setTimeline(data, currentUser);
@@ -1278,7 +1282,7 @@ socket.on('marble:gameEnd', function (data) {
     marbleState.votes = {};    // 서버도 비웠다 — 다음 판 투표는 새로
     localHistory.push({ round: data.round, selected: data.selected, target: data.target });
     renderHistory(localHistory);
-    setGameStatus('🐾 당첨: ' + (data.selected || '-') + ' (' + (TARGET_LABEL[data.target] || TARGET_LABEL.last) + ')', 'finished');
+    setGameStatus('당첨: ' + (data.selected || '-') + ' (' + (TARGET_LABEL[data.target] || TARGET_LABEL.last) + ')', 'finished', 'paw');
     showResultOverlay(data);
     showStage(false);          // 피커는 다시 열되 캔버스는 마지막 화면(비석) 그대로 — 리셋은 방장이
     showAfterRace(true);

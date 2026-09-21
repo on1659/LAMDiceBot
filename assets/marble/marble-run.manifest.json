@@ -2713,5 +2713,74 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "uiIconsL": {
+    "batch": "marble-run-ui-icons-l-2026-09-21",
+    "status": "picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-21-marble-run-ui-icons-l.md",
+    "note": "10차 UI 아이콘 아틀라스 1장 — 데구리 페이지·캔버스의 OS 이모지 33곳 전면 교체. 2026-09-21 23:39 Codex(exec 1세션: 전체 시트 4회 + 시험관 단독 1회 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화·QA)가 생성, Claude 가 셀 bbox·중심·alpha 1~7·마젠타 잔류·20/32px 대조 시트로 독립 검증 후 복사. 소비처: css/marble.css .mi-{id}(background-position (col×20)%,(row×20)%), js/marble-render.js ICON_CELL. 여백 3칸(index 33~35)은 투명.",
+    "assets": {
+      "icons": {
+        "image": "ui/icons.png",
+        "canvas": [
+          768,
+          768
+        ],
+        "grid": [
+          6,
+          6
+        ],
+        "cell": [
+          128,
+          128
+        ],
+        "anchor": [
+          64,
+          64
+        ],
+        "contentBox": [
+          104,
+          104
+        ],
+        "cells": {
+          "0": "paw",
+          "1": "target",
+          "2": "medal",
+          "3": "snail",
+          "4": "trophy",
+          "5": "burger",
+          "6": "list",
+          "7": "memo",
+          "8": "people",
+          "9": "bulb",
+          "10": "check",
+          "11": "hourglass",
+          "12": "clock",
+          "13": "flask",
+          "14": "expand",
+          "15": "replay",
+          "16": "play",
+          "17": "stop",
+          "18": "refresh",
+          "19": "chat",
+          "20": "scroll",
+          "21": "lock",
+          "22": "crown",
+          "23": "person",
+          "24": "warn",
+          "25": "info",
+          "26": "book",
+          "27": "home",
+          "28": "flag",
+          "29": "sun",
+          "30": "hole",
+          "31": "dash",
+          "32": "x"
+        },
+        "targetGamePath": "assets/marble/ui/icons.png",
+        "md5": "7c29535ebbe0aa049f9707e62ed4ec3d",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
