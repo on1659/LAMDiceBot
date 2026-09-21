@@ -57,7 +57,7 @@
         '🪦': 'tomb', '⚡': 'bolt', '⚀': 'd1', '⚁': 'd2', '⚂': 'd3', '⚃': 'd4', '⚄': 'd5', '⚅': 'd6'
     };
 
-    var VS_RE = /️/g;
+    var VS_RE = /\uFE0F/g;   // 변형 선택자(U+FE0F) — 보이지 않는 문자라 이스케이프로 적는다
     var factories = {};   // 정규화된 이모지 → Element 팩토리 (register 로 페이지가 덮을 수 있음)
     Object.keys(EMOJI_TO_ICON).forEach(function (emoji) {
         factories[emoji] = (function (id) { return function () { return el(id); }; })(EMOJI_TO_ICON[emoji]);
