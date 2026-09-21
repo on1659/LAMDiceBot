@@ -91,6 +91,13 @@
                     ? '장착은 이 방에서만 유지돼요. 방을 나가면 다시 골라 주세요. 스킨의 동물을 골랐을 때 모두에게 보여요.'
                     : '동물 스킨은 경주 결과에 영향을 주지 않아요. 산 스킨은 옷장에서 장착해요.';
             },
+            // 동물별 필터 칩(전체/고슴도치/…): 순서는 선택 버튼 순서(MARBLE_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등)
+            groups: function () {
+                var names = (window.MarbleRender && MarbleRender.CREATURE_NAMES) || {};
+                var order = (typeof window.MARBLE_CREATURES !== 'undefined' && window.MARBLE_CREATURES) || Object.keys(names);
+                return order.map(function (c) { return { key: c, label: names[c] || c }; });
+            },
+            itemGroup: function (item) { return item.creature || null; },
             buildPreview: buildSkinPreview,
             itemState: itemState,
             equipRequest: equipRequest,

@@ -389,6 +389,8 @@ body.hshop-open {
 .hshop-namerow .hshop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hshop-price.hshop-price--inline { margin-top: 0; flex: 0 0 auto; }
 .hshop-viewtabs { padding-bottom: 0; }
+.hshop-groupchips { flex: none; padding: 10px 16px 0; margin-bottom: 0; }   /* 뷰 탭 아래 동물 필터 — 가로 스크롤 */
+.hshop-groupchips .hshop-inv-chip { width: auto; margin: 0; }   /* 게임 css 의 button { width: 100% } 상쇄 */
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped);

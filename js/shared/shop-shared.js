@@ -74,6 +74,30 @@
     // 'closet' = 장착 전용(소유 아이템만, 가격 없음). closet 미설정 게임(경마·사다리·회전)은 항상 'shop' 이고 기존 통합 카드 그대로.
     var _view = 'shop';
     function closetMode() { return !!(_config && _config.closet); }
+    // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
+    // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
+    var _groupFilter = 'all';
+    function hasGroups() { return closetMode() && !!(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup); }
+    function passesGroup(item) {
+        if (!hasGroups() || _groupFilter === 'all') return true;
+        var g = _config.hooks.itemGroup(item);
+        return g == null || g === _groupFilter;
+    }
+    function renderGroupChips() {
+        var chips = document.createElement('div');
+        chips.className = 'hshop-inv-chips hshop-groupchips';
+        [{ key: 'all', label: '전체' }].concat(_config.hooks.groups() || []).forEach(function (cd) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'hshop-inv-chip' + (_groupFilter === cd.key ? ' is-active' : '');
+            chip.textContent = cd.label;
+            chip.addEventListener('click', function () { if (_groupFilter === cd.key) return; _groupFilter = cd.key; renderModal(); });
+            chips.appendChild(chip);
+        });
+        // 활성 칩이 가로 스크롤 밖(오른쪽)에 있으면 보이게 — 마운트 뒤 한 프레임 후
+        requestAnimationFrame(function () { var a = chips.querySelector('.is-active'); if (a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+        return chips;
+    }
     var _invPreviewVehicle = null; // 인벤토리 미리보기 탈것 id(null=어댑터 폴백: 내 탈것 또는 'car')
     var _invFilter = 'all';        // 인벤토리 카테고리 필터(슬롯 key 또는 'all')
 
@@ -964,10 +988,11 @@
         body.className = 'hshop-inv-body';
         var slots = activeSlots(); var anyOwned = false; var anyBought = false;   // anyBought = defaultOwned 아닌 소유(산 것)
         slots.forEach(function (slot) {
-            var list = (_catalog[slot.key] || []).filter(ownsForInventory);
+            var ownedAll = (_catalog[slot.key] || []).filter(ownsForInventory);
+            if (ownedAll.some(function (it) { return !it.defaultOwned; })) anyBought = true;
+            var list = ownedAll.filter(passesGroup);
             if (list.length === 0) return;
             anyOwned = true;
-            if (list.some(function (it) { return !it.defaultOwned; })) anyBought = true;
             var section = document.createElement('div');
             section.className = 'hshop-inv-section';
             if (slots.length > 1) {   // 슬롯 하나면 제목 생략
@@ -1068,6 +1093,7 @@
             cnotice.textContent = noticeFor(_activeTab);
             panel.appendChild(header);
             panel.appendChild(renderViewTabs());
+            if (hasGroups()) panel.appendChild(renderGroupChips());
             panel.appendChild(cnotice);
             panel.appendChild(buildClosetBody());
             overlay.appendChild(panel);
@@ -1121,10 +1147,11 @@
             if (showMainTabs) {
                 list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
             }
+            list = list.filter(passesGroup);
             if (list.length === 0) {
                 var empty = document.createElement('div');
                 empty.className = 'hshop-empty';
-                empty.textContent = '준비 중인 카테고리예요.';
+                empty.textContent = (hasGroups() && _groupFilter !== 'all') ? '이 동물의 스킨은 아직 없어요.' : '준비 중인 카테고리예요.';
                 grid.appendChild(empty);
             } else {
                 list.forEach(function (item) { grid.appendChild(renderCard(_activeTab, item)); });
@@ -1137,6 +1164,7 @@
 
         panel.appendChild(header);
         if (closetMode()) panel.appendChild(renderViewTabs());
+        if (hasGroups()) panel.appendChild(renderGroupChips());
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         panel.appendChild(notice);
@@ -1598,7 +1626,7 @@
     // 옷장(장착 전용) — config.closet 이 없는 게임은 상점과 같다
     function openCloset() { openView(closetMode() ? 'closet' : 'shop'); }
     function openView(view) {
-        _view = view;
+        _view = view; _groupFilter = 'all';
         loadAdWallet();
         var token = getToken();
         loadCatalog().then(function () {
