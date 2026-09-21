@@ -430,6 +430,12 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
                     });
                 }
             }
+            // 데구리: 준비 취소 시 당첨 순위 투표 취소 (경마와 같은 규칙 — 투표는 준비한 사람만)
+            if (room.gameType === 'marble' && gameState.marble && gameState.marble.rankVotes &&
+                gameState.marble.rankVotes[userName] !== undefined) {
+                delete gameState.marble.rankVotes[userName];
+                io.to(room.roomId).emit('marble:rankVotesUpdated', { votes: { ...gameState.marble.rankVotes } });
+            }
         } else {
             // 준비
             gameState.readyUsers.push(userName);

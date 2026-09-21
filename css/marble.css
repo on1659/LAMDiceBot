@@ -137,6 +137,78 @@
     font-size: 13px;
     color: var(--text-secondary);
 }
+.marble-pick-status:empty {   /* 안 고른 상태엔 문구 없음(안 고른 사람은 아래 이름표로) — 빈 줄 자리 안 남기게 */
+    display: none;
+}
+
+/* ===== 당첨 순위 투표 (horse-race.css .rank-vote-* 재사용, --horse-* alias 로 데구리 색) =====
+   선택지가 1등/꼴등 둘뿐이라 칸이 커 보이지 않게 작게(사용자 2026-09-21). 피커 아래·캔버스 위에 놓여 룰렛이 도는 동안 막대가 보인다. */
+#rankVoteSection {
+    margin: 0 0 16px;
+    padding: 10px 12px 12px;
+}
+#rankVoteSection .rank-vote-title {
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+}
+#rankVoteSection .rank-vote-hint {
+    margin-bottom: 8px;
+}
+#rankVoteSection .rank-vote-box {
+    max-width: 104px;
+    padding: 5px 6px 7px;
+    border-radius: 10px;
+}
+#rankVoteSection .rank-vote-box .rank-vote-rank {
+    font-size: 13px;
+}
+#rankVoteSection .rank-vote-box .rank-vote-bars {
+    margin-top: 5px;
+    min-height: 16px;
+}
+#rankVoteSection .rank-vote-bar {
+    width: 5px;
+    height: 14px;
+}
+/* 룰렛 동안은 캔버스 한가운데 팝업(.canvas-bars-overlay 는 horse-race.css) — 위쪽 인라인보다 한 단계 크게, 제목은 보이게 */
+#rankVoteSection.on-canvas {
+    min-width: 280px;
+}
+#rankVoteSection.on-canvas .rank-vote-title {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+#rankVoteSection.on-canvas .rank-vote-box {
+    max-width: 130px;
+    padding: 8px 8px 10px;
+}
+#rankVoteSection.on-canvas .rank-vote-box .rank-vote-rank {
+    font-size: 15px;
+}
+#rankVoteSection.on-canvas .rank-vote-box .rank-vote-bars {
+    min-height: 22px;
+}
+#rankVoteSection.on-canvas .rank-vote-bar {
+    width: 7px;
+    height: 20px;
+}
+#targetRankBanner.on-canvas {
+    margin: 0 0 8px;
+}
+#targetRankReason.on-canvas {
+    margin: 8px 0 0;
+}
+/* 룰렛이 표 없는 빈 칸을 스쳐 지나갈 때 — 막대 .active 와 같은 금빛 */
+#rankVoteSection .rank-vote-box.spin-active {
+    border-color: #ffd700;
+    background: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
+    box-shadow: 0 0 12px rgba(255, 213, 74, 0.9);
+    transform: translateY(-2px);
+}
+#targetRankBanner {
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
 /* ===== 호스트 설정 (1인당 동물 수) ===== */
 .marble-host-settings {

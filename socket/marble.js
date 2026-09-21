@@ -8,16 +8,46 @@ const sim = require('./marble-sim');
 // ─── 공유 상수 (js/marble.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운 — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산
 const RESULT_HOLD_MS = 1500;      // 재생 끝(durationMs = 마지막 골인 + 엎어짐 여유) 후 결과 오버레이 전 여유
+const ROULETTE_ANIM_MS = 5500;    // 당첨 순위 투표 룰렛 애니메이션 길이 (경마 socket/horse.js 와 동일)
+const ROULETTE_HOLD_MS = 3000;    // 룰렛 결과 감상 시간
+const FALLBACK_HOLD_MS = 3000;    // 투표 없음 — 사유 카드만 보여주는 시간
 const MARBLE_MIN_PLAYERS = 2;
 const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
 const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
+const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
+const TARGET_LABEL = { first: '1등', last: '꼴등' };
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
 function clearMarbleTimers(mb) {
+    if (mb.revealTimeout) { clearTimeout(mb.revealTimeout); mb.revealTimeout = null; }
     if (mb.endTimeout) { clearTimeout(mb.endTimeout); mb.endTimeout = null; }
     if (mb.resetTimeout) { clearTimeout(mb.resetTimeout); mb.resetTimeout = null; }
+}
+
+// 당첨 순위 투표 → 룰렛 (경마 N등 투표와 같은 방식: 득표 비례 가중 랜덤, 서버 RNG).
+// 참가자(준비하고 방에 있는 사람)의 표만 센다. 표가 없으면 기본 꼴등.
+// 한쪽에만 몰려도 룰렛은 돈다(결과는 확정, 연출만) — 경마는 이때 스핀을 건너뛰지만 데구리는 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 고르는 연출을 항상 보여준다(사용자 2026-09-21).
+function decideTarget(mb, participants) {
+    const votes = {};
+    participants.forEach(name => { if (VOTE_TARGETS.includes(mb.rankVotes[name])) votes[name] = mb.rankVotes[name]; });
+    const voters = Object.keys(votes);
+    if (voters.length === 0) return { target: 'last', votes, roulette: null, reason: '아무도 투표하지 않아 기본 꼴등 찾기로 진행됩니다' };
+
+    const tally = {};
+    voters.forEach(name => { tally[votes[name]] = (tally[votes[name]] || 0) + 1; });
+    const segments = VOTE_TARGETS.filter(t => tally[t]).map(t => ({ target: t, count: tally[t] }));
+    let pick = Math.floor(Math.random() * voters.length);   // 서버 RNG 허용(결과 결정)
+    let winning = segments[segments.length - 1].target;
+    for (const seg of segments) {
+        if (pick < seg.count) { winning = seg.target; break; }
+        pick -= seg.count;
+    }
+    const reason = segments.length === 1
+        ? `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`
+        : `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`;
+    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS }, reason };
 }
 
 // 준비했는데 동물을 안 고른 사람 (입장 순서)
@@ -40,7 +70,7 @@ function canStartMarble(room, gameState, opts) {
     if (ready.length < MARBLE_MIN_PLAYERS) return `준비한 인원이 ${MARBLE_MIN_PLAYERS}명 이상이어야 합니다!`;
     if (!(opts && (opts.scheduled || opts.force))) {
         const unpicked = unpickedNames(gameState);
-        if (unpicked.length) return `${unpicked.join(', ')}님이 아직 동물을 안 골랐어요. (강제 시작하면 자동 배정)`;
+        if (unpicked.length) return `${unpicked.join(', ')}님이 아직 동물을 안 골랐어요.`;
     }
     return null;
 }
@@ -75,6 +105,20 @@ async function startMarble(room, gameState, io, ctx) {
     mb.participants = participants.slice();
     mb.seed = seed;
 
+    // ─── 당첨 순위 룰렛 → 시뮬은 룰렛이 도는 동안 돌리고, hold 가 끝나면 reveal ───
+    // 투표 있으면 marble:rouletteStart(막대 하이라이트 → 배너), 없으면 marble:reasonHold(사유 카드만). 경마와 같은 흐름.
+    const decision = decideTarget(mb, participants);
+    mb.target = decision.target;
+    const holdStartedAt = Date.now();
+    let holdMs;
+    if (decision.roulette) {
+        holdMs = ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
+        io.to(room.roomId).emit('marble:rouletteStart', { ...decision.roulette, votes: decision.votes, reason: decision.reason });
+    } else {
+        holdMs = FALLBACK_HOLD_MS;
+        io.to(room.roomId).emit('marble:reasonHold', { target: 'last', reason: decision.reason, durationMs: FALLBACK_HOLD_MS });
+    }
+
     let balls, result;
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
@@ -83,7 +127,8 @@ async function startMarble(room, gameState, io, ctx) {
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
-        // 방장 소켓이 없을 수도 있어(예약 발화) 방 전체에 알린다
+        // 방장 소켓이 없을 수도 있어(예약 발화) 방 전체에 알린다. 룰렛/사유 카드가 이미 떠 있으므로 gameAborted 로 화면도 되돌린다
+        io.to(room.roomId).emit('marble:gameAborted', { reason: '게임 준비 중 오류가 발생했습니다.' });
         io.to(room.roomId).emit('marble:error', '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
         ctx.updateRoomsList();
         return;
@@ -92,7 +137,8 @@ async function startMarble(room, gameState, io, ctx) {
 
     // 순위 = 통로 끝 골(x ≥ GOAL_X)에 들어간 순서(sim finishOrder). 꼴찌 = 골에 마지막으로 들어간 공 (사용자 확정 2026-09-20 밤).
     // 통로 걷기도 경주 구간(추월 있음). 캡까지 못 들어간 공은 sim 이 진행도 순으로 정산해 뒤에 붙인다.
-    const rank = sim.rankPlayers(balls, result.finishOrder, participants);
+    // 당첨 = 룰렛이 정한 순위(mb.target)의 주인 — 'last' 꼴찌(기본) / 'first' 1등.
+    const rank = sim.rankPlayers(balls, result.finishOrder, participants, mb.target);
     const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
     const payload = {
         durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
@@ -101,19 +147,25 @@ async function startMarble(room, gameState, io, ctx) {
         fast: result.fast,            // 꼴찌 한 마리만 남은 구간 2배속 {startMs, rate, endMs}
         cutMs: result.cutMs,          // 꼴찌가 혼자 통로에 내려온 순간(나머지 전원 골인) — 클라는 여기서 세상을 멈추고 비석. null 이면 골 진입 때
         ballsPerPlayer,
+        target: mb.target,            // 당첨 순위 'first' | 'last' — 클라는 배너·피날레 문구·결과 표기만 바꾼다
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };
     mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
     mb.result = payload.result;
 
-    io.to(room.roomId).emit('marble:reveal', payload);
-    console.log(`[데구리] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
-
+    // 룰렛/사유 카드가 다 보인 뒤 reveal — 시뮬이 hold 보다 오래 걸렸으면 바로
+    const remainMs = Math.max(0, holdMs - (Date.now() - holdStartedAt));
     clearMarbleTimers(mb);
-    mb.endTimeout = setTimeout(() => {
+    mb.revealTimeout = setTimeout(() => {
+        mb.revealTimeout = null;
         if (!ctx.rooms[room.roomId]) return;
-        endGame(room, gameState, io, ctx);
-    }, COUNTDOWN_MS + payload.durationMs + RESULT_HOLD_MS);
+        io.to(room.roomId).emit('marble:reveal', payload);
+        console.log(`[데구리] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 타깃=${mb.target} / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
+        mb.endTimeout = setTimeout(() => {
+            if (!ctx.rooms[room.roomId]) return;
+            endGame(room, gameState, io, ctx);
+        }, COUNTDOWN_MS + payload.durationMs + RESULT_HOLD_MS);
+    }, remainMs);
 
     ctx.updateRoomsList();
 }
@@ -139,20 +191,21 @@ function endGame(room, gameState, io, ctx) {
     mb.phase = 'finished';
     mb.isActive = false;
     mb.round++;
-    mb.history.push({ round: mb.round, selected, timestamp: new Date().toISOString() });
+    mb.rankVotes = {};   // 다음 판 투표는 새로 (경마와 같은 규칙 — 준비도 아래서 비운다)
+    mb.history.push({ round: mb.round, selected, target: mb.target, timestamp: new Date().toISOString() });
     if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
 
-    io.to(room.roomId).emit('marble:gameEnd', { selected, rankings, round: mb.round });
+    io.to(room.roomId).emit('marble:gameEnd', { selected, rankings, round: mb.round, target: mb.target });
 
     recordGamePlay('marble', dbPlayers.length, room.serverId || null);
     if (room.serverId) {
         const sessionId = generateSessionId('marble', room.serverId);
         Promise.all(dbPlayers.map(name => {
-            const isWinner = name !== selected;    // 당첨(꼴찌 주인) = 패자
+            const isWinner = name !== selected;    // 당첨(타깃 순위 주인) = 패자
             const rank = isWinner ? 1 : 2;
             return recordServerGame(room.serverId, name, rank, 'marble', isWinner, sessionId, rank);
         })).then(() => recordGameSession({
-            serverId: room.serverId, sessionId, gameType: 'marble', gameRules: 'last-ball',
+            serverId: room.serverId, sessionId, gameType: 'marble', gameRules: mb.target === 'first' ? 'first-ball' : 'last-ball',
             winnerName: dbPlayers.find(n => n !== selected) || null,
             participantCount: dbPlayers.length
         })).catch(e => console.warn('[데구리] DB 기록 실패:', e.message));
@@ -177,7 +230,7 @@ function resetRound(room, gameState, io, ctx) {
     ctx.updateRoomsList();
 }
 
-// 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), crowd 유지
+// 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), crowd 유지. 투표는 판마다 새로
 function resetMarble(mb) {
     clearMarbleTimers(mb);
     mb.phase = 'idle';
@@ -186,6 +239,8 @@ function resetMarble(mb) {
     mb.result = null;
     mb.seed = 0;
     mb.isActive = false;
+    mb.rankVotes = {};
+    mb.target = 'last';
 }
 
 module.exports = (socket, io, ctx) => {
@@ -197,10 +252,11 @@ module.exports = (socket, io, ctx) => {
     // ballsPerPlayer = 현재 준비 인원 기준으로 crowd 프리셋을 환산한 인당 마릿수(안내용 — 시작 시점에 다시 계산).
     // preview = 대기 화면용 출발대 배치(사람당 1마리 — 복제는 카운트다운 연출에서). 결과와 무관한 순수 배치라 공정성 문제 없음.
     // 준비 인원이 바뀌면 클라가 marble:requestState 로 다시 받는다.
+    // votes = 당첨 순위 투표 현황(이름→'first'|'last') — 재입장·준비 변동 때 막대를 다시 그리는 용도.
     function publicState(gameState) {
         const mb = gameState.marble;
         const readyCount = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name)).length;
-        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, Math.max(1, readyCount)), preview: idlePreview(gameState) };
+        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, votes: { ...mb.rankVotes }, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, Math.max(1, readyCount)), preview: idlePreview(gameState) };
     }
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
@@ -238,7 +294,25 @@ module.exports = (socket, io, ctx) => {
         emitState(room, gameState);
     });
 
-    // 마릿수 단계 (호스트, idle) — solo | few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
+    // 당첨 순위 투표 (준비한 사람, 경주 전) — 1등/꼴등 중 한 표. 같은 칸을 다시 누르면 취소 (경마 voteRank 와 같은 규칙)
+    socket.on('marble:voteRank', (data) => {
+        if (!rateOk()) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return;
+        const target = data && data.target;
+        if (!VOTE_TARGETS.includes(target)) { socket.emit('marble:error', '유효하지 않은 순위입니다!'); return; }
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        const mb = gameState.marble;
+        if (!(gameState.readyUsers || []).includes(user.name)) { socket.emit('marble:error', '먼저 준비를 해주세요!'); return; }
+        if (mb.phase === 'playing') { socket.emit('marble:error', '경주 진행 중에는 투표할 수 없습니다!'); return; }
+        if (mb.rankVotes[user.name] === target) delete mb.rankVotes[user.name];
+        else mb.rankVotes[user.name] = target;
+        io.to(room.roomId).emit('marble:rankVotesUpdated', { votes: { ...mb.rankVotes } });
+    });
+
+    // 마릿수 단계 (호스트, idle) — solo | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
     socket.on('marble:setCrowd', (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
@@ -276,7 +350,7 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 게임 시작 (호스트) — 검문은 canStartMarble, 실행은 startMarble (예약 발화와 같은 경로)
-    // data.force = 방장 강제 시작: 동물 안 고른 사람은 자동 배정하고 방 전체에 알린다(예약 발화와 같은 규칙)
+    // data.force = 방장이 시작 팝업에서 "자동 배정하고 시작" 확인: 동물 안 고른 사람은 자동 배정하고 방 전체에 알린다(예약 발화와 같은 규칙)
     socket.on('marble:start', async (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
@@ -289,7 +363,7 @@ module.exports = (socket, io, ctx) => {
         if (reason) { socket.emit('marble:error', reason); return; }
         if (force) {
             const unpicked = unpickedNames(gameState);
-            if (unpicked.length) require('./scheduled-start').roomNotice(io, room, gameState, `방장이 강제 시작했어요. ${unpicked.join(', ')}님 동물은 자동 배정됐어요.`);
+            if (unpicked.length) require('./scheduled-start').roomNotice(io, room, gameState, `방장이 바로 시작했어요. ${unpicked.join(', ')}님 동물은 자동 배정됐어요.`);
         }
         await startMarble(room, gameState, io, ctx);
     });

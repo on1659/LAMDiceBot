@@ -61,12 +61,12 @@ function setup(players, nReq, seed) {
         assert.strictEqual(sim.effectiveBallsPerPlayer(10, 50) * 50, sim.constants.MAX_BALLS);
         assert.strictEqual(sim.effectiveBallsPerPlayer(10, 2), 10);
         assert.strictEqual(sim.effectiveBallsPerPlayer(0, 2), sim.constants.BALLS_PER_PLAYER_DEFAULT);   // 잘못된 입력 → 기본값
-        assert.strictEqual(sim.effectiveBallsPerPlayer(3, 100), 2);
+        assert.strictEqual(sim.effectiveBallsPerPlayer(3, 100), Math.max(1, Math.min(3, Math.floor(sim.constants.MAX_BALLS / 100))));
         const s = setup(50, 10, 5);
-        assert.strictEqual(s.balls.length, 200);
+        assert.strictEqual(s.balls.length, sim.constants.MAX_BALLS);
         const r = await sim.simulate(s.balls, 5, s.track);
-        assert.strictEqual(r.finishOrder.length, 200);
-        console.log(`[cap] 50×10 → 200 balls OK simEnd=${(r.simEndMs / 1000).toFixed(1)}s (cap hit: ${r.simEndMs >= sim.constants.SIM_CAP_MS})`);
+        assert.strictEqual(r.finishOrder.length, sim.constants.MAX_BALLS);
+        console.log(`[cap] 50×10 → ${sim.constants.MAX_BALLS} balls OK simEnd=${(r.simEndMs / 1000).toFixed(1)}s (cap hit: ${r.simEndMs >= sim.constants.SIM_CAP_MS})`);
     } catch (e) { fails++; console.log(`[cap] FAIL: ${e.message}`); }
 
     console.log(`\n${fails === 0 ? '✅ ALL PASS' : '❌ ' + fails + ' FAIL'} (${Date.now() - t0}ms)`);
