@@ -23,7 +23,7 @@ const CROWD_PRESETS = {
     normal: { perMax: 2, total: 20 },
     many:   { perMax: 4, total: 50 }
 };
-const CROWD_DEFAULT = 'normal';
+const CROWD_DEFAULT = 'solo';    // 방 기본값(utils/room-helpers.js)과 동일 — 모르는 단계가 오면 이걸로
 const START_ROW_SIZE = 13;        // 출발대 한 줄 공 수 (13 × 30 = 390 ≤ 출발대 폭 400)
 const START_SPACING = 30;
 

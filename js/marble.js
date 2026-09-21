@@ -63,7 +63,7 @@ var readyModuleInitialized = false;
 var marbleState = {
     phase: 'idle',           // idle | playing | finished
     picks: {},               // { userName: creatureId }
-    crowd: 'normal',         // 마릿수 단계 solo|normal|many
+    crowd: 'solo',           // 마릿수 단계 solo|normal|many (기본 솔로 — 서버 utils/room-helpers.js 와 동일)
     ballsPerPlayer: 1,       // 서버가 준비 인원으로 환산한 인당 마릿수 (안내용)
     reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
     preview: null,           // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
@@ -96,7 +96,7 @@ socket.on('connect', function () {
         MarbleShop.loadCatalog().then(function () { renderPickStatus(); });   // 카탈로그가 있어야 장착 id → creature/skin 을 풀 수 있다(배지·아이콘)
         try {
             var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            if (_auth && _auth.token) MarbleShop.authenticate(_auth.token, function () { renderPickStatus(); });
+            if (_auth) MarbleShop.authenticate(_auth.token || null, function () { renderPickStatus(); });   // 토큰 없음/만료는 셸이 자동 연장
         } catch (e) {}
     }
 });
@@ -437,11 +437,7 @@ function renderPickStatus() {
     var locked = marbleState.phase === 'playing' || isMarbleActive;
     var status = document.getElementById('marblePickStatus');
     if (status) {
-        var mine = picks[currentUser];
-        var names = (typeof MarbleRender !== 'undefined') ? MarbleRender.CREATURE_NAMES : {};
-        if (locked) status.textContent = '경주 중에는 바꿀 수 없어요';
-        else if (!mine) status.textContent = '';
-        else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · ' + marbleState.ballsPerPlayer + '마리씩 달려요';
+        status.textContent = locked ? '경주 중에는 바꿀 수 없어요' : '';   // 고른 동물·마릿수 문구는 없음 — 선택 강조와 발자국 버튼이 이미 보여준다(사용자 2026-09-22)
     }
     // 준비했는데 동물을 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식, .not-rolled-tag 는 OrderModule 이 주입)
     var notPickedSection = document.getElementById('notPickedSection');
