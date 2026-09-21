@@ -1,4 +1,38 @@
 ========================================
+📋 Summit Log - 2026-09-21 (8차 새 동물 토끼 — SpriteMake 배치 H, Claude 가 codex exec 로 직접 지휘)
+========================================
+
+## 변경 파일
+- assets/marble/creatures/rabbit.png (640×800 4×5), rabbit-sleep.png (640×160), rabbit-scuffle.png (640×320): 신규. md5 7685907938f7fd573646fb61c7c92639 / 08a947693d3ab44d1f7a9d011741f26f / fe4f54bfe75bb72fa706e1ce5d984811
+- assets/marble/marble-run.manifest.json: creaturesH 섹션(배치·md5·bbox 메모)
+- socket/marble.js: CREATURES 에 'rabbit' (9종, assignCreature 순환도 9종)
+- js/marble.js: MARBLE_CREATURES 에 'rabbit' (v18)
+- js/marble-render.js: CREATURE_NAMES rabbit:'토끼', ASSETS.creatures/sleep/scuffle 에 rabbit 3장 (v47)
+- marble-multiplayer.html: 동물 선택 버튼 🐰 토끼(data-optional — 시트 없으면 자동 숨김), ?v 갱신
+- AutoTest/devtools.html, marble-determinism-test.js, marble-sim-dump.js: CREATURES 목록 9종
+- docs/spritemake-request/applied/2026-09-21-marble-run-creatures-h.md: 의뢰서(디자인·프레임 순서·QA 게이트), 인수 완료로 applied/ 이동
+
+## 상세 변경 내역
+
+### [에셋 파이프라인 — 사람 개입 없이 Claude → Codex]
+- 의뢰서 → SpriteMake Symphony intake(`node tools/runner/request-batch.js`, 배치 ice-sprite-20260921-085437 는 접수 기록) → `codex exec`(ChatGPT.app 번들 CLI 0.155, image_generation)로 작업 배치 output/marble-run-creatures-h-2026-09-21/ 생성·리팩·QA·final/ 승격 → Claude 가 final/ 을 독립 검증(alpha≥8 bbox·셀당 조각 run·접지 y=150·공 기하·라벤더 림 비율·md5) 후 assets/ 복사.
+- 한 Codex 세션을 3라운드 resume 으로 이어감. Codex 가 게임 폴더에 쓰는 건 금지.
+
+### [Codex 라운드에서 잡은 결함 3건 — 이유와 수정]
+- (1) 반려 오판: Codex 가 main 3회 시도를 전부 "정면 뷰"로 반려. 원인은 r4c2(대자로 엎어져 귀가 얼굴 덮는 칸)를 정면으로 읽은 것 — 햄스터·판다 r4c2 도 위에서 본 포즈라 합격 처리, attempt-01 채택(02 는 뻣뻣한 직립, 03 은 마젠타 잔여).
+- (2) 리팩 격자 침범(7차 G 도구 결함, 구조 QA 는 PASS): 원본을 고정 분수 격자로 잘라 윗줄 발·아랫줄 귀 끝 조각이 딸려 옴 → clean_crop bbox 가 늘어나 공 본체 72px(런타임 18px), r3c1·scuffle r0c0 몸이 바닥에서 18~20px 뜸. 수정: 8-연결 컴포넌트를 중심점으로 셀 배정 + QA 에 셀당 y/x-run 1개 게이트. 이후 배치는 tools/*_creatures_h.py 를 쓸 것.
+- (3) 라벤더 림: 보라 배경으로 생성한 sleep·scuffle 가장자리 픽셀 16%/40% 가 배경색(기존 despill 은 빨강·마젠타만) → 안쪽 이웃 색으로 교체(픽셀 삭제 X, 접지 유지). 결과 0%.
+
+### [공 기하]
+- r2c0 공 bbox (20,26)-(140,135) = 120×109, 중심 (80,80.5) — 솜꼬리 돌출 때문에 폭 120 캡으로 균등 축소(본체 ~109, 108~120 게이트 안). 찌그러짐 칸 120×79. row1 col3 == row2 col0 diff 0. 공 4칸 픽셀 차 9천 이상(구분됨).
+
+### [검증]
+- node AutoTest/marble-determinism-test.js ALL PASS. game-lab/marble-preview.html(9인, 시드 7) 출발대 대기(서기)·공 렌더 확인, rabbit*.png 200. 404 는 기존 4차 미도착 4개뿐.
+- 로컬 5173 서버는 옛 프로세스 — socket/marble.js 바뀌었으니 재기동 필요.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-21 (동물 선택 버튼 idle 애니 + 거북이 첫 칸 반전·복어 v2 배포)
 ========================================
 

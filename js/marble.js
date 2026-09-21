@@ -10,7 +10,7 @@ var FS_SETTLE_MS = 400;
 var RESIZE_DEBOUNCE_MS = 120;      // resize/orientationchange 묶기            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
 var MARBLE_CROWDS = ['solo', 'few', 'normal', 'many'];   // 마릿수 4단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
-var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon'];
+var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit'];
 var MY_HIGHLIGHT_KEY = 'marbleMyHighlight';   // localStorage — 내 동물 강조 모드(보는 사람 설정, 기본 켬)
 
 // localhost 체크

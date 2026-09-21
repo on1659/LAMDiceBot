@@ -2515,5 +2515,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creaturesH": {
+    "batch": "marble-run-creatures-h-2026-09-21",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-h.md",
+    "note": "8차 새 동물 토끼 × 시트 3장. 2026-09-21 18:55 Codex(exec, 세션 1개·3라운드)가 생성·리팩·QA, Claude 가 final/ 을 md5·bbox·조각(run)·라벤더 림 독립 검증 후 assets/marble/creatures/ 로 복사. 리팩은 연결 컴포넌트 중심점으로 셀 배정(고정 격자 침범 사고 수정) + 라벤더 배경 림 despill. 공 r2c0 bbox 120×109(꼬리 포함, 본체 ~109), 찌그러짐 칸 120×79. r4c2 대자로 엎어짐은 위에서 본 포즈 — 햄스터·판다와 같아서 합격",
+    "assets": {
+      "rabbit": {
+        "image": "creatures/rabbit.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/rabbit.png",
+        "md5": "7685907938f7fd573646fb61c7c92639",
+        "qaStatus": "PASS"
+      },
+      "rabbit-sleep": {
+        "image": "creatures/rabbit-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/rabbit-sleep.png",
+        "md5": "08a947693d3ab44d1f7a9d011741f26f",
+        "qaStatus": "PASS"
+      },
+      "rabbit-scuffle": {
+        "image": "creatures/rabbit-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/rabbit-scuffle.png",
+        "md5": "fe4f54bfe75bb72fa706e1ce5d984811",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

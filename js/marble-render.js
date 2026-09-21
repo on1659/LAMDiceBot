@@ -91,14 +91,14 @@ var MarbleRender = (function () {
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
         '#4053d6', '#d63be2', '#b07033', '#aab6c4', '#3bc9a7', '#e6dfc8', '#5a6472', '#343344',
         '#ff7a1a', '#f2c014', '#8a8d2f', '#0e9488', '#5b3fd6', '#ff6f61', '#7d3a6a', '#46708f'];
-    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리' };
+    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼' };
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js)
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
