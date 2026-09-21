@@ -35,6 +35,7 @@
 - 미완: 거북이 idle row0 col2 가 왼쪽 보는 그림이라 대기·카운트다운·햇볕 걷기(idle 4칸 순환)에서 두리번 — 시트 교체 대기 중
 
 ### [운영]
+- Railway 실서버(DiceBot/LAMDiceBot)는 assets/** 와 docs 만 바뀐 커밋을 SKIPPED 로 건너뛴다(5be4b71 복어 v2·1b49688 거북이·1ee14de 신캐 시트 전부 SKIPPED, 루트 파일이 바뀐 d9d2a20 은 SUCCESS). 서비스 Watch Paths 가 assets 를 제외하는 것으로 보임 — 대시보드에서 assets/** 포함으로 고치기 전까진 에셋만 바뀐 배포는 이 로그 같은 루트 파일을 같이 건드려 트리거한다(이 항목이 그 트리거)
 - 옆 세션과 충돌 없이 하려고 별도 worktree + launch.json `sh -c "cd <worktree> && PORT=5175 node server.js"` 로 프리뷰, 리베이스 후 ff 머지. 옆 세션 커밋(8dcc125)이 파이프라인이 복사한 PNG 를 쓸어 담았으나 같은 blob 이라 무충돌
 - 미해결 질문: 꼴찌가 먼저 착지하고 그 뒤 직전 사람이 골인하면 cut 이 안 걸려 혼자 걷는 걸 본다(cut 은 착지가 골인보다 뒤일 때만). 수정안: cut = max(마지막 착지, 직전 골인) — 사용자 보류
 
