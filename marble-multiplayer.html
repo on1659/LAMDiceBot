@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=10">
+    <link rel="stylesheet" href="/css/marble.css?v=11">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -346,6 +346,10 @@
                     <button type="button" class="marble-after-btn" onclick="reopenResult()">🏆 순위 보기</button>
                     <button type="button" class="marble-after-btn marble-after-btn-host" id="marbleResetButton" onclick="resetMarbleRound()" style="display: none;">🔄 다음 판 준비</button>
                 </div>
+                <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
+                <div id="marbleOrderRow" class="marble-after-race" style="display: none;">
+                    <button type="button" class="marble-after-btn marble-after-btn-order" onclick="goToOrders()">🍔 주문받기 진행 중 — 주문하러 가기</button>
+                </div>
             </section>
 
             <!-- 채팅 섹션 -->
@@ -448,7 +452,7 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/marble-render.js?v=46"></script>
-    <script src="/js/marble.js?v=16"></script>
+    <script src="/js/marble.js?v=17"></script>
 
     <script>
         // ============================================
