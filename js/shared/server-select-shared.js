@@ -33,7 +33,7 @@ function _insertDemoServerCard() {
     card.innerHTML =
         '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
-            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge">참여 가능</span></div>' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private"><i class="ui ui-lock"></i></span><span class="ss-server-badge">참여 가능</span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
         '</div>';
     list.prepend(card);
@@ -51,7 +51,7 @@ function _insertDemoPwModal() {
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;pointer-events:none;';
     modal.innerHTML =
         '<div id="ss-demo-pw-box" style="background:white;border-radius:20px;padding:30px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">' +
-            '<h3 style="margin:0 0 16px;color:var(--text-primary);">\uD83D\uDD12 \uC608\uC2DC \uC11C\uBC84</h3>' +
+            '<h3 style="margin:0 0 16px;color:var(--text-primary);"><i class="ui ui-lock"></i> \uC608\uC2DC \uC11C\uBC84</h3>' +
             '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid var(--border-light);border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:var(--bg-primary);" />' +
             '<div style="display:flex;gap:10px;">' +
                 '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#eee;color:var(--text-tertiary);">\uCDE8\uC18C</button>' +
@@ -79,7 +79,7 @@ function _insertDemoPendingCard() {
     card.innerHTML =
         '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
-            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge waiting">\uC2B9\uC778 \uB300\uAE30 \uC911</span></div>' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private"><i class="ui ui-lock"></i></span><span class="ss-server-badge waiting">\uC2B9\uC778 \uB300\uAE30 \uC911</span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
         '</div>';
     list.prepend(card);
@@ -101,7 +101,7 @@ function _insertDemoApprovedCard() {
     card.innerHTML =
         '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
-            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span></div>' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private"><i class="ui ui-lock"></i></span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 4명</div>' +
         '</div>';
     list.prepend(card);
@@ -729,16 +729,16 @@ const ServerSelectModule = (function () {
 
             <div class="ss-top-bar">
                 ${loggedIn
-                    ? `<button class="ss-login-btn logged-in" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">👤 ${escapeStr(savedName)}</button>
+                    ? `<button class="ss-login-btn logged-in" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()"><i class="ui ui-person"></i> ${escapeStr(savedName)}</button>
                        <button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>`
-                    : `<button class="ss-login-btn" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">🔑 로그인</button>
+                    : `<button class="ss-login-btn" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()"><i class="ui ui-key"></i> 로그인</button>
                        <button class="ss-logout-btn" id="ss-register-top-btn" onclick="ServerSelectModule.showRegisterModal()">회원가입</button>`
                 }
             </div>
 
             <div class="ss-container">
                 <div class="ss-header">
-                    <h1>🎮 LAMDice</h1>
+                    <h1><i class="ui ui-gamepad"></i> LAMDice</h1>
                     <button class="ss-tutorial-help-btn" id="ss-tutorial-btn" title="사용법 보기" onclick="ServerSelectModule._startTutorial()">?</button>
                     <div class="ss-tagline">
                         <span class="ss-tag-in" id="ss-tagline-text">오늘 커피는 누가 쏠까?</span>
@@ -746,7 +746,7 @@ const ServerSelectModule = (function () {
                 </div>
 
                 <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
-                    🎲 바로 플레이
+                    <i class="ui ui-dice"></i> 바로 플레이
                     <div style="font-size:0.65em;font-weight:400;margin-top:4px;opacity:0.7;overflow:hidden;height:1.3em;position:relative;"><span id="ss-free-sub-text" style="display:inline-block;transition:opacity 0.6s ease,transform 0.6s ease;transform-origin:center;">회원가입 없이 바로 시작</span></div>
                 </button>
 
@@ -765,7 +765,7 @@ const ServerSelectModule = (function () {
                 <a href="terms-of-service.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">이용 약관</a> |
                 <a href="disclaimer.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">면책 조항</a> |
                 <a href="contact.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">문의하기</a> |
-                <a href="statistics.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">📊 통계</a>
+                <a href="statistics.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;"><i class="ui ui-chart"></i> 통계</a>
                 <p style="margin:8px 0 0;font-size:0.75em;opacity:0.5;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
             </div>
         `;
@@ -790,7 +790,7 @@ const ServerSelectModule = (function () {
                 _takeReturnLink();
             } else {
                 _showToast('서버 방 링크는 로그인이 필요해요. 계정이 없으면 회원가입 후 자동으로 이동해요.');
-                _authModal({ title: '🔑 로그인하면 방으로 들어가요', confirmText: '로그인', apiUrl: '/api/auth/login' });
+                _authModal({ title: UIIcons.tag('key') + ' 로그인하면 방으로 들어가요', confirmText: '로그인', apiUrl: '/api/auth/login' });
             }
         }
 
@@ -897,11 +897,11 @@ const ServerSelectModule = (function () {
         if (loggedIn && name) {
             // 실제 로그인 상태: 이름 + 로그아웃
             btn.className = 'ss-login-btn logged-in';
-            btn.innerHTML = '👤 ' + escapeStr(name);
+            btn.innerHTML = UIIcons.tag('person') + ' ' + escapeStr(name);
         } else {
             // 비로그인 (자유 플레이 포함): 로그인 버튼
             btn.className = 'ss-login-btn';
-            btn.innerHTML = '🔑 로그인';
+            btn.innerHTML = UIIcons.tag('key') + ' 로그인';
         }
 
         const existingLogout = document.getElementById('ss-logout-btn');
@@ -1074,11 +1074,11 @@ const ServerSelectModule = (function () {
     }
 
     function showLoginModal() {
-        _authModal({ title: '🔑 로그인', confirmText: '로그인', apiUrl: '/api/auth/login' });
+        _authModal({ title: UIIcons.tag('key') + ' 로그인', confirmText: '로그인', apiUrl: '/api/auth/login' });
     }
 
     function showRegisterModal() {
-        _authModal({ title: '📝 회원가입', confirmText: '가입하기', apiUrl: '/api/auth/register', isRegister: true });
+        _authModal({ title: UIIcons.tag('memo') + ' 회원가입', confirmText: '가입하기', apiUrl: '/api/auth/register', isRegister: true });
     }
 
     function _isLoggedIn() {
@@ -1116,7 +1116,7 @@ const ServerSelectModule = (function () {
         const name = _getUserName();
         if (name && _isLoggedIn()) { callback(name); return; }
         _authModal({
-            title: '🔑 로그인이 필요합니다',
+            title: UIIcons.tag('key') + ' 로그인이 필요합니다',
             confirmText: '로그인',
             apiUrl: '/api/auth/login',
             onSuccess: callback
@@ -1165,7 +1165,7 @@ const ServerSelectModule = (function () {
         listEl.innerHTML = filtered.map((s, i) => {
             const color = colors[i % colors.length];
             const initial = s.name.charAt(0).toUpperCase();
-            const privateBadge = s.is_private ? '<span class="ss-server-badge private">🔒</span>' : '';
+            const privateBadge = s.is_private ? '<span class="ss-server-badge private"><i class="ui ui-lock"></i></span>' : '';
             const statusBadge = s.is_member ? '' : s.is_pending ? '<span class="ss-server-badge waiting">승인 대기 중</span>' : '<span class="ss-server-badge">참여 가능</span>';
             const pending = parseInt(s.pending_count, 10) || 0;
             const pendingBadge = pending > 0 ? `<span class="ss-server-badge pending">${pending}명 대기</span>` : '';
@@ -1261,7 +1261,7 @@ const ServerSelectModule = (function () {
             modal.className = 'ss-pw-modal';
             modal.innerHTML = `
                 <div class="ss-pw-box">
-                    <h3>🔒 ${escapeStr(serverName)}</h3>
+                    <h3><i class="ui ui-lock"></i> ${escapeStr(serverName)}</h3>
                     <input type="password" id="ss-pw-input" placeholder="참여코드 입력" maxlength="20" />
                     <div class="ss-error" id="ss-pw-error"></div>
                     <div class="ss-pw-btns">
@@ -1301,7 +1301,7 @@ const ServerSelectModule = (function () {
         modal.id = 'ss-create-modal';
         modal.innerHTML = `
             <div class="ss-create-box">
-                <h3>🏠 새 서버 만들기</h3>
+                <h3><i class="ui ui-home"></i> 새 서버 만들기</h3>
                 <div class="ss-input-group">
                     <label>서버 이름 *</label>
                     <input type="text" id="ss-create-name" placeholder="2~20자, 한글/영문/숫자" maxlength="20" />
@@ -1504,7 +1504,7 @@ const ServerSelectModule = (function () {
         modal.id = 'ss-members-modal';
         modal.innerHTML = `
             <div class="ss-members-box">
-                <h3>👥 ${escapeStr(_currentServer.name)} 멤버</h3>
+                <h3><i class="ui ui-people"></i> ${escapeStr(_currentServer.name)} 멤버</h3>
                 <div class="ss-members-list" id="ss-members-list">
                     <div class="ss-loading">불러오는 중...</div>
                 </div>
@@ -1653,7 +1653,7 @@ const ServerSelectModule = (function () {
             boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
         });
         box.innerHTML = `
-            <p style="font-size:1.5em;margin:0 0 8px;">⚠️</p>
+            <p style="font-size:1.5em;margin:0 0 8px;"><i class="ui ui-warn"></i></p>
             <p style="font-size:0.9em;color:var(--text-primary);margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
             <div style="display:flex;gap:10px;">
                 <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>

@@ -73,13 +73,13 @@ const ChatModule = (function () {
     let _titleFlashInterval = null; // 타이틀 깜박임 타이머
     let _baseEmojiKeys = []; // 기본 이모지 키 목록 (삭제 불가)
 
-    // 디바이스 아이콘
+    // 디바이스 아이콘 — 공용 스프라이트 id (js/shared/ui-icons.js)
     function getDeviceIcon(deviceType) {
         switch (deviceType) {
-            case 'ios': return '🍎';
-            case 'android': return '📱';
+            case 'ios': return 'apple';
+            case 'android': return 'phone';
             case 'pc':
-            default: return '💻';
+            default: return 'pc';
         }
     }
 
@@ -495,22 +495,27 @@ const ChatModule = (function () {
         };
     }
 
-    // 유저명 텍스트 생성
+    // 유저명 텍스트 생성 (배지 없는 평문 — 알림·로그용)
     function buildUserNameText(data) {
-        let text = '';
+        return data.userName + (data.userName === _currentUser ? ' (나)' : '');
+    }
+
+    // 유저명 노드 생성 — 배지(순위 메달·호스트 왕관·기기)는 스프라이트 <i>, 이름은 텍스트 노드 (innerHTML 미사용)
+    function buildUserNameNodes(data) {
+        const frag = document.createDocumentFragment();
+        const icon = (id) => { frag.appendChild(UIIcons.el(id)); frag.appendChild(document.createTextNode(' ')); };
 
         // 배지 표시 (서버가 채팅 메시지에 포함시킨 badgeRank 사용)
         if (_showBadges && data.badgeRank) {
-            if (data.badgeRank === 1) text += '🥇 ';
-            else if (data.badgeRank === 2) text += '🥈 ';
-            else if (data.badgeRank === 3) text += '🥉 ';
+            if (data.badgeRank === 1) icon('medal');
+            else if (data.badgeRank === 2) icon('silver');
+            else if (data.badgeRank === 3) icon('bronze');
         }
 
-        if (data.isHost) text += '👑 ';
-        if (data.deviceType) text += getDeviceIcon(data.deviceType) + ' ';
-        text += data.userName;
-        if (data.userName === _currentUser) text += ' (나)';
-        return text;
+        if (data.isHost) icon('crown');
+        if (data.deviceType) icon(getDeviceIcon(data.deviceType));
+        frag.appendChild(document.createTextNode(buildUserNameText(data)));
+        return frag;
     }
 
     // 멘션 하이라이팅
@@ -587,7 +592,7 @@ const ChatModule = (function () {
             if (chatMessage.isHtml) {
                 msgText.innerHTML = chatMessage.message;
             } else {
-                msgText.textContent = chatMessage.message;
+                UIIcons.setIconText(msgText, chatMessage.message);   // 서버 문구의 이모지(🎊🎉·날씨 등)만 스프라이트로, 나머지는 텍스트 노드
             }
             messageDiv.appendChild(msgText);
 
@@ -606,7 +611,7 @@ const ChatModule = (function () {
             const headerDiv = document.createElement('div');
             headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 6px;';
             const aiIcon = document.createElement('span');
-            aiIcon.textContent = '✨';
+            aiIcon.replaceChildren(UIIcons.el('sparkle'));
             aiIcon.style.marginRight = '6px';
             const userNameSpan = document.createElement('span');
             userNameSpan.style.cssText = 'font-weight: 600; color: #4285f4;';
@@ -651,7 +656,7 @@ const ChatModule = (function () {
 
             const userNameSpan = document.createElement('span');
             userNameSpan.style.cssText = `font-weight: 600; color: ${isMe ? myColor : themeColor}; margin-right: 8px;`;
-            userNameSpan.textContent = buildUserNameText(chatMessage);
+            userNameSpan.replaceChildren(buildUserNameNodes(chatMessage));
 
             const messageSpan = document.createElement('span');
             messageSpan.style.color = '#333';
@@ -665,7 +670,7 @@ const ChatModule = (function () {
             rightContentSpan.style.cssText = 'min-width: 60px; text-align: right;';
             const diceResultSpan = document.createElement('span');
             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-            diceResultSpan.textContent = '🎲 ' + chatMessage.diceResult.result;
+            diceResultSpan.replaceChildren(UIIcons.el('dice'), ' ' + chatMessage.diceResult.result);
             rightContentSpan.appendChild(diceResultSpan);
             firstLineDiv.appendChild(rightContentSpan);
 
@@ -675,7 +680,7 @@ const ChatModule = (function () {
 
             const userNameSpan = document.createElement('span');
             userNameSpan.style.cssText = `font-weight: 600; color: ${isMe ? myColor : themeColor}; margin-right: 8px;`;
-            userNameSpan.textContent = buildUserNameText(chatMessage);
+            userNameSpan.replaceChildren(buildUserNameNodes(chatMessage));
 
             const messageSpan = document.createElement('span');
             messageSpan.style.color = '#333';
@@ -1108,7 +1113,7 @@ const ChatModule = (function () {
             z-index: 10000;
         `;
         toast.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 4px;">💬 ${data.fromUser}님이 멘션했습니다</div>
+            <div style="font-weight: 600; margin-bottom: 4px;"><i class="ui ui-chat"></i> ${data.fromUser}님이 멘션했습니다</div>
             <div style="font-size: 14px; opacity: 0.9;">${data.message.substring(0, 50)}${data.message.length > 50 ? '...' : ''}</div>
         `;
         document.body.appendChild(toast);
@@ -1228,12 +1233,12 @@ const ChatModule = (function () {
             leftSpan.style.alignItems = 'center';
 
             const pinIcon = document.createElement('span');
-            pinIcon.textContent = '📌 ';
+            pinIcon.replaceChildren(UIIcons.el('pin'));
             pinIcon.style.marginRight = '4px';
 
             const userName = document.createElement('span');
             userName.style.cssText = `font-weight: 600; color: ${themeColor}; margin-right: 8px;`;
-            userName.textContent = buildUserNameText(msg);
+            userName.replaceChildren(buildUserNameNodes(msg));
 
             const msgText = document.createElement('span');
             msgText.style.color = '#333';
@@ -1245,19 +1250,19 @@ const ChatModule = (function () {
 
             const rightSpan = document.createElement('span');
             rightSpan.style.cssText = 'font-weight: 600; color: #333; white-space: nowrap; margin-left: 10px;';
-            rightSpan.textContent = '🎲 ' + msg.diceResult.result;
+            rightSpan.replaceChildren(UIIcons.el('dice'), ' ' + msg.diceResult.result);
 
             contentDiv.appendChild(leftSpan);
             contentDiv.appendChild(rightSpan);
             pinnedItem.appendChild(contentDiv);
         } else {
             const pinIcon = document.createElement('span');
-            pinIcon.textContent = '📌 ';
+            pinIcon.replaceChildren(UIIcons.el('pin'));
             pinIcon.style.marginRight = '4px';
 
             const userName = document.createElement('span');
             userName.style.cssText = `font-weight: 600; color: ${themeColor}; margin-right: 8px;`;
-            userName.textContent = buildUserNameText(msg);
+            userName.replaceChildren(buildUserNameNodes(msg));
 
             const msgText = document.createElement('span');
             msgText.style.color = '#333';
@@ -1381,9 +1386,13 @@ const ChatModule = (function () {
             const titleEl = chatSection && chatSection.firstElementChild;
             if (titleEl && titleEl !== chatMessages) {
                 titleEl.style.cssText += ';display:flex;justify-content:space-between;align-items:center;';
+                // 제목의 아이콘 <i> 와 텍스트가 flex 항목으로 흩어지지 않게 span 하나로 묶는다
+                const label = document.createElement('span');
+                while (titleEl.firstChild) label.appendChild(titleEl.firstChild);
+                titleEl.appendChild(label);
                 const btn = document.createElement('button');
                 btn.id = 'rankingBtn';
-                btn.textContent = '🏆 랭킹';
+                btn.replaceChildren(UIIcons.el('trophy'), ' 랭킹');
                 btn.style.cssText = 'width:auto;margin:0;flex-shrink:0;background:var(--bg-white,#fff);border:1px solid currentColor;color:inherit;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
                 btn.addEventListener('click', () => RankingModule.show(_options.gameType));
                 titleEl.appendChild(btn);
@@ -1401,7 +1410,7 @@ const ChatModule = (function () {
             `;
             pinnedSection.innerHTML = `
                 <div style="font-weight: 600; color: #ff6f00; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    📌 고정된 메시지
+                    <i class="ui ui-pin"></i> 고정된 메시지
                 </div>
                 <div id="pinnedMessagesList"></div>
             `;
@@ -1658,6 +1667,7 @@ const ChatModule = (function () {
         createTimeReactionsContainer,
         attachHoverEvents,
         buildUserNameText,
+        buildUserNameNodes,
         scrollToBottom,
         openImageModal,
         showImageUploadModal,

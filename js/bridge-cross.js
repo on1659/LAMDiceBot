@@ -359,13 +359,17 @@ function closeResultOverlay() {
 // ============================================
 
 const BRIDGE_COLORS = [
-    { idx: 0, name: '빨강', emoji: '🟥' },
-    { idx: 1, name: '주황', emoji: '🟧' },
-    { idx: 2, name: '노랑', emoji: '🟨' },
-    { idx: 3, name: '초록', emoji: '🟩' },
-    { idx: 4, name: '파랑', emoji: '🟦' },
-    { idx: 5, name: '남색', emoji: '🟪' }
+    { idx: 0, name: '빨강', emoji: '🟥', hex: '#e53935' },
+    { idx: 1, name: '주황', emoji: '🟧', hex: '#fb8c00' },
+    { idx: 2, name: '노랑', emoji: '🟨', hex: '#fdd835' },
+    { idx: 3, name: '초록', emoji: '🟩', hex: '#43a047' },
+    { idx: 4, name: '파랑', emoji: '🟦', hex: '#1e88e5' },
+    { idx: 5, name: '남색', emoji: '🟪', hex: '#5e35b1' }
 ];
+// 색 칸 표시 — OS 이모지 대신 CSS 색 사각형(.bc-swatch, bridge-cross-multiplayer.html <style>). innerHTML 템플릿용.
+function bridgeSwatch(color) {
+    return '<span class="bc-swatch" style="background:' + color.hex + '"></span>';
+}
 
 var myColorIndex = null;
 var bridgeBettingDeadline = 0;
@@ -380,7 +384,7 @@ function renderBridgeColorGrid() {
         card.className = 'bridge-color-card';
         card.dataset.color = String(color.idx);
         card.innerHTML = `
-            <div class="color-emoji">${color.emoji}</div>
+            <div class="color-emoji">${bridgeSwatch(color)}</div>
             <div class="color-name">${color.name}</div>
         `;
         card.addEventListener('click', () => {
@@ -495,7 +499,7 @@ function showBridgeResult(data) {
     const colorChips = winnerColorIdxs
         .map(idx => BRIDGE_COLORS[idx])
         .filter(Boolean)
-        .map(c => `${c.emoji} ${c.name}`)
+        .map(c => `${bridgeSwatch(c)} ${c.name}`)
         .join(' / ');
     const winnerColorBlock = colorChips
         ? `<div style="font-size:28px; margin-bottom:8px;">${colorChips} 통과!</div>`
@@ -505,7 +509,7 @@ function showBridgeResult(data) {
     if (Array.isArray(data.winners) && data.winners.length > 0) {
         winnersHtml = `
             <div style="margin-top:12px; padding:12px; background: var(--result-gold-light, #fef3c7); border-radius:8px;">
-                <div style="font-weight:bold; color:#b45309; margin-bottom:6px;">🏆 당첨자</div>
+                <div style="font-weight:bold; color:#b45309; margin-bottom:6px;"><i class="ui ui-trophy"></i> 당첨자</div>
                 <div style="font-size:15px;">${data.winners.map(w => escapeHtml(w)).join(', ')}</div>
             </div>
         `;
@@ -570,10 +574,10 @@ function renderBridgeHistory() {
                 const isPasser = passingForRow.includes(colorIdx);
                 const bettors = (bettorsByColor[colorIdx] || []).map(escapeHtml).join(', ') || '-';
                 const bgColor = isPasser ? 'var(--result-gold-light, #fef3c7)' : 'var(--panel-secondary, rgba(0,0,0,0.04))';
-                const status = isPasser ? '✅ 통과' : '❌ 실패';
+                const status = isPasser ? UIIcons.tag('check') + ' 통과' : UIIcons.tag('x') + ' 실패';
                 return `
                     <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:${bgColor}; border-radius:4px; margin-bottom:4px; font-size:12px;">
-                        <span style="font-size:14px;">${c ? c.emoji : ''}</span>
+                        <span style="font-size:14px;">${c ? bridgeSwatch(c) : ''}</span>
                         <span style="font-weight:bold; min-width:36px;">${c ? c.name : ''}</span>
                         <span style="color:${isPasser ? '#b45309' : 'var(--text-muted)'}; font-weight:600;">${status}</span>
                         <span style="margin-left:auto; color:var(--text-secondary); font-size:11px;">${bettors}</span>
@@ -583,7 +587,7 @@ function renderBridgeHistory() {
         }
 
         const winnersText = h.winners && h.winners.length > 0
-            ? `🎊 당첨: ${h.winners.map(escapeHtml).join(', ')}`
+            ? `<i class="ui ui-confetti"></i> 당첨: ${h.winners.map(escapeHtml).join(', ')}`
             : '당첨자 없음';
 
         return `
@@ -653,16 +657,16 @@ function updateStartButton() {
 
         if (isBridgeCrossActive) {
             btn.disabled = true;
-            btn.textContent = '🌉 게임 진행 중';
+            btn.replaceChildren(UIIcons.el('bridge'), ' 게임 진행 중');
         } else if (readyCount < 2) {
             btn.disabled = true;
-            btn.textContent = `🌉 다리 건너기 시작 (${readyCount}/2명 준비)`;
+            btn.replaceChildren(UIIcons.el('bridge'), ` 다리 건너기 시작 (${readyCount}/2명 준비)`);
         } else if (readyNonBettors.length > 0) {
             btn.disabled = true;
-            btn.textContent = `🌉 다리 건너기 시작 (베팅 안 함 ${readyNonBettors.length}명)`;
+            btn.replaceChildren(UIIcons.el('bridge'), ` 다리 건너기 시작 (베팅 안 함 ${readyNonBettors.length}명)`);
         } else {
             btn.disabled = false;
-            btn.textContent = '🌉 다리 건너기 시작!';
+            btn.replaceChildren(UIIcons.el('bridge'), ' 다리 건너기 시작!');
         }
     }
 
@@ -920,7 +924,7 @@ function renderUsersList(userArray) {
         if (user.isHost) tag.classList.add('host');
         if (user.name === currentUser) tag.classList.add('me');
         let content = escapeHtml(user.name);
-        if (user.isHost) content += ' 👑';
+        if (user.isHost) content += ' ' + UIIcons.tag('crown');
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
 
@@ -979,7 +983,7 @@ function showPlayerActionDialog(playerName) {
         dialogContent.style.cssText = 'background: var(--bg-white); border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid var(--bridge-accent);';
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: var(--text-primary); text-align: center; margin-bottom: 25px; font-weight: 600;';
-        messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${escapeHtml(playerName)}님에게 어떤 행동을 하시겠습니까?`;
+        messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${UIIcons.tag('person')}</span>${escapeHtml(playerName)}님에게 어떤 행동을 하시겠습니까?`;
         const buttonContainer = document.createElement('div');
         buttonContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
 
@@ -2000,7 +2004,7 @@ socket.on('joinError', (data) => {
                 addDebugLog('[ERR] 서버 옛 형식 수신 — 5173 서버 재시작 필요!', 'error');
             }
             if (typeof showCustomAlert === 'function') {
-                showCustomAlert('🚨 서버 코드가 옛 버전입니다. 5173 서버 재시작이 필요합니다.', 'error');
+                showCustomAlert('서버 코드가 옛 버전입니다. 5173 서버 재시작이 필요합니다.', 'error');
             }
             // outbound paths를 옛 scenarios로 채워서 동작은 하게 (생존자 = scenario.success === true인 인덱스)
             var oldScenarios = data.scenarios;

@@ -2716,19 +2716,19 @@
   },
   "uiIconsL": {
     "batch": "marble-run-ui-icons-l-2026-09-21",
-    "status": "picked-up",
+    "status": "migrated",
     "request": "docs/spritemake-request/applied/2026-09-21-marble-run-ui-icons-l.md",
-    "note": "10차 UI 아이콘 아틀라스 1장 — 데구리 페이지·캔버스의 OS 이모지 33곳 전면 교체. 2026-09-21 23:39 Codex(exec 1세션: 전체 시트 4회 + 시험관 단독 1회 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화·QA)가 생성, Claude 가 셀 bbox·중심·alpha 1~7·마젠타 잔류·20/32px 대조 시트로 독립 검증 후 복사. 소비처: css/marble.css .mi-{id}(background-position (col×20)%,(row×20)%), js/marble-render.js ICON_CELL. 여백 3칸(index 33~35)은 투명.",
+    "note": "10차 UI 아이콘 아틀라스 1장 — 데구리 페이지·캔버스의 OS 이모지 33곳 전면 교체. 2026-09-21 23:39 Codex(exec 1세션: 전체 시트 4회 + 시험관 단독 1회 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화·QA)가 생성, Claude 가 셀 bbox·중심·alpha 1~7·마젠타 잔류·20/32px 대조 시트로 독립 검증 후 복사. 소비처: css/marble.css .mi-{id}(background-position (col×20)%,(row×20)%), js/marble-render.js ICON_CELL. 여백 3칸(index 33~35)은 투명. — 2026-09-22 11차: 33셀을 저장소 공용 아틀라스 assets/ui/icons.png(10×10, index 0~32 동일 순서, 픽셀 동일) 로 이관. assets/marble/ui/icons.png 삭제, css/marble.css .mi-* 는 공용 셀 별칭, js/marble-render.js 는 UI_ICON_CELL 사용. 공용 manifest: assets/ui/icons.manifest.json",
     "assets": {
       "icons": {
-        "image": "ui/icons.png",
+        "image": "../ui/icons.png",
         "canvas": [
-          768,
-          768
+          1280,
+          1280
         ],
         "grid": [
-          6,
-          6
+          10,
+          10
         ],
         "cell": [
           128,

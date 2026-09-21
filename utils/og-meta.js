@@ -19,7 +19,7 @@ const SITE_ORIGIN = 'https://lamdice.com';
 const META_START = '<!-- OG-ROOM-META:START';
 const META_END = '<!-- OG-ROOM-META:END -->';
 
-// js/free.js의 GAME_LABELS / GAME_EMOJI와 같은 값을 유지할 것.
+// js/free.js의 GAME_LABELS와 같은 값을 유지할 것.
 // 여기 없는 슬러그는 기본 메타를 그대로 쓴다.
 const GAME_LABELS = {
     dice:         '주사위',
@@ -30,16 +30,6 @@ const GAME_LABELS = {
     'spin-arena': '회전 칼날',
     pirate:       '해적 룰렛',
     marble:       '데구리'
-};
-const GAME_EMOJI = {
-    dice:         '🎲',
-    roulette:     '🎰',
-    horse:        '🐎',
-    bridge:       '🌉',
-    ladder:       '🪜',
-    'spin-arena': '⚔️',
-    pirate:       '🏴‍☠️',
-    marble:       '🐾'
 };
 
 // free.html 캐시 — mtime이 바뀌면 다시 읽는다 (dev에서 편집 즉시 반영).
@@ -88,14 +78,13 @@ function buildMetaBlock({ title, description, url, image }) {
 
 function buildRoomMeta(game, urlPath, room) {
     const label = GAME_LABELS[game];
-    const emoji = GAME_EMOJI[game] || '';
 
     // 자유 방은 "{닉네임}의 방"으로 자동 생성(socket/free.js),
     // 서버 방은 방을 만들 때 사용자가 직접 입력한 제목(socket/rooms.js).
     const roomName = (room.roomName || '').trim();
     const title = roomName
-        ? `${emoji} ${roomName} · ${label} - LAMDice`
-        : `${emoji} ${label} 방 - LAMDice`;
+        ? `${roomName} · ${label} - LAMDice`
+        : `${label} 방 - LAMDice`;
 
     const users = room.gameState && Array.isArray(room.gameState.users) ? room.gameState.users : [];
     const description = users.length > 0

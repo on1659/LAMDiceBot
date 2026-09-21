@@ -205,7 +205,8 @@ function updatePipButtonLabel() {
     // 버튼은 래퍼와 함께 이동 — attach면 raceDoc()=PiP 문서, 아니면 메인 문서 (같은 헬퍼로 수렴). 2-상태.
     var btn = raceDoc().getElementById('racePipBtn');
     if (!btn) return;
-    btn.textContent = racePipAttached() ? '↩ 원래 화면으로' : '📺 작은 창으로';
+    if (racePipAttached()) btn.textContent = '↩ 원래 화면으로';
+    else btn.replaceChildren(UIIcons.el('tv'), ' 작은 창으로');
 }
 
 // PiP 창 열기 — 클릭 시 즉시 requestWindow(제스처 소비는 미룰 수 없음) → resolve 즉시 attach.
@@ -511,7 +512,7 @@ function updateFullscreenButtonLabel() {
     // 버튼은 래퍼 안이라 PiP attach 시 PiP 문서로 함께 이동한다 — 메인만 조회하면 null(데드 클릭)
     var btn = anyDocGetById('raceFullscreenBtn');
     if (!btn) return;
-    btn.textContent = _raceFsActive ? '⛶ 전체화면 종료' : '⛶ 전체화면';
+    btn.replaceChildren(UIIcons.el('expand'), _raceFsActive ? ' 전체화면 종료' : ' 전체화면');
 }
 
 // PiP 상호배타 — 래퍼가 PiP 문서에 있으면 이 페이지엔 트랙이 없으므로 버튼을 숨긴다.
@@ -860,6 +861,28 @@ async function loadVehicleThemes() {
 
 // 페이지 로드 시 테마 데이터 로드
 loadVehicleThemes();
+
+// 탈것 SVG 썸네일 — 실시간 순위·미니맵·튜토리얼 샘플의 탈것 이모지 자리 (결과판 getVehicleSVGForResult 와 같은 frame1 축소).
+// 크기는 여는 <svg> 태그의 width/height 만 바꾼다(내부 도형의 width="60" 오치환 방지). 정적 SVG 상수라 innerHTML 안전.
+function vehicleThumb(vehicleId, px) {
+    const svgs = getVehicleSVG(vehicleId);
+    const stateData = svgs.run || svgs.idle || svgs;
+    const h = Math.round(px * 0.75);
+    const svg = String(stateData.frame1 || svgs.frame1 || '')
+        .replace(/^<svg\b[^>]*>/, tag => tag.replace(/\swidth="[^"]*"/, ` width="${px}"`).replace(/\sheight="[^"]*"/, ` height="${h}"`));
+    return `<span class="vh-thumb" style="display:inline-block;width:${px}px;height:${h}px;vertical-align:middle;line-height:0;">${svg}</span>`;
+}
+function vehicleThumbEl(vehicleId, px) {
+    const wrap = document.createElement('span');
+    wrap.innerHTML = vehicleThumb(vehicleId, px);
+    return wrap.firstChild;
+}
+// 채팅 시스템 메시지(socket/chat.js 날씨 보정 목록 등)의 탈것 이모지 → 탈것 SVG 썸 (경마 페이지에서만 등록)
+if (typeof UIIcons !== 'undefined') {
+    [['🐰', 'rabbit'], ['🐢', 'turtle'], ['🐦', 'bird'], ['🚤', 'boat'], ['🚲', 'bicycle'], ['🚀', 'rocket'], ['🚗', 'car'], ['🦅', 'eagle'], ['🛴', 'scooter'], ['🚁', 'helicopter'], ['🐴', 'horse'], ['🐎', 'horse']].forEach(function (pair) {
+        UIIcons.register(pair[0], function () { return vehicleThumbEl(pair[1], 16) || document.createTextNode(pair[0]); });
+    });
+}
 var ordersData = {};
 var currentUsers = [];
 
@@ -1015,7 +1038,7 @@ function showEntryFailureUI(reason) {
     if (entryLoadingHTML === null) entryLoadingHTML = ls.innerHTML;
     ls.innerHTML = '' +
         '<div id="entryFailNotice" style="text-align: center; color: white; padding: 0 20px; max-width: 400px;">' +
-            '<div style="font-size: 60px; margin-bottom: 16px;">🐎</div>' +
+            '<div style="font-size: 60px; margin-bottom: 16px;">' + UIIcons.tag('horse') + '</div>' +
             '<h2 style="font-size: 22px; margin-bottom: 10px;">방에 들어가지 못했어요</h2>' +
             '<p id="entryFailReason" style="font-size: 15px; opacity: 0.9; margin-bottom: 24px; line-height: 1.5; word-break: keep-all;"></p>' +
             '<div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">' +
@@ -1203,10 +1226,10 @@ function updateStartButton() {
     if (btn && isHost) {
         if (readyUsers.length >= 2 && !isRaceActive) {
             btn.disabled = false;
-            btn.textContent = '🐎 경마 시작!';
+            btn.replaceChildren(UIIcons.el('horse'), ' 경마 시작!');
         } else {
             btn.disabled = true;
-            btn.textContent = `🐎 경마 시작 (${readyUsers.length}/2명 준비)`;
+            btn.replaceChildren(UIIcons.el('horse'), ` 경마 시작 (${readyUsers.length}/2명 준비)`);
         }
     }
 }
@@ -1455,7 +1478,7 @@ function renderTrackForSelection() {
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
                     nameTag.style.cssText = ME_NAMETAG_CSS;
-                    nameTag.textContent = '⭐ ' + userName;
+                    nameTag.replaceChildren(UIIcons.el('star'), ' ' + userName);
                 } else {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
@@ -1601,7 +1624,7 @@ function renderHorseSelection() {
         });
         trackLengthContainer.style.display = 'flex';
     } else {
-        trackLengthContainer.innerHTML = `<span style="display: inline-block; padding: 6px 16px; border-radius: 12px; background: linear-gradient(135deg, var(--slate-800), var(--slate-700)); border: 1px solid var(--slate-600); font-size: 14px; font-weight: bold; color: var(--slate-200); letter-spacing: 1px;">🏁 <span id="trackLengthInfo" style="color: var(--blue-400);">${currentTrackDistanceMeters}m</span></span>`;
+        trackLengthContainer.innerHTML = `<span style="display: inline-block; padding: 6px 16px; border-radius: 12px; background: linear-gradient(135deg, var(--slate-800), var(--slate-700)); border: 1px solid var(--slate-600); font-size: 14px; font-weight: bold; color: var(--slate-200); letter-spacing: 1px;">${UIIcons.tag('checker')} <span id="trackLengthInfo" style="color: var(--blue-400);">${currentTrackDistanceMeters}m</span></span>`;
         trackLengthContainer.style.display = 'flex';
     }
 
@@ -1781,14 +1804,14 @@ function renderHorseSelection() {
     if (availableHorses.length >= 6) {
         randomButton.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-                <span style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</span>
+                <span style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">${UIIcons.tag('dice')}</span>
                 <span style="font-size:14px;font-weight:bold;color:var(--red-400);">랜덤 선택!!</span>
             </div>
         `;
     } else {
         randomButton.innerHTML = `
             <div class="vehicle-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;">
-                <div style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</div>
+                <div style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">${UIIcons.tag('dice')}</div>
                 <div class="vehicle-name" style="font-size:12px;">랜덤!</div>
             </div>
         `;
@@ -1931,8 +1954,8 @@ function showPipResultBanner(targetRank, winners) {
     banner.innerHTML =
         '<div style="background:rgba(20,20,20,0.95);border:2px solid var(--yellow-400);border-radius:14px;'
         + 'padding:16px 22px;max-width:88%;text-align:center;color:#fff;">'
-        + '<div style="font-size:20px;font-weight:900;margin-bottom:6px;">🎊 순위 발표</div>'
-        + '<div style="font-size:14px;color:var(--yellow-400);margin-bottom:10px;">🎯 ' + escapeHtmlText(titleText) + '</div>'
+        + '<div style="font-size:20px;font-weight:900;margin-bottom:6px;">' + UIIcons.tag('confetti') + ' 순위 발표</div>'
+        + '<div style="font-size:14px;color:var(--yellow-400);margin-bottom:10px;">' + UIIcons.tag('target') + ' ' + escapeHtmlText(titleText) + '</div>'
         + '<div style="font-size:15px;font-weight:700;line-height:1.5;word-break:break-all;">당첨: ' + names + '</div>'
         + '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:12px;">자세한 순위는 원래 화면에서 · 눌러서 닫기</div>'
         + '</div>';
@@ -2022,7 +2045,7 @@ function renderRankVoteSection(opts) {
             // 룰렛 시각화 단계 — 투표가 끝났으므로 규칙 안내 숨김
             warnEl.style.display = 'none';
         } else {
-            warnEl.textContent = '🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.';
+            warnEl.replaceChildren(UIIcons.el('horse'), ' 선택된 말 수보다 높은 등수에 던진 표는 사라져요.');
             warnEl.style.display = 'block';
         }
     }
@@ -2465,9 +2488,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     const weatherBanner = document.createElement('div');
     weatherBanner.className = 'weather-banner';
     weatherBanner.id = 'weatherBanner';
-    const weatherEmojis = { sunny: '☀️', rain: '🌧️', wind: '💨', fog: '🌫️' };
+    const weatherIcons = { sunny: 'sun', rain: 'rain', wind: 'dash', fog: 'fog' }; // UIIcons id
     const weatherNames = { sunny: '맑음', rain: '비', wind: '바람', fog: '안개' };
-    weatherBanner.textContent = `${weatherEmojis[currentWeather]} ${weatherNames[currentWeather]}`;
+    const setWeatherBanner = (weather) => weatherBanner.replaceChildren(UIIcons.el(weatherIcons[weather]), ' ' + weatherNames[weather]);
+    setWeatherBanner(currentWeather);
     // sunny일 때는 배너 숨김
     if (currentWeather === 'sunny') {
         weatherBanner.style.display = 'none';
@@ -2475,30 +2499,31 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     trackContainer.appendChild(weatherBanner);
 
     // 날씨 토스트 코멘트 (클라이언트 독립적 - 서버 동기화 X)
+    // icon = UIIcons id, vehicle = 탈것 SVG 썸(vehicleThumbEl) — 앞에 붙는 그림, text = 문구
     const weatherComments = {
         rain: [
-            "🌧️ 비가 내리기 시작합니다!",
-            "🚤 보트가 신나하네요!",
-            "🐰 토끼가 비를 싫어합니다...",
-            "🚲 자전거 조심! 미끄러워요!",
-            "🐢 거북이에겐 좋은 날씨네요~"
+            { icon: 'rain', text: "비가 내리기 시작합니다!" },
+            { vehicle: 'boat', text: "보트가 신나하네요!" },
+            { vehicle: 'rabbit', text: "토끼가 비를 싫어합니다..." },
+            { vehicle: 'bicycle', text: "자전거 조심! 미끄러워요!" },
+            { vehicle: 'turtle', text: "거북이에겐 좋은 날씨네요~" }
         ],
         wind: [
-            "💨 바람이 불기 시작합니다!",
-            "🦅 독수리가 날개를 펼칩니다!",
-            "🚁 헬리콥터가 흔들리고 있어요!",
-            "🚲 자전거가 힘들어합니다..."
+            { icon: 'dash', text: "바람이 불기 시작합니다!" },
+            { vehicle: 'eagle', text: "독수리가 날개를 펼칩니다!" },
+            { vehicle: 'helicopter', text: "헬리콥터가 흔들리고 있어요!" },
+            { vehicle: 'bicycle', text: "자전거가 힘들어합니다..." }
         ],
         fog: [
-            "🌫️ 안개가 끼기 시작합니다!",
-            "👀 앞이 안 보여요!",
-            "🚀 로켓은 안개 따위...",
-            "🐦 새들이 방향을 잃었어요!"
+            { icon: 'fog', text: "안개가 끼기 시작합니다!" },
+            { icon: 'eye', text: "앞이 안 보여요!" },
+            { vehicle: 'rocket', text: "로켓은 안개 따위..." },
+            { vehicle: 'bird', text: "새들이 방향을 잃었어요!" }
         ],
         sunny: [
-            "☀️ 날씨가 맑아졌습니다!",
-            "🐰 토끼가 기뻐합니다!",
-            "☀️ 달리기 좋은 날씨네요!"
+            { icon: 'sun', text: "날씨가 맑아졌습니다!" },
+            { vehicle: 'rabbit', text: "토끼가 기뻐합니다!" },
+            { icon: 'sun', text: "달리기 좋은 날씨네요!" }
         ]
     };
 
@@ -2525,7 +2550,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
         const toast = document.createElement('div');
         toast.className = 'weather-toast';
-        toast.textContent = randomComment;
+        toast.replaceChildren(randomComment.vehicle ? vehicleThumbEl(randomComment.vehicle, 16) : UIIcons.el(randomComment.icon), ' ' + randomComment.text);
         trackContainer.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
     }
@@ -2791,7 +2816,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
                     nameTag.style.cssText = ME_NAMETAG_CSS;
-                    nameTag.textContent = '⭐ ' + userName;
+                    nameTag.replaceChildren(UIIcons.el('star'), ' ' + userName);
                 } else {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
@@ -2828,7 +2853,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         liveRankingPanel.style.cssText = 'background: linear-gradient(135deg, var(--slate-950) 0%, var(--slate-960) 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
         const title = document.createElement('div');
         title.style.cssText = 'font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px; font-family: "Jua", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
-        title.textContent = '🏃 실시간 순위';
+        title.replaceChildren(UIIcons.el('dash'), ' 실시간 순위');
         liveRankingPanel.appendChild(title);
         const list = document.createElement('div');
         list.id = 'liveRankingList';
@@ -2912,13 +2937,15 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             positions.forEach((pos, idx) => {
                 const info = vehicleInfoMap[pos.horseIndex];
                 if (info) {
-                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+                    const medal = idx === 0 ? UIIcons.tag('medal') : idx === 1 ? UIIcons.tag('silver') : idx === 2 ? UIIcons.tag('bronze') : `${idx + 1}.`;
                     const users = info.bettingUsers.length > 0 ? info.bettingUsers.join(',') : '-';
-                    const remainingText = pos.remaining <= 0 ? '🏁' : `${pos.remainingMeters}m`;
+                    const remainingText = pos.remaining <= 0 ? UIIcons.tag('checker') : `${pos.remainingMeters}m`;
                     const progressColor = pos.remaining <= 0 ? 'var(--green-400)' : pos.remaining < 30 ? 'var(--yellow-400)' : 'var(--gray-400)';
+                    // 탈것 SVG 썸(16px). id 없는 fallback 객체(알 수 없는 탈것)면 dash 아이콘
+                    const thumb = info.vehicle.id ? vehicleThumb(info.vehicle.id, 16) : UIIcons.tag('dash');
                     html += `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0; ${idx === 0 ? 'color: var(--yellow-500); font-weight: bold;' : ''}">
                         <span style="width: 20px; font-size: 12px;">${medal}</span>
-                        <span style="font-size: 14px;">${info.vehicle.emoji}</span>
+                        <span style="font-size: 14px;">${thumb}</span>
                         <span style="flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${users}</span>
                         <span style="font-size: 10px; color: ${progressColor}; min-width: 32px; text-align: right;">${remainingText}</span>
                     </div>`;
@@ -2990,12 +3017,13 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const leftPct = progress * 100;
             const color = minimapColors[state.horseIndex % minimapColors.length];
             const info = vInfoMap[state.horseIndex];
-            const emoji = info ? info.vehicle.emoji : '🏃';
+            // 탈것 SVG 썸(12px)은 원래 오른쪽(진행 방향)을 보므로 이모지용 scaleX(-1) 반전은 뺀다. 알 수 없는 탈것이면 dash 아이콘
+            const dot = (info && info.vehicle.id) ? vehicleThumb(info.vehicle.id, 12) : UIIcons.tag('dash');
 
             // 트랙 위의 점
             const isMyBet = userHorseBets[currentUser] === state.horseIndex;
             const arrow = isMyBet ? `<div style="position: absolute; left: 50%; top: -8px; transform: translateX(-50%); font-size: 6px; color: var(--yellow-500); line-height: 1;">▼</div>` : '';
-            minimapTrack.innerHTML += `<div style="position: absolute; left: ${leftPct}%; top: 50%; transform: translate(-50%, -50%) scaleX(-1); font-size: 10px; line-height: 1; z-index: ${isMyBet ? 100 : 10 + idx}; filter: ${isMyBet ? 'drop-shadow(0 0 3px var(--yellow-500))' : 'none'};">${arrow}${emoji}</div>`;
+            minimapTrack.innerHTML += `<div style="position: absolute; left: ${leftPct}%; top: 50%; transform: translate(-50%, -50%); font-size: 10px; line-height: 1; z-index: ${isMyBet ? 100 : 10 + idx}; filter: ${isMyBet ? 'drop-shadow(0 0 3px var(--yellow-500))' : 'none'};">${arrow}${dot}</div>`;
         });
 
         minimapDots.style.display = 'none';
@@ -3037,11 +3065,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // 이벤트 컷어웨이 (기믹 발동 순간포착 — goal: horse-race-event-camera)
     let activeEventCut = null;   // { gimmick, state, priority, startWall, label, maxHoldMs }
     let lastEventCutEnd = 0;     // 이벤트 컷 종료 시각 (쿨다운 기준)
-    const EVENT_CUT_CONFIG = {
-        item_rocket:   { priority: 80, label: '🚀 로켓 발사',   maxHoldMs: 3000 },
-        reverse_boost: { priority: 70, label: '🔥 맹추격',      maxHoldMs: 3000 },
-        sprint:        { priority: 60, label: '💨 스퍼트',      maxHoldMs: 2500 },
-        item_trap:     { priority: 50, label: '🍌 함정에 빠짐', maxHoldMs: 2500 }
+    const EVENT_CUT_CONFIG = { // icon = UIIcons id (카메라 버튼·모드 오버레이 라벨 앞)
+        item_rocket:   { priority: 80, icon: 'rocket', label: '로켓 발사',   maxHoldMs: 3000 },
+        reverse_boost: { priority: 70, icon: 'fire',   label: '맹추격',      maxHoldMs: 3000 },
+        sprint:        { priority: 60, icon: 'dash',   label: '스퍼트',      maxHoldMs: 2500 },
+        item_trap:     { priority: 50, icon: 'banana', label: '함정에 빠짐', maxHoldMs: 2500 }
     };
     const EVENT_CUT_COOLDOWN = 2000; // 이벤트 컷 종료 후 다음 컷까지 최소 간격
 
@@ -3101,6 +3129,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             state: state,
             priority: config.priority,
             startWall: Date.now(),
+            icon: config.icon,
             label: config.label,
             maxHoldMs: config.maxHoldMs
         };
@@ -3112,7 +3141,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // 카메라 모드 오버레이 표시 함수
     let cameraModeOverlay = null;
     let cameraModeOverlayTimer = null;
-    function showCameraModeOverlay(text, color) {
+    function showCameraModeOverlay(text, color, iconId) { // iconId: 이벤트 컷 아이콘(UIIcons id, 없으면 텍스트만)
         const trackContainer = raceDoc().getElementById('raceTrackContainer'); // 경주 중 호출 — PiP 문서 대응
         if (!trackContainer) return;
         if (!cameraModeOverlay) {
@@ -3126,7 +3155,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             trackContainer.style.position = 'relative';
             trackContainer.appendChild(cameraModeOverlay);
         }
-        cameraModeOverlay.textContent = text;
+        if (iconId) cameraModeOverlay.replaceChildren(UIIcons.el(iconId), ' ' + text);
+        else cameraModeOverlay.textContent = text;
         cameraModeOverlay.style.background = color;
         cameraModeOverlay.style.opacity = '1';
         if (cameraModeOverlayTimer) clearTimeout(cameraModeOverlayTimer);
@@ -3140,39 +3170,42 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     let prevCameraMode = null;
     function updateCameraBtnUI() {
         if (!cameraSwitchBtn) return;
-        let label, bg;
+        // label 은 평문. 카메라 아이콘은 버튼에만 노드로 붙이고, 이벤트 컷 아이콘(cutIcon)은 버튼·오버레이 둘 다 라벨 앞에.
+        let label, bg, cutIcon = null;
         if (cameraMode === 'myHorse') {
-            label = '📷 내 말 보는중';
+            label = '내 말 보는중';
             bg = 'rgba(255,215,0,0.3)';
         } else if (cameraMode === '_loser' || panningToLoser) {
             // N등 투표 결과(window._targetRank)에 따라 라벨 동적 표시
             const _tr = window._targetRank;
             const _trLabel = (typeof _tr === 'number' && _tr >= 1) ? (_tr + '등') : '꼴등';
-            label = '📷 ' + _trLabel + ' 추적중';
+            label = _trLabel + ' 추적중';
             bg = 'rgba(233,69,96,0.4)';
         } else if (activeEventCut) {
-            label = '📷 ' + activeEventCut.label;
+            cutIcon = activeEventCut.icon;
+            label = activeEventCut.label;
             bg = 'rgba(255,140,0,0.45)';
         } else if (isRandomCutaway) {
-            label = '📷 다른말 구경중';
+            label = '다른말 구경중';
             bg = 'rgba(100,200,255,0.4)';
         } else {
-            label = '📷 시스템 카메라';
+            label = '시스템 카메라';
             bg = 'rgba(0,0,0,0.6)';
         }
-        cameraSwitchBtn.textContent = label;
+        if (cutIcon) cameraSwitchBtn.replaceChildren(UIIcons.el('camera'), ' ', UIIcons.el(cutIcon), ' ' + label);
+        else cameraSwitchBtn.replaceChildren(UIIcons.el('camera'), ' ' + label);
         cameraSwitchBtn.style.background = bg;
         // 모드 변경 시 오버레이 표시
         const currentMode = cameraMode + (isRandomCutaway ? '_cutaway' : '') + (panningToLoser ? '_panning' : '') + (activeEventCut && cameraMode === 'leader' && !panningToLoser ? '_event_' + activeEventCut.gimmick.type : '');
         if (prevCameraMode !== null && prevCameraMode !== currentMode) {
-            showCameraModeOverlay(label.replace('📷 ', ''), bg);
+            showCameraModeOverlay(label, bg, cutIcon);
         }
         prevCameraMode = currentMode;
     }
     if (cameraSwitchBtn) {
         if (userHorseBets[currentUser] !== undefined) {
             cameraSwitchBtn.style.display = 'block';
-            cameraSwitchBtn.textContent = '📷 시스템 카메라';
+            cameraSwitchBtn.replaceChildren(UIIcons.el('camera'), ' 시스템 카메라');
             cameraSwitchBtn.style.transition = 'transform 0.15s ease';
             cameraSwitchBtn.onclick = () => {
                 panningToLoser = false;
@@ -3467,7 +3500,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     weatherBanner.style.display = 'none';
                 } else {
                     weatherBanner.style.display = '';
-                    weatherBanner.textContent = `${weatherEmojis[currentWeather]} ${weatherNames[currentWeather]}`;
+                    setWeatherBanner(currentWeather);
                     showWeatherIndicators(horseStates, currentWeather);
                 }
                 applyWeatherEffect(currentWeather);
@@ -3876,7 +3909,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             } else {
                                 // 배너 업데이트
                                 weatherBanner.style.display = '';
-                                weatherBanner.textContent = `${weatherEmojis[currentWeather]} ${weatherNames[currentWeather]}`;
+                                setWeatherBanner(currentWeather);
                                 // 토스트 메시지 표시 (클라이언트 독립)
                                 showWeatherToast(currentWeather);
                                 // 버프/디버프 삼각형 표시
@@ -4155,7 +4188,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             // 어지러움 별 이펙트
                             const wobbleEffect = document.createElement('div');
                             wobbleEffect.className = 'gimmick-effect-wobble';
-                            wobbleEffect.textContent = '💫';
+                            wobbleEffect.replaceChildren(UIIcons.el('dizzy'));
                             state.horse.appendChild(wobbleEffect);
                             gimmick.effectElement = wobbleEffect;
                         } else if (gimmick.type === 'obstacle') {
@@ -4167,7 +4200,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.animation = 'obstacleJump 0.5s ease-in-out infinite';
                             const obstacleEffect = document.createElement('div');
                             obstacleEffect.className = 'gimmick-effect-obstacle';
-                            obstacleEffect.textContent = '🚧';
+                            obstacleEffect.replaceChildren(UIIcons.el('barrier'));
                             obstacleEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:16px;';
                             state.horse.appendChild(obstacleEffect);
                             gimmick.effectElement = obstacleEffect;
@@ -4176,7 +4209,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.filter = 'brightness(1.5) saturate(2)';
                             const boostEffect = document.createElement('div');
                             boostEffect.className = 'gimmick-effect-item-boost';
-                            boostEffect.textContent = '🥕✨';
+                            boostEffect.replaceChildren(UIIcons.el('carrot'), UIIcons.el('sparkle'));
                             boostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;animation:blink 0.3s infinite;';
                             state.horse.appendChild(boostEffect);
                             gimmick.effectElement = boostEffect;
@@ -4192,7 +4225,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.animation = 'trapSpin 0.3s linear infinite';
                             const trapEffect = document.createElement('div');
                             trapEffect.className = 'gimmick-effect-item-trap';
-                            trapEffect.textContent = '🍌';
+                            trapEffect.replaceChildren(UIIcons.el('banana'));
                             trapEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:16px;';
                             state.horse.appendChild(trapEffect);
                             gimmick.effectElement = trapEffect;
@@ -4202,7 +4235,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.transform = 'scaleX(-1)';
                             const reverseEffect = document.createElement('div');
                             reverseEffect.className = 'gimmick-effect-reverse';
-                            reverseEffect.textContent = '⚠️↩️';
+                            reverseEffect.replaceChildren(UIIcons.el('warn'), UIIcons.el('replay'));
                             reverseEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;animation:blink 0.4s infinite;';
                             state.horse.appendChild(reverseEffect);
                             gimmick.effectElement = reverseEffect;
@@ -4212,7 +4245,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.transform = '';
                             const rBoostEffect = document.createElement('div');
                             rBoostEffect.className = 'gimmick-effect-reverse-boost';
-                            rBoostEffect.textContent = '💨🔥';
+                            rBoostEffect.replaceChildren(UIIcons.el('dash'), UIIcons.el('fire'));
                             rBoostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;';
                             state.horse.appendChild(rBoostEffect);
                             gimmick.effectElement = rBoostEffect;
@@ -4221,7 +4254,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.filter = 'brightness(1.6) saturate(1.8)';
                             const rocketEffect = document.createElement('div');
                             rocketEffect.className = 'gimmick-effect-item-rocket';
-                            rocketEffect.textContent = '🚀✨';
+                            rocketEffect.replaceChildren(UIIcons.el('rocket'), UIIcons.el('sparkle'));
                             rocketEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;animation:blink 0.3s infinite;';
                             state.horse.appendChild(rocketEffect);
                             gimmick.effectElement = rocketEffect;
@@ -4240,7 +4273,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.style.animation = 'iceShiver 0.25s linear infinite';
                             const iceEffect = document.createElement('div');
                             iceEffect.className = 'gimmick-effect-item-ice';
-                            iceEffect.textContent = '❄️';
+                            iceEffect.replaceChildren(UIIcons.el('snow'));
                             iceEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:16px;';
                             state.horse.appendChild(iceEffect);
                             gimmick.effectElement = iceEffect;
@@ -4370,7 +4403,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 state.horse.style.transform = '';
                                 const rBoostEffect = document.createElement('div');
                                 rBoostEffect.className = 'gimmick-effect-reverse-boost';
-                                rBoostEffect.textContent = '💨🔥';
+                                rBoostEffect.replaceChildren(UIIcons.el('dash'), UIIcons.el('fire'));
                                 rBoostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;';
                                 state.horse.appendChild(rBoostEffect);
                                 chainGimmick.effectElement = rBoostEffect;
@@ -4816,7 +4849,8 @@ function clearFinishEffects() {
 
 // 도착 애니메이션 표시 (텍스트 스타일, 말 내부 왼쪽에 표시)
 function showFinishAnimation(horseElement, finishOrder, horseIndex) {
-    const rankTexts = ['🥇 1등!', '🥈 2등!', '🥉 3등!', '4등', '5등', '6등'];
+    const rankIcons = ['medal', 'silver', 'bronze']; // 1~3등 앞 UIIcons id
+    const rankTexts = ['1등!', '2등!', '3등!', '4등', '5등', '6등'];
     const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#888', '#888', '#888'];
 
     const existingEffect = finishEffectElements.get(horseIndex);
@@ -4845,7 +4879,9 @@ function showFinishAnimation(horseElement, finishOrder, horseIndex) {
         animation: tombstoneDrop 0.5s ease-out forwards;
         opacity: 0;
     `;
-    label.textContent = rankTexts[finishOrder] || `${finishOrder + 1}등`;
+    const rankText = rankTexts[finishOrder] || `${finishOrder + 1}등`;
+    if (rankIcons[finishOrder]) label.replaceChildren(UIIcons.el(rankIcons[finishOrder]), ' ' + rankText);
+    else label.textContent = rankText;
 
     horseElement.appendChild(label);
     finishEffectElements.set(horseIndex, label);
@@ -4897,7 +4933,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
         z-index: 10000;
     `;
     const soul = document.createElement('div');
-    soul.innerHTML = '👻';
+    soul.innerHTML = UIIcons.tag('ghost');
     soul.style.cssText = `
         position: absolute;
         top: 0;
@@ -4942,7 +4978,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
             opacity: 0;
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
         `;
-        tombstoneWrap.innerHTML = `🪦<span style="display:block;font-size:12px;font-weight:bold;color:var(--gray-700);">${finishRank + 1}등</span>`;
+        tombstoneWrap.innerHTML = `${UIIcons.tag('tomb')}<span style="display:block;font-size:12px;font-weight:bold;color:var(--gray-700);">${finishRank + 1}등</span>`;
         track.appendChild(tombstoneWrap);
     }
     
@@ -5195,7 +5231,7 @@ function createLane({ vehicleId, topPx, laneHeight, isRacing }) {
     }
     if (vehicleBg.extra === 'carrots') {
         for (let i = 0; i < 6; i++) {
-            lane.innerHTML += `<div style="position: absolute; font-size: 14px; left: ${10 + Math.random() * 80}%; top: ${40 + Math.random() * 50}%;">🥕</div>`;
+            lane.innerHTML += `<div style="position: absolute; font-size: 14px; left: ${10 + Math.random() * 80}%; top: ${40 + Math.random() * 50}%;">${UIIcons.tag('carrot')}</div>`;
         }
     }
     if (vehicleBg.extra === 'mountains') {
@@ -5353,7 +5389,7 @@ function showRaceResult(data, isReplay = false) {
 
     // 타깃 등수에 따른 라벨 동적 결정
     const isTargetMode = (targetRankForResult !== null && targetRankForResult >= 1);
-    const targetIcon = !isTargetMode ? '💀' : (targetRankForResult === 1 ? '🥇' : '🎯');
+    const targetIcon = UIIcons.tag(!isTargetMode ? 'skull' : (targetRankForResult === 1 ? 'medal' : 'target')); // innerHTML 전용
     const targetBadge = !isTargetMode ? 'LOSER' : (targetRankForResult + '등');
     const targetCheerLabel = !isTargetMode ? '꼴등 축하!' : (targetRankForResult + '등 축하!');
 
@@ -5369,7 +5405,7 @@ function showRaceResult(data, isReplay = false) {
                     <span style="font-size: 12px; font-weight: bold; color: var(--red-400);">${loserIndex + 1}등</span>
                     <div style="transform: scale(0.55); margin: -8px -4px; filter: grayscale(60%);">${chatLoserSvg}</div>
                     <span style="font-size: 11px; font-weight: bold; color: var(--gray-100);">${chatLoserVehicle.name}</span>
-                    <span style="font-size: 11px; color: var(--red-400); margin-left: auto;">🎉 ${loserNames}</span>
+                    <span style="font-size: 11px; color: var(--red-400); margin-left: auto;">${UIIcons.tag('party')} ${loserNames}</span>
                 </div>
             </div>`;
         ChatModule.displayChatMessage({
@@ -5390,7 +5426,7 @@ function showRaceResult(data, isReplay = false) {
         if (targetRankForResult !== null && targetRankForResult >= 1) {
             targetRankBadgeHtml = `
                 <div style="text-align: center; margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%); color: var(--bg-white); font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
-                    🎯 ${targetRankForResult}등 찾기
+                    ${UIIcons.tag('target')} ${targetRankForResult}등 찾기
                 </div>
             `;
         }
@@ -5419,7 +5455,7 @@ function showRaceResult(data, isReplay = false) {
                 rankingsHtml += `
                     <div class="result-rank-1" style="background: linear-gradient(135deg, var(--result-gold-light) 0%, var(--result-gold-dark) 100%); padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid var(--result-gold-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 22px;">🥇</span>
+                            <span style="font-size: 22px;">${UIIcons.tag('medal')}</span>
                             <span style="font-size: 18px; font-weight: bold; color: var(--result-gold-text);">${rankNum}등</span>
                             <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
                             <span style="font-size: 15px; font-weight: bold; color: var(--result-gold-text);">${vehicle.name}</span>
@@ -5431,7 +5467,7 @@ function showRaceResult(data, isReplay = false) {
                 rankingsHtml += `
                     <div class="result-rank-2" style="background: linear-gradient(135deg, var(--result-silver-light) 0%, var(--result-silver-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-silver-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 18px;">🥈</span>
+                            <span style="font-size: 18px;">${UIIcons.tag('silver')}</span>
                             <span style="font-size: 16px; font-weight: bold; color: var(--text-secondary);">${rankNum}등</span>
                             <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
                             <span style="font-size: 14px; font-weight: bold; color: var(--text-secondary);">${vehicle.name}</span>
@@ -5443,7 +5479,7 @@ function showRaceResult(data, isReplay = false) {
                 rankingsHtml += `
                     <div class="result-rank-3" style="background: linear-gradient(135deg, var(--result-bronze-light) 0%, var(--result-bronze-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-bronze-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 18px;">🥉</span>
+                            <span style="font-size: 18px;">${UIIcons.tag('bronze')}</span>
                             <span style="font-size: 16px; font-weight: bold; color: var(--result-bronze-text);">${rankNum}등</span>
                             <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
                             <span style="font-size: 14px; font-weight: bold; color: var(--result-bronze-text);">${vehicle.name}</span>
@@ -5480,7 +5516,7 @@ function showRaceResult(data, isReplay = false) {
         // 타깃 등수 하이라이트 (하단) — N등 모드면 N등 / fallback이면 LOSER
         const winnerChips = loserBettingUsers.length > 0
             ? loserBettingUsers.map(function(name) {
-                return '<span class="winner-chip">🏆 ' + escapeHtmlText(name) + '</span>';
+                return '<span class="winner-chip">' + UIIcons.tag('trophy') + ' ' + escapeHtmlText(name) + '</span>';
             }).join('')
             : '<span class="winner-chip empty">베팅한 사람 없음</span>';
         rankingsHtml += `
@@ -5493,7 +5529,7 @@ function showRaceResult(data, isReplay = false) {
                     <span style="font-size: 15px; font-weight: bold; color: var(--gray-100);">${loserVehicle.name}</span>
                 </div>
                 <div style="text-align: center; margin-top: 10px; font-size: 11px; color: var(--gray-100); letter-spacing: 2px; opacity: 0.85;">
-                    ★ 당 첨 자 ★
+                    ${UIIcons.tag('star')} 당 첨 자 ${UIIcons.tag('star')}
                 </div>
                 <div class="winner-chip-row">${winnerChips}</div>
             </div>
@@ -5540,7 +5576,7 @@ function showRaceResult(data, isReplay = false) {
     const replayBtn = document.getElementById('mainReplayButton');
     if (replayBtn) {
         replayBtn.disabled = false;
-        replayBtn.textContent = '🎬 다시보기';
+        replayBtn.replaceChildren(UIIcons.el('clapper'), ' 다시보기');
         replayBtn.style.opacity = '1';
         replayBtn.style.cursor = 'pointer';
     }
@@ -5643,7 +5679,7 @@ function showQuickRaceOverlay() {
     `;
     overlay.innerHTML = `
         <style>@keyframes qr-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}</style>
-        <div style="font-size: 40px; margin-bottom: 8px; animation: qr-bounce 0.8s ease-in-out infinite;">⚡</div>
+        <div style="font-size: 40px; margin-bottom: 8px; animation: qr-bounce 0.8s ease-in-out infinite;">${UIIcons.tag('bolt')}</div>
         <div style="font-size: 20px; font-weight: 800; color: var(--yellow-400);
             text-shadow: 0 0 20px rgba(255,215,0,0.6);">
             모두 같은 선택!
@@ -5726,14 +5762,15 @@ function updateUsers(users) {
             tag.classList.add('me');
         }
 
-        let content = user.name;
+        // 이름은 텍스트 노드, 왕관은 아이콘 노드 (드래그/클릭은 user.name 을 직접 쓰므로 textContent 를 다시 읽지 않는다)
+        const parts = [user.name];
         if (user.isHost) {
-            content += ' 👑';
+            parts.push(' ', UIIcons.el('crown'));
         }
         if (user.name === currentUser) {
-            content += ' (나)';
+            parts.push(' (나)');
         }
-        tag.textContent = content;
+        tag.replaceChildren(...parts);
 
         // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
         if (isHost && user.name !== currentUser) {
@@ -5838,8 +5875,8 @@ function renderHistory() {
                 const vehicleId = record.selectedVehicleTypes ? record.selectedVehicleTypes[horseIndex] : 'horse';
                 const vehicle = getVehicleInfoForHistory(vehicleId);
                 const bettingUsers = getBettingUsersFromRecord(record, horseIndex);
-                const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
-                const medal = medals[rank] || `${rank + 1}`;
+                const medals = [UIIcons.tag('medal'), UIIcons.tag('silver'), UIIcons.tag('bronze')];
+                const medal = medals[rank] || '';   // 4등 이하는 옆의 'N등' 텍스트만
                 const bgColors = ['var(--result-gold-light)', 'var(--result-silver-light)', 'var(--result-bronze-light)', 'var(--panel-secondary)', 'var(--panel-secondary)', 'var(--panel-secondary)'];
                 const bgColor = bgColors[rank] || 'var(--panel-secondary)';
                 
@@ -5858,7 +5895,7 @@ function renderHistory() {
         // 최종 당첨자 또는 가장 높은 순위 베팅자
         let winnersText = '';
         if (record.winners && record.winners.length > 0) {
-            winnersText = `🎊 당첨: ${record.winners.join(', ')}`;
+            winnersText = `${UIIcons.tag('confetti')} 당첨: ${record.winners.join(', ')}`;
         } else if (record.userHorseBets && record.rankings && record.rankings.length > 0) {
             // 당첨자 없을 때: 가장 높은 순위 베팅자 찾기
             let bestRank = -1;
@@ -5875,14 +5912,14 @@ function renderHistory() {
                 }
             });
             if (bestBetters.length > 0 && bestRank >= 0) {
-                winnersText = `🏅 ${bestRank + 1}등 순위: ${bestBetters.join(', ')}`;
+                winnersText = `${UIIcons.tag('medal')} ${bestRank + 1}등 순위: ${bestBetters.join(', ')}`;
             }
         }
         
         const historyIdx = horseRaceHistory.length - 1 - idx;
         const recTargetRank = (typeof record.targetRank === 'number') ? record.targetRank : null;
         const recTargetLabel = (recTargetRank !== null && recTargetRank >= 1) ? (recTargetRank + '등') : '꼴등';
-        const targetRankBadge = `<span style="margin-left: 6px; padding: 2px 5px; background: var(--horse-500); color: var(--bg-white); border-radius: 4px; font-size: 9px; font-weight: bold; white-space: nowrap;">🎯${recTargetLabel}</span>`;
+        const targetRankBadge = `<span style="margin-left: 6px; padding: 2px 5px; background: var(--horse-500); color: var(--bg-white); border-radius: 4px; font-size: 9px; font-weight: bold; white-space: nowrap;">${UIIcons.tag('target')}${recTargetLabel}</span>`;
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 6px;">
                 <div style="font-weight: bold; color: var(--horse-accent); font-size: 14px; white-space: nowrap; min-width: 0; flex-shrink: 1;">${record.round || (horseRaceHistory.length - idx)}라운드${targetRankBadge}</div>
@@ -5931,7 +5968,7 @@ function showReplaySelector() {
     const card = document.createElement('div');
     card.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:20px;max-width:320px;width:90%;text-align:center;';
 
-    card.innerHTML = '<div style="font-weight:bold;font-size:16px;margin-bottom:15px;font-family:\'Jua\',sans-serif;">🎬 다시보기 선택</div>';
+    card.innerHTML = '<div style="font-weight:bold;font-size:16px;margin-bottom:15px;font-family:\'Jua\',sans-serif;">' + UIIcons.tag('clapper') + ' 다시보기 선택</div>';
 
     const bgColors = ['var(--horse-500)', '#A0522D', '#B8734A'];
     recent.forEach((record, idx) => {
@@ -5976,7 +6013,7 @@ function showReplayStopButton(onStop) {
     removeReplayStopButton();
     const btn = document.createElement('button');
     btn.id = 'replayStopBtn';
-    btn.textContent = '⏹ 다시보기 종료';
+    btn.replaceChildren(UIIcons.el('stop'), ' 다시보기 종료');
     btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:200;width:auto;margin:0;padding:6px 14px;background:rgba(0,0,0,0.7);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;font-family:"Jua",sans-serif;';
     btn.onclick = onStop;
     const wrapper = raceDoc().getElementById('raceTrackWrapper'); // 상시 PiP — 래퍼가 있는 문서에 부착
@@ -6004,7 +6041,7 @@ function playReplay(record) {
     const replayBtn = document.getElementById('mainReplayButton');
     if (replayBtn) {
         replayBtn.disabled = true;
-        replayBtn.textContent = '🎬 다시보기 중...';
+        replayBtn.replaceChildren(UIIcons.el('clapper'), ' 다시보기 중...');
         replayBtn.style.opacity = '0.6';
         replayBtn.style.cursor = 'not-allowed';
     }
@@ -6046,7 +6083,7 @@ function playReplay(record) {
         if (currentUsers.length > 0) updateUsers(currentUsers);
         if (replayBtn) {
             replayBtn.disabled = false;
-            replayBtn.textContent = '🎬 다시보기';
+            replayBtn.replaceChildren(UIIcons.el('clapper'), ' 다시보기');
             replayBtn.style.opacity = '1';
             replayBtn.style.cursor = 'pointer';
         }
@@ -7348,23 +7385,23 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
         existingAlert.remove();
     }
 
-    let borderColor, icon;
+    let borderColor, icon; // icon = 스프라이트 태그 (innerHTML 전용)
     switch (type) {
         case 'error':
             borderColor = 'rgb(239, 68, 68)';
-            icon = '⚠️';
+            icon = UIIcons.tag('warn');
             break;
         case 'warning':
             borderColor = 'rgb(234, 179, 8)';
-            icon = '⚠️';
+            icon = UIIcons.tag('warn');
             break;
         case 'success':
             borderColor = 'rgb(34, 197, 94)';
-            icon = '✅';
+            icon = UIIcons.tag('check');
             break;
         default:
             borderColor = 'rgb(147, 51, 234)';
-            icon = 'ℹ️';
+            icon = UIIcons.tag('info');
     }
 
     const alertOverlay = document.createElement('div');
@@ -7403,7 +7440,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     if (title) {
         const titleDiv = document.createElement('div');
         titleDiv.style.cssText = `font-size: 17px; font-weight: bold; text-align: center; margin-bottom: 10px; color: ${borderColor};`;
-        titleDiv.textContent = title;
+        UIIcons.setIconText(titleDiv, title); // 호출부 제목의 이모지(예: '✅ 삭제 완료')를 아이콘 노드로 — innerHTML 미사용
         alertContent.appendChild(titleDiv);
     }
 
@@ -7484,7 +7521,7 @@ function showPlayerActionDialog(playerName) {
 
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: var(--text-primary); text-align: center; margin-bottom: 25px; font-weight: 600;';
-        messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+        messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${UIIcons.tag('person')}</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
 
         const buttonContainer = document.createElement('div');
         buttonContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
@@ -7733,15 +7770,15 @@ function scheduleStartAtTime() {
 function updateScheduleControls() {
     var openBtn = document.getElementById('scheduleOpenButton');
     if (openBtn) {
-        var text = '⏰ 예약';
+        var text = '예약';
         if (scheduledStartAt) {
-            text = '⏰ ' + (scheduledStartLabel || '예약됨');
+            text = scheduledStartLabel || '예약됨';
             var remainMs = scheduledStartAt - Date.now();
             if (remainMs < SCHEDULE_TICK_MS * 60) {
                 text += ' · 시작 ' + Math.max(0, Math.ceil(remainMs / 1000)) + '초 전';
             }
         }
-        openBtn.textContent = text;
+        openBtn.replaceChildren(UIIcons.el('clock'), ' ' + text);
         openBtn.classList.toggle('is-armed', !!scheduledStartAt);
     }
     updateScheduleModal();
@@ -7765,8 +7802,8 @@ function renderScheduleBadge() {
         return;
     }
     // 시각 병기는 서버가 준 문자열이 있을 때만 — 없으면(재입장 등) 남은 시간만 보여준다
-    el.textContent = '⏰ ' + formatScheduleRemain(scheduledStartAt - Date.now())
-        + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : '');
+    el.replaceChildren(UIIcons.el('clock'), ' ' + formatScheduleRemain(scheduledStartAt - Date.now())
+        + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : ''));
     el.style.display = 'block';
     updateScheduleControls(); // 버튼의 초 카운트다운과 팝업 남은 시간을 같이 흐르게
 }

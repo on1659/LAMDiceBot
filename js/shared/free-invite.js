@@ -99,7 +99,7 @@
             const bar = document.createElement('div');
             bar.id = 'freeInviteBar';
             bar.title = '클릭하여 초대 링크 복사';
-            bar.innerHTML = '<span class="fi-bar-icon">🔗</span><span class="fi-bar-url"></span>';
+            bar.innerHTML = '<span class="fi-bar-icon"><i class="ui ui-link"></i></span><span class="fi-bar-url"></span>';
             bar.querySelector('.fi-bar-url').textContent = url;
 
             bar.addEventListener('click', function (e) {
@@ -140,7 +140,7 @@
         toast.setAttribute('role', 'status');
         toast.setAttribute('aria-live', 'polite');
         toast.innerHTML = ''
-            + '<div class="fi-toast-icon">👋</div>'
+            + '<div class="fi-toast-icon"><i class="ui ui-wave"></i></div>'
             + '<div class="fi-toast-body">'
             +   '<b>친구를 초대하려면 이 주소를 공유하세요</b>'
             +   '<code></code>'
@@ -190,7 +190,7 @@
         fab.id = 'freeInviteFab';
         fab.type = 'button';
         fab.setAttribute('aria-label', '친구 초대');
-        fab.textContent = '🔗 초대';
+        fab.replaceChildren(UIIcons.el('link'), ' 초대');
         fab.addEventListener('click', function () { openShareSheet(shortcode, slug); });
 
         // 인라인 mount: 접속자 헤더(.users-section .users-title) 우측, 도움말 ⓘ 버튼 앞
@@ -248,11 +248,11 @@
             +   '<h2 id="fiSheetTitle">친구 초대하기</h2>'
             +   '<div class="fi-sheet-url"></div>'
             +   '<button type="button" class="fi-sheet-action fi-action-copy">'
-            +     '<span class="fi-action-icon">📋</span>'
+            +     '<span class="fi-action-icon"><i class="ui ui-list"></i></span>'
             +     '<span>URL 복사<small>클립보드에 복사됩니다</small></span>'
             +   '</button>'
             +   '<button type="button" class="fi-sheet-action fi-action-share">'
-            +     '<span class="fi-action-icon">📨</span>'
+            +     '<span class="fi-action-icon"><i class="ui ui-mail"></i></span>'
             +     '<span>공유하기<small>카톡 / 슬랙 / 메시지</small></span>'
             +   '</button>'
             +   '<button type="button" class="fi-sheet-close">닫기</button>'

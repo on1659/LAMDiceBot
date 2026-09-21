@@ -12,16 +12,16 @@
       (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
-    <title>LAM 회전 칼날 ⚔️</title>
+    <title>LAM 회전 칼날</title>
     <meta name="description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
-    <meta property="og:title" content="LAM 회전 칼날 ⚔️">
+    <meta property="og:title" content="LAM 회전 칼날">
     <meta property="og:description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/spin-arena">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="LAM 회전 칼날 ⚔️">
+    <meta name="twitter:title" content="LAM 회전 칼날">
     <meta name="twitter:description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
     <link rel="canonical" href="https://lamdice.com/spin-arena">
 
@@ -31,6 +31,8 @@
     </script>
 
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,7 +74,7 @@
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--spin-arena-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
-            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">⚔️</div>
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-swords"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
@@ -99,16 +101,16 @@
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
 
             <!-- 접속자 목록 -->
             <div class="users-section" id="usersSection">
                 <div class="users-title">
-                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
                     <span id="dragHint" style="display: none; font-size: 12px; color: var(--spin-arena-accent); font-weight: normal; margin-left: 10px;">
-                        💡 드래그로 준비 시킬 수 있습니다.
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
                     </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
@@ -129,7 +131,7 @@
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
                     <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
@@ -147,7 +149,7 @@
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startSpinButton" onclick="startSpinArena()" disabled style="flex: 1;">
-                        ⚔️ 회전 칼날 시작
+                        <i class="ui ui-swords"></i> 회전 칼날 시작
                     </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
@@ -157,23 +159,23 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: var(--spin-arena-accent); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; color: var(--spin-arena-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--spin-arena-gradient); color: var(--text-primary); font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--spin-arena-gradient); color: var(--text-primary); font-weight: 600;"><i class="ui ui-list"></i> 주문리스트</button>
                         <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--spin-arena-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
                         <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--spin-arena-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
 
                 <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="ui ui-hourglass"></i> 주문하지 않은 사람</div>
                     <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
 
                 <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-shrink:0; white-space:nowrap;">
-                            <span>📝</span><span>내 주문</span>
+                            <span><i class="ui ui-memo"></i></span><span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
                                 style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
@@ -182,7 +184,7 @@
 
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--spin-arena-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-weight: bold; color: var(--spin-arena-accent);">📋 자주 쓰는 메뉴</span>
+                            <span style="font-weight: bold; color: var(--spin-arena-accent);"><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
                             <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -224,12 +226,12 @@
                     <div id="raceChatOverlay"></div>
                 </div>
                 <!-- 토너먼트 리더보드는 캔버스 내(라운드 헤더 + 듀얼별 HP바)로 표시 — DOM #spinHpPanel 없음. -->
-                <button id="spinReplayBtn" onclick="toggleSpinReplay()" style="display: none;">🎬 다시보기</button>
+                <button id="spinReplayBtn" onclick="toggleSpinReplay()" style="display: none;"><i class="ui ui-clapper"></i> 다시보기</button>
             </section>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--spin-arena-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div style="font-weight: bold; color: var(--spin-arena-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-chat"></i> 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -253,17 +255,17 @@
 
     <!-- 기록 섹션 -->
     <div class="history-section" id="historySection">
-        <div class="history-title">📜 게임 기록</div>
+        <div class="history-title"><i class="ui ui-scroll"></i> 게임 기록</div>
         <div id="historyList"></div>
     </div>
 
     <!-- 결과 오버레이 -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
-            <div class="result-title">🎊 결과 발표 🎊</div>
+            <div class="result-title"><i class="ui ui-confetti"></i> 결과 발표 <i class="ui ui-confetti"></i></div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button onclick="toggleSpinReplay()" style="width: auto; padding: 12px 24px; background: var(--bg-white); color: var(--spin-arena-accent); border: 2px solid var(--spin-arena-accent); border-radius: 8px; font-weight: 600;">🎬 다시보기</button>
+                <button onclick="toggleSpinReplay()" style="width: auto; padding: 12px 24px; background: var(--bg-white); color: var(--spin-arena-accent); border: 2px solid var(--spin-arena-accent); border-radius: 8px; font-weight: 600;"><i class="ui ui-clapper"></i> 다시보기</button>
                 <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
             </div>
         </div>
@@ -272,7 +274,7 @@
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
-            <h3 style="color: var(--spin-arena-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <h3 style="color: var(--spin-arena-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
             <div style="display: flex; gap: 10px;">
@@ -305,10 +307,10 @@
             if (existingAlert) existingAlert.remove();
             let borderColor, icon;
             switch(type) {
-                case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
-                case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
-                case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
-                default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
+                case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
+                case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
+                default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
             }
             const alertOverlay = document.createElement('div');
             alertOverlay.id = 'customAlert';
@@ -336,10 +338,10 @@
                 if (existing) existing.remove();
                 let borderColor, icon;
                 switch(type) {
-                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
-                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
-                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
-                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
                 }
                 const confirmOverlay = document.createElement('div');
                 confirmOverlay.id = 'customConfirm';
@@ -413,9 +415,9 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 회전 칼날 게임 안내</h2>
         <p>LAMDice 회전 칼날은 친구들과 함께 즐기는 무료 온라인 1v1 토너먼트 게임입니다. 검을 단 캐릭터들이 둘씩 좁은 링에서 맞붙어 회전하는 검으로 겨룹니다. 듀얼에서 이기면 그 자리에서 안전(탈출)하고, 지면 다음 라운드로 넘어가 다시 맞붙어요. 이렇게 라운드를 거듭하다 끝까지 진 마지막 1명이 당첨(벌칙)으로 정해집니다. 최대 24명까지 함께 즐길 수 있고, 카메라가 진행 중인 듀얼을 자동으로 비춰주며 미니맵으로 전체 토너먼트 상황을 한눈에 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-lock"></i> 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-home"></i> 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a> · <a href="/ladder" style="color:var(--link-brand);">사다리타기</a></p>
     </section>

@@ -136,11 +136,11 @@ var MarbleRender = (function () {
             'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png',   // 5차
             'dizzy-swirl': A + 'fx/dizzy-swirl.png'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
         },
-        ui: { icons: A + 'ui/icons.png' }   // 10차 — UI 아이콘 아틀라스(이모지 대체). 셀 배치는 ICON_CELL
+        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.png') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
-    // ui/icons.png — 6×6 격자, 셀 128 소스(→32px). css/marble.css .mi-* 와 같은 배치(의뢰서 docs/spritemake-request/applied/2026-09-21-marble-run-ui-icons-l.md) — 셀을 옮기면 양쪽 다 고칠 것
-    var ICON_COLS = 6, ICON_PX = 128;
-    var ICON_CELL = { paw: 0, target: 1, medal: 2, snail: 3, trophy: 4, burger: 5, list: 6, memo: 7, people: 8, bulb: 9, check: 10, hourglass: 11,
+    // 공용 UI 아이콘 아틀라스 — 10×10 격자, 셀 128 소스(→32px). js/shared/ui-icons.js 의 UI_ICON_CELL/UI_ICON_COLS 와 같은 배치(의뢰서 docs/spritemake-request/2026-09-22-ui-icons-shared-m.md)
+    var ICON_COLS = (typeof UI_ICON_COLS === 'number') ? UI_ICON_COLS : 10, ICON_PX = 128;
+    var ICON_CELL = (typeof UI_ICON_CELL === 'object' && UI_ICON_CELL) ? UI_ICON_CELL : { paw: 0, target: 1, medal: 2, snail: 3, trophy: 4, burger: 5, list: 6, memo: 7, people: 8, bulb: 9, check: 10, hourglass: 11,
         clock: 12, flask: 13, expand: 14, replay: 15, play: 16, stop: 17, refresh: 18, chat: 19, scroll: 20, lock: 21, crown: 22, person: 23,
         warn: 24, info: 25, book: 26, home: 27, flag: 28, sun: 29, hole: 30, dash: 31, x: 32 };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격

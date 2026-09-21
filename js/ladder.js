@@ -451,7 +451,7 @@ function renderUsersList(userArray) {
         if (user.isHost) tag.classList.add('host');
         if (user.name === currentUser) tag.classList.add('me');
         let content = escapeHtml(user.name);
-        if (user.isHost) content += ' 👑';
+        if (user.isHost) content += ' ' + UIIcons.tag('crown');
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
         usersList.appendChild(tag);
@@ -1076,7 +1076,7 @@ function ladderFlashHint(msg, ms) {
     var hint = document.getElementById('ladderBuildHint');
     if (!hint) return;
     ladderHintFlash.active = true;
-    hint.textContent = msg;
+    UIIcons.setIconText(hint, msg);
     hint.classList.add('ladder-build-hint-flash');
     if (ladderHintFlash.timer) clearTimeout(ladderHintFlash.timer);
     ladderHintFlash.timer = setTimeout(function () {
@@ -1245,7 +1245,7 @@ function updateStartButton() {
     if (!btn) return;
     if (ladderPhase === 'finished') {
         btn.disabled = !isHost;
-        btn.textContent = '🔄 새 게임';
+        btn.replaceChildren(UIIcons.el('refresh'), ' 새 게임');
     } else if (ladderPhase === 'revealing') {
         btn.disabled = true;
         btn.textContent = '진행 중...';
@@ -1257,13 +1257,14 @@ function updateStartButton() {
             // sub-round — loser pool만 재pick. 준비 게이트는 첫 라운드만 적용.
             var canStartSub = isHost && !ladderStartPending && allPicked && (ladderLoserPool || []).length >= 1;
             btn.disabled = !canStartSub;
-            btn.textContent = allPicked ? '🪜 다음 라운드 시작' : '대상자가 칸을 고르는 중...';
+            if (allPicked) btn.replaceChildren(UIIcons.el('ladder'), ' 다음 라운드 시작');
+            else btn.textContent = '대상자가 칸을 고르는 중...';
         } else {
             var canStart = isHost && !ladderStartPending && rc >= 2 && allPicked;
             btn.disabled = !canStart;
             if (rc < 2) btn.textContent = '게임 시작 (2명 이상 준비)';
             else if (!allPicked) btn.textContent = '모두 칸을 골라야 시작';
-            else btn.textContent = '🪜 사다리 시작';
+            else btn.replaceChildren(UIIcons.el('ladder'), ' 사다리 시작');
         }
     }
 }
@@ -1271,7 +1272,7 @@ function updateStartButton() {
 function setGameStatus(text, cls) {
     var el = document.getElementById('gameStatus');
     if (!el) return;
-    el.textContent = text || '';
+    UIIcons.setIconText(el, text || '');
     el.className = 'game-status' + (cls ? ' ' + cls : '');
 }
 
@@ -1282,7 +1283,7 @@ function renderTournamentBanner() {
     if (ladderTournamentActive && (ladderLoserPool || []).length > 0) {
         el.style.display = '';
         var names = (ladderLoserPool || []).map(escapeHtml).join(', ');
-        el.textContent = '⚔️ 재대결! 당첨에 걸린 ' + ladderLoserPool.length + '명이 다시 칸을 고릅니다: ' + names;
+        el.replaceChildren(UIIcons.el('swords'), ' 재대결! 당첨에 걸린 ' + ladderLoserPool.length + '명이 다시 칸을 고릅니다: ' + names);
     } else {
         el.style.display = 'none';
         el.textContent = '';
@@ -1887,7 +1888,7 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done, offsetMs)
         var poly = ladderRungPolyline(rg);
         var addColor = rg.user ? ladderRungColor(rg.owner) : LADDER_RUNG_COLOR_BASE;
         var addWidth = rg.user ? 6 : 4;
-        setGameStatus('➕ 사다리에 줄이 생겼어요!', 'active');
+        setGameStatus('사다리에 줄이 생겼어요!', 'active');
         playLadderSound('ladder_draw', 0.5);
         (function frameA(now) {
             var t = Math.min(1, (now - start) / LADDER_MUTATION_MS);
@@ -1928,7 +1929,7 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done, offsetMs)
     var victimWidth = victimRg.user ? 6 : 4;
     ladderRun.rungs.splice(idx, 1);
     ladderRun.rungPolylines.splice(idx, 1);
-    setGameStatus('➖ 줄이 사라졌어요!', 'active');
+    setGameStatus('줄이 사라졌어요!', 'active');
     playLadderSound('ladder_erase', 0.5);
     var GLOW_FRAC = 0.30;
     (function frameR(now) {
@@ -2069,9 +2070,10 @@ function ladderShowResultOverlay() {
     var title = document.createElement('div');
     title.className = 'ladder-result-headline';
     if (finished) {
-        title.textContent = loserPool.length ? ('🏴 최종 꼴등: ' + loserPool[0]) : '결과';
+        if (loserPool.length) title.replaceChildren(UIIcons.el('flag'), ' 최종 꼴등: ' + loserPool[0]);
+        else title.textContent = '결과';
     } else {
-        title.textContent = '⚔️ 당첨에 걸린 ' + loserPool.length + '명 — 재대결!';
+        title.replaceChildren(UIIcons.el('swords'), ' 당첨에 걸린 ' + loserPool.length + '명 — 재대결!');
     }
     box.appendChild(title);
 
@@ -2083,7 +2085,7 @@ function ladderShowResultOverlay() {
         left.textContent = name;
         var tag = document.createElement('span');
         tag.className = 'ladder-result-tag loser';
-        tag.textContent = finished ? '🏴 꼴등' : '⚔️ 재대결';
+        tag.replaceChildren(UIIcons.el(finished ? 'flag' : 'swords'), finished ? ' 꼴등' : ' 재대결');
         row.appendChild(left); row.appendChild(tag);
         box.appendChild(row);
     });
@@ -2098,10 +2100,11 @@ function ladderShowResultOverlay() {
     var nextBtn = document.getElementById('ladderNextRoundBtn');
     if (nextBtn) {
         if (finished) {
-            nextBtn.textContent = isHost ? '🔄 새 게임' : '결과 닫기';
+            if (isHost) nextBtn.replaceChildren(UIIcons.el('refresh'), ' 새 게임');
+            else nextBtn.textContent = '결과 닫기';
             nextBtn.onclick = function () { if (isHost) { closeResultOverlay(); ladderReset(); } else closeResultOverlay(); };
         } else {
-            nextBtn.textContent = '⚔️ 재대결 준비';
+            nextBtn.replaceChildren(UIIcons.el('swords'), ' 재대결 준비');
             nextBtn.onclick = function () { closeResultOverlay(); };
         }
     }

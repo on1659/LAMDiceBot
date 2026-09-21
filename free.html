@@ -25,6 +25,8 @@
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
     <link rel="stylesheet" href="/css/free.css">
 
     <!-- OG-ROOM-META:START
@@ -81,28 +83,28 @@
 
         <div class="game-grid" id="gameGrid">
             <button type="button" class="game-card" data-game="dice">
-                <div class="game-emoji">🎲</div>
+                <div class="game-emoji"><i class="ui ui-dice"></i></div>
                 <div>
                     <div class="game-name">주사위</div>
                     <div class="game-meta">2~10명</div>
                 </div>
             </button>
             <button type="button" class="game-card" data-game="roulette">
-                <div class="game-emoji">🎰</div>
+                <div class="game-emoji"><i class="ui ui-slot"></i></div>
                 <div>
                     <div class="game-name">룰렛</div>
                     <div class="game-meta">2~10명</div>
                 </div>
             </button>
             <button type="button" class="game-card" data-game="horse">
-                <div class="game-emoji">🐎</div>
+                <div class="game-emoji"><i class="ui ui-horse"></i></div>
                 <div>
                     <div class="game-name">경마</div>
                     <div class="game-meta">2~10명</div>
                 </div>
             </button>
             <button type="button" class="game-card" data-game="bridge">
-                <div class="game-emoji">🌉</div>
+                <div class="game-emoji"><i class="ui ui-bridge"></i></div>
                 <div>
                     <div class="game-name">다리건너기</div>
                     <div class="game-meta">2~10명</div>
@@ -110,7 +112,7 @@
             </button>
         </div>
 
-        <button type="button" class="ranking-cta" id="rankingButton">🏆 자유 랭킹 보기</button>
+        <button type="button" class="ranking-cta" id="rankingButton"><i class="ui ui-trophy"></i> 자유 랭킹 보기</button>
         <button type="button" class="cancel-match" id="cancelMatchButton">취소</button>
     </main>
 
@@ -156,7 +158,7 @@
     <!-- 만료 모달 -->
     <div class="modal-backdrop hidden" id="expiredModal">
         <div class="modal expired-modal">
-            <div class="expired-icon">⏰</div>
+            <div class="expired-icon"><i class="ui ui-xl ui-clock"></i></div>
             <h2>이 방은 끝났어요</h2>
             <p class="modal-sub">친구가 새 방을 만들었거나<br>방이 비어서 사라졌어요</p>
             <div class="expired-actions">

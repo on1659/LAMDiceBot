@@ -43,8 +43,8 @@
     var AD_COIN_GRANT = 48;           // 광고 1회 시청당 지급 광고코인 (뽑기 비용 40 기준 → 광고 1회당 1.2뽑기)
     var AD_COOLDOWN_MS = 10 * 1000;   // 광고 재시청 쿨다운 (가짜 광고 v1: 10초 — 실제 SDK 붙으면 상향)
     var AD_WATCH_MS = 3 * 1000;       // 광고 자리표시(승인 대기) 시청 시간 — 끝까지 봐야 코인 지급
-    // 자리표시 러너: 우리 게임의 달리는 것들(이모지 근사). Date 기반 회전 = 매 클릭 다른 탈것(Math.random 미사용).
-    var AD_RUNNERS = ['🐎', '🏎️', '🦀', '🐢', '🚀', '🛴', '🚲'];
+    // 자리표시 러너: 우리 게임의 달리는 것들(공용 아이콘 id, css/ui-icons.css). Date 기반 회전 = 매 클릭 다른 탈것(Math.random 미사용).
+    var AD_RUNNERS = ['horse', 'rocket'];
 
     // 로컬(개발)에서는 광고코인 무제한 — 테스트 편의. 실서버(lamdice.com)는 정상 경제 그대로.
     // 프로젝트 공통 isLocalhost 규약(localhost / 127.0.0.1 / 빈 호스트(file://))과 동일.
@@ -346,14 +346,20 @@
 
     // ── 잔고 표시 / 증감 애니메이션 ──────────────────────────
 
+    // 잔고/가격 배지를 [아이콘 노드][' ' + 값 텍스트 노드] 로 채운다. 값은 텍스트 노드라 HTML 로 해석되지 않는다.
+    // 카운트 애니메이션(countBalanceTo)은 뒤의 텍스트 노드(el.lastChild)만 갱신한다.
+    function setIconValue(el, iconId, value) {
+        el.replaceChildren(UIIcons.el(iconId), ' ' + value);
+    }
+
     function updateBalanceLabel() {
         var el = document.getElementById(BALANCE_ID);
-        if (el) el.textContent = '🪙 ' + _wallet.balance;
+        if (el) setIconValue(el, 'coin', _wallet.balance);
     }
 
     function updateAdBalanceLabel() {
         var el = document.getElementById(AD_BALANCE_ID);
-        if (el) el.textContent = '🎬 ' + (IS_LOCAL ? '∞' : _adWallet.coins);
+        if (el) setIconValue(el, 'clapper', IS_LOCAL ? '∞' : _adWallet.coins);
     }
 
     function animateEnabled() {
@@ -364,13 +370,15 @@
     function countBalanceTo(el, from, to) {
         var DURATION = 480;
         var startTs = null;
+        setIconValue(el, 'coin', from);
+        var num = el.lastChild; // 숫자 텍스트 노드 — 프레임마다 이것만 갱신(아이콘 노드는 유지)
         function step(ts) {
             if (startTs === null) startTs = ts;
             var p = Math.min(1, (ts - startTs) / DURATION);
             var eased = 1 - Math.pow(1 - p, 3);
-            el.textContent = '🪙 ' + Math.round(from + (to - from) * eased);
+            num.data = ' ' + Math.round(from + (to - from) * eased);
             if (p < 1) requestAnimationFrame(step);
-            else el.textContent = '🪙 ' + to;
+            else num.data = ' ' + to;
         }
         requestAnimationFrame(step);
     }
@@ -391,8 +399,8 @@
     function animateBalanceDelta(prev, next) {
         var el = document.getElementById(BALANCE_ID);
         if (!el) { updateBalanceLabel(); return; }
-        if (!animateEnabled()) { el.textContent = '🪙 ' + next; return; }
-        if (prev === next) { el.textContent = '🪙 ' + next; return; }
+        if (!animateEnabled()) { setIconValue(el, 'coin', next); return; }
+        if (prev === next) { setIconValue(el, 'coin', next); return; }
         var dir = next < prev ? 'spend' : 'earn';
         spawnBalanceDelta(el, next - prev);
         el.classList.remove('hshop-balance--spend', 'hshop-balance--earn');
@@ -441,7 +449,7 @@
         nm.textContent = item.name;
         var pr = document.createElement('span');
         pr.className = 'hshop-confirm-price';
-        pr.textContent = '🪙 ' + item.price;
+        setIconValue(pr, 'coin', item.price);
         line.appendChild(nm);
         line.appendChild(pr);
 
@@ -522,7 +530,8 @@
         } else {
             var glyph = document.createElement('span');
             glyph.className = 'hshop-glyph';
-            glyph.textContent = item.emoji || '🎁';
+            if (item.emoji) glyph.textContent = item.emoji; // 상품 자체 아이콘 데이터 — 그대로
+            else glyph.appendChild(UIIcons.el('gift'));
             thumb.appendChild(glyph);
         }
 
@@ -530,7 +539,7 @@
         if (isAdItem(item)) {
             var adBadge = document.createElement('span');
             adBadge.className = 'hshop-ad-badge';
-            adBadge.textContent = '🎬 광고';
+            adBadge.replaceChildren(UIIcons.el('clapper'), ' 광고');
             thumb.appendChild(adBadge);
         }
 
@@ -555,7 +564,7 @@
         if (isGachaOnly(item) && !state.owned) {
             var lock = document.createElement('div');
             lock.className = 'hshop-gacha-lock';
-            lock.textContent = '🎲 뽑기로 획득';
+            lock.replaceChildren(UIIcons.el('dice'), ' 뽑기로 획득');
             card.appendChild(lock);
             return card;
         }
@@ -565,7 +574,7 @@
         if (!state.owned && Number.isFinite(item.price)) {
             price = document.createElement('div');
             price.className = 'hshop-price';
-            price.textContent = '🪙 ' + item.price;
+            setIconValue(price, 'coin', item.price);
         }
 
         var btn = document.createElement('button');
@@ -608,7 +617,7 @@
         if (isGachaOnly(item) && !owned) {
             var lock = document.createElement('div');
             lock.className = 'hshop-gacha-lock hshop-gacha-lock--ad';
-            lock.textContent = '🎬 뽑기로 획득';
+            lock.replaceChildren(UIIcons.el('clapper'), ' 뽑기로 획득');
             card.appendChild(lock);
             return;
         }
@@ -619,7 +628,7 @@
         if (!owned) {
             var price = document.createElement('div');
             price.className = 'hshop-price hshop-price--ad';
-            price.textContent = '🎬 ' + adPrice;
+            setIconValue(price, 'clapper', adPrice);
             card.appendChild(price);
 
             btn.className = 'hshop-buy hshop-buy--ad';
@@ -656,13 +665,13 @@
         // 전체 풀 추첨 + 중복환급 → "다 모았어요" 폐기. 풀 0개(전부 directBuy/defaultOwned)일 때만 비활성.
         var disabled = false;
         if (poolSize === 0) {
-            btn.textContent = '🎁 준비 중';
+            btn.replaceChildren(UIIcons.el('gift'), ' 준비 중');
             disabled = true;
         } else if (isAd) {
-            btn.textContent = '🎬 광고 뽑기 · ' + cost + '광고코인 · ' + poolSize + '종';
+            btn.replaceChildren(UIIcons.el('clapper'), ' 광고 뽑기 · ' + cost + '광고코인 · ' + poolSize + '종');
             if (adBalance() < cost) disabled = true; // 잔고 부족 비활성(선검사·로컬 무제한)
         } else {
-            btn.textContent = '🎲 코인 뽑기 · ' + cost + '코인 · ' + poolSize + '종';
+            btn.replaceChildren(UIIcons.el('dice'), ' 코인 뽑기 · ' + cost + '코인 · ' + poolSize + '종');
             if (_wallet.balance < cost) disabled = true;
         }
         btn.disabled = disabled;
@@ -691,7 +700,7 @@
             var tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'hshop-tab' + (_activeTab === slot.key ? ' is-active' : '');
-            tab.textContent = slot.label || slot.key;
+            UIIcons.setIconText(tab, slot.label || slot.key);   // 게임 어댑터 슬롯 라벨('🎨 도색' 등)의 이모지 → 스프라이트
             tab.addEventListener('click', function () { _activeTab = slot.key; renderModal(); });
             bar.appendChild(tab);
         });
@@ -703,15 +712,15 @@
         var bar = document.createElement('div');
         bar.className = 'hshop-maintabs';
         var tabs = [
-            { type: 'ad',        label: '🎬 광고샵' },
-            { type: 'coin',      label: '🪙 코인샵' },
-            { type: 'inventory', label: '📦 내 아이템' }
+            { type: 'ad',        icon: 'clapper', text: '광고샵' },
+            { type: 'coin',      icon: 'coin',    text: '코인샵' },
+            { type: 'inventory', icon: 'box',     text: '내 아이템' }
         ];
         tabs.forEach(function (t) {
             var tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'hshop-maintab' + (_activeMainShop === t.type ? ' is-active' : '');
-            tab.textContent = t.label;
+            tab.replaceChildren(UIIcons.el(t.icon), ' ' + t.text);
             tab.addEventListener('click', function () {
                 if (_activeMainShop === t.type) return;
                 _activeMainShop = t.type;
@@ -817,7 +826,7 @@
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'hshop-inv-chip' + (_invFilter === cd.key ? ' is-active' : '');
-            chip.textContent = cd.label;
+            UIIcons.setIconText(chip, cd.label);
             chip.addEventListener('click', function () {
                 if (_invFilter === cd.key) return;
                 _invFilter = cd.key;
@@ -842,7 +851,7 @@
             section.className = 'hshop-inv-section';
             var head = document.createElement('div');
             head.className = 'hshop-inv-section-head';
-            head.textContent = slot.label || slot.key;
+            UIIcons.setIconText(head, slot.label || slot.key);
             section.appendChild(head);
 
             var grid = document.createElement('div');
@@ -940,7 +949,7 @@
             var bal = document.createElement('div');
             bal.className = 'hshop-balance';
             bal.id = BALANCE_ID;
-            bal.textContent = '🪙 ' + _wallet.balance;
+            setIconValue(bal, 'coin', _wallet.balance);
             header.appendChild(bal);
         }
         // 광고코인 잔고는 광고 아이템이 있는 게임(=광고샵 존재)에서만 표시. 스핀 등엔 미노출.
@@ -948,7 +957,7 @@
             var adBal = document.createElement('div');
             adBal.className = 'hshop-balance hshop-balance--ad';
             adBal.id = AD_BALANCE_ID;
-            adBal.textContent = '🎬 ' + (IS_LOCAL ? '∞' : _adWallet.coins);
+            setIconValue(adBal, 'clapper', IS_LOCAL ? '∞' : _adWallet.coins);
             header.appendChild(adBal);
         }
         var closeBtn = document.createElement('button');
@@ -983,7 +992,7 @@
             var adBtn = document.createElement('button');
             adBtn.type = 'button';
             adBtn.className = 'hshop-watch-ad';
-            adBtn.textContent = '🎬 광고 보고 코인 받기';
+            adBtn.replaceChildren(UIIcons.el('clapper'), ' 광고 보고 코인 받기');
             adBtn.addEventListener('click', function () { watchAd(); });
             adRow.appendChild(adInfo);
             adRow.appendChild(adBtn);
@@ -1009,7 +1018,7 @@
         if (coinLockMsg) {
             var note = document.createElement('div');
             note.className = 'hshop-empty';       // 전체폭 중앙 빈상태 스타일 재사용
-            note.textContent = coinLockMsg;        // textContent — XSS 안전
+            UIIcons.setIconText(note, coinLockMsg); // 텍스트 노드 + 아이콘 노드(innerHTML 미사용) — XSS 안전. hook 문자열(평문)도 그대로
             grid.appendChild(note);
         } else {
             // 그리드 아이템: 메인탭 활성 시 현재 메인샵 타입으로 필터(광고샵=adOnly만/코인샵=비-adOnly만).
@@ -1194,7 +1203,7 @@
         // 빌드업 캡슐(흔들림). 중복은 ♻️ 모티프.
         var capsule = document.createElement('div');
         capsule.className = 'hshop-reveal-capsule';
-        capsule.textContent = isDupe ? '♻️' : '🎁';
+        capsule.replaceChildren(UIIcons.el(isDupe ? 'recycle' : 'gift'));
         stage.appendChild(capsule);
 
         // 버스트(라디얼 라이트) + 파티클 레이어
@@ -1233,7 +1242,8 @@
         else {
             var glyph = document.createElement('span');
             glyph.className = 'hshop-glyph';
-            glyph.textContent = item.emoji || '🎁';
+            if (item.emoji) glyph.textContent = item.emoji; // 상품 자체 아이콘 데이터 — 그대로
+            else glyph.appendChild(UIIcons.el('gift'));
             art.appendChild(glyph);
         }
         revealCard.appendChild(art);
@@ -1348,7 +1358,7 @@
 
         var title = document.createElement('div');
         title.className = 'shop-adplay-title';
-        title.textContent = '🎬 광고 준비 중 (승인 대기)';
+        title.replaceChildren(UIIcons.el('clapper'), ' 광고 준비 중 (승인 대기)');
 
         var sub = document.createElement('div');
         sub.className = 'shop-adplay-sub';
@@ -1359,7 +1369,7 @@
         var runner = document.createElement('span');
         runner.className = 'shop-adplay-runner';
         runner.setAttribute('aria-hidden', 'true');
-        runner.textContent = AD_RUNNERS[Date.now() % AD_RUNNERS.length]; // 매 클릭 다른 탈것
+        runner.replaceChildren(UIIcons.el(AD_RUNNERS[Date.now() % AD_RUNNERS.length])); // 매 클릭 다른 탈것
         track.appendChild(runner);
 
         var barWrap = document.createElement('div');

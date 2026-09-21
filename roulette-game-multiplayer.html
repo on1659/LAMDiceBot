@@ -13,9 +13,9 @@
       (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
-    <title>LAM Roulette 🎰</title>
+    <title>LAM Roulette</title>
     <meta name="description" content="무료 온라인 멀티플레이어 룰렛 게임. 친구와 실시간으로 룰렛을 즐기세요.">
-    <meta property="og:title" content="LAM Roulette 🎰">
+    <meta property="og:title" content="LAM Roulette">
     <meta property="og:description" content="무료 온라인 멀티플레이어 룰렛 게임. 친구와 실시간으로 룰렛을 즐기세요.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/roulette">
@@ -32,6 +32,8 @@
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -826,7 +828,7 @@
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dice-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
-            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🎰</div>
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-slot"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
@@ -1105,7 +1107,7 @@
                     volumeKey: 'rouletteSoundVolume',
                     onLeave: function() { leaveRoom(); },
                     extraBadges: [
-                        { id: 'turboBadge', html: '🚀 터보', className: 'turbo-badge', style: 'background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;' }
+                        { id: 'turboBadge', html: '<i class="ui ui-rocket"></i> 터보', className: 'turbo-badge', style: 'background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;' }
                     ]
                 });
             </script>
@@ -1113,15 +1115,15 @@
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
 
             <!-- 접속자 목록 -->
             <div class="users-section" id="usersSection">
                 <div class="users-title">
-                    👥 접속자 (<span id="usersCount">0</span>명)
-                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--roulette-accent); margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
+                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--roulette-accent); margin-left: 10px; font-weight: normal;"><i class="ui ui-bulb"></i> 드래그하여 준비시키기</span>
                 </div>
                 <div class="users-list" id="usersList"></div>
             </div>
@@ -1141,7 +1143,7 @@
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
                     <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
@@ -1154,13 +1156,13 @@
 
             <!-- 예약 — 누르면 팝업에서 시각을 정한다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
             <div class="schedule-open-row" id="scheduleOpenRow">
-                <button type="button" class="schedule-open-button" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
+                <button type="button" class="schedule-open-button" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
             </div>
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px;">
                 <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
-                    🎰 룰렛 시작 (최소 2명 준비 필요)
+                    <i class="ui ui-slot"></i> 룰렛 시작 (최소 2명 준비 필요)
                 </button>
                 <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">주문받기 시작</button>
                 <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">주문받기 종료</button>
@@ -1169,9 +1171,9 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection">
                 <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--purple-200) 100%);">📋 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -1182,7 +1184,7 @@
                 
                 <!-- 주문하지 않은 사람 목록 -->
                 <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
-                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
+                    <div class="not-rolled-title" style="margin-top: 15px;"><i class="ui ui-hourglass"></i> 주문하지 않은 사람</div>
                     <div class="not-rolled-list" id="notOrderedList">
                         <!-- 주문하지 않은 사람 목록 -->
                     </div>
@@ -1192,7 +1194,7 @@
                 <div class="my-order-box">
                     <div class="my-order-title">
                         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; white-space:nowrap;">
-                            <span>📝</span>
+                            <span><i class="ui ui-memo"></i></span>
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
@@ -1203,7 +1205,7 @@
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
-                            <span>📋 자주 쓰는 메뉴</span>
+                            <span><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
                             <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
@@ -1236,7 +1238,7 @@
                 
                 <!-- 관전자 주문 목록 -->
                 <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--gray-200);">
-                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
                     <div class="order-list" id="spectatorOrderList"></div>
                 </div>
             </div>
@@ -1251,7 +1253,7 @@
                 <div class="roulette-wrapper">
                     <div class="roulette-pointer"></div>
                     <div class="roulette-wheel" id="rouletteWheel"></div>
-                    <div class="roulette-center">🎰</div>
+                    <div class="roulette-center"><i class="ui ui-slot"></i></div>
                 </div>
                 <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
             </div>
@@ -1260,29 +1262,29 @@
             <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(124, 77, 255, 0.1); border-radius: 8px;">
                 <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
-                    <span style="font-weight: bold; color: var(--roulette-accent);">🚀 터보 애니메이션</span>
+                    <span style="font-weight: bold; color: var(--roulette-accent);"><i class="ui ui-rocket"></i> 터보 애니메이션</span>
                 </label>
                 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;">다양한 마무리 효과</div>
             </div>
             
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
             <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
-                <button class="end-button" onclick="endRouletteGame()">🏁 게임 종료</button>
+                <button class="end-button" onclick="endRouletteGame()"><i class="ui ui-checker"></i> 게임 종료</button>
             </div>
 
             <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
                 <div style="color: white; margin-bottom: 12px; font-size: 14px;">
-                    🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
+                    <i class="ui ui-clapper"></i> 화면을 보지 않는 동안 룰렛이 진행되었습니다
                 </div>
                 <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-primary); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
-                    🔄 다시보기
+                    <i class="ui ui-refresh"></i> 다시보기
                 </button>
             </div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--roulette-accent); margin-bottom: 10px;">💬 채팅</div>
+                <div style="font-weight: bold; color: var(--roulette-accent); margin-bottom: 10px;"><i class="ui ui-chat"></i> 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -1307,16 +1309,16 @@
 
     <!-- 기록 섹션 -->
     <div class="history-section" id="historySection">
-        <div class="history-title">📜 게임 기록</div>
+        <div class="history-title"><i class="ui ui-scroll"></i> 게임 기록</div>
         <div id="historyList"></div>
     </div>
 
     <!-- 결과 오버레이 -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
-            <div class="result-title">🎊 당첨자 발표 🎊</div>
+            <div class="result-title"><i class="ui ui-confetti"></i> 당첨자 발표 <i class="ui ui-confetti"></i></div>
             <div class="result-winner" id="resultWinner"></div>
-            <div class="result-message">축하합니다! 🎉</div>
+            <div class="result-message">축하합니다! <i class="ui ui-party"></i></div>
             <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px;">확인</button>
         </div>
     </div>
@@ -1325,7 +1327,7 @@
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
     <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
-            <h3 style="margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <h3 style="margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
             <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
@@ -1361,7 +1363,7 @@
 
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
-            <h3 style="color: var(--roulette-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <h3 style="color: var(--roulette-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
             <div style="display: flex; gap: 10px;">
@@ -1606,22 +1608,22 @@
                 case 'error':
                     bgColor = 'var(--red-50)';
                     borderColor = 'var(--red-400)';
-                    icon = '⚠️';
+                    icon = UIIcons.tag('warn');
                     break;
                 case 'warning':
                     bgColor = 'var(--yellow-50)';
                     borderColor = 'var(--yellow-600)';
-                    icon = '⚠️';
+                    icon = UIIcons.tag('warn');
                     break;
                 case 'success':
                     bgColor = 'var(--green-50)';
                     borderColor = 'var(--green-400)';
-                    icon = '✅';
+                    icon = UIIcons.tag('check');
                     break;
                 default:
                     bgColor = 'var(--purple-50)';
                     borderColor = 'var(--dice-accent)';
-                    icon = 'ℹ️';
+                    icon = UIIcons.tag('info');
             }
             
             // 얼럿 오버레이 생성
@@ -1746,22 +1748,22 @@
                     case 'error':
                         bgColor = 'var(--red-50)';
                         borderColor = 'var(--red-400)';
-                        icon = '⚠️';
+                        icon = UIIcons.tag('warn');
                         break;
                     case 'warning':
                         bgColor = 'var(--yellow-50)';
                         borderColor = 'var(--yellow-600)';
-                        icon = '⚠️';
+                        icon = UIIcons.tag('warn');
                         break;
                     case 'success':
                         bgColor = 'var(--green-50)';
                         borderColor = 'var(--green-400)';
-                        icon = '✅';
+                        icon = UIIcons.tag('check');
                         break;
                     default:
                         bgColor = 'var(--purple-50)';
                         borderColor = 'var(--dice-accent)';
-                        icon = 'ℹ️';
+                        icon = UIIcons.tag('info');
                 }
                 
                 // Confirm 오버레이 생성
@@ -1969,7 +1971,7 @@
                     margin-bottom: 25px;
                     font-weight: 600;
                 `;
-                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;"><i class="ui ui-person"></i></span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
                 
                 // 버튼 컨테이너
                 const buttonContainer = document.createElement('div');
@@ -2576,16 +2578,22 @@
             }
         }
 
+        // 시작 버튼 라벨 — 아이콘 + 텍스트. textContent 로 갱신하던 자리는 전부 이걸로.
+        function setStartButtonLabel(iconId, text) {
+            const btn = document.getElementById('startRouletteButton');
+            if (btn) btn.replaceChildren(UIIcons.el(iconId), ' ' + text);
+        }
+
         // 시작 버튼 상태 업데이트
         function updateStartButton() {
             const btn = document.getElementById('startRouletteButton');
             if (btn && isHost) {
                 if (readyUsers.length >= 2 && !isSpinning) {
                     btn.disabled = false;
-                    btn.textContent = '🎰 룰렛 시작!';
+                    setStartButtonLabel('slot', '룰렛 시작!');
                 } else {
                     btn.disabled = true;
-                    btn.textContent = `🎰 룰렛 시작 (${readyUsers.length}/2명 준비)`;
+                    setStartButtonLabel('slot', `룰렛 시작 (${readyUsers.length}/2명 준비)`);
                 }
             }
         }
@@ -2654,9 +2662,9 @@
             box.style.display = 'block';
             const remaining = formatScheduleRemaining(scheduledStartAt - Date.now());
             // 시각 표기는 서버가 준 문자열만 쓴다. 기기 타임존으로 다시 그리면 접속자마다 달라진다.
-            box.textContent = scheduledStartLabel
-                ? `⏰ ${remaining} (${scheduledStartLabel} 예정)`
-                : `⏰ ${remaining}`;
+            box.replaceChildren(UIIcons.el('clock'), scheduledStartLabel
+                ? ` ${remaining} (${scheduledStartLabel} 예정)`
+                : ` ${remaining}`);
             updateScheduleButtons(); // 버튼의 초 카운트다운과 팝업 남은 시간을 같이 흐르게
         }
 
@@ -2714,15 +2722,15 @@
             if (openRow) openRow.style.display = isHost ? 'flex' : 'none';
             if (openButton) {
                 // 1분 미만 남으면 초 카운트다운을 오른쪽에 덧붙인다
-                let label = '⏰ 예약';
+                let label = '예약';
                 if (scheduledStartAt) {
-                    label = `⏰ ${scheduledStartLabel || '예약됨'}`;
+                    label = scheduledStartLabel || '예약됨';
                     const remainMs = scheduledStartAt - Date.now();
                     if (remainMs < 60 * 1000) {
                         label += ` · 시작 ${Math.max(0, Math.ceil(remainMs / 1000))}초 전`;
                     }
                 }
-                openButton.textContent = label;
+                openButton.replaceChildren(UIIcons.el('clock'), ' ' + label);
                 openButton.classList.toggle('is-armed', !!scheduledStartAt);
             }
             updateScheduleModal();
@@ -3377,14 +3385,13 @@
                 const tag = document.createElement('div');
                 tag.className = 'user-tag' + (user.isHost ? ' host' : '');
                 
-                let content = user.name;
+                tag.textContent = user.name;
                 if (user.isHost) {
-                    content += ' 👑';
+                    tag.append(' ', UIIcons.el('crown'));
                 }
                 if (user.name === currentUser) {
-                    content += ' (나)';
+                    tag.append(' (나)');
                 }
-                tag.textContent = content;
                 
                 // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
                 if (isHost && user.name !== currentUser) {
@@ -3510,9 +3517,9 @@
         // 디바이스 아이콘 가져오기
         function getDeviceIcon(deviceType) {
             if (!deviceType) return '';
-            if (deviceType === 'iOS') return '🍎';
-            if (deviceType === 'Android') return '📱';
-            if (deviceType === 'PC') return '💻';
+            if (deviceType === 'iOS') return 'apple';
+            if (deviceType === 'Android') return 'phone';
+            if (deviceType === 'PC') return 'pc';
             return '';
         }
         
@@ -3539,7 +3546,7 @@
                 item.innerHTML = `
                     <div class="history-round">${record.round}라운드 (${record.time})</div>
                     <div class="history-participants">참가자: ${record.participants.join(', ')}</div>
-                    <div class="history-winner">🎊 당첨: ${record.winner}</div>
+                    <div class="history-winner"><i class="ui ui-confetti"></i> 당첨: ${record.winner}</div>
                 `;
                 historyList.appendChild(item);
             });
@@ -3570,7 +3577,7 @@
             
             // UI 상태 변경 (준비 섹션은 유지)
             document.getElementById('startRouletteButton').disabled = true;
-            document.getElementById('startRouletteButton').textContent = '🎬 다시보기 중...';
+            setStartButtonLabel('clapper', '다시보기 중...');
             
             // 룰렛 휠 생성
             createRouletteWheel(data.participants);
@@ -3614,7 +3621,7 @@
                     // UI 복원
                     document.getElementById('readySection').style.display = 'block';
                     document.getElementById('startRouletteButton').disabled = false;
-                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    setStartButtonLabel('slot', '룰렛 시작');
                     
                     // 호스트에게 종료 버튼 표시
                     if (isHost) {
@@ -3663,7 +3670,7 @@
                 const replaySection = document.getElementById('replaySection');
                 const replayMessage = replaySection.querySelector('div');
                 if (replayMessage) {
-                    replayMessage.textContent = '🎬 마지막 룰렛 다시보기';
+                    replayMessage.replaceChildren(UIIcons.el('clapper'), ' 마지막 룰렛 다시보기');
                 }
                 replaySection.style.display = 'block';
             }
@@ -4030,7 +4037,7 @@
                 // UI 초기화
                 document.getElementById('readySection').style.display = 'block';
                 document.getElementById('startRouletteButton').disabled = false;
-                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                setStartButtonLabel('slot', '룰렛 시작');
                 return;
             }
             
@@ -4054,7 +4061,7 @@
             // UI 상태 변경 (돌림판과 준비 섹션은 계속 표시)
             // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
             document.getElementById('startRouletteButton').disabled = true;
-            document.getElementById('startRouletteButton').textContent = '🎰 룰렛 진행 중...';
+            setStartButtonLabel('slot', '룰렛 진행 중...');
             
             // 룰렛 휠 생성
             createRouletteWheel(data.participants);
@@ -4100,7 +4107,7 @@
                     // UI 초기화
                     document.getElementById('readySection').style.display = 'block';
                     document.getElementById('startRouletteButton').disabled = false;
-                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    setStartButtonLabel('slot', '룰렛 시작');
                     return;
                 }
                 
@@ -4281,7 +4288,7 @@
                 const replaySection = document.getElementById('replaySection');
                 const replayMessage = replaySection.querySelector('div');
                 if (replayMessage) {
-                    replayMessage.textContent = '🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다';
+                    replayMessage.replaceChildren(UIIcons.el('clapper'), ' 화면을 보지 않는 동안 룰렛이 진행되었습니다');
                 }
                 replaySection.style.display = 'block';
                 addDebugLog('🎬 다시보기 섹션 표시 (놓친 경우)', 'visibility');
@@ -4289,7 +4296,7 @@
                 // UI 초기화 - 다시 시작할 수 있도록
                 document.getElementById('readySection').style.display = 'block';
                 document.getElementById('startRouletteButton').disabled = false;
-                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                setStartButtonLabel('slot', '룰렛 시작');
             }
         });
 
@@ -4525,10 +4532,10 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 룰렛 게임 안내</h2>
         <p>LAMDice 룰렛은 친구들과 실시간으로 즐기는 무료 온라인 돌림판 게임입니다. 여러 칸 중 하나를 선택하여 당첨을 맞히세요. 돌림판은 서버에서 결정되므로 클라이언트 조작이 불가능하며, 모든 결과는 공정하게 기록됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="/pages/roulette-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 룰렛 규칙 가이드</a>
-            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+            <a href="/pages/roulette-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 룰렛 규칙 가이드</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-lock"></i> 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-book"></i> 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="ui ui-home"></i> 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
     </section>
