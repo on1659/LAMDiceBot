@@ -6,7 +6,7 @@
 const assert = require('assert');
 const sim = require('../socket/marble-sim');
 
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon'];
 function setup(players, nReq, seed) {
     const participants = Array.from({ length: players }, (_, i) => `p${i + 1}`);
     const picks = {};

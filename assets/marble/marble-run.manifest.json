@@ -2229,5 +2229,286 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creaturesG": {
+    "batch": "ice-sprite-character-tile-20260921-031318",
+    "status": "pending-generation",
+    "request": "docs/spritemake-request/2026-09-21-marble-run-creatures-g.md",
+    "note": "7차 새 동물 3종(햄스터·복어·너구리) × 시트 3장. 코드는 연결됨(socket/marble.js CREATURES, js/marble.js, js/marble-render.js ASSETS·CREATURE_NAMES, 선택 버튼 data-optional) — 파일이 없으면 선택 버튼이 숨고 자동 배정만 가능하다. 인수 시 md5/qaStatus 채우고 status 를 picked-up 으로",
+    "assets": {
+      "hamster": {
+        "image": "creatures/hamster.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/hamster.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "hamster-sleep": {
+        "image": "creatures/hamster-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/hamster-sleep.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "hamster-scuffle": {
+        "image": "creatures/hamster-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/hamster-scuffle.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "pufferfish": {
+        "image": "creatures/pufferfish.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/pufferfish.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "pufferfish-sleep": {
+        "image": "creatures/pufferfish-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/pufferfish-sleep.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "pufferfish-scuffle": {
+        "image": "creatures/pufferfish-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/pufferfish-scuffle.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "raccoon": {
+        "image": "creatures/raccoon.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/raccoon.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "raccoon-sleep": {
+        "image": "creatures/raccoon-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-sleep.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "raccoon-scuffle": {
+        "image": "creatures/raccoon-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-scuffle.png",
+        "md5": null,
+        "qaStatus": "pending"
+      }
+    }
   }
 }

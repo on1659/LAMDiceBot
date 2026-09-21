@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const sim = require('../socket/marble-sim');
 
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon'];
 const players = parseInt(process.argv[2], 10) || 6;
 const nReq = parseInt(process.argv[3], 10) || 3;
 const seed = parseInt(process.argv[4], 10) || 12345;
