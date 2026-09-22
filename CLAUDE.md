@@ -57,7 +57,7 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 | 다리건너기 (bridge-cross) | `bridge-cross-multiplayer.html`, `js/bridge-cross.js`, `socket/bridge-cross.js`, `css/bridge-cross*.css`, `docs/GameGuide/lessons/bridge-cross.md` |
 | 해적룰렛 (pirate) | `pirate-multiplayer.html`, `js/pirate.js`, `socket/pirate.js`, `css/pirate*.css`, `docs/GameGuide/lessons/pirate.md` |
 
-각 파일 첫 줄에도 ⛔ 미사용 표시가 있다. `free.html` 빠른 매칭의 다리건너기 카드는 아직 노출 상태(제거는 삭제 때 함께).
+각 파일 첫 줄에도 ⛔ 미사용 표시가 있다. **유저에겐 존재 자체가 안 보인다(2026-09-23 숨김 완료):** 빠른 매칭 카드 제거(`free.html`), 페이지 라우트·정적 서빙 제외(`routes/api.js` HIDDEN_GAME_FILES → 없는 URL 과 같은 404), 실서버 방 생성 거부(`config/index.js` DEV_GATED_GAMES, 이름 없는 문구), 랭킹 달력 라벨 제거(옛 기록은 "기타 게임"). 파일은 그대로 남아 있다 — 삭제만 남음.
 
 ## 자동 가드 (훅)
 

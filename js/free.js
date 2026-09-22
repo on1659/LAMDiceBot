@@ -33,7 +33,6 @@
         dice:     '주사위',
         roulette: '룰렛',
         horse:    '경마',
-        bridge:   '다리건너기',
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
         marble:   '데구리'
