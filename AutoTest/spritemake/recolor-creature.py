@@ -5,7 +5,7 @@
 
 usage:
   /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py analyze <creature>            # hue 히스토그램(규칙 잡을 때)
-  /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py make <creature> <skin>        # PRESETS[creature][skin] 로 3장 생성 → assets/marble/creatures/{creature}-{skin}*.png
+  /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py make <creature> <skin>        # PRESETS[creature][skin] 로 3장 생성 → assets/marble/creatures/{creature}-{skin}*.webp (무손실)
   /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py compare <creature> <skin>     # 28px 대조 PNG (scratch 경로 출력)
 
 규칙(rule) 필드: hue [lo,hi] (도, lo>hi 면 0 을 감싸 회전), sat [min,max], val [min,max] 로 대상 픽셀을 고르고
@@ -144,7 +144,7 @@ def apply_preset(im, preset):
 
 def analyze(creature):
     for suf in SHEETS:
-        im = Image.open(SRC / f'{creature}{suf}.png').convert('RGBA'); a = np.array(im)
+        im = Image.open(SRC / f'{creature}{suf}.webp').convert('RGBA'); a = np.array(im)
         vis = a[..., 3] >= ALPHA_MIN; h, s, v = rgb_to_hsv(a[..., :3])
         h, s, v = h[vis], s[vis], v[vis]
         print(f'== {creature}{suf}.png  visible px {vis.sum()}  dark(v<0.22) {(v<0.22).mean()*100:.1f}%  greyish(s<0.15) {(s<0.15).mean()*100:.1f}%')
@@ -162,15 +162,15 @@ def analyze(creature):
 def make(creature, skin):
     preset = PRESETS[creature][skin]
     for suf in SHEETS:
-        src = SRC / f'{creature}{suf}.png'; dst = SRC / f'{creature}-{skin}{suf}.png'
+        src = SRC / f'{creature}{suf}.webp'; dst = SRC / f'{creature}-{skin}{suf}.webp'
         base = Image.open(src); out = apply_preset(base, preset)
         assert np.array_equal(np.array(base.convert('RGBA'))[..., 3], np.array(out)[..., 3]), 'alpha changed'   # 픽셀 정렬 100% — 기하(접지·공 bbox·run)는 기본 시트와 동일
-        out.save(dst, optimize=True)
+        out.save(dst, lossless=True, quality=100, method=6)   # 게임 시트는 WebP 무손실(docs/GameGuide/04-ops/image-assets.md)
         print('wrote', dst, '(alpha identical to base)')
 
 
 def compare(creature, skin, out_path):
-    base = Image.open(SRC / f'{creature}.png').convert('RGBA'); sk = Image.open(SRC / f'{creature}-{skin}.png').convert('RGBA')
+    base = Image.open(SRC / f'{creature}.webp').convert('RGBA'); sk = Image.open(SRC / f'{creature}-{skin}.webp').convert('RGBA')
     bg = (110, 190, 100, 255)
     # 위: 기본 row0 4칸 + 공 2칸, 아래: 스킨 — 160px 원본 / 오른쪽에 28px(=×0.175) 축소
     def strip(im):

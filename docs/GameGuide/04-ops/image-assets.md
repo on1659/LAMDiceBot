@@ -12,6 +12,7 @@ express.static 은 `max-age=0` 이라 재방문도 매번 재검증 요청이 �
 | 이미지 종류 | 방법 | 기대 절감 |
 |------------|------|----------|
 | 알파 있는 스프라이트/시트/아틀라스 (대부분) | `pngquant` 256색 팔레트 | 60~75% |
+| 데구리 동물 시트 (`assets/marble/creatures/`) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −22% 추가 |
 | 알파 없는 큰 배경 (RGB, 1000px 이상) | WebP 손실 `q 92` | 85~95% |
 | 이미 팔레트 PNG (`file` 이 `8-bit colormap`) | 손댈 것 없음 | — |
 | OG 이미지 | JPEG 그대로 | — |
@@ -53,11 +54,11 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 
 | 경로 | 상태 |
 |------|------|
-| `assets/marble/**` | 완료 — creatures·pieces·fx pngquant, stage 배경 2장 WebP |
+| `assets/marble/**` | 완료 — creatures pngquant→WebP 무손실(4.4MB, 스킨 45장은 필요할 때만 로드 `ensureSkin`)·pieces·fx pngquant, stage 배경 2장 WebP. 진입 시 약 3.1MB |
 | `assets/ui/icons.png` 1.18MB | **미완** — 전 게임 공통 로드. pngquant 시 309KB |
 | `assets/bridge-cross/**` 6.2MB | **미완** — `background-void-v2.png` 1.8MB (RGB → WebP 126KB), players 7장(각 ~420KB → ~165KB)·glass-fx·stage |
 | `assets/cosmetics/aura-atlas.png` 830KB | **미완** — pngquant 60-100 시 236KB (반투명 글로우라 확대 검증 필요) |
 | `assets/backgrounds/*.png` | 차량 스트립 15장은 작음(10~34KB). `forest/space/road/beach/sky.png` 1.3MB 는 코드 참조 없음(삭제 후보) |
 | `assets/og/*.jpg` | 완료 (25~40KB) |
 
-새 시트를 `/spritemake-pickup` 으로 받으면 그 시트도 이 절차를 거친다.
+새 시트를 `/spritemake-pickup` 으로 받으면 그 시트도 이 절차를 거친다. 데구리 시트는 `AutoTest/spritemake/pickup-skin.py` 가 pngquant→WebP 를 자동으로 한다(리컬러 `recolor-creature.py` 도 .webp 입출력).
