@@ -105,39 +105,40 @@ var MarbleRender = (function () {
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
+    // 에셋 URL 버전 — 서버(routes/api.js)가 assets/marble/** 를 7일 캐시하므로, 같은 이름으로 파일을 교체하면 여기를 올려야 모두가 새 그림을 받는다(2026-09-22)
+    var ASSET_VER = '?v=1';
+    function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
         sleep: { hedgehog: A + 'creatures/hedgehog-sleep.webp', armadillo: A + 'creatures/armadillo-sleep.webp', pillbug: A + 'creatures/pillbug-sleep.webp', turtle: A + 'creatures/turtle-sleep.webp', panda: A + 'creatures/panda-sleep.webp', hamster: A + 'creatures/hamster-sleep.webp', pufferfish: A + 'creatures/pufferfish-sleep.webp', raccoon: A + 'creatures/raccoon-sleep.webp', rabbit: A + 'creatures/rabbit-sleep.webp', ribbonpig: A + 'creatures/ribbonpig-sleep.webp' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
         scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.webp', armadillo: A + 'creatures/armadillo-scuffle.webp', pillbug: A + 'creatures/pillbug-scuffle.webp', turtle: A + 'creatures/turtle-scuffle.webp', panda: A + 'creatures/panda-scuffle.webp', hamster: A + 'creatures/hamster-scuffle.webp', pufferfish: A + 'creatures/pufferfish-scuffle.webp', raccoon: A + 'creatures/raccoon-scuffle.webp', rabbit: A + 'creatures/rabbit-scuffle.webp', ribbonpig: A + 'creatures/ribbonpig-scuffle.webp' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
-            'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
-            'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
-            'seesaw-plank': A + 'pieces/seesaw-plank.png', 'seesaw-pivot': A + 'pieces/seesaw-pivot.png', 'mud-puddle': A + 'pieces/mud-puddle.png',
-            'fence-mid': A + 'pieces/fence-mid.png', 'fence-post': A + 'pieces/fence-post.png',
-            'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
-            'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
-            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
-            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png',
-            'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
-            'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
-            'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png',   // 4차(finale-d) — 도착 전엔 코드 도형
-            'spring-plank': A + 'pieces/spring-plank.png',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
-            'eagle': A + 'pieces/eagle.png',   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
-            'mole-v2': A + 'pieces/mole-v2.png', 'dam-water': A + 'pieces/dam-water.png', 'beaver-v2': A + 'pieces/beaver-v2.png', 'pit-surface': A + 'pieces/pit-surface.png'   // 5차
+            'start-platform-mid': A + 'pieces/start-platform-mid.webp', 'start-platform-end': A + 'pieces/start-platform-end.webp',
+            'start-gate': A + 'pieces/start-gate.webp', 'log-bumper': A + 'pieces/log-bumper.webp', 'stake': A + 'pieces/stake.webp',
+            'seesaw-plank': A + 'pieces/seesaw-plank.webp', 'seesaw-pivot': A + 'pieces/seesaw-pivot.webp', 'mud-puddle': A + 'pieces/mud-puddle.webp',
+            'fence-mid': A + 'pieces/fence-mid.webp', 'fence-post': A + 'pieces/fence-post.webp',
+            'goal-basket-back': A + 'pieces/goal-basket-back.webp', 'goal-basket-front': A + 'pieces/goal-basket-front.webp', 'dump-wall': A + 'pieces/dump-wall.webp',
+            'beehive': A + 'pieces/beehive.webp', 'sun-patch': A + 'pieces/sun-patch.webp', 'beaver-dam': A + 'pieces/beaver-dam.webp', 'beaver': A + 'pieces/beaver.webp',
+            'pit': A + 'pieces/pit.webp', 'last-gate': A + 'pieces/last-gate.webp', 'flag': A + 'pieces/flag.webp',
+            'windmill-pole': A + 'pieces/windmill-pole.webp', 'windmill-rotor': A + 'pieces/windmill-rotor.webp',
+            'mole-hole': A + 'pieces/mole-hole.webp', 'mole': A + 'pieces/mole.webp', 'flipflop-arm': A + 'pieces/flipflop-arm.webp', 'flipflop-pivot': A + 'pieces/flipflop-pivot.webp',
+            'belt': A + 'pieces/belt.webp', 'belt-end': A + 'pieces/belt-end.webp', 'fan': A + 'pieces/fan.webp',
+            'warp-pipe': A + 'pieces/warp-pipe.webp',   // 4차(finale-d) gravestone·gap-mark 는 미도착 — 코드 도형으로 그린다. 시트가 오면 여기 다시 등록(2026-09-22 404 헛요청 제거)
+            'spring-plank': A + 'pieces/spring-plank.webp',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
+            'eagle': A + 'pieces/eagle.webp',   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
+            'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp'   // 5차
         },
         stage: {
             'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 WebP q92 (PNG 1.2~1.3MB → 44K/226K)
-            'tree': A + 'stage/decor-tree.png', 'bush-big': A + 'stage/decor-bush-big.png', 'bush-small': A + 'stage/decor-bush-small.png',
-            'rock': A + 'stage/decor-rock.png', 'signpost': A + 'stage/decor-signpost.png',
-            'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png',
-            'lane-dirt': A + 'stage/lane-dirt.png'   // 4차
+            'tree': A + 'stage/decor-tree.webp', 'bush-big': A + 'stage/decor-bush-big.webp', 'bush-small': A + 'stage/decor-bush-small.webp',
+            'rock': A + 'stage/decor-rock.webp', 'signpost': A + 'stage/decor-signpost.webp',
+            'flower-pink': A + 'stage/decor-flower-pink.webp', 'flower-yellow': A + 'stage/decor-flower-yellow.webp', 'flower-white': A + 'stage/decor-flower-white.webp'   // 4차 lane-dirt 미도착 — 오면 여기 등록
         },
         fx: {
-            'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
-            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
-            'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
-            'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png',   // 5차
-            'dizzy-swirl': A + 'fx/dizzy-swirl.png'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
+            'dust-puff': A + 'fx/dust-puff.webp', 'impact-star': A + 'fx/impact-star.webp', 'mud-splash': A + 'fx/mud-splash.webp', 'curl-poof': A + 'fx/curl-poof.webp',
+            'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'dam-burst': A + 'fx/dam-burst.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
+            'eagle-shadow': A + 'fx/eagle-shadow.webp', 'mole-alert': A + 'fx/mole-alert.webp', 'dam-burst-v2': A + 'fx/dam-burst-v2.webp', 'geyser': A + 'fx/geyser.webp',   // 5차
+            'dizzy-swirl': A + 'fx/dizzy-swirl.webp'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
         },
         ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.png') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
@@ -185,7 +186,7 @@ var MarbleRender = (function () {
         if (!src) { images[imgKey(group, name)] = null; return false; }
         var im = new Image();
         im.onload = im.onerror = onEach || null;
-        im.src = src;
+        im.src = withVer(src);
         images[imgKey(group, name)] = im;
         return true;
     }
@@ -195,7 +196,7 @@ var MarbleRender = (function () {
     var SKIN_SUFFIX = { creatures: '', sleep: '-sleep', scuffle: '-scuffle' };
     function ensureSkin(group, key, onLoad) {
         var k = imgKey(group, key), im = images[k];
-        if (im === undefined) { im = new Image(); im.src = A + 'creatures/' + key + SKIN_SUFFIX[group] + '.webp'; images[k] = im; }
+        if (im === undefined) { im = new Image(); im.src = A + 'creatures/' + key + SKIN_SUFFIX[group] + '.webp' + ASSET_VER; images[k] = im; }
         if (onLoad && im && !im.complete) im.addEventListener('load', onLoad, { once: true });
     }
     function loadAll(onDone) {

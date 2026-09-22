@@ -12,7 +12,7 @@ express.static 은 `max-age=0` 이라 재방문도 매번 재검증 요청이 �
 | 이미지 종류 | 방법 | 기대 절감 |
 |------------|------|----------|
 | 알파 있는 스프라이트/시트/아틀라스 (대부분) | `pngquant` 256색 팔레트 | 60~75% |
-| 데구리 동물 시트 (`assets/marble/creatures/`) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −22% 추가 |
+| 데구리 시트 전부 (`assets/marble/**`, ramp.png 제외) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −20% 추가 |
 | 알파 없는 큰 배경 (RGB, 1000px 이상) | WebP 손실 `q 92` | 85~95% |
 | 이미 팔레트 PNG (`file` 이 `8-bit colormap`) | 손댈 것 없음 | — |
 | OG 이미지 | JPEG 그대로 | — |
@@ -44,6 +44,12 @@ cwebp -q 92 -m 6 in.png -o out.webp
 4. 타일링 배경(seamless) — 손실 압축 후 좌우/상하 끝 열 차이가 원본과 같은 수준인지 (WebP q92 에서 `meadow-tile` 은 동일했다).
 5. 브라우저 — 로컬 서버에서 해당 게임 페이지 로드, `performance.getEntriesByType('resource')` 로 404 없음 + 총량 확인.
 
+## 데구리 에셋 캐시 (`?v=`)
+
+`routes/api.js` 가 `assets/marble/**` 에 `Cache-Control: public, max-age=7일` 을 준다(다른 경로는 기본 `max-age=0` 재검증).
+그래서 데구리 에셋 URL 은 `js/marble-render.js` 의 `ASSET_VER`(`?v=N`) 이 붙는다. **같은 이름으로 파일을 교체하면 `ASSET_VER` 을 올려라** —
+안 올리면 최대 7일 옛 그림. 새 이름 추가는 올릴 필요 없음. `pickup-skin.py` 가 끝날 때 이걸 상기시킨다.
+
 ## 배포 주의
 
 Railway `watchPatterns` = `["**", "!assets/**", "!docs/**"]`. **에셋만 바뀐 커밋은 배포가 SKIPPED** 된다.
@@ -54,7 +60,7 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 
 | 경로 | 상태 |
 |------|------|
-| `assets/marble/**` | 완료 — creatures pngquant→WebP 무손실(4.4MB, 스킨 45장은 필요할 때만 로드 `ensureSkin`)·pieces·fx pngquant, stage 배경 2장 WebP. 진입 시 약 3.1MB |
+| `assets/marble/**` | 완료 — 전부 pngquant→WebP 무손실(스킨 45장은 필요할 때만 로드 `ensureSkin`), 배경 2장 WebP q92, 미도착 자리표시 4개(gravestone·gap-mark·lane-dirt·suck-swirl) ASSETS 에서 제거, 7일 캐시+`?v=`. 진입 시 약 2.9MB/91요청. `pieces/ramp.png` 는 미참조(삭제 후보) |
 | `assets/ui/icons.png` | 완료 — pngquant 1.18MB → 309KB (`?v=2`, 셀 128px 를 15~40px 로 쓰니 차이 없음) |
 | `assets/bridge-cross/**` 6.2MB | **미완** — `background-void-v2.png` 1.8MB (RGB → WebP 126KB), players 7장(각 ~420KB → ~165KB)·glass-fx·stage |
 | `assets/cosmetics/aura-atlas.png` 830KB | **미완** — pngquant 60-100 시 236KB (반투명 글로우라 확대 검증 필요) |
