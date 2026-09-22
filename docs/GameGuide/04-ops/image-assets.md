@@ -55,7 +55,7 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 | 경로 | 상태 |
 |------|------|
 | `assets/marble/**` | 완료 — creatures pngquant→WebP 무손실(4.4MB, 스킨 45장은 필요할 때만 로드 `ensureSkin`)·pieces·fx pngquant, stage 배경 2장 WebP. 진입 시 약 3.1MB |
-| `assets/ui/icons.png` 1.18MB | **미완** — 전 게임 공통 로드. pngquant 시 309KB |
+| `assets/ui/icons.png` | 완료 — pngquant 1.18MB → 309KB (`?v=2`, 셀 128px 를 15~40px 로 쓰니 차이 없음) |
 | `assets/bridge-cross/**` 6.2MB | **미완** — `background-void-v2.png` 1.8MB (RGB → WebP 126KB), players 7장(각 ~420KB → ~165KB)·glass-fx·stage |
 | `assets/cosmetics/aura-atlas.png` 830KB | **미완** — pngquant 60-100 시 236KB (반투명 글로우라 확대 검증 필요) |
 | `assets/backgrounds/*.png` | 차량 스트립 15장은 작음(10~34KB). `forest/space/road/beach/sky.png` 1.3MB 는 코드 참조 없음(삭제 후보) |
