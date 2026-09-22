@@ -33,3 +33,4 @@ DB 마이그레이션: initDatabase() 자동 실행 (테이블 없으면 생성)
 - [ ] 공통 모듈 변경 시: 주사위/룰렛/경마 모두 테스트
 - [ ] DB 스키마 변경 시: `db/init.js` 확인 (CREATE IF NOT EXISTS)
 - [ ] 환경변수 추가 시: Railway 대시보드에 등록
+- [ ] 이미지 추가/교체 시: 커밋 전 최적화 ([image-assets.md](image-assets.md)) — 에셋만 바뀐 커밋은 Railway 가 SKIPPED 하니 트리거 확인

@@ -472,6 +472,15 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-46. 이미지 에셋은 커밋 전에 최적화하라 — 생성 도구 원본 PNG 는 3~5배 크다
+
+- SpriteMake 등이 뱉는 PNG 는 8-bit RGBA 무손실 원본. 시트 한 장 400~600KB, 배경 한 장 1MB+ 로 그대로 들어와 있었고 데구리는 첫 진입에 22MB 를 받고 있었다(2026-09-22 발견, 최적화 후 7.2MB).
+- **규칙:** 알파 있는 스프라이트 → `pngquant --quality 80-100 --speed 1 --strip --force --ext .png` (파일명 유지, 코드 변경 없음). 알파 없는 큰 배경 → WebP `cwebp -q 92` (경로 바뀌니 JS/CSS `?v=` 같이). 파일 하나 200KB 넘으면 의심.
+- **검증:** 2~3배 확대 육안 비교 + 알파 임계값 읽는 코드(데구리 `standHeight` 의 `alpha ≥ 8`)가 전/후 같은 결과인지. 절차·수치는 [`04-ops/image-assets.md`](../04-ops/image-assets.md).
+- **배포 함정:** Railway `watchPatterns` 가 `!assets/**` 라 에셋만 바뀐 커밋은 SKIPPED — JS/HTML 이 안 바뀌면 `summit-log.txt` 한 줄로 트리거.
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**
