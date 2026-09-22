@@ -1,4 +1,39 @@
 ========================================
+📋 Summit Log - 2026-09-22 오후 (데구리 이미지 최적화 22MB → 2.9MB, 캔버스 HUD 순위표, Codex 미러 등록)
+========================================
+
+## 변경 파일
+- assets/marble/**: creatures 75장·pieces 36장·fx 15장·stage 장식 8장 → pngquant(256색, quality 80-100; pillbug-rainbow·fx/cheer 만 60-100) 후 cwebp -lossless -z 9 → .webp (PNG 삭제). 배경 sky-far·meadow-tile 은 알파 없는 RGB 라 WebP q92. 총 22MB → 7.2MB(파일) / 진입 시 2.9MB. pieces/ramp.png 는 미참조라 손 안 댐.
+- assets/ui/icons.png: pngquant 1.18MB → 309KB (alpha 변화 0픽셀). 참조 4곳 ?v=1→?v=2 (css/ui-icons.css·css/marble.css·js/shared/ui-icons.js·dice-game-multiplayer.html)
+- js/marble-render.js (v64): ASSETS 경로 .webp; 스킨 시트 지연 로드 ensureSkin(group,key,onLoad) — sheet() 가 b.skin 을 보고 처음 필요할 때 '{creature}-{skin}[-sleep|-scuffle].webp' 요청, 로드 전엔 기본 시트 폴백(기존 동작), drawCreatureIcon 은 로드 뒤 그 캔버스 재그리기. 카탈로그 fetch·registerSkins·loadKicked·SKIN_GROUPS 제거(export 에서도). 4차 미도착 자리표시 gravestone·gap-mark·lane-dirt·suck-swirl ASSETS 에서 제거(404 4개). ASSET_VER '?v=1' + withVer() — 마블 에셋 URL 에만(ui 아틀라스 제외). HUD 순위표·룰 배지(아래 별도 항목).
+- routes/api.js(CRLF 유지): MARBLE_ASSET_MAX_AGE_S = 7일. express.static setHeaders 에서 assets/marble/** 만 Cache-Control public, max-age=604800. 다른 경로는 기존 max-age=0.
+- js/marble.js, marble-multiplayer.html: HUD 순위표·룰 배지(d68b9a3), marble-render v64
+- js/marble-shop.js: 주석 경로 .webp
+- AutoTest/spritemake/pickup-skin.py: PNG 복사 → pngquant→cwebp 로 creatures/{n}.webp 생성(md5 는 배치 원본 PNG 기준), targetGamePath .webp, 끝에 ASSET_VER 상기 문구. recolor-creature.py: .webp 입출력(Pillow lossless=True)
+- docs/GameGuide/04-ops/image-assets.md(신설)·deploy.md 체크리스트·lessons/_common.md C-46·.claude/commands/spritemake-pickup.md: 이미지 추가/교체 시 커밋 전 최적화 규칙(pngquant/WebP, 200KB 초과 의심, 검증 5항목, 캐시 ?v=, Railway !assets/** 트리거)
+- docs/GameGuide/lessons/marble.md: game-lab 프리뷰 phase idle 요령(d68b9a3)
+- AGENTS.md, .agents/skills/*, .codex/hooks*: Codex 용 미러(CLAUDE.md·커맨드 스킬·가드 훅). 비밀값 없음(텔레그램 토큰은 env 참조)
+- docs/analysis/marble-random-track-2026-09-21/: 데구리 랜덤 트랙 분석 산출물(README·baseline)
+- .gitignore: .DS_Store, /game-lab/marble-timeline*.json(생성 fixture), /horse-app/(소스 없이 dist+node_modules 만 남은 옛 잔재 126MB — 2026-04-11 audit 에서 운영 대상 아님)
+
+## 상세 변경 내역
+
+### [데구리 이미지 최적화 — 5회 배포]
+- 3b99e30 배경 2장 WebP + creatures pngquant(22MB→8.6MB) → fbff1e3 pieces·fx pngquant(→7.2MB) → 553a2ed creatures WebP 무손실 + 스킨 지연 로드(진입 3.1MB) → e812b27 icons.png → 880d841 pieces·fx·장식 WebP + 자리표시 제거 + 7일 캐시(진입 2.9MB/91요청/404 0).
+- 화질: pngquant 는 2~3배 확대 육안 비교 + RGB 평균 diff ≤ 5/255 + alpha 0↔비0 뒤집힘 수십 픽셀 이하로 채택. standHeight(row0 alpha≥8 최상단) 판정은 전 시트 동일. WebP 무손실은 134장 전부 pngquant 결과와 픽셀 동일(alpha 전체 + 가시 RGB) 스크립트 검증.
+- 지연 로드 검증(game-lab): 진입 시 스킨 요청 0, 스킨 8종 타임라인 재생 시 그 8장만 로드, sleep/scuffle 그룹·미존재 스킨(404 1회 뒤 폴백)·상점 카드 재그리기 직접 호출로 확인.
+- Railway watchPatterns = ["**","!assets/**","!docs/**"] 확정(railway deployment list --json serviceManifest). 에셋만 바뀐 커밋은 summit-log 한 줄로 트리거(fbff1e3).
+- 미결/후보: pieces/ramp.png 미참조, assets/backgrounds/forest·space·road·beach·sky.png 1.3MB 미참조(삭제 후보), bridge-cross 6.2MB·cosmetics/aura-atlas 830KB 는 미최적화(image-assets.md 현황표).
+
+### [데구리 캔버스 HUD 순위표 + 당첨 룰 배지] (d68b9a3, 다른 세션)
+- 우상단 "꼴찌 후보"(후미 5명) → "순위표": 플레이어 단위 1위→꼴찌 전원, 서버 rankPlayers 기준. 좌상단 상태 문구 옆 🎯 꼴등 당첨/1등 당첨 금색 배지(카운트다운~경주 끝). 캔버스 위 HTML 배너 제거, 룰렛 페이드아웃 때 배너 걷음(hideVoteSection).
+- 순위표 시작 y = CSS 56px 환산(HUD_RANK_TOP_PX, view.cssW) — 베타 배지·전체화면 버튼 아래. 폰(narrow): 룰 배지를 상태 문구 아래 줄, 미니맵 시작 44→74.
+
+### [운영]
+- 이 폴더의 로컬 feature/marble-run 은 다른 세션과 병행 작업으로 origin 과 갈라져 있었음(같은 내용 다른 해시 f2a681e·fb555df). summit 전 작업트리를 stash(백업)하고 origin/feature/marble-run 으로 reset — 더티 파일 내용은 전부 origin 에 이미 있었음(horse-race-multiplayer.html 은 공백 차이뿐).
+- main 병합에 d68b9a3 도 함께 들어감 — 사용자 확인("작업한 거는 다 올리는 게 맞음").
+
+========================================
 📋 Summit Log - 2026-09-22 오전 (데구리 스킨 경제 → 방 단위 1회용, 실서버 옛 구매 리셋)
 ========================================
 
