@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/check-main-branch.sh'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/check-push-branch.sh'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '/Users/radar/Work/LAMDiceBot/.codex/hooks/ui-check.py'"
+          },
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/file-type-reminder.sh'"
+          },
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/security-guard.sh'"
+          },
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/fairness-guard.sh'"
+          },
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/mobile-guard.sh'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/radar/Work/LAMDiceBot/.codex/hooks/goal-archive.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}

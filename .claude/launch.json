@@ -1,0 +1,54 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "dev-5174",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 5174,
+      "env": {
+        "PORT": "5174"
+      }
+    },
+    {
+      "name": "dev-5175",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 5175,
+      "env": {
+        "PORT": "5175"
+      }
+    },
+    {
+      "name": "dev-5176",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 5176,
+      "env": {
+        "PORT": "5176"
+      }
+    },
+    {
+      "name": "game-lab",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "game-lab/server.js"
+      ],
+      "port": 4000
+    }
+  ]
+}

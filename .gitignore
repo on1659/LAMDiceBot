@@ -67,4 +67,10 @@ assets/backgrounds/vehicle-generated/
 # AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
 
 # 데구리 프리뷰 타임라인 (AutoTest/marble-sim-dump.js 산출물)
-/game-lab/marble-timeline.json
+/game-lab/marble-timeline*.json
+
+# macOS
+.DS_Store
+
+# 옛 경마 React 빌드 잔재(소스 없음, dist+node_modules 126MB) — 2026-04-11 audit: 운영 대상 아님
+/horse-app/
