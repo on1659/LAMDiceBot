@@ -100,4 +100,7 @@ python3 AutoTest/spritemake/make-balloons.py --verify assets/marble/accessories 
 카탈로그(`config/marble/cosmetics.json`)·게임 코드는 수정할 것이 없다. 검증은 `node AutoTest/qa-marble-skin-shop-test.js <port>` (스프라이트 파일 존재를 확인하는 항목이 있다).
 
 ## 진행 기록
-- 2026-09-23 작성. 임시본(PIL 생성)은 이미 실서버 코드에 붙어 동작 중이며, 이 의뢰는 그림만 교체하는 건이다.
+- 2026-09-23 작성. 기능·카탈로그·임시본은 `feature/marble-run` 에 커밋 872a3f2 로 들어가 테스트 서버에 올라가 있다(실서버 main 아님).
+  이 의뢰는 **그림 7장만 교체**하는 건이다 — 코드·카탈로그는 이미 완성이라 손댈 것이 없다.
+- 미결 1건: **음식 모양 풍선이냐 실제 음식이냐.** 지금 문서는 "음식 모양 호일 풍선" 기준으로 쓰여 있다.
+  실제 음식(봉지에 담긴 치킨 등)을 원하면 §화풍·§7종을 다시 써야 하므로 **생성 시작 전에 사용자에게 확인할 것.**
