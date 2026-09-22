@@ -152,7 +152,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         await marbleHandler.awardRaceCoins(fakeIo, fakeGS, fakeMb);
         const after = await coins.getBalance(userId);
         check(after - before === marbleHandler.COIN_RACE_JOIN, '참여 코인 +' + marbleHandler.COIN_RACE_JOIN + ' — 같은 coinRef 두 번 호출해도 1회만', before + ' → ' + after);
-        check(coins.SEED_COINS === 150, 'SEED_COINS(첫 지갑) = 150', String(coins.SEED_COINS));
+        check(coins.SEED_COINS === 200, 'SEED_COINS(첫 지갑) = 200', String(coins.SEED_COINS));
     } catch (e) {
         console.error('FAIL — 예외:', e && e.message); pass = false;
     } finally {
