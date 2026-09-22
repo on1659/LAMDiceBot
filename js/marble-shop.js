@@ -86,11 +86,7 @@
         slots: [{ key: SLOT, label: '동물 스킨' }],   // 단일 슬롯 → 탭바 미렌더
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         hooks: {
-            noticeText: function (slot, view) {
-                return view === 'closet'
-                    ? '장착은 이 방에서만 유지돼요. 방을 나가면 다시 골라 주세요. 스킨의 동물을 골랐을 때 모두에게 보여요.'
-                    : '동물 스킨은 경주 결과에 영향을 주지 않아요. 산 스킨은 옷장에서 장착해요.';
-            },
+            noticeText: function () { return ''; },   // 안내 상자 없음(사용자 2026-09-22: 설명 문구 제거) — 공유 셸이 '' 면 상자를 안 그린다
             // 동물별 필터 칩(전체/고슴도치/…): 순서는 선택 버튼 순서(MARBLE_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등)
             groups: function () {
                 var names = (window.MarbleRender && MarbleRender.CREATURE_NAMES) || {};
