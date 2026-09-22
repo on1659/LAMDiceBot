@@ -1,4 +1,34 @@
 ========================================
+📋 Summit Log - 2026-09-22 오전 (데구리 스킨 경제 → 방 단위 1회용, 실서버 옛 구매 리셋)
+========================================
+
+## 변경 파일
+- socket/marble.js: mb.wallets[name]={balance,owned}, ROOM_SEED_COINS 200·COIN_RACE_JOIN 10. 신규 marble:shop:get / marble:shop:buy(카탈로그 가격 권위, owned·insufficient·notfound 거절). marble:equipSkin 소유 확인 = ownsInRoom(defaultOwned 또는 이 방에서 구매), 인증 불필요(손님 포함). attachSkins 동기·방 소유 기준. awardRaceCoins → 방 지갑 +10 → wallet:updated. DB(coins/cosmetics) 의존 전부 제거(getOwned·grant·coinRef).
+- utils/room-helpers.js(CRLF): marble.wallets {}. socket/rooms.js, socket/chat.js(CRLF): leaveRoom/disconnect 에서 skins 와 함께 wallets 삭제(C-19 짝).
+- js/shared/shop-shared.js: config.roomWallet — openView 가 인증 없이 hooks.walletRequest 로 지갑(못 받으면 '방에 들어온 뒤에 열 수 있어요'), refreshWallet 도 같은 훅, doBuy 는 hooks.buyRequest(응답 {ok,balance,owned,reason} 형식 동일). 다른 게임(roomWallet 없음)은 기존 경로.
+- js/marble-shop.js: roomWallet:true, walletRequest→marble:shop:get, buyRequest→marble:shop:buy, applyRoomSkin 은 서버 equipped 를 그대로 채택(onWalletSynced 제거). (v9)
+- AutoTest/qa-marble-skin-shop-test.js: DB 없이 방 경제 검증 31항목 — 방 밖 거절, 200→80×2→부족, 중복·미소유 거절, 손님 지갑 별개, 해제, mySkin, +10, 재입장 초기화.
+- update-log.md: 2026-09-22 항목의 코인 문구를 방 단위로 정정(첫 지갑 150/계정 영구 → 방 입장 200·1회용).
+
+## 상세 변경 내역
+
+### [결정 — 사용자 2026-09-22 오전]
+- "코인이 유지되면 안 되고 1회용" → 방마다 리셋(추천안 채택). 코인·구매·소유·장착 모두 방 메모리, 나가면 소멸. 로그인 불필요.
+- 지급량 "최대 2개 정도 살 정도" → 200코인 / 스킨 80 유지(처음 2개 + 40 여유, 한 판 +10 → 4판 뒤 3번째).
+- 계정 지갑 SEED_COINS 는 200 으로 남음(이제 경마만 사용, 데구리 무관).
+
+### [실서버 DB 리셋 2026-09-22]
+- 옛 계정 지갑 방식으로 산 4명(김영태 3개·배재후·변영화·안성훈 각 1개): user_cosmetics 6행 삭제, prefs.equipped.marble_skin 1명 제거, 쓴 코인 환불(250/80/80/80, coin_ledger reason 'marble_skin_reset' ref 'reset-2026-09-22' — 멱등). 스크립트는 Railway GraphQL(workspace→DiceBot→Postgres DATABASE_PUBLIC_URL)로 접속, 토큰·URL 미출력.
+
+### [검증]
+- 소켓 테스트 31 PASS, 결정론 ALL PASS, node -c OK. 브라우저(dev-5174) 손님 계정: 상점 200 → 구매 120 → 토스트 → 옷장 장착중 → 출발대 리본돼지.
+- 배포: main d080548 (다른 세션 fbff1e3 위), feature/marble-run 동일 커밋.
+
+### [주의]
+- 옛 페이지를 열어둔 사람은 새로고침 필요(구 shop-shared/marble-shop 캐시). 장착 실패 토스트가 원인(연결 끊김/미소유)을 말해준다.
+========================================
+
+========================================
 📋 Summit Log - 2026-09-22 오전 (데구리 스킨 상점·옷장 분리 → 같은 팝업 탭 + 동물별 필터 칩 + 카드 가격 위치)
 ========================================
 
