@@ -634,7 +634,7 @@ function restoreVoteUiFromCanvas() {
     if (overlay) { overlay.classList.remove('fading-out'); overlay.remove(); }
 }
 
-// 카운트다운 시작 — 팝업을 페이드아웃하고 투표 막대·사유는 걷는다. 배너는 원래 자리(캔버스 위)로 돌아가 경주 내내 남는다 (경마 fadeBarsOverlayOnly 와 같은 역할)
+// 카운트다운 시작 — 팝업을 페이드아웃하고 투표 막대·사유·배너를 전부 걷는다. 경주 중 당첨 룰은 캔버스 HUD 배지(marble-render drawHud)가 보여준다
 var voteUiFadeTimer = null;
 function hideVoteSection() {
     clearRouletteTick();
@@ -644,8 +644,7 @@ function hideVoteSection() {
         restoreVoteUiFromCanvas();
         var section = document.getElementById('rankVoteSection');
         if (section) section.style.display = 'none';
-        var reasonEl = document.getElementById('targetRankReason');
-        if (reasonEl) reasonEl.style.display = 'none';
+        updateTargetBanner(null, false);   // 사유도 같이 숨긴다
     };
     if (voteUiFadeTimer) { clearTimeout(voteUiFadeTimer); voteUiFadeTimer = null; }
     var overlay = document.getElementById('canvasBarsOverlay');
@@ -1275,8 +1274,7 @@ socket.on('marble:reveal', function (data) {
     closeResultOverlay();
     showAfterRace(false);
     showStage(true);
-    hideVoteSection();                                        // 막대·사유는 걷고 배너("N등을 찾아라!")만 경주 내내
-    updateTargetBanner(marbleState.target, true);
+    hideVoteSection();                                        // 룰렛 팝업(막대·사유·배너) 페이드아웃 — 경주 중 룰 표시는 캔버스 배지
     renderPickStatus();
     updateStartButton();
     var dragHint = document.getElementById('dragHint');

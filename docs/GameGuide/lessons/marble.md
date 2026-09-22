@@ -6,6 +6,13 @@
 
 ## 누적
 
+## 2026-09-22 — game-lab 프리뷰는 `R.play()` 를 안 부른다 — phase 게이트가 걸린 HUD 는 `R.setPhase('play')` 로 열어야 보인다
+
+**상황:** 캔버스 HUD 에 당첨 룰 배지(`phase !== 'idle'` 일 때만)를 넣고 `game-lab/marble-preview.html` 로 확인.
+**함정/실수:** 프리뷰는 `R.render(t)` 만 직접 돌린다. `idle → countdown → play` 전이는 `R.play()` 안에서만 일어나므로 프리뷰의 `phase` 는 **영원히 `idle`** — 상태 문구도 "출발대 대기 N마리" 로 고정. 게이트 뒤의 요소가 안 그려져 "코드가 안 먹는다" 로 오인하기 쉽다. 또 `AutoTest/marble-sim-dump.js` 타임라인엔 `target` 같은 reveal 전용 필드가 없다.
+**해결/예방:** 콘솔에서 `R.setPhase('play')` 뒤 `seekTo(t)`. reveal 전용 필드는 덤프 JSON 에 직접 주입(`data.target = 'last'`, 렌더러는 같은 객체를 들고 있어 즉시 반영). 실제 방 흐름까지 봐야 하면 socket.io-client 2개로 방 생성·`marble:pick`·`marble:voteRank` 하고, 브라우저는 `sessionStorage.marbleActiveRoom = {roomId, userName}` 세팅 후 `/marble` 진입하면 관전자로 합류한다(공유 입장은 auto-ready 라 동물 안 고른 관전자가 있으면 `marble:start` 는 `{ force: true }`).
+**관련:** `js/marble-render.js` R.play/R.setPhase/drawHud, `game-lab/marble-preview.html`, `_common.md` C-24
+
 ## 2026-09-20 — 렌더러의 t 파생 값은 t<0(대기 화면·역방향 시크)에서 음수가 된다
 
 **상황:** 햇볕 잔디 반짝임 파티클의 위상을 `(t / 900 + hash01(q)) % 1` 로, 반지름을 `1.5 + sin(ph·π)·2` 로 계산. 카운트다운(t<0)과 대기 프리뷰(`IDLE_T = -100000`)도 같은 `R.render(t)` 경로를 쓴다.
