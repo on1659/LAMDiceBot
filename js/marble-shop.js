@@ -60,9 +60,9 @@
     }
     // [장착]/[해제] 클릭 → 서버(방)에만 저장. done(equippedMap) 성공 / done(null) 실패
     function equipRequest(slot, id, done) {
-        if (!_socket) return done(null);
+        if (!_socket) return done(null, 'room');
         _socket.emit('marble:equipSkin', { cosmeticId: id }, function (res) {
-            if (!res || !res.ok) return done(null);
+            if (!res || !res.ok) return done(null, res && res.reason);
             _roomSkinId = id || null;
             var eq = Object.assign({}, ShopModule.getWallet().equipped);
             if (_roomSkinId) eq[SLOT] = _roomSkinId; else delete eq[SLOT];

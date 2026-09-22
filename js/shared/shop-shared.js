@@ -1213,8 +1213,12 @@
         // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equipSkin — 계정 prefs 에 저장하지 않음).
         // hook(slot, id, done) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
         if (_config && _config.hooks && _config.hooks.equipRequest) {
-            _config.hooks.equipRequest(slot, id, function (equipped) {
-                if (!equipped) { showShopToast('장착에 실패했어요.', 'error'); return; }
+            _config.hooks.equipRequest(slot, id, function (equipped, reason) {
+                if (!equipped) {   // reason = 서버 ack 의 reason — 새로고침으로 풀리는 상태(방 끊김·인증 만료)는 그렇게 안내
+                    var msg = (reason === 'room' || reason === 'auth') ? '연결이 끊겼어요. 새로고침 후 다시 장착해 주세요.'
+                        : reason === 'unowned' ? '아직 사지 않은 스킨이에요.' : '장착에 실패했어요. 잠시 후 다시 시도해 주세요.';
+                    showShopToast(msg, 'error'); return;
+                }
                 _wallet.equipped = equipped;
                 renderModal();
                 if (_config.hooks.onEquipApplied) _config.hooks.onEquipApplied(_wallet.equipped, true);
