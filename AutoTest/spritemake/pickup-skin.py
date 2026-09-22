@@ -52,3 +52,4 @@ j[section] = {
 }
 MAN.write_text(json.dumps(j, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 print(f'manifest {section} written')
+print('NOTE: 같은 이름의 시트를 교체한 경우 js/marble-render.js ASSET_VER 을 올릴 것 (assets/marble/** 는 7일 캐시)')

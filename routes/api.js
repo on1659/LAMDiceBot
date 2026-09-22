@@ -8,6 +8,10 @@ const { resolveShortcode } = require('../utils/shortcode');
 const { renderFreeHtml } = require('../utils/og-meta');
 const { getServerById } = require('../db/servers');
 
+// 데구리 에셋(assets/marble/**) 브라우저 캐시 — URL 에 ?v= 이 붙어 있어(js/marble-render.js ASSET_VER) 오래 캐시해도 된다.
+// 기본값(max-age=0)이면 방에 들어올 때마다 시트 95개를 재검증(304)한다 (2026-09-22)
+const MARBLE_ASSET_MAX_AGE_S = 7 * 24 * 3600;
+
 // /free shortcode rate limiter — IP당 분당 15회 (shortcode 무차별 대입 방지).
 // 2026-05-17 보안 패치: 30 → 15. 비공개 서버 방 보호 강화.
 // express-rate-limit이 로드되지 않은 환경 (테스트 등)에서는 no-op으로 fallback.
@@ -52,6 +56,8 @@ function setupRoutes(app) {
                 res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
                 res.setHeader('Pragma', 'no-cache');
                 res.setHeader('Expires', '0');
+            } else if (filePath.includes(path.sep + 'assets' + path.sep + 'marble' + path.sep)) {
+                res.setHeader('Cache-Control', 'public, max-age=' + MARBLE_ASSET_MAX_AGE_S);
             }
         }
     }));
