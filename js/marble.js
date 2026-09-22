@@ -42,6 +42,7 @@ function getDeviceId() {
 
 // 상태 변수
 var currentRoomId = null;
+var currentRoomPassword = '';   // 비공개 방 비밀번호 — 재입장(새로고침·순단 재연결)에 다시 보낸다. 서버는 재연결에도 비밀번호를 먼저 검사한다(socket/rooms.js joinRoom)
 var currentUser = '';
 var isHost = false;
 var isReady = false;
@@ -58,6 +59,7 @@ var roomExpiryInterval = null;
 
 var chatModuleInitialized = false;
 var readyModuleInitialized = false;
+var orderModuleInitialized = false;
 
 // 게임 상태 (서버 권위 — 클라는 시각화)
 var marbleState = {
@@ -100,6 +102,37 @@ socket.on('connect', function () {
         } catch (e) {}
     }
 });
+// 방에 있었다면 자동 재입장 (transport close / ping timeout reconnect 대응 — 경마 js/horse-race.js 와 같은 패턴).
+// 이게 없으면 폰이 백그라운드로 가서 소켓이 한 번만 끊겨도 서버가 DISCONNECT_WAIT_REDIRECT 뒤에
+// 방·준비 목록에서 빼버리고, 클라는 connectionStateRecovery 로 방송만 계속 받는 유령이 된다(준비·선택이 안 먹음).
+// currentRoomId 는 roomJoined/roomCreated 뒤에만 채워지므로 첫 연결에서는 진입 IIFE 와 겹치지 않는다.
+// setServerId 뒤 joinRoom 은 스테일 serverId 를 읽지 않는다 — joinRoom 이 방 기준으로 멤버십을 다시 검증한다.
+socket.on('connect', function () {
+    if (!currentRoomId) return;
+    var activeRoom = sessionStorage.getItem('marbleActiveRoom');   // 나가기·강퇴·방 삭제는 이 키를 지운다 → 떠난 방에 다시 들어가지 않는다
+    if (!activeRoom) return;
+    try {
+        var ar = JSON.parse(activeRoom);
+        if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: ar.userName });
+        socket.emit('joinRoom', { roomId: ar.roomId, userName: ar.userName, isHost: false, password: ar.password || '', deviceId: getDeviceId(), tabId: getTabId() });
+    } catch (e) {
+        sessionStorage.removeItem('marbleActiveRoom');
+    }
+});
+// socket.io 는 reconnectionAttempts(10) 를 다 쓰면(연속 실패 약 40초) 영원히 포기한다 — 폰을 오래 꺼뒀다 켜면
+// 페이지가 죽은 채 남고 위 자동 재입장도 못 돈다. 포기한 뒤 탭이 다시 보이거나 네트워크가 돌아오면 명시 재연결.
+// socket.connect() 는 매니저가 아직 재연결 중이면 열지 않으므로(no-op) 포기 뒤에만 의미가 있다.
+// 실패하면 매니저가 백오프 10회를 새로 돈다(포기 시점에 backoff 가 리셋됨).
+var reconnectGaveUp = false;
+socket.io.on('reconnect_failed', function () { reconnectGaveUp = true; });
+function reviveSocketIfGaveUp() {
+    if (!reconnectGaveUp || socket.connected) return;
+    reconnectGaveUp = false;
+    socket.connect();
+}
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reviveSocketIfGaveUp(); });
+window.addEventListener('online', reviveSocketIfGaveUp);
+
 window.onMarbleSkinChanged = function () { renderPickStatus(); };   // 장착 직후 선택 버튼 배지·아이콘 갱신
 
 // 사운드 헬퍼
@@ -127,7 +160,7 @@ function playMarbleSound(key, vol) {
             if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
             if (rd.serverName) document.title = rd.serverName + ' - 데구리';
             runWhenSocketConnected(function () {
-                socket.emit('joinRoom', { roomId: rd.roomId, userName: rd.userName, isHost: false, password: '', deviceId: getDeviceId(), tabId: getTabId() });
+                socket.emit('joinRoom', { roomId: rd.roomId, userName: rd.userName, isHost: false, password: rd.password || '', deviceId: getDeviceId(), tabId: getTabId() });
             });
         } catch (e) {
             sessionStorage.removeItem('marbleActiveRoom');
@@ -194,6 +227,7 @@ window.addEventListener('DOMContentLoaded', function () {
         var pendingRoom = localStorage.getItem('pendingMarbleRoom');
         if (pendingRoom) {
             var roomData = JSON.parse(pendingRoom);
+            currentRoomPassword = (roomData.isPrivate && roomData.password) || '';
             localStorage.removeItem('pendingMarbleRoom');
             runWhenSocketConnected(function () {
                 socket.emit('createRoom', {
@@ -266,6 +300,7 @@ function closePasswordModal() {
 }
 function submitPassword() {
     var password = document.getElementById('roomPasswordInput').value;
+    currentRoomPassword = password;
     if (pendingRoomId && pendingUserName) {
         socket.emit('joinRoom', { roomId: pendingRoomId, userName: pendingUserName, isHost: false, password: password, deviceId: getDeviceId(), tabId: getTabId() });
     }
@@ -301,6 +336,11 @@ function initReadyModule() {
     });
 }
 function initOrderModule() {
+    // 채팅·준비 모듈과 같은 1회 가드. OrderModule.init 은 bindSocketEvents 로 socket.on 9개를 무조건 다시 거는데,
+    // 자동 재입장(위 connect 핸들러)으로 roomJoined 가 순단마다 반복되면 순단 N번 = 주문 리스너 N겹(orderError 알림 N개)이 된다.
+    // socket 객체는 재연결에도 같은 인스턴스라 리스너는 살아 있다 — 다시 걸 이유가 없다.
+    if (orderModuleInitialized) return;
+    orderModuleInitialized = true;
     OrderModule.init(socket, currentUser, {
         isHost: function () { return isHost; },
         isGameActive: function () { return isMarbleActive; },
@@ -967,7 +1007,7 @@ socket.on('roomCreated', function (data) {
     window.isHost = true; isHost = true;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
-    sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName }));
+    sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     marbleInitModules();
     addDebugLog('방 생성: ' + data.roomId);
     if (window.FreeInvite && data.shortcode) window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
@@ -983,7 +1023,7 @@ socket.on('roomJoined', function (data) {
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
-    sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName }));
+    sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     marbleInitModules();
 
     if (data.gameState) applyScheduledStart(data.gameState.scheduledStartAt, data.gameState.scheduledStartLabel);
@@ -1004,6 +1044,11 @@ socket.on('roomJoined', function (data) {
             if (sb) sb.style.display = 'none';
             if (eb) eb.style.display = 'block';
         }
+    } else {
+        // 끊긴 사이 주문받기가 끝났는데 orderEnded 를 못 받은 경우(복구 창 5분 초과·서버 재시작) —
+        // initOrderModule 은 1회 가드라 모듈 플래그를 안 되돌리므로 서버 값(isOrderActive=false)에 맞춘다
+        isOrderActive = false;
+        if (typeof OrderModule !== 'undefined' && OrderModule.setIsOrderActive) OrderModule.setIsOrderActive(false);
     }
 
     // 재진입 복원 (서버 마스킹: phase/picks/crowd/round/history 만)
@@ -1016,7 +1061,12 @@ socket.on('roomJoined', function (data) {
         renderHistory(localHistory);
         syncBallsControl();
         renderPickStatus();
-        if (mb.phase === 'playing') {
+        if (mb.phase === 'playing' && renderer && renderer.isPlaying()) {
+            // 경주를 보던 중 순단 → 자동 재입장으로 여기 다시 들어온 경우. 타임라인은 이미 로컬에 있고
+            // 재생 시계는 performance.now 기준이라 끊긴 동안에도 정확히 흘렀다 — 화면을 건드리면 안 된다.
+            // (경마 roomJoined 의 "같은 라운드면 로컬 레이스 유지" 판별과 같은 목적)
+            isMarbleActive = true;
+        } else if (mb.phase === 'playing') {
             // 진행 중 재입장 — 타임라인은 server-only 라 재생 불가. 다음 판까지 관전 안내만.
             isMarbleActive = true;
             showStage(true);
@@ -1183,7 +1233,17 @@ socket.on('hostDelegated', function (data) {
         if (!wasHost && isHost) showCustomAlert('호스트 권한을 받았습니다!', 'success');
     }
 });
-socket.on('roomDestroyed', function () { sessionStorage.removeItem('marbleActiveRoom'); window.location.replace('/game'); });
+// 방 삭제(전원 이탈·유지 시간 만료) — 서버가 보내는 이름은 roomDeleted 다(socket/rooms.js·chat.js·server.js).
+// 여기 있던 roomDestroyed 는 서버 어디서도 emit 하지 않아 한 번도 불린 적이 없다 → 방이 사라져도
+// 화면이 그대로 남고 marbleActiveRoom 도 안 지워졌다(자동 재입장이 없는 방을 계속 두드린다).
+socket.on('roomDeleted', function (data) {
+    sessionStorage.removeItem('marbleActiveRoom');
+    clearScheduledStart();
+    if (roomExpiryInterval) { clearInterval(roomExpiryInterval); roomExpiryInterval = null; }
+    showCustomAlert((data && data.message) || '방이 삭제되었습니다.', 'info');
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
+    setTimeout(function () { window.location.replace('/game'); }, 1500);
+});
 socket.on('forceLeave', function (data) {
     sessionStorage.removeItem('marbleActiveRoom');
     if (data && data.message) showCustomAlert(data.message, 'warning');
