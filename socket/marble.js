@@ -4,9 +4,7 @@ const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const sim = require('./marble-sim');
-const { getOwned } = require('../db/cosmetics');   // 동물 스킨(상점 marble_skin 슬롯) — 장착은 방 메모리, 소유만 DB 로 확인한다
-const { getCatalogItem } = require('./shop');
-const { grant: grantCoins } = require('../db/coins');
+const { getCatalogItem } = require('./shop');   // 동물 스킨(상점 marble_skin 슬롯) 카탈로그 — 가격·creature/skin 의 권위. 지갑·소유·장착은 전부 방 메모리(DB 미사용)
 
 // ─── 공유 상수 (js/marble.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운 — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산
@@ -20,14 +18,36 @@ const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 �
 const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
 const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
-const COIN_RACE_JOIN = 10;        // 한 판 참여 코인(인증 유저, 승리 보너스 없음) — 경마 config/horse/race.json coinEconomy.raceJoin 과 같은 값
+// ─── 방 단위 스킨 경제 (사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) ───
+// 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN. 구매·소유·장착은 mb.wallets/mb.skins(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
+// 로그인 여부와 무관(손님도 동일) — DB coins/cosmetics 는 쓰지 않는다. 승리 보너스 없음.
+const ROOM_SEED_COINS = 200;
+const COIN_RACE_JOIN = 10;
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
 // ─── 동물 스킨 (상점 marble_skin 슬롯, docs/goal/marble-skins-all-creatures.md) ───
-// mb.skins[name] = { id, creature, skin, skinName } | null — 이 방 안에서만 산다(계정 prefs 에 저장 안 함, 사용자 2026-09-22: 장착은 그 방에서만, 소유는 영구).
-// 상점 [장착] → 클라가 marble:equipSkin { cosmeticId|null } → 서버가 카탈로그·소유(DB)를 확인해 여기 넣는다. 방을 나가면 rooms.js/chat.js 가 지운다.
-// 시뮬 입력이 아니다: layoutBalls 뒤에 공에 skin 문자열만 얹는다(시트 이름 = creature-skin). 게스트(authedUserId 없음)는 장착 자체가 거절된다.
+// mb.skins[name] = { id, creature, skin, skinName } | null — 이 방 안에서만 산다. 상점 [장착] → 클라가 marble:equipSkin { cosmeticId|null } →
+// 서버가 카탈로그와 방 지갑 소유(ownsInRoom)를 확인해 여기 넣는다. 방을 나가면 rooms.js/chat.js 가 지운다(지갑도 함께).
+// 시뮬 입력이 아니다: layoutBalls 뒤에 공에 skin 문자열만 얹는다(시트 이름 = creature-skin). 손님도 동일하게 동작(DB 없음).
+// 방 지갑 — 없으면 시드 코인으로 만든다(첫 접근 = 입장 후 첫 상점/장착/한 판)
+function roomWallet(mb, name) {
+    if (!mb.wallets) mb.wallets = {};
+    if (!mb.wallets[name]) mb.wallets[name] = { balance: ROOM_SEED_COINS, owned: [] };
+    return mb.wallets[name];
+}
+// 이 방에서 그 스킨을 쓸 수 있나 — 기본 제공(defaultOwned) 또는 이 방에서 샀는지
+function ownsInRoom(mb, name, item) {
+    if (!item) return false;
+    if (item.defaultOwned) return true;
+    const w = mb.wallets && mb.wallets[name];
+    return !!(w && w.owned.indexOf(item.id) !== -1);
+}
+function walletView(mb, name) {
+    const w = roomWallet(mb, name);
+    const s = mb.skins && mb.skins[name];
+    return { balance: w.balance, owned: w.owned.slice(), equipped: s ? { marble_skin: s.id } : {} };
+}
 // 카탈로그 항목 → 방 장착값. creature 가 없는 항목(marble_skin_none)은 해제(null). 소유 검사는 호출부.
 function skinFromItem(item) {
     if (!item || typeof item.creature !== 'string' || typeof item.skin !== 'string' || !CREATURES.includes(item.creature)) return null;
@@ -94,38 +114,26 @@ function canStartMarble(room, gameState, opts) {
     return null;
 }
 
-// 시작 시 공에 스킨 얹기 — 장착(marble:equipSkin)때 소유를 확인했지만, 시작 시점에 한 번 더 확인한다(spin-arena 잠금 스킨과 같은 규칙).
-// 실패하면 조용히 스킨 없음. 결과(순위·타임라인)와 무관한 순수 외형.
-async function attachSkins(balls, gameState) {
+// 시작 시 공에 스킨 얹기 — 장착(marble:equipSkin)때 방 소유를 확인했지만, 시작 시점에 한 번 더 확인한다(spin-arena 잠금 스킨과 같은 규칙).
+// 결과(순위·타임라인)와 무관한 순수 외형.
+function attachSkins(balls, gameState) {
     const mb = gameState.marble;
     if (!mb || !mb.skins) return;
-    const verified = {};   // name -> { skin, skinName, creature }
-    for (const name of Object.keys(mb.skins)) {
-        const s = mb.skins[name];
-        if (!s) continue;
-        const user = gameState.users.find(u => u.name === name);
-        if (!user || !Number.isInteger(user.authedUserId)) continue;
-        try {
-            const owned = await getOwned(user.authedUserId);
-            if (owned.indexOf(s.id) !== -1) verified[name] = s;
-        } catch (e) { /* 조회 실패 = 스킨 없음 */ }
-    }
-    balls.forEach(b => { const s = verified[b.owner]; if (s && s.creature === b.creature) { b.skin = s.skin; b.skinName = s.skinName; } });
+    balls.forEach(b => {
+        const s = mb.skins[b.owner];
+        if (s && s.creature === b.creature && ownsInRoom(mb, b.owner, getCatalogItem(s.id))) { b.skin = s.skin; b.skinName = s.skinName; }
+    });
 }
 
-// 한 판 참여 코인 — 경마 awardRaceCoins(socket/horse.js)와 같은 규칙: 인증 참가자만, 레이스당 1회 만든 coinRef 로 멱등(coin_ledger 유니크), 승리 보너스 없음.
-// 공정성: 결과 계산과 무관한 순수 보상 경로. participants 는 시작 시점 참가자(mb.participants) — 도중에 나간 사람은 소켓이 없어 건너뛴다.
-async function awardRaceCoins(io, gameState, mb) {
-    try {
-        if (!mb || !mb.coinRef) return;
-        for (const name of mb.participants || []) {
-            const u = gameState.users.find(x => x.name === name);
-            if (!u || !Number.isInteger(u.authedUserId)) continue;   // 비인증/게스트는 적립 제외
-            const r = await grantCoins(u.authedUserId, COIN_RACE_JOIN, 'marble_join', mb.coinRef);
-            if (r && r.ok) io.to(u.id).emit('wallet:updated', { balance: r.balance });
-        }
-    } catch (e) {
-        console.warn('[데구리] 코인 적립 실패:', e.message);
+// 한 판 참여 코인 — 방 지갑에 +COIN_RACE_JOIN(승리 보너스 없음). participants 는 시작 시점 참가자(mb.participants) 중 지금 방에 있는 사람.
+// 공정성: 결과 계산과 무관한 순수 보상 경로. endGame 이 레이스당 1회 부르므로 멱등 ref 는 필요 없다.
+function awardRaceCoins(io, gameState, mb) {
+    for (const name of mb.participants || []) {
+        const u = gameState.users.find(x => x.name === name);
+        if (!u) continue;
+        const w = roomWallet(mb, name);
+        w.balance += COIN_RACE_JOIN;
+        io.to(u.id).emit('wallet:updated', { balance: w.balance });
     }
 }
 
@@ -158,7 +166,6 @@ async function startMarble(room, gameState, io, ctx) {
     mb.isActive = true;
     mb.participants = participants.slice();
     mb.seed = seed;
-    mb.coinRef = generateSessionId('marblecoin', room.serverId || room.roomId);   // 참여 코인 멱등 ref — 레이스당 여기서 1회만 만든다(적립 시점에 Date.now() 금지)
 
     // ─── 당첨 순위 룰렛 → 시뮬은 룰렛이 도는 동안 돌리고, hold 가 끝나면 reveal ───
     // 투표 있으면 marble:rouletteStart(막대 하이라이트 → 배너), 없으면 marble:reasonHold(사유 카드만). 경마와 같은 흐름.
@@ -179,7 +186,7 @@ async function startMarble(room, gameState, io, ctx) {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
         const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
-        await attachSkins(balls, gameState);   // 시뮬 뒤 — 스킨은 물리·순위에 절대 안 들어간다
+        attachSkins(balls, gameState);   // 시뮬 뒤 — 스킨은 물리·순위에 절대 안 들어간다
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
@@ -252,7 +259,7 @@ function endGame(room, gameState, io, ctx) {
     if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
 
     io.to(room.roomId).emit('marble:gameEnd', { selected, rankings, round: mb.round, target: mb.target });
-    awardRaceCoins(io, gameState, mb);   // 한 판 참여 +COIN_RACE_JOIN (인증 유저, 멱등) — 실패는 안에서 삼킨다
+    awardRaceCoins(io, gameState, mb);   // 한 판 참여 +COIN_RACE_JOIN — 방 지갑(손님 포함)
 
     recordGamePlay('marble', dbPlayers.length, room.serverId || null);
     if (room.serverId) {
@@ -351,17 +358,51 @@ module.exports = (socket, io, ctx) => {
         emitState(room, gameState);   // 스킨은 mb.skins(방 장착값)에서 바로 붙는다 — DB 조회 없음
     });
 
-    // 동물 스킨 장착/해제 — 이 방에서만 유지(계정 prefs 에 저장하지 않음). 인증 유저만, 소유(DB)는 서버가 확인.
-    // { cosmeticId: id | null } → ack { ok, skin: { id, creature, skin, skinName } | null }. marble_skin_none 또는 null = 해제.
-    socket.on('marble:equipSkin', async (data, callback) => {
+    // 방 지갑 조회 — { ok, balance, owned, equipped } (js/marble-shop.js 가 wallet:get 대신 쓴다). 손님도 가능
+    socket.on('marble:shop:get', (data, callback) => {
         if (!rateOk()) return;
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
-        if (!Number.isInteger(socket.authedUserId)) return cb({ ok: false, reason: 'auth' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
+        cb({ ok: true, ...walletView(gameState.marble, user.name) });
+    });
+
+    // 스킨 구매 — 방 지갑에서 차감, 방 소유 목록에 추가. 가격은 서버 카탈로그가 권위.
+    // { cosmeticId } → ack { ok, balance, owned } | { ok:false, reason: room|notfound|owned|insufficient }
+    socket.on('marble:shop:buy', (data, callback) => {
+        if (!rateOk()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return cb({ ok: false, reason: 'room' });
+        const id = data && data.cosmeticId;
+        const item = (typeof id === 'string') ? getCatalogItem(id) : null;
+        if (!item || !skinFromItem(item) || !Number.isInteger(item.price) || item.price < 0) return cb({ ok: false, reason: 'notfound' });
+        const mb = gameState.marble;
+        const w = roomWallet(mb, user.name);
+        if (w.owned.indexOf(id) !== -1) return cb({ ok: false, reason: 'owned', balance: w.balance });
+        if (w.balance < item.price) return cb({ ok: false, reason: 'insufficient', balance: w.balance });
+        w.balance -= item.price;
+        w.owned.push(id);
+        cb({ ok: true, balance: w.balance, owned: w.owned.slice() });
+    });
+
+    // 동물 스킨 장착/해제 — 이 방에서만 유지. 소유는 방 지갑(이 방에서 산 것 또는 기본 제공)으로 확인. 손님도 가능
+    // { cosmeticId: id | null } → ack { ok, skin: { id, creature, skin, skinName } | null }. marble_skin_none 또는 null = 해제.
+    socket.on('marble:equipSkin', (data, callback) => {
+        if (!rateOk()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return cb({ ok: false, reason: 'room' });
+        const mb = gameState.marble;
         const id = data && data.cosmeticId;
         let resolved = null;
         if (id !== null && id !== undefined) {
@@ -369,14 +410,9 @@ module.exports = (socket, io, ctx) => {
             const item = getCatalogItem(id);
             if (!item) return cb({ ok: false, reason: 'notfound' });
             resolved = skinFromItem(item);
-            if (resolved && !item.defaultOwned) {
-                let owned;
-                try { owned = await getOwned(socket.authedUserId); } catch (e) { console.warn('[데구리] 스킨 소유 조회 실패:', e.message); return cb({ ok: false, reason: 'error' }); }
-                if (owned.indexOf(id) === -1) return cb({ ok: false, reason: 'unowned' });
-            }
+            if (resolved && !ownsInRoom(mb, user.name, item)) return cb({ ok: false, reason: 'unowned' });
         }
-        if (!ctx.rooms[room.roomId]) return cb({ ok: false, reason: 'room' });   // 소유 조회 사이에 방이 사라짐
-        gameState.marble.skins[user.name] = resolved;
+        mb.skins[user.name] = resolved;
         emitState(room, gameState);
         cb({ ok: true, skin: resolved });
     });
@@ -480,6 +516,7 @@ module.exports.CREATURES = CREATURES;
 // 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
 module.exports.canStart = canStartMarble;
 module.exports.start = startMarble;
-// 테스트(AutoTest/qa-marble-skin-shop-test.js)가 멱등 적립을 같은 coinRef 로 두 번 불러 확인한다.
+// 테스트(AutoTest/qa-marble-skin-shop-test.js)용
 module.exports.awardRaceCoins = awardRaceCoins;
 module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;
+module.exports.ROOM_SEED_COINS = ROOM_SEED_COINS;

@@ -382,6 +382,20 @@
 
     // 지갑 상세(잔고+소유+장착) 동기화
     function refreshWallet(done) {
+        // 방 지갑 모드(config.roomWallet + hooks.walletRequest — 데구리): 계정 지갑 대신 어댑터가 방 지갑을 가져온다. 로그인 불필요(손님 포함)
+        if (_config && _config.roomWallet && _config.hooks && _config.hooks.walletRequest) {
+            _config.hooks.walletRequest(function (res) {
+                if (res && res.ok) {
+                    _wallet.authed = true;
+                    _wallet.balance = res.balance || 0;
+                    _wallet.owned = Array.isArray(res.owned) ? res.owned : [];
+                    _wallet.equipped = res.equipped || {};
+                    if (_config.hooks.onWalletRefreshed) _config.hooks.onWalletRefreshed(_wallet);
+                }
+                if (done) done(!!(res && res.ok));
+            });
+            return;
+        }
         if (!_socket || !_wallet.authed) { if (done) done(); return; }
         _socket.emit('wallet:get', {}, function (res) {
             if (res && res.ok) {
@@ -1204,7 +1218,11 @@
     function doBuy(id, btn) {
         if (!_socket || !_wallet.authed) return;
         if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
-        _socket.emit('shop:buy', { cosmeticId: id }, function (res) {
+        // 방 지갑 모드면 어댑터의 구매 경로(데구리 marble:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
+        var send = (_config && _config.roomWallet && _config.hooks && _config.hooks.buyRequest)
+            ? function (cb) { _config.hooks.buyRequest(id, cb); }
+            : function (cb) { _socket.emit('shop:buy', { cosmeticId: id }, cb); };
+        send(function (res) {
             if (res && res.ok) {
                 var prev = _wallet.balance;
                 _wallet.balance = res.balance;
@@ -1665,7 +1683,10 @@
                 renderModal();
                 document.body.classList.add('hshop-open');
             }
-            if (_wallet.authed) {
+            if (_config && _config.roomWallet) {
+                // 방 지갑: 인증 없이 방 지갑만 받아서 연다. 못 받으면(방 밖) 안내
+                refreshWallet(function (ok) { if (ok) openWithModal(); else if (typeof showCustomAlert === 'function') showCustomAlert('방에 들어온 뒤에 열 수 있어요.'); });
+            } else if (_wallet.authed) {
                 refreshWallet(openWithModal);
             } else {
                 // 토큰 없음/만료는 authenticate 안에서 자동 연장 1회 시도. 그래도 실패면
