@@ -123,7 +123,7 @@ var MarbleRender = (function () {
             'mole-v2': A + 'pieces/mole-v2.png', 'dam-water': A + 'pieces/dam-water.png', 'beaver-v2': A + 'pieces/beaver-v2.png', 'pit-surface': A + 'pieces/pit-surface.png'   // 5차
         },
         stage: {
-            'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
+            'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 WebP q92 (PNG 1.2~1.3MB → 44K/226K)
             'tree': A + 'stage/decor-tree.png', 'bush-big': A + 'stage/decor-bush-big.png', 'bush-small': A + 'stage/decor-bush-small.png',
             'rock': A + 'stage/decor-rock.png', 'signpost': A + 'stage/decor-signpost.png',
             'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png',
