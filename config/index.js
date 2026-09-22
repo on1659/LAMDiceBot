@@ -24,7 +24,10 @@ const IS_LOCAL_DEV = !process.env.DATABASE_URL || /localhost|127\.0\.0\.1/.test(
 const DEV_GAMES_ENABLED = IS_LOCAL_DEV || ['1', 'true'].includes(String(process.env.DEV_GAMES || '').toLowerCase());
 // 그 게이트에 걸리는 게임과, 막혔을 때 유저에게 보여줄 안내.
 const DEV_GATED_GAMES = {
-    'ladder': '사다리타기는 아직 준비 중이에요. 곧 만나요!'
+    'ladder': '사다리타기는 아직 준비 중이에요. 곧 만나요!',
+    // 다리건너기·해적룰렛은 미사용 게임(CLAUDE.md '미사용 게임') — 실서버에서 방 생성 자체를 막아 존재를 감춘다. 문구에 이름을 넣지 않는다.
+    'bridge': '지금은 열 수 없는 게임이에요.',
+    'pirate': '지금은 열 수 없는 게임이에요.'
 };
 
 // 예약 시작 (.env로 재정의 가능)

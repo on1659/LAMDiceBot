@@ -24,15 +24,14 @@ const RankingModule = (function () {
     let _calDay = null;   // 'YYYY-MM-DD' 펼쳐 놓은 날
 
     // server_game_records에 실제로 기록되는 7종 전부 (팝업 게임 탭은 4종만 커버해서 재사용 불가)
+    // 다리건너기·해적룰렛은 미사용 게임(CLAUDE.md)이라 뺐다 — 옛 기록은 아래 폴백 '기타 게임'으로 보인다.
     // { icon: 공용 아이콘 id(css/ui-icons.css), text: 표시 이름 } — 탭 라벨 객체와 같은 꼴
     const CAL_GAME_LABELS = {
         'dice': { icon: 'dice', text: '주사위' },
         'horse': { icon: 'horse', text: '경마' },
         'roulette': { icon: 'slot', text: '룰렛' },
         'ladder': { icon: 'ladder', text: '사다리타기' },
-        'pirate': { icon: 'pirate', text: '해적 룰렛' },
         'spin-arena': { icon: 'swords', text: '회전 칼날' },
-        'bridge': { icon: 'bridge', text: '다리 건너기' },
         'marble': { icon: 'paw', text: '데구리' }
     };
     // 라벨 객체 렌더 — textContent 자리(탭·칩)는 노드로, innerHTML 템플릿(달력)은 문자열로. text 는 상수만.

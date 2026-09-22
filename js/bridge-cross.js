@@ -1,3 +1,4 @@
+// ⛔ 미사용 게임 (2026-09-23 사용자 확정) — 안 쓰는 프로젝트. 어떤 업데이트·수정·검증·크로스게임 확인에서도 제외, 레퍼런스로도 쓰지 않는다. 삭제는 나중에. 근거: CLAUDE.md "미사용 게임".
 /* bridge-cross 클라이언트 로직.
    Phase B/C(부분): 방 생성/입장 + 공통 모듈(Chat/Ready/Order/ControlBar/Sound) init까지만.
    Phase E에서 IIFE로 캡슐화된 게임 로직(베팅 UI + 캔버스 + bridge-cross:* socket 핸들러) 추가 예정. */

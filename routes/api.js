@@ -25,7 +25,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge', 'ladder', 'spin-arena', 'pirate', 'marble'];
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'marble'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -50,7 +50,7 @@ function setupRoutes(app) {
     app.use('/api', serverRouter);
 
     // 정적 파일 제공 (캐시 방지 설정)
-    app.use(require('express').static(path.join(__dirname, '..'), {
+    const staticFiles = require('express').static(path.join(__dirname, '..'), {
         setHeaders: (res, filePath) => {
             if (filePath.endsWith('.html')) {
                 res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -60,7 +60,11 @@ function setupRoutes(app) {
                 res.setHeader('Cache-Control', 'public, max-age=' + MARBLE_ASSET_MAX_AGE_S);
             }
         }
-    }));
+    });
+    // 미사용 게임(CLAUDE.md '미사용 게임')의 페이지·js·css·에셋은 정적 서빙에서 뺀다 → 라우트도 없으니 다른 없는 URL 과 똑같이 404.
+    // 저장소 루트를 통째로 서빙하는 구조라 라우트만 지우면 *-multiplayer.html 이 정적 파일로 그대로 열린다. 삭제 전까지의 가림.
+    const HIDDEN_GAME_FILES = /^\/(bridge-cross|pirate)-multiplayer\.html$|^\/(js|css)\/(bridge-cross|pirate)[^/]*$|^\/assets\/(bridge-cross|pirate)\//;
+    app.use((req, res, next) => (HIDDEN_GAME_FILES.test(req.path) ? next() : staticFiles(req, res, next)));
 
     app.get('/', (req, res) => {
         res.redirect('/game');
@@ -90,14 +94,6 @@ function setupRoutes(app) {
         return res.sendFile(legacyHorseHtml);
     });
 
-    // bridge-cross (Phase A: 임시 라우트, Phase B에서 dice 진입점 등록 후 정식 동작)
-    app.get('/bridge-cross', (req, res) => {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'bridge-cross-multiplayer.html'));
-    });
-
     // 사다리타기 (ladder)
     app.get('/ladder', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -112,14 +108,6 @@ function setupRoutes(app) {
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'spin-arena-multiplayer.html'));
-    });
-
-    // 해적 룰렛 (pirate)
-    app.get('/pirate', (req, res) => {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'pirate-multiplayer.html'));
     });
 
     // 데구리 (marble)
@@ -180,10 +168,8 @@ function setupRoutes(app) {
         '/game':         'dice',
         '/roulette':     'roulette',
         '/horse-race':   'horse',
-        '/bridge-cross': 'bridge',
         '/ladder':       'ladder',
         '/spin-arena':   'spin-arena',
-        '/pirate':       'pirate',
         '/marble':       'marble'
     };
     Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
@@ -314,11 +300,6 @@ function setupRoutes(app) {
         return res.redirect(301, `/horse-race${query}`);
     });
 
-    app.get('/bridge-cross-multiplayer.html', (req, res) => {
-        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(301, `/bridge-cross${query}`);
-    });
-
     app.get('/ladder-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
         return res.redirect(301, `/ladder${query}`);
@@ -327,11 +308,6 @@ function setupRoutes(app) {
     app.get('/spin-arena-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
         return res.redirect(301, `/spin-arena${query}`);
-    });
-
-    app.get('/pirate-multiplayer.html', (req, res) => {
-        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(301, `/pirate${query}`);
     });
 
     app.get('/marble-multiplayer.html', (req, res) => {
