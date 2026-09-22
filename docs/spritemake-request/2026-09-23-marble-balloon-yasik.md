@@ -9,6 +9,11 @@
 
 ## 실행 (이 문서만 보고 바로 시작할 수 있게)
 
+> **SpriteMake 워크스페이스에서 작업한다면** 이 문서와 레퍼런스가 거기엔 없다(다른 저장소다).
+> 복사본을 `/Users/radar/Work/SpriteMake/incoming/lamdice-marble-balloon-yasik-2026-09-23/` 에 두었다 —
+> `BRIEF.md`(이 문서) + `references/` 2장 + `README.md`(거기서 할 일/안 할 일). 그쪽 세션은 그 폴더만 보면 된다.
+> 이 문서의 §인수 절은 SpriteMake 가 아니라 **LAMDiceBot 세션**에서 실행한다.
+
 레퍼런스 두 장이 `docs/spritemake-request/ref/` 에 있다.
 - `ref/style-creatures.png` — 맞춰야 할 화풍(토끼·판다·고슴도치 서기 프레임 2배 확대). 외곽선 색·굵기, 면 그라데이션, 광택 위치를 여기서 가져온다.
 - `ref/current-placeholder.png` — 교체 대상인 현재 임시본 7종(3배 확대). 실루엣 구성은 이대로 가되 그림 질을 올리는 것이 목표다.
