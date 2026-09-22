@@ -65,13 +65,16 @@ var MarbleRender = (function () {
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
-    var HUD_ICON_PX = 18;
+    var HUD_ICON_PX = 18;            // 순위표 동물 얼굴 아이콘 크기
+    var HUD_RANK_W = 170;            // 순위표 패널 폭(HUD 단위)
+    var HUD_RANK_ROW = 18;           // 순위표 한 줄 높이
+    var HUD_RANK_TOP_PX = 56;        // 순위표 위 여백(CSS px) — 캔버스 위 HTML 전체화면 버튼(top 8~12 + 36)·베타 배지 아래로
     var UI_SCALE_MAX = 2.2;          // 폰에서 HUD·라벨을 키우는 배율 상한 (375px 폰 ≈ 2.13 → HUD 단위 = CSS px)
     var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일 카메라(폭 맞춤 + 후미 추적)·줌 하한
     var MOBILE_ZOOM_MIN = 1.3;       // 모바일 줌 하한(공 지름 ≥ 17 CSS px)
     var MOBILE_FRAME_W = 560;        // 모바일 결승 프레임: 트랙 폭 500 + 여유를 화면 폭에 맞춘다
     var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
-    var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
+    var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
@@ -238,14 +241,14 @@ var MarbleRender = (function () {
         var myName = '';
         var phase = 'idle';       // idle | countdown | play | finale | done
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
-        var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라
+        var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false, cssW: TRACK_W };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라, cssW = 캔버스 CSS 폭(HUD 단위 ↔ CSS px 환산)
         var pieces = {};          // kind → 조각 배열
         var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
         var lastFrameWall = 0;
         var startWall = 0;        // 재생 기준 performance.now()
         var rafId = null;
-        var hudInfo = { remaining: 0, worst: [] };
+        var hudInfo = { remaining: 0, rows: [] };
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
@@ -273,6 +276,7 @@ var MarbleRender = (function () {
             view.w = TRACK_W; view.h = canvas.height / view.scale;
             view.ui = Math.min(UI_SCALE_MAX, Math.max(1, TRACK_W / cssW));   // 논리 800 을 좁은 화면에 축소하면 글자가 절반이 되므로 HUD·라벨만 되돌린다(폰: HUD 단위 ≈ CSS px)
             view.narrow = cssW < NARROW_PX;
+            view.cssW = cssW;
         };
 
         R.setTimeline = function (payload, me) {
@@ -288,7 +292,7 @@ var MarbleRender = (function () {
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
             evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
-            hudInfo = { remaining: balls.length, worst: [] };
+            hudInfo = { remaining: balls.length, rows: [] };
             R.resize();
         };
         R.setPhase = function (p) { phase = p; };
@@ -1668,13 +1672,22 @@ var MarbleRender = (function () {
         }
 
         // ─── HUD ───
+        // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다: 자기 동물이 전부 골에 들어간 순서.
+        // 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순. 행의 동물 = 그 기준이 된 동물
         function updateHud() {
-            var rem = 0, rearByOwner = {};
-            var loser = byId[data.finishOrder[data.finishOrder.length - 1]];
-            for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; rem++; if (!rearByOwner[b.owner] || progress(b) < progress(rearByOwner[b.owner])) rearByOwner[b.owner] = b; }
-            var worst = Object.keys(rearByOwner).map(function (o) { return rearByOwner[o]; }).sort(function (a, b) { return progress(a) - progress(b); }).slice(0, 5);
-            if (loser && loser.state === 'done') { rem = 0; worst = []; }   // 꼴찌(골에 마지막으로 들어간 놈) 확정 = 피날레
-            hudInfo = { remaining: rem, worst: worst };
+            var rem = 0, byOwner = {};
+            for (var i = 0; i < balls.length; i++) {
+                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: true });
+                if (b.state === 'done') { if (o.done && (!o.ball || b.finishIdx > o.ball.finishIdx)) o.ball = b; continue; }
+                rem++;
+                if (o.done) { o.done = false; o.ball = b; }
+                else if (progress(b) < progress(o.ball)) o.ball = b;
+            }
+            var rows = Object.keys(byOwner).map(function (k) { return byOwner[k]; }).sort(function (a, b) {
+                if (a.done !== b.done) return a.done ? -1 : 1;
+                return a.done ? a.ball.finishIdx - b.ball.finishIdx : progress(b.ball) - progress(a.ball);
+            });
+            hudInfo = { remaining: rem, rows: rows };
         }
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
         // 미니맵 — 좌측 세로 스트립에 실제 트랙 배치(벽·말뚝·장치·구멍·통로·스탠드)를 축소해 그린다. 정적 부분은 오프스크린 캐시,
@@ -1715,7 +1728,7 @@ var MarbleRender = (function () {
             return c;
         }
         function drawMinimap(t, hh) {   // drawHud 의 ui 배율 변환 안에서 호출됨 — hh = HUD 단위 높이
-            var x0 = 12, y0 = 44, hMax = (hh || view.h) - 60;
+            var x0 = 12, y0 = view.narrow ? 74 : 44, hMax = (hh || view.h) - y0 - 16;   // 폰: 상태 문구 아래 당첨 룰 배지 줄(y 38~64) 아래로. 아래 여백 16
             var startY = data.track.startY - 40, endY = data.track.endY;
             var sc = Math.min(hMax / (endY - startY), (view.narrow ? MINIMAP_MAX_W_NARROW : MINIMAP_MAX_W) / TRACK_W);   // 폰에선 HUD 단위 = CSS px 라 96 이면 화면 1/4 — 좁게
             var w = TRACK_W * sc, h = (endY - startY) * sc, res = view.scale * view.ui;
@@ -1753,19 +1766,34 @@ var MarbleRender = (function () {
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
             var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : (data.target === 'first' && data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : '꼴찌 확정!'));
-            ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
+            var sw = ctx.measureText(txt).width + 20;
+            ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, sw, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
-            if (t >= 0 && hudInfo.worst.length) {
+            // 당첨 룰 배지 — 캔버스 위 HTML 배너("N등을 찾아라!")는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에도 띄운다
+            if (phase !== 'idle' && data.target) {
+                var rule = (data.target === 'first' ? '1등' : '꼴등') + ' 당첨', rx = 8 + sw + 6, ry = 8;
+                if (view.narrow) { rx = 8; ry = 38; }   // 폰: 같은 줄에 두면 우상단 베타 배지·전체화면 버튼에 가린다 — 상태 문구 아래 줄(미니맵은 그만큼 내려 시작)
+                ctx.fillStyle = '#ffd166'; roundRect(rx, ry, ctx.measureText(rule).width + 38, 26, 8); ctx.fill();
+                ctx.fillStyle = '#3a2a00'; ctx.fillText(rule, iconScreen('target', rx + 8, ry + 5, 16) ? rx + 28 : rx + 10, ry + 5);
+            }
+            // 순위표 — 화면 높이에 안 들어가면 당첨 순위 쪽(1등 룰이면 위, 꼴등 룰이면 아래)을 남기고 자른다. 당첨 자리 행은 금색
+            if (t >= 0 && hudInfo.rows.length) {
                 ctx.font = 'bold 12px "Jua", sans-serif';
-                var y = view.narrow ? 52 : 8, w = 150;   // 폰: 우상단 전체화면 버튼(36px) 아래로
-                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(hw - w - 8, y, w, 22 + hudInfo.worst.length * 18, 8); ctx.fill();
-                ctx.fillStyle = '#ffd166'; ctx.fillText('꼴찌 후보', iconScreen('flag', hw - w, y + 4, 14) ? hw - w + 17 : hw - w, y + 5);
-                hudInfo.worst.forEach(function (b, i) {
-                    var yy = y + 24 + i * 18;
-                    drawMiniIcon(b, hw - w + 9, yy + 7, HUD_ICON_PX, b.owner === myName);
-                    ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8';
-                    var name = b.owner.length > 8 ? b.owner.slice(0, 8) + '…' : b.owner;
-                    ctx.fillText(name + ' ' + b.num + '번', hw - w + 18, yy);
+                var y = Math.round(HUD_RANK_TOP_PX * hw / view.cssW), w = HUD_RANK_W, rows = hudInfo.rows, n = rows.length;   // CSS px → HUD 단위(1 CSS px = hw / cssW)
+                var maxRows = Math.max(1, Math.floor((hh - y - 30) / HUD_RANK_ROW));
+                var from = n > maxRows && data.target !== 'first' ? n - maxRows : 0, shown = rows.slice(from, from + maxRows);
+                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(hw - w - 8, y, w, 22 + shown.length * HUD_RANK_ROW, 8); ctx.fill();
+                ctx.fillStyle = '#ffd166'; ctx.fillText('순위표', iconScreen('list', hw - w, y + 4, 14) ? hw - w + 17 : hw - w, y + 5);
+                shown.forEach(function (r, i) {
+                    var idx = from + i, yy = y + 24 + i * HUD_RANK_ROW, b = r.ball;
+                    var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
+                    if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(hw - w - 4, yy - 2, w - 8, HUD_RANK_ROW - 1, 4); ctx.fill(); }
+                    ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
+                    ctx.fillText(idx === n - 1 && n > 1 ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);
+                    drawMiniIcon(b, hw - w + 35, yy + 7, HUD_ICON_PX, b.owner === myName);
+                    ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';
+                    var name = b.owner.length > 7 ? b.owner.slice(0, 7) + '…' : b.owner;
+                    ctx.fillText(name + (r.done ? ' 도착' : ' ' + b.num + '번'), hw - w + 48, yy);
                 });
             }
             drawMinimap(t, hh);

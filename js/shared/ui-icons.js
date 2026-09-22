@@ -17,7 +17,7 @@
 (function (global) {
     'use strict';
 
-    var ATLAS_URL = '/assets/ui/icons.png?v=1';
+    var ATLAS_URL = '/assets/ui/icons.png?v=2';
     var UI_ICON_COLS = 10;
     var UI_ICON_PX = 128;
 
