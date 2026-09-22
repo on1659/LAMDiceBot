@@ -1090,13 +1090,11 @@
         }
         // 옷장 뷰(분리 모드) — 소유 아이템만 슬롯별로, 장착 버튼. 메인탭·가챠·광고행 없음.
         if (inCloset) {
-            var cnotice = document.createElement('div');
-            cnotice.className = 'hshop-notice';
-            cnotice.textContent = noticeFor(_activeTab);
+            var cnoticeText = noticeFor(_activeTab);   // 어댑터가 '' 를 주면 안내 상자 자체를 안 그린다(데구리)
             panel.appendChild(header);
             panel.appendChild(renderViewTabs());
             if (hasGroups()) panel.appendChild(renderGroupChips());
-            panel.appendChild(cnotice);
+            if (cnoticeText) { var cnotice = document.createElement('div'); cnotice.className = 'hshop-notice'; cnotice.textContent = cnoticeText; panel.appendChild(cnotice); }
             panel.appendChild(buildClosetBody());
             overlay.appendChild(panel);
             mount.appendChild(overlay);
@@ -1169,7 +1167,7 @@
         if (hasGroups()) panel.appendChild(renderGroupChips());
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
-        panel.appendChild(notice);
+        if (notice.textContent) panel.appendChild(notice);   // 어댑터 noticeText 가 '' 면 안내 상자 생략
         if (!isSingleSlot() && !coinLockMsg) panel.appendChild(renderTabBar());
         if (gachaArea) panel.appendChild(gachaArea);
         panel.appendChild(grid);
