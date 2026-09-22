@@ -1,3 +1,4 @@
+// ⛔ 미사용 게임 (2026-09-23 사용자 확정) — 안 쓰는 프로젝트. 어떤 업데이트·수정·검증·크로스게임 확인에서도 제외, 레퍼런스로도 쓰지 않는다. 삭제는 나중에. 근거: CLAUDE.md "미사용 게임".
 // Bridge Cross 게임 소켓 핸들러
 // 경마(socket/horse.js) 패턴 차용
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');

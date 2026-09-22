@@ -1,6 +1,6 @@
 # LAMDiceBot
 
-Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/사다리/다리건너기 등).
+Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/사다리/데구리 등).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
 **main = 실서버.** main에 푸시하면 즉시 배포된다. 작업은 feature 브랜치에서.
@@ -45,6 +45,19 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 | `db/*` | 스키마/쿼리 — 신뢰경계·SQL·영속성 |
 | `js/shared/*` | 크로스게임 공유 모듈 — 전 게임 영향 |
 | `utils/room-helpers.js` | gameState 초기화 — 전 게임 공통 |
+
+## 미사용 게임 (삭제 예정 — 손대지 말 것)
+
+2026-09-23 사용자 확정. 아래 게임은 **안 쓰는 프로젝트**다. 어떤 업데이트·버그 수정·리팩터·검증·
+크로스게임 확인에서도 **제외**하고, 새 게임의 레퍼런스로도 쓰지 않는다(레퍼런스는 경마). 삭제는 나중에 한다.
+공유 모듈(`js/shared/*`, `socket/rooms.js`, `socket/chat.js` 등)을 바꿀 때 이 둘이 깨져도 신경 쓰지 않는다.
+
+| 게임 | 파일 |
+|------|------|
+| 다리건너기 (bridge-cross) | `bridge-cross-multiplayer.html`, `js/bridge-cross.js`, `socket/bridge-cross.js`, `css/bridge-cross*.css`, `docs/GameGuide/lessons/bridge-cross.md` |
+| 해적룰렛 (pirate) | `pirate-multiplayer.html`, `js/pirate.js`, `socket/pirate.js`, `css/pirate*.css`, `docs/GameGuide/lessons/pirate.md` |
+
+각 파일 첫 줄에도 ⛔ 미사용 표시가 있다. `free.html` 빠른 매칭의 다리건너기 카드는 아직 노출 상태(제거는 삭제 때 함께).
 
 ## 자동 가드 (훅)
 
