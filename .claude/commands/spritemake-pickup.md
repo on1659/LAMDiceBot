@@ -27,6 +27,7 @@ batch-name 생략 시 `.claude/inbox/spritemake-done-*.md` 마커 파일에서 �
    - QA 통과 안 된 PNG는 같은 폴더의 `QA.md` 보고서 보고 제외
    - 기존 파일과 충돌하면 사용자 확인 받기 (덮어쓰기 X)
    - 해상도 검증: `node -e "..."`로 width/height가 의뢰서 명세와 일치하는지
+   - **최적화(필수):** 복사한 PNG 에 `pngquant --quality 80-100 --speed 1 --strip --force --ext .png {files}` (품질 하한 실패 exit 99 면 `60-100` 으로 재시도 후 확대 비교). 기준·검증은 `docs/GameGuide/04-ops/image-assets.md`. 데구리 동물 시트는 `.webp` 무손실(`pickup-skin.py` 가 자동)
 
 3. **매핑 갱신** (vehicle-backgrounds batch의 경우)
    - `assets/vehicle-themes.json`의 각 차량 `backgroundImage`를 `/assets/backgrounds/{vehicle-id}.png`로 1:1 갱신

@@ -103,9 +103,9 @@ var MarbleRender = (function () {
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png', hamster: A + 'creatures/hamster.png', pufferfish: A + 'creatures/pufferfish.png', raccoon: A + 'creatures/raccoon.png', rabbit: A + 'creatures/rabbit.png', ribbonpig: A + 'creatures/ribbonpig.png' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 registerSkins 가 카탈로그에서 얹는다
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png', hamster: A + 'creatures/hamster-sleep.png', pufferfish: A + 'creatures/pufferfish-sleep.png', raccoon: A + 'creatures/raccoon-sleep.png', rabbit: A + 'creatures/rabbit-sleep.png', ribbonpig: A + 'creatures/ribbonpig-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png', hamster: A + 'creatures/hamster-scuffle.png', pufferfish: A + 'creatures/pufferfish-scuffle.png', raccoon: A + 'creatures/raccoon-scuffle.png', rabbit: A + 'creatures/rabbit-scuffle.png', ribbonpig: A + 'creatures/ribbonpig-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
+        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.webp', armadillo: A + 'creatures/armadillo-sleep.webp', pillbug: A + 'creatures/pillbug-sleep.webp', turtle: A + 'creatures/turtle-sleep.webp', panda: A + 'creatures/panda-sleep.webp', hamster: A + 'creatures/hamster-sleep.webp', pufferfish: A + 'creatures/pufferfish-sleep.webp', raccoon: A + 'creatures/raccoon-sleep.webp', rabbit: A + 'creatures/rabbit-sleep.webp', ribbonpig: A + 'creatures/ribbonpig-sleep.webp' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.webp', armadillo: A + 'creatures/armadillo-scuffle.webp', pillbug: A + 'creatures/pillbug-scuffle.webp', turtle: A + 'creatures/turtle-scuffle.webp', panda: A + 'creatures/panda-scuffle.webp', hamster: A + 'creatures/hamster-scuffle.webp', pufferfish: A + 'creatures/pufferfish-scuffle.webp', raccoon: A + 'creatures/raccoon-scuffle.webp', rabbit: A + 'creatures/rabbit-scuffle.webp', ribbonpig: A + 'creatures/ribbonpig-scuffle.webp' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -153,8 +153,13 @@ var MarbleRender = (function () {
     var loadStarted = false;
     function imgKey(group, name) { return group + ':' + name; }
     function img(group, name) { var im = images[imgKey(group, name)]; return (im && im.complete && im.naturalWidth > 0) ? im : null; }
-    // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백
-    function sheet(group, b) { return (b.skin ? img(group, b.creature + '-' + b.skin) : null) || img(group, b.creature); }
+    // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백.
+    // 스킨 시트는 여기서 처음 필요할 때 로드한다(ensureSkin) — 카탈로그 전부(45장 3.3MB)를 진입 때 받지 않으려고(2026-09-22)
+    function sheet(group, b) {
+        if (!b.skin) return img(group, b.creature);
+        var key = b.creature + '-' + b.skin; ensureSkin(group, key);
+        return img(group, key) || img(group, b.creature);
+    }
     // 서 있는 키(발 → 머리 꼭대기, 표시 px): 시트 row 0(idle 4칸)의 alpha≥8 최상단 행을 한 번 재서 시트별 캐시. 이름표를 머리 바로 위에 붙이려고 —
     // 동물마다 키가 달라(리본돼지 ≈25px, 고슴도치 ≈32px) 고정 오프셋이면 작은 동물은 이름표가 떠 보인다(사용자 2026-09-22). 못 재면 규격 상한(서기 ≤130 src)
     var STAND_H_MAX = 130 * SRC_SCALE;
@@ -181,37 +186,24 @@ var MarbleRender = (function () {
         images[imgKey(group, name)] = im;
         return true;
     }
-    // 상점 스킨 시트 — 카탈로그(config/marble/cosmetics.json, socket/shop.js 와 같은 파일) 항목의 creature+skin 으로 '{creature}-{skin}[-sleep|-scuffle].png' 3장을 ASSETS 에 얹는다.
-    // 새 스킨 = 카탈로그 항목 + 시트 3장이면 끝(코드 수정 없음). loadAll 뒤에 불려도 그 자리에서 로드한다. 시트가 없으면 sheet() 가 기본 시트로 폴백.
-    var SKIN_CATALOG_URL = '/config/marble/cosmetics.json';
-    var SKIN_GROUPS = [['creatures', ''], ['sleep', '-sleep'], ['scuffle', '-scuffle']];
-    var loadKicked = false;   // loadAll 의 일괄 로드가 돌았는지 — 그 전에 등록된 스킨은 일괄 로드가 한 번에 싣고(중복 요청 X), 그 뒤 등록은 즉시 로드
-    function registerSkins(items) {
-        (items || []).forEach(function (it) {
-            if (!it || typeof it.creature !== 'string' || typeof it.skin !== 'string') return;
-            var key = it.creature + '-' + it.skin;
-            SKIN_GROUPS.forEach(function (g) {
-                if (ASSETS[g[0]][key]) return;
-                ASSETS[g[0]][key] = A + 'creatures/' + key + g[1] + '.png';
-                if (loadKicked) loadOne(g[0], key);
-            });
-        });
+    // 상점 스킨 시트 — 서버가 공에 얹는 b.skin(socket/shop.js 가 config/marble/cosmetics.json 카탈로그에서 확인) 으로
+    // '{creature}-{skin}[-sleep|-scuffle].webp' 를 처음 쓸 때 로드한다. 새 스킨 = 카탈로그 항목 + 시트 3장이면 끝(코드 수정 없음).
+    // 시트가 없으면(404) sheet() 가 기본 시트로 폴백. onLoad 는 한 번만 그리는 캔버스(상점 카드)를 로드 뒤 다시 그리기용 — 이미 로드됐으면 안 부른다
+    var SKIN_SUFFIX = { creatures: '', sleep: '-sleep', scuffle: '-scuffle' };
+    function ensureSkin(group, key, onLoad) {
+        var k = imgKey(group, key), im = images[k];
+        if (im === undefined) { im = new Image(); im.src = A + 'creatures/' + key + SKIN_SUFFIX[group] + '.webp'; images[k] = im; }
+        if (onLoad && im && !im.complete) im.addEventListener('load', onLoad, { once: true });
     }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
-        var go = function () {
-            var pending = 0;
-            var each = function () { pending--; if (pending === 0 && onDone) onDone(); };
-            Object.keys(ASSETS).forEach(function (group) {
-                Object.keys(ASSETS[group]).forEach(function (name) { if (loadOne(group, name, each)) pending++; });
-            });
-            loadKicked = true;
-            if (pending === 0 && onDone) onDone();
-        };
-        // 카탈로그를 못 받으면(file:// 개발 도구 등) 기본 시트만 — 스킨은 기본 모습으로 보인다
-        if (typeof fetch === 'function') fetch(SKIN_CATALOG_URL).then(function (r) { return r.ok ? r.json() : null; }).then(function (cat) { registerSkins(cat && cat.marble_skin); }).catch(function () {}).then(go);
-        else go();
+        var pending = 0;
+        var each = function () { pending--; if (pending === 0 && onDone) onDone(); };
+        Object.keys(ASSETS).forEach(function (group) {
+            Object.keys(ASSETS[group]).forEach(function (name) { if (loadOne(group, name, each)) pending++; });
+        });
+        if (pending === 0 && onDone) onDone();
     }
 
     function lerp(a, b, k) { return a + (b - a) * k; }
@@ -1855,7 +1847,9 @@ var MarbleRender = (function () {
         // 동물 아이콘(피커 버튼용) — row 0 col 0 서 있는 프레임
         R.hasCreatureSprite = function (creature) { return !!img('creatures', creature); };   // 선택 버튼 노출 판정(시트 미도착 동물 숨김)
         R.drawCreatureIcon = function (iconCanvas, creature, col, skin) {   // col = idle 행(row 0)의 칸 — 선택 버튼 애니용(생략 시 0). skin = 상점 스킨 접미사(있으면 그 시트, 없으면 기본)
-            var c = iconCanvas.getContext('2d'); var im = (skin ? img('creatures', creature + '-' + skin) : null) || img('creatures', creature);
+            var c = iconCanvas.getContext('2d'), im = null;
+            if (skin) { ensureSkin('creatures', creature + '-' + skin, function () { R.drawCreatureIcon(iconCanvas, creature, col, skin); }); im = img('creatures', creature + '-' + skin); }   // 미로드면 기본 시트로 그리고 로드 뒤 다시
+            im = im || img('creatures', creature);
             c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
             if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, (col || 0) * CELL, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
             else { c.fillStyle = '#c8b28c'; c.beginPath(); c.arc(iconCanvas.width / 2, iconCanvas.height / 2, iconCanvas.width / 3, 0, Math.PI * 2); c.fill(); }
@@ -1864,5 +1858,5 @@ var MarbleRender = (function () {
         return R;
     }
 
-    return { create: create, loadAssets: loadAll, registerSkins: registerSkins, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
+    return { create: create, loadAssets: loadAll, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
 })();

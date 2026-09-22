@@ -4,7 +4,7 @@
  * 전역 `MarbleShop`. 공통 셸(인증/지갑/모달/구매/장착/잔고연출)은 js/shared/shop-shared.js
  * (window.ShopModule)이 담당. 이 어댑터는 데구리 고유부만 보유:
  *   - 상점(구매)·옷장(장착) 분리: config.closet — 버튼 2개(openShop/openCloset), 공유 셸의 _view 가 카드 모양을 바꾼다
- *   - 스킨 미리보기(buildPreview hook) — 스킨 시트(creatures/{creature}-{skin}.png)의 idle 첫 칸을 캔버스에
+ *   - 스킨 미리보기(buildPreview hook) — 스킨 시트(creatures/{creature}-{skin}.webp)의 idle 첫 칸을 캔버스에
  *   - 소유/구매 상태(itemState hook — tier/requires 없음)
  *   - 지갑·구매·장착 전부 방 단위(roomWallet: marble:shop:get / marble:shop:buy / marble:equipSkin) — 계정 DB 지갑·prefs 를 쓰지 않는다.
  *     방에 들어오면 200코인, 한 판 +10, 산 스킨·장착은 그 방에서만 유효하고 나가면 전부 사라진다(사용자 2026-09-22: 1회용). 손님도 동일.
