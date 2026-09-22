@@ -77,7 +77,21 @@
     // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
     // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
     var _groupFilter = 'all';
-    function hasGroups() { return closetMode() && !!(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup); }
+    // 한 슬롯에 여러 개가 동시에 장착될 수 있다 — 데구리 동물 스킨은 동물마다 하나씩이라 서버가 id 배열을 준다.
+    // 다른 게임(경마·사다리·회전)과 데구리 야식은 값 하나(문자열) 그대로다.
+    function slotHas(map, slot, id) {
+        var v = map && map[slot];
+        return Array.isArray(v) ? v.indexOf(id) !== -1 : v === id;
+    }
+    // slotKey 를 주면 그 슬롯에 그룹 있는 아이템이 있을 때만 true — 상점 뷰는 탭 하나만 보이므로
+    // 동물 무관 슬롯(데구리 풍선)에서는 동물 칩을 안 그린다. 인자 없이 부르면(옷장·passesGroup) 기존대로.
+    function hasGroups(slotKey) {
+        if (!closetMode() || !(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup)) return false;
+        if (!slotKey) return true;
+        var list = (_catalog && _catalog[slotKey]) || [];
+        for (var i = 0; i < list.length; i++) if (_config.hooks.itemGroup(list[i]) != null) return true;
+        return false;
+    }
     function passesGroup(item) {
         if (!hasGroups() || _groupFilter === 'all') return true;
         var g = _config.hooks.itemGroup(item);
@@ -636,7 +650,7 @@
         }
 
         var state = itemStateFor(item);
-        var isEquipped = _wallet.equipped[slot] === item.id;
+        var isEquipped = slotHas(_wallet.equipped, slot, item.id);
 
         // 가챠 전용(코인) + 미소유: 가격/구매 버튼 대신 "뽑기로 획득" 잠금 노드. 클릭 불가(가챠 버튼으로 유도).
         // directBuy 앵커·소유 아이템·비-가챠 게임(spin)은 이 분기 미진입 → 기존 직접구매/장착 그대로.
@@ -680,12 +694,12 @@
                 }
             } else {
                 btn.textContent = (Number.isFinite(item.price) && !priceInline) ? '구매 (' + item.price + ')' : '구매';   // 가격이 이름 줄에 있으면 버튼은 '구매'만
-                btn.addEventListener('click', function () { requestBuy(item, btn); });
+                btn.addEventListener('click', function () { requestBuy(slot, item, btn); });
             }
         } else {
             btn.className = 'hshop-equip' + (isEquipped ? ' is-equipped' : '');
             btn.textContent = isEquipped ? '✓ 장착중' : '장착';
-            btn.addEventListener('click', function () { doEquip(slot, isEquipped ? null : item.id); });
+            btn.addEventListener('click', function () { doEquip(slot, isEquipped ? null : item.id, item); });
         }
 
         if (price) card.appendChild(price);
@@ -988,7 +1002,7 @@
     function syncEquipBadge(card, slot, id, merged) {
         var btn = card.querySelector('.hshop-equip');
         if (!btn) return;
-        var isEquipped = merged[slot] === id;
+        var isEquipped = slotHas(merged, slot, id);
         if (isEquipped) {
             if (!btn.classList.contains('is-equipped')) {
                 btn.classList.add('is-equipped');
@@ -1196,7 +1210,7 @@
 
         panel.appendChild(header);
         if (closetMode()) panel.appendChild(renderViewTabs());
-        if (hasGroups()) panel.appendChild(renderGroupChips());
+        if (hasGroups(_activeTab)) panel.appendChild(renderGroupChips());   // 상점 뷰: 현재 탭이 그룹을 쓰는 슬롯일 때만
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         if (notice.textContent) panel.appendChild(notice);   // 어댑터 noticeText 가 '' 면 안내 상자 생략
@@ -1210,12 +1224,14 @@
     // ── 구매 / 장착 ────────────────────────────────────────
 
     // 구매 버튼 → 확인 팝업 → 확인 시에만 emit
-    function requestBuy(item, btn) {
+    function requestBuy(slot, item, btn) {
         if (!_socket || !_wallet.authed) return;
-        showShopConfirm(item, function () { doBuy(item.id, btn); });
+        showShopConfirm(item, function () { doBuy(slot, item, btn); });
     }
 
-    function doBuy(id, btn) {
+    // autoEquipOnBuy: 산 즉시 장착한다(데구리 — 사용자 2026-09-23). 안 켠 게임은 종전대로 옷장에서 따로 장착.
+    function doBuy(slot, item, btn) {
+        var id = item.id;
         if (!_socket || !_wallet.authed) return;
         if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
         // 방 지갑 모드면 어댑터의 구매 경로(데구리 marble:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
@@ -1232,7 +1248,12 @@
                 if (_config && _config.hooks && _config.hooks.onPurchased) {
                     _config.hooks.onPurchased(_wallet);
                 }
-                showShopToast(closetMode() ? '구매했어요 — 옷장에서 장착하세요' : '구매했습니다', 'success');
+                if (_config && _config.autoEquipOnBuy) {
+                    doEquip(slot, id, item);   // 지갑·장착 상태는 doEquip 의 ack 가 갱신한다
+                    showShopToast('구매하고 바로 장착했어요', 'success');
+                } else {
+                    showShopToast(closetMode() ? '구매했어요 — 옷장에서 장착하세요' : '구매했습니다', 'success');
+                }
             } else {
                 var msg = (res && res.reason === 'insufficient') ? '코인이 부족해요.'
                         : (res && res.reason === 'owned') ? '이미 가지고 있어요.'
@@ -1244,21 +1265,23 @@
         });
     }
 
-    function doEquip(slot, id) {
+    // item: 클릭한 카드의 항목. 해제(id null)일 때 "무엇을 벗는지" 를 어댑터에 알려 준다
+    // (데구리 동물 스킨은 동물마다 칸이 따로라 id 만으로는 어느 칸을 비울지 모른다).
+    function doEquip(slot, id, item) {
         if (!_socket || !_wallet.authed) return;
-        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equipSkin — 계정 prefs 에 저장하지 않음).
-        // hook(slot, id, done) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
+        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equip — 계정 prefs 에 저장하지 않음).
+        // hook(slot, id, done, item) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
         if (_config && _config.hooks && _config.hooks.equipRequest) {
             _config.hooks.equipRequest(slot, id, function (equipped, reason) {
                 if (!equipped) {   // reason = 서버 ack 의 reason — 새로고침으로 풀리는 상태(방 끊김·인증 만료)는 그렇게 안내
                     var msg = (reason === 'room' || reason === 'auth') ? '연결이 끊겼어요. 새로고침 후 다시 장착해 주세요.'
-                        : reason === 'unowned' ? '아직 사지 않은 스킨이에요.' : '장착에 실패했어요. 잠시 후 다시 시도해 주세요.';
+                        : reason === 'unowned' ? '아직 사지 않았어요.' : '장착에 실패했어요. 잠시 후 다시 시도해 주세요.';   // 이 훅 경로는 데구리 전용이고 슬롯이 스킨만은 아니다(야식)
                     showShopToast(msg, 'error'); return;
                 }
                 _wallet.equipped = equipped;
                 renderModal();
                 if (_config.hooks.onEquipApplied) _config.hooks.onEquipApplied(_wallet.equipped, true);
-            });
+            }, item);
             return;
         }
         _socket.emit('shop:equip', { slot: slot, cosmeticId: id }, function (res) {

@@ -379,5 +379,8 @@ function registerShopHandlers(socket, io, ctx) {
 
 module.exports = registerShopHandlers;
 // 카탈로그 항목 조회 (읽기 전용) — 게임 핸들러가 장착 id 의 메타(creature/skin 등)를 볼 때. 없으면 null.
-// 데구리(socket/marble.js)가 prefs.equipped.marble_skin → 시트 이름을 풀 때 쓴다.
+// 데구리(socket/marble.js)가 장착 id → 시트 이름을 풀 때 쓴다.
 module.exports.getCatalogItem = (id) => (CATALOG_INDEX[id] ? CATALOG_INDEX[id].item : null);
+// 항목 + 그 항목이 속한 슬롯/게임 — 게임 핸들러가 "이 id 가 정말 이 슬롯·이 게임 것인가"를 확인할 때.
+// 카탈로그는 전 게임 통합 인덱스라 id 만 보면 남의 게임 항목도 통과한다(shop:equip 은 entry.slot 으로 막는다).
+module.exports.getCatalogEntry = (id) => (CATALOG_INDEX[id] || null);

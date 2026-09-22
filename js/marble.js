@@ -90,8 +90,8 @@ function runWhenSocketConnected(callback) {
     });
 }
 
-// 꾸미기 상점(동물 스킨 marble_skin): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
-// 장착은 js/marble-shop.js 가 'marble:equipSkin' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
+// 꾸미기 상점(동물 스킨 marble_skin · 풍선 marble_balloon): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
+// 장착은 js/marble-shop.js 가 'marble:equip' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
 socket.on('connect', function () {
     if (window.MarbleShop) {
         MarbleShop.connect(socket);
@@ -378,8 +378,9 @@ function startPickerIconAnim() {
         btns.forEach(function (btn, i) {
             if (btn.style.display === 'none') return;
             var ic = btn.querySelector('.marble-creature-icon'); if (!ic) return;
-            var cidI = btn.getAttribute('data-creature'), skinI = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
-            renderer.drawCreatureIcon(ic, cidI, PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length], (skinI && skinI.creature === cidI) ? skinI.skin : null);
+            var cidI = btn.getAttribute('data-creature');
+            var skinI = (window.MarbleShop && MarbleShop.getEquippedSkinFor(cidI)) || null;   // 동물마다 따로 장착된다
+            renderer.drawCreatureIcon(ic, cidI, PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length], skinI);
         });
     }, PICKER_ICON_MS);
 }
@@ -467,11 +468,11 @@ function renderPickStatus() {
         if (!badge) { badge = document.createElement('span'); badge.className = 'pick-count'; btn.appendChild(badge); }
         badge.textContent = counts[id] ? counts[id] + '명' : '';
         badge.style.display = counts[id] ? '' : 'none';
-        // 장착한 상점 스킨의 동물이면 배지 — 이 동물을 고르면 스킨 모습으로 나온다
-        var eqSkin = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
+        // 이 동물에 스킨을 끼워 뒀으면 배지 — 고르면 스킨 모습으로 나온다. 동물마다 따로 장착된다(사용자 2026-09-23)
+        var eqSkin = (window.MarbleShop && MarbleShop.getEquippedSkinFor(id)) || null;
         var skinBadge = btn.querySelector('.skin-badge');
         if (!skinBadge) { skinBadge = document.createElement('span'); skinBadge.className = 'skin-badge'; skinBadge.textContent = '스킨'; btn.appendChild(skinBadge); }
-        skinBadge.style.display = (eqSkin && eqSkin.creature === id) ? '' : 'none';
+        skinBadge.style.display = eqSkin ? '' : 'none';
         btn.disabled = marbleState.phase === 'playing' || isMarbleActive;
     });
     var locked = marbleState.phase === 'playing' || isMarbleActive;
@@ -1281,7 +1282,7 @@ socket.on('marble:stateUpdated', function (data) {
     if (data.votes) marbleState.votes = data.votes;
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
     if (data.preview !== undefined) marbleState.preview = data.preview;
-    if (data.mySkin !== undefined && window.MarbleShop) MarbleShop.syncRoomSkin(data.mySkin);   // requestState 응답에만 실림 — 내 방 장착 스킨(새로고침 재입장 동기화)
+    if (data.myEquip !== undefined && window.MarbleShop) MarbleShop.syncRoomEquip(data.myEquip);   // requestState 응답에만 실림 — 내 방 장착값 { slot: id }(새로고침 재입장 동기화)
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이거나 룰렛 단계면 phase 는 rouletteStart/reveal 이 관리한다.
     if (data.phase === 'playing' && !isMarbleActive && marbleState.phase !== 'playing') {
         marbleState.phase = 'playing';

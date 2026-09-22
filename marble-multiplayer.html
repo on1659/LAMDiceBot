@@ -41,7 +41,7 @@
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
-    <link rel="stylesheet" href="/css/horse-shop.css?v=2">
+    <link rel="stylesheet" href="/css/horse-shop.css?v=3">
     <link rel="stylesheet" href="/css/marble.css?v=23">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -313,8 +313,8 @@
             <section id="marblePickSection">
                 <div class="marble-pick-head">
                     <div class="marble-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
-                    <!-- 동물 스킨: 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 로그인 계정만, 모달은 js/marble-shop.js 가 채움 -->
-                    <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨 구매·장착">🎀 동물 스킨</button>
+                    <!-- 꾸미기(동물 스킨·야식): 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 모달은 js/marble-shop.js 가 채움 -->
+                    <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨·야식 구매·장착">🎀 꾸미기</button>
                 </div>
                 <div id="marblePicker" class="marble-picker">
                     <button type="button" class="marble-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
@@ -481,10 +481,10 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
-    <script src="/js/shared/shop-shared.js?v=2"></script>
-    <script src="/js/marble-shop.js?v=9"></script>
-    <script src="/js/marble-render.js?v=64"></script>
-    <script src="/js/marble.js?v=36"></script>
+    <script src="/js/shared/shop-shared.js?v=5"></script>
+    <script src="/js/marble-shop.js?v=11"></script>
+    <script src="/js/marble-render.js?v=67"></script>
+    <script src="/js/marble.js?v=37"></script>
 
     <script>
         // ============================================
