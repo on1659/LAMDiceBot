@@ -1,4 +1,32 @@
 ========================================
+📋 Summit Log - 2026-09-23 (데구리 1등 룰 = 첫 도착 동물 기준 + 1등 판 꼴찌 표기 제거)
+========================================
+
+## 변경 파일
+- socket/marble-sim.js: rankPlayers — target 'first' 면 owner 별 finishOrder 첫 idx 만 기록(덮어쓰지 않음), 'last' 는 기존대로 마지막 idx. rankings·selected·successionList 모두 이 기준
+- js/marble-render.js: updateHud — 'first' 면 한 마리라도 골인한 사람을 done 으로(그 동물 finishIdx 순), 미골인자는 선두 동물 진행도 순·행 동물 = 선두 동물. 'last' 불변
+- js/marble-render.js: celebration — 왕관 동물 비교 finishIdx > → < (1등의 첫 도착 동물)
+- js/marble-render.js: 1등 판은 비석 "꼴찌 확정!" 라벨·비석 각인 "꼴찌"·HUD 마지막 행 "꼴찌" 표기 생략(등수만)
+- js/marble.js: 결과 오버레이 isLast 에 target !== 'first' 조건, 출발 안내 문구 "제일 먼저 도착한 동물의 주인(1등)이 당첨", 주석 갱신
+- marble-multiplayer.html: marble-render.js v67 → v68, marble.js v38 → v39
+
+## 상세
+- 사용자 2026-09-23: "1등 룰이면 1등으로 들어온 동물이 1등인 거지? 등수 총합이 아니라". 기존은 각자 "가장 늦은 동물" 기준이라
+  1등 동물 주인이 1등이 아닐 수 있었다(예: 건우 1번째·5번째, 민수 2·3번째 → 민수 1등).
+- 꼴등 룰은 원래부터 "전체 마지막 동물 주인 = 꼴등"이라 변경 없음.
+- 1등 판에서 비석(전체 마지막 동물)과 순위표 꼴찌(첫 동물이 가장 늦은 사람)가 서로 달라질 수 있어,
+  사용자 결정("1등 룰 판이면 꼴찌 관심 없음")에 따라 1등 판에서는 꼴찌 표기를 아예 없앴다. 비석은 경주 종료 연출로만 남는다.
+- 결과 결정은 여전히 서버 전용(sim finishOrder → rankPlayers). 클라는 서버 rankings/selected 를 그대로 그린다.
+
+## 검증
+- 스크래치 스크립트: 4명×2마리, 시드 5개. first → selected = finishOrder[0] 주인, rankings = 각자 첫 도착 순, successionList[0] = selected 전부 true
+  (5판 중 4판은 옛 규칙이면 당첨자가 달랐음). last·target 없음 → 변경 전 코드(HEAD)와 결과 JSON 완전 일치
+- node -c: socket/marble-sim.js, js/marble-render.js, js/marble.js, server.js 통과
+- 미검증: 브라우저에서 1등 판 순위표·왕관·비석 표기 육안 확인
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-23 (데구리 한 표·몰표면 룰렛 스핀 생략)
 ========================================
 

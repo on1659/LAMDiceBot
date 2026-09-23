@@ -793,13 +793,13 @@ function showResultOverlay(data) {
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
         if (data.selected) html += '<div class="marble-result-selected"><i class="mi mi-paw"></i> 당첨자: ' + escapeHtml(data.selected) + ' <small>(' + targetLabel + ')</small></div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
-        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 골에 들어간 순서. 1위가 제일 먼저 다 들어간 사람, 마지막이 꼴찌.
+        // 순위: 서버 rankings [{name, rank}] 그대로 — 꼴등 룰은 각자 제일 늦게 들어간 동물 순, 1등 룰은 각자 제일 먼저 들어간 동물 순 (socket/marble-sim.js rankPlayers).
         // 당첨(강조)은 룰렛이 정한 순위(target)의 주인 — 꼴찌일 수도, 1위일 수도
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
                 var isSelected = r.name === data.selected;
-                var isLast = r.rank === rk.length;
+                var isLast = r.rank === rk.length && data.target !== 'first';   // 1등 룰 판은 꼴찌 표기 없이 등수만
                 return '<li class="' + (isSelected ? 'loser' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + (isSelected ? ' <i class="mi mi-target"></i>' : '') + '</li>';
             }).join('') + '</ol>';
         }
@@ -1346,7 +1346,7 @@ socket.on('marble:reveal', function (data) {
     var dragHint = document.getElementById('dragHint');
     if (dragHint) dragHint.style.display = 'none';
     var isFirst = marbleState.target === 'first';
-    setGameStatus('출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '자기 동물을 제일 먼저 모두 도착시킨 사람(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active', 'paw');
+    setGameStatus('출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '제일 먼저 도착한 동물의 주인(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active', 'paw');
 
     var begin = function () {
         renderer.setTimeline(data, currentUser);

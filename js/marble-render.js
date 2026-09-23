@@ -1465,8 +1465,8 @@ var MarbleRender = (function () {
             if (L.rowMap[row] == null) return null;
             return { x: L.z.x + L.colW * (col + 0.5), y: L.z.y + L.rowMap[row] * STAND_ROW_H + 18 };   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
         }
-        // 1등 당첨 축하 정보 — target 'first' 이고 꼴찌 비석이 깔린 뒤. 왕관은 1등의 "가장 늦게 들어온" 동물(순위를 확정한 놈)에게.
-        // since < 0 이면 아직 시작 전(카메라는 비석에). 왕관 동물 자리가 접힌 줄이면 그 사람의 보이는 동물 중 제일 늦은 놈, 그것도 없으면 스탠드 가운데
+        // 1등 당첨 축하 정보 — target 'first' 이고 꼴찌 비석이 깔린 뒤. 왕관은 1등의 "가장 먼저 들어온" 동물(순위를 확정한 놈)에게.
+        // since < 0 이면 아직 시작 전(카메라는 비석에). 왕관 동물 자리가 접힌 줄이면 그 사람의 보이는 동물 중 제일 먼저 온 놈, 그것도 없으면 스탠드 가운데
         var celCache = null;
         function celebration(t) {
             if (!data || data.target !== 'first' || !data.result || !data.result.selected || !data.finishOrder.length) return null;
@@ -1480,7 +1480,7 @@ var MarbleRender = (function () {
                 if (b.owner !== owner || b.state !== 'done' || b.id === loserB.id) continue;
                 var slot = standSlot(L, b.finishIdx);
                 if (!slot) continue;
-                if (!crownB || b.finishIdx > crownB.finishIdx) { crownB = b; crownSlot = slot; }
+                if (!crownB || b.finishIdx < crownB.finishIdx) { crownB = b; crownSlot = slot; }
             }
             if (crownB && L.chute) arrival = crownB.finishAt + ((L.chute.y - L.ln.y) + (L.chute.x - (L.z.x + 4))) / CHUTE_SPEED * 1000 + POOF_FX_MS;   // 홈통을 다 굴러 자리에 앉은 뒤
             var x = crownSlot ? crownSlot.x : L.z.x + L.z.w / 2, y = crownSlot ? crownSlot.y : L.z.y + 18;
@@ -1627,7 +1627,7 @@ var MarbleRender = (function () {
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
                 label(b.owner + ' 님의 ' + (b.skinName || CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);   // 스킨을 끼면 스킨 이름(서버 skinName = 카탈로그 displayName)
-                label(data.target === 'first' ? '꼴찌 확정!' : '꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 당첨 순위가 1등(투표 룰렛)이면 당첨은 1등 — 비석은 꼴찌 연출로만
+                if (data.target !== 'first') label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 1등 룰 판은 꼴찌를 안 따진다 — 비석은 경주 종료 연출로만(문구 없음)
             }
         }
         // 비석 (코드 도형): 둥근 머리 회색 돌 + "꼴찌". yBase = 바닥(월드). sinceLand<120ms 동안 착지 눌림
@@ -1645,7 +1645,7 @@ var MarbleRender = (function () {
                 ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
             }
             ctx.fillStyle = '#2b2f36'; ctx.font = 'bold 10px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('꼴찌', 0, -h / 2 + 2);
+            if (!data || data.target !== 'first') ctx.fillText('꼴찌', 0, -h / 2 + 2);   // 1등 룰 판은 꼴찌 글자 없이
             ctx.restore();
         }
 
@@ -1720,14 +1720,20 @@ var MarbleRender = (function () {
         }
 
         // ─── HUD ───
-        // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다: 자기 동물이 전부 골에 들어간 순서.
-        // 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순. 행의 동물 = 그 기준이 된 동물
+        // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다. 행의 동물 = 그 기준이 된 동물
+        // 꼴등 룰('last'): 자기 동물이 전부 골에 들어간 순서. 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순.
+        // 1등 룰('first'): 자기 동물 중 제일 먼저 들어온 동물 순서. 한 마리라도 들어간 사람은 그 동물의 finishIdx 순으로 위에, 아직 없는 사람은 선두 동물 진행도 순.
         function updateHud() {
-            var rem = 0, byOwner = {};
+            var rem = 0, byOwner = {}, first = data && data.target === 'first';
             for (var i = 0; i < balls.length; i++) {
-                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: true });
+                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: !first });
+                if (b.state !== 'done') rem++;
+                if (first) {
+                    if (b.state === 'done') { if (!o.done || b.finishIdx < o.ball.finishIdx) { o.done = true; o.ball = b; } }
+                    else if (!o.done && (!o.ball || progress(b) > progress(o.ball))) o.ball = b;
+                    continue;
+                }
                 if (b.state === 'done') { if (o.done && (!o.ball || b.finishIdx > o.ball.finishIdx)) o.ball = b; continue; }
-                rem++;
                 if (o.done) { o.done = false; o.ball = b; }
                 else if (progress(b) < progress(o.ball)) o.ball = b;
             }
@@ -1837,7 +1843,7 @@ var MarbleRender = (function () {
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
                     if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(hw - w - 4, yy - 2, w - 8, HUD_RANK_ROW - 1, 4); ctx.fill(); }
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
-                    ctx.fillText(idx === n - 1 && n > 1 ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);
+                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);   // 1등 룰 판은 꼴찌 표기 없이 등수만
                     drawMiniIcon(b, hw - w + 35, yy + 7, HUD_ICON_PX, b.owner === myName);
                     ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';
                     var name = b.owner.length > 7 ? b.owner.slice(0, 7) + '…' : b.owner;

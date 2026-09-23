@@ -1010,14 +1010,18 @@ async function simulate(balls, seed, track) {
     return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, fast, cutMs, durationMs: Math.round(endMs - fastSaved + slowExtra + FINALE_HOLD_MS) };
 }
 
-// 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 1등 = 자기 공을 제일 먼저 모두 들여보낸 사람, 꼴찌 = 마지막 공의 주인.
-// target 'last'(기본) → 꼴찌 = selected(당첨), 'first' → 1등 = selected (당첨 순위 투표 룰렛 결과, socket/marble.js).
+// 참가자 순위 — 당첨 순위(target, 당첨 순위 투표 룰렛 결과, socket/marble.js)에 따라 기준 동물이 다르다.
+// 'last'(기본): 각자 "가장 늦은 공"의 도착 순서 → 꼴찌 = 전체 마지막 공의 주인 = selected(당첨).
+// 'first': 각자 "가장 먼저 들어온 공"의 도착 순서 → 1등 = 전체 첫 공의 주인 = selected. 나머지 공은 순위에 영향 없음 (사용자 2026-09-23).
 // successionList = 당첨 쪽에서 반대쪽으로 (이탈자 대체용, spin-arena 패턴).
 
 function rankPlayers(balls, finishOrder, participants, target) {
-    const worst = {};
-    finishOrder.forEach((ballId, idx) => { worst[balls[ballId].owner] = idx; });
-    const order = participants.slice().sort((a, b) => (worst[a] ?? -1) - (worst[b] ?? -1));
+    const key = {};
+    finishOrder.forEach((ballId, idx) => {
+        const owner = balls[ballId].owner;
+        if (target !== 'first' || key[owner] == null) key[owner] = idx;
+    });
+    const order = participants.slice().sort((a, b) => (key[a] ?? -1) - (key[b] ?? -1));
     const rankings = order.map((name, i) => ({ name, rank: i + 1 }));
     const successionList = target === 'first' ? order.slice() : order.slice().reverse();
     return { rankings, successionList, selected: successionList[0] || null };
