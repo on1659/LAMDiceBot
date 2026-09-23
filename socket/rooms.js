@@ -1271,8 +1271,8 @@ module.exports = (socket, io, ctx) => {
                     io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
                 }
             }
-            // 퇴장한 사용자의 데구리 방 장착 스킨 삭제 — 장착은 그 방에서만 유지(socket/marble.js marble:equipSkin), 재입장하면 다시 골라야 한다
-            if (gameState.marble && gameState.marble.skins) delete gameState.marble.skins[socket.userName];
+            // 퇴장한 사용자의 데구리 방 장착(스킨·풍선) 삭제 — 장착은 그 방에서만 유지(socket/marble.js marble:equip), 재입장하면 다시 골라야 한다
+            if (gameState.marble && gameState.marble.equip) delete gameState.marble.equip[socket.userName];
             if (gameState.marble && gameState.marble.wallets) delete gameState.marble.wallets[socket.userName];   // 방 지갑(코인·산 스킨)도 함께 소멸 — 1회용
             // 🔧 퇴장한 사용자의 데구리 동물 선택 삭제 + idle이면 동기화 재emit
             if (gameState.marble && gameState.marble.picks &&

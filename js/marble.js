@@ -90,8 +90,8 @@ function runWhenSocketConnected(callback) {
     });
 }
 
-// 꾸미기 상점(동물 스킨 marble_skin): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
-// 장착은 js/marble-shop.js 가 'marble:equipSkin' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
+// 꾸미기 상점(동물 스킨 marble_skin · 풍선 marble_balloon): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
+// 장착은 js/marble-shop.js 가 'marble:equip' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
 socket.on('connect', function () {
     if (window.MarbleShop) {
         MarbleShop.connect(socket);
@@ -378,8 +378,9 @@ function startPickerIconAnim() {
         btns.forEach(function (btn, i) {
             if (btn.style.display === 'none') return;
             var ic = btn.querySelector('.marble-creature-icon'); if (!ic) return;
-            var cidI = btn.getAttribute('data-creature'), skinI = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
-            renderer.drawCreatureIcon(ic, cidI, PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length], (skinI && skinI.creature === cidI) ? skinI.skin : null);
+            var cidI = btn.getAttribute('data-creature');
+            var skinI = (window.MarbleShop && MarbleShop.getEquippedSkinFor(cidI)) || null;   // 동물마다 따로 장착된다
+            renderer.drawCreatureIcon(ic, cidI, PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length], skinI);
         });
     }, PICKER_ICON_MS);
 }
@@ -467,11 +468,11 @@ function renderPickStatus() {
         if (!badge) { badge = document.createElement('span'); badge.className = 'pick-count'; btn.appendChild(badge); }
         badge.textContent = counts[id] ? counts[id] + '명' : '';
         badge.style.display = counts[id] ? '' : 'none';
-        // 장착한 상점 스킨의 동물이면 배지 — 이 동물을 고르면 스킨 모습으로 나온다
-        var eqSkin = (window.MarbleShop && MarbleShop.getEquippedSkin()) || null;
+        // 이 동물에 스킨을 끼워 뒀으면 배지 — 고르면 스킨 모습으로 나온다. 동물마다 따로 장착된다(사용자 2026-09-23)
+        var eqSkin = (window.MarbleShop && MarbleShop.getEquippedSkinFor(id)) || null;
         var skinBadge = btn.querySelector('.skin-badge');
         if (!skinBadge) { skinBadge = document.createElement('span'); skinBadge.className = 'skin-badge'; skinBadge.textContent = '스킨'; btn.appendChild(skinBadge); }
-        skinBadge.style.display = (eqSkin && eqSkin.creature === id) ? '' : 'none';
+        skinBadge.style.display = eqSkin ? '' : 'none';
         btn.disabled = marbleState.phase === 'playing' || isMarbleActive;
     });
     var locked = marbleState.phase === 'playing' || isMarbleActive;
@@ -561,7 +562,7 @@ var rouletteTimer = null;
 function clearRouletteTick() { if (rouletteTimer) { clearTimeout(rouletteTimer); rouletteTimer = null; } }
 
 // 룰렛: 칸(=막대, 표 없는 쪽은 빈 칸 자체)을 DOM 순서로 돌다가 서버가 정한 쪽(winning)의 첫 막대에서 멈춘다. 감속 곡선은 경마와 동일.
-// 한쪽에만 표가 몰려도 돈다 — 빈 칸을 스쳐 지나가며 "1등이냐 꼴등이냐" 고르는 연출을 항상 보여준다(사용자 2026-09-21)
+// 한 표뿐이거나 한쪽에만 몰리면 서버가 skipAnim 을 준다 — 돌리지 않고 당첨 막대 + 배너로 바로 간다(경마와 같음, 사용자 2026-09-23)
 function playRouletteAnimation(data) {
     var winning = data.winning;
     var animMs = (typeof data.animDurationMs === 'number') ? data.animDurationMs : ROULETTE_ANIM_MS;
@@ -581,6 +582,11 @@ function playRouletteAnimation(data) {
     cells.forEach(function (c) { c.el.classList.remove(c.cls, 'winner'); });
     clearRouletteTick();
     if (!targetBar || targetIdx < 0) {   // 당첨 쪽에 막대가 없을 리 없지만(표가 있어야 당첨) 방어 — 배너만
+        updateTargetBanner(winning, true, marbleState.targetReason);
+        return;
+    }
+    if (data.skipAnim) {   // 뽑을 게 없다 — 스핀 없이 결과로 점프
+        targetBar.classList.add('winner');
         updateTargetBanner(winning, true, marbleState.targetReason);
         return;
     }
@@ -787,13 +793,13 @@ function showResultOverlay(data) {
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
         if (data.selected) html += '<div class="marble-result-selected"><i class="mi mi-paw"></i> 당첨자: ' + escapeHtml(data.selected) + ' <small>(' + targetLabel + ')</small></div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
-        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 골에 들어간 순서. 1위가 제일 먼저 다 들어간 사람, 마지막이 꼴찌.
+        // 순위: 서버 rankings [{name, rank}] 그대로 — 꼴등 룰은 각자 제일 늦게 들어간 동물 순, 1등 룰은 각자 제일 먼저 들어간 동물 순 (socket/marble-sim.js rankPlayers).
         // 당첨(강조)은 룰렛이 정한 순위(target)의 주인 — 꼴찌일 수도, 1위일 수도
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
                 var isSelected = r.name === data.selected;
-                var isLast = r.rank === rk.length;
+                var isLast = r.rank === rk.length && data.target !== 'first';   // 1등 룰 판은 꼴찌 표기 없이 등수만
                 return '<li class="' + (isSelected ? 'loser' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + (isSelected ? ' <i class="mi mi-target"></i>' : '') + '</li>';
             }).join('') + '</ol>';
         }
@@ -1281,7 +1287,7 @@ socket.on('marble:stateUpdated', function (data) {
     if (data.votes) marbleState.votes = data.votes;
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
     if (data.preview !== undefined) marbleState.preview = data.preview;
-    if (data.mySkin !== undefined && window.MarbleShop) MarbleShop.syncRoomSkin(data.mySkin);   // requestState 응답에만 실림 — 내 방 장착 스킨(새로고침 재입장 동기화)
+    if (data.myEquip !== undefined && window.MarbleShop) MarbleShop.syncRoomEquip(data.myEquip);   // requestState 응답에만 실림 — 내 방 장착값 { slot: id }(새로고침 재입장 동기화)
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이거나 룰렛 단계면 phase 는 rouletteStart/reveal 이 관리한다.
     if (data.phase === 'playing' && !isMarbleActive && marbleState.phase !== 'playing') {
         marbleState.phase = 'playing';
@@ -1307,7 +1313,7 @@ socket.on('marble:rouletteStart', function (data) {
     marbleState.target = data.winning;
     marbleState.targetReason = data.reason || '';
     enterRoulettePhase();
-    setGameStatus('당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active', 'target');
+    setGameStatus(data.skipAnim ? '당첨 순위 확정' : '당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active', 'target');
     playRouletteAnimation(data);
 });
 
@@ -1340,7 +1346,7 @@ socket.on('marble:reveal', function (data) {
     var dragHint = document.getElementById('dragHint');
     if (dragHint) dragHint.style.display = 'none';
     var isFirst = marbleState.target === 'first';
-    setGameStatus('출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '자기 동물을 제일 먼저 모두 도착시킨 사람(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active', 'paw');
+    setGameStatus('출발 준비! 총 ' + data.balls.length + '마리 — ' + (isFirst ? '제일 먼저 도착한 동물의 주인(1등)이 당첨' : '제일 늦게 도착한 동물의 주인이 당첨'), 'active', 'paw');
 
     var begin = function () {
         renderer.setTimeline(data, currentUser);

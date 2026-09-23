@@ -1,6 +1,6 @@
 {
   "marble_skin": [
-    {"id": "marble_skin_none", "name": "기본 모습", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🐾"},
+    {"id": "marble_skin_none", "name": "전부 기본 모습", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🐾", "desc": "끼워 둔 동물 스킨을 한 번에 모두 벗어요. 한 동물만 벗으려면 그 스킨의 [장착중]을 누르세요."},
     {"id": "marble_skin_ribbonpig_ribbon", "name": "리본돼지", "displayName": "리본돼지", "rarity": "rare", "emoji": "🎀", "price": 80, "creature": "ribbonpig", "skin": "ribbon", "desc": "머리에 빨간 나비 리본을 단 돼지. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_scarf", "name": "스카프 리본돼지", "displayName": "스카프 리본돼지", "rarity": "rare", "emoji": "🧣", "price": 80, "creature": "ribbonpig", "skin": "scarf", "desc": "빨간 리본을 목에 스카프처럼 두른 시큰둥한 돼지. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_hedgehog_cherry", "name": "벚꽃 고슴도치", "displayName": "벚꽃 고슴도치", "rarity": "rare", "emoji": "🌸", "price": 80, "creature": "hedgehog", "skin": "cherry", "desc": "가시가 벚꽃빛 연분홍으로 물든 고슴도치. 고슴도치를 고르면 적용돼요."},
@@ -16,5 +16,15 @@
     {"id": "marble_skin_raccoon_ninja", "name": "닌자 너구리", "displayName": "닌자 너구리", "rarity": "rare", "emoji": "🥷", "price": 80, "creature": "raccoon", "skin": "ninja", "desc": "이마에 빨간 닌자 머리띠를 두른 너구리. 표정은 여전히 심드렁. 너구리를 고르면 적용돼요."},
     {"id": "marble_skin_hedgehog_knight", "name": "기사 고슴도치", "displayName": "기사 고슴도치", "rarity": "rare", "emoji": "🛡️", "price": 80, "creature": "hedgehog", "skin": "knight", "desc": "작은 은색 투구와 가슴 갑옷을 갖춘 고슴도치. 가시는 투구 위로 삐죽. 고슴도치를 고르면 적용돼요."},
     {"id": "marble_skin_rabbit_tophat", "name": "신사 토끼", "displayName": "신사 토끼", "rarity": "rare", "emoji": "🎩", "price": 80, "creature": "rabbit", "skin": "tophat", "desc": "작은 검정 실크햇과 빨간 나비넥타이를 맨 토끼. 토끼를 고르면 적용돼요."}
+  ],
+  "marble_balloon": [
+    {"id": "marble_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
+    {"id": "marble_balloon_chicken", "name": "치킨 야식", "displayName": "치킨 야식", "rarity": "rare", "emoji": "🍗", "price": 80, "sprite": "balloon-chicken", "desc": "머리 위에 닭다리를 띄우고 달려요. 동물을 안 가려요."},
+    {"id": "marble_balloon_pizza", "name": "피자 야식", "displayName": "피자 야식", "rarity": "rare", "emoji": "🍕", "price": 80, "sprite": "balloon-pizza", "desc": "페퍼로니 한 조각이 둥실. 동물을 안 가려요."},
+    {"id": "marble_balloon_tteokbokki", "name": "떡볶이 야식", "displayName": "떡볶이 야식", "rarity": "rare", "emoji": "🌶️", "price": 80, "sprite": "balloon-tteokbokki", "desc": "양념 두른 떡 두 가락. 동물을 안 가려요."},
+    {"id": "marble_balloon_jokbal", "name": "족발 야식", "displayName": "족발 야식", "rarity": "rare", "emoji": "🐷", "price": 80, "sprite": "balloon-jokbal", "desc": "윤기 나는 족발 한 덩이. 동물을 안 가려요."},
+    {"id": "marble_balloon_gimbap", "name": "김밥 야식", "displayName": "김밥 야식", "rarity": "rare", "emoji": "🍙", "price": 80, "sprite": "balloon-gimbap", "desc": "썰어 놓은 김밥 한 알. 동물을 안 가려요."},
+    {"id": "marble_balloon_burger", "name": "햄버거 야식", "displayName": "햄버거 야식", "rarity": "rare", "emoji": "🍔", "price": 80, "sprite": "balloon-burger", "desc": "참깨빵 위에 순 쇠고기 패티. 동물을 안 가려요."},
+    {"id": "marble_balloon_tangsuyuk", "name": "탕수육 야식", "displayName": "탕수육 야식", "rarity": "rare", "emoji": "🍯", "price": 80, "sprite": "balloon-tangsuyuk", "desc": "소스 흐르는 탕수육 한 덩이. 부먹이에요. 동물을 안 가려요."}
   ]
 }

@@ -1,4 +1,119 @@
 ========================================
+📋 Summit Log - 2026-09-23 (데구리 1등 룰 = 첫 도착 동물 기준 + 1등 판 꼴찌 표기 제거)
+========================================
+
+## 변경 파일
+- socket/marble-sim.js: rankPlayers — target 'first' 면 owner 별 finishOrder 첫 idx 만 기록(덮어쓰지 않음), 'last' 는 기존대로 마지막 idx. rankings·selected·successionList 모두 이 기준
+- js/marble-render.js: updateHud — 'first' 면 한 마리라도 골인한 사람을 done 으로(그 동물 finishIdx 순), 미골인자는 선두 동물 진행도 순·행 동물 = 선두 동물. 'last' 불변
+- js/marble-render.js: celebration — 왕관 동물 비교 finishIdx > → < (1등의 첫 도착 동물)
+- js/marble-render.js: 1등 판은 비석 "꼴찌 확정!" 라벨·비석 각인 "꼴찌"·HUD 마지막 행 "꼴찌" 표기 생략(등수만)
+- js/marble.js: 결과 오버레이 isLast 에 target !== 'first' 조건, 출발 안내 문구 "제일 먼저 도착한 동물의 주인(1등)이 당첨", 주석 갱신
+- marble-multiplayer.html: marble-render.js v67 → v68, marble.js v38 → v39
+
+## 상세
+- 사용자 2026-09-23: "1등 룰이면 1등으로 들어온 동물이 1등인 거지? 등수 총합이 아니라". 기존은 각자 "가장 늦은 동물" 기준이라
+  1등 동물 주인이 1등이 아닐 수 있었다(예: 건우 1번째·5번째, 민수 2·3번째 → 민수 1등).
+- 꼴등 룰은 원래부터 "전체 마지막 동물 주인 = 꼴등"이라 변경 없음.
+- 1등 판에서 비석(전체 마지막 동물)과 순위표 꼴찌(첫 동물이 가장 늦은 사람)가 서로 달라질 수 있어,
+  사용자 결정("1등 룰 판이면 꼴찌 관심 없음")에 따라 1등 판에서는 꼴찌 표기를 아예 없앴다. 비석은 경주 종료 연출로만 남는다.
+- 결과 결정은 여전히 서버 전용(sim finishOrder → rankPlayers). 클라는 서버 rankings/selected 를 그대로 그린다.
+
+## 검증
+- 스크래치 스크립트: 4명×2마리, 시드 5개. first → selected = finishOrder[0] 주인, rankings = 각자 첫 도착 순, successionList[0] = selected 전부 true
+  (5판 중 4판은 옛 규칙이면 당첨자가 달랐음). last·target 없음 → 변경 전 코드(HEAD)와 결과 JSON 완전 일치
+- node -c: socket/marble-sim.js, js/marble-render.js, js/marble.js, server.js 통과
+- 미검증: 브라우저에서 1등 판 순위표·왕관·비석 표기 육안 확인
+
+========================================
+
+========================================
+📋 Summit Log - 2026-09-23 (데구리 한 표·몰표면 룰렛 스핀 생략)
+========================================
+
+## 변경 파일
+- socket/marble.js: decideTarget 이 roulette.skipAnim(segments 1개) 을 싣는다. 시작 흐름 holdMs = skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS
+- js/marble.js: playRouletteAnimation 이 skipAnim 이면 틱 없이 당첨 막대 winner + 배너로 점프. 상태 문구 '당첨 순위 확정'
+- marble-multiplayer.html: marble.js 캐시 v37 → v38
+
+## 상세
+- 사용자 2026-09-23 요청: "투표할 때 한 표나 몰표면 연출 없이 정답으로 바로".
+  2026-09-21 결정("선택지가 둘뿐이라 몰려도 항상 돌린다")을 뒤집은 것 — 코드 주석에 경위를 남김.
+- 레퍼런스(경마 socket/horse.js skipRouletteAnim · js/horse-race.js skipAnim)와 같은 방식: 스핀만 건너뛰고,
+  결과를 읽을 FALLBACK_HOLD_MS(3초)는 둔다. 0초로 하면 배너가 한 프레임 뜨고 바로 카운트다운이라 결과를 못 읽는다.
+- 이벤트는 그대로 marble:rouletteStart — 필드 skipAnim 만 추가(없으면 undefined → 기존 스핀). 새 이벤트 없음.
+- 사유 문구를 한 표/몰표로 갈랐다: "한 표뿐이라 1등 확정" / "투표가 1등에만 몰려 1등 확정". 투표는 익명이라 이름은 안 넣는다.
+- 투표 0 표(기본 꼴등, marble:reasonHold) 경로는 원래부터 스핀이 없어 변경 없음.
+- 결과 결정(서버 RNG 가중 추첨)은 그대로 — 몰표면 원래도 확정이었다. 연출·대기 시간만 바뀐다.
+
+## 검증
+- 소켓 3케이스(스크래치 스크립트): 몰표 skipAnim=true 룰렛→reveal 3.0s / 한 표 true 3.0s / 갈린 표 false 8.5s, 당첨=reveal.target 일치
+- 브라우저: 몰표로 시작 → 0.9초 뒤 1등 막대 winner + 배너 + 사유 카드, 스핀 틱 0회
+- qa-marble-skin-shop-test ALL PASS, marble-determinism-test ALL PASS
+
+========================================
+
+========================================
+📋 Summit Log - 2026-09-23 (데구리 야식 슬롯 + 동물별 스킨 장착 + 구매 즉시 장착)
+========================================
+
+## 변경 파일
+- config/marble/cosmetics.json: marble_balloon 슬롯 8항목 신규(none + 야식 7종, 80코인 rare). marble_skin_none 이름을 "전부 기본 모습"으로
+- socket/marble.js: mb.skins → mb.equip 슬롯 맵. marble:equipSkin → marble:equip { slot, cosmeticId, creature? }. 스킨은 동물별 맵, 야식은 값 하나
+- socket/shop.js: getCatalogEntry(id) → { slot, item, game } export 추가
+- socket/rooms.js, socket/chat.js: 방 나가기 정리 필드명 변경(equip)
+- utils/room-helpers.js: gameState.marble.skins → equip
+- js/marble-render.js: ensureBalloon 지연 로더, drawBalloon 오버레이, viewTopY, R.drawBalloonIcon, 공 payload 에 balloon
+- js/marble-shop.js: 슬롯 2개 탭, _roomEquip, getEquippedSkinFor(creature), autoEquipOnBuy
+- js/shared/shop-shared.js: hasGroups(slotKey) 슬롯 인식, slotHas() 로 한 슬롯 다중 장착 허용, doBuy(slot,item,btn) + autoEquipOnBuy, equipRequest 에 item 인자
+- js/marble.js: getEquippedSkin → getEquippedSkinFor, mySkin → myEquip
+- css/horse-shop.css: .hshop-grid:not(.hshop-inv-grid) margin-top 10px
+- marble-multiplayer.html: 버튼 라벨 "🎀 꾸미기", 캐시 버전 5개 상향
+- assets/marble/accessories/*.webp (신규 7): PIL 생성 임시본
+- AutoTest/spritemake/make-balloons.py (신규): 결정론 생성기 + contract_check + --verify
+- AutoTest/qa-marble-skin-shop-test.js: 43 → 56 항목
+- docs/goal/applied/marble-balloon-accessory.md, docs/spritemake-request/2026-09-23-marble-balloon-yasik.md + ref/ (신규)
+
+## 상세 변경 내역
+
+### [슬롯 구조] mb.skins → mb.equip
+- 슬롯이 둘이 되면서 맵을 하나씩 늘리는 대신 equip[name] = { marble_skin, marble_balloon } 으로 일반화.
+- marble_skin 은 { creature: {...} } 맵 — 동물마다 따로 장착된다(사용자 2026-09-23 "고슴도치 장착했다고 돼지 스킨이 빠지면안돼").
+  해제는 어느 칸을 비울지 알아야 해서 클라가 creature 를 같이 보낸다. marble_skin_none 은 전 칸 비우기.
+- marble_balloon 은 값 하나 — 공용이라 하나만(사용자 2026-09-23 "야식은 공용이라 하나씩").
+- equippedIds 는 marble_skin 을 배열로, marble_balloon 을 문자열로 준다. ShopModule 은 slotHas() 로 둘 다 처리.
+
+### [렌더러] 야식 오버레이
+- drawBadge/drawRing 두 곳에서만 부른다(포즈 17곳 호출부 불변). overlayQ 가 살아 있을 때만 = 경주 화면 한정, 응원석·비석 제외.
+- 줄은 ctx 로 그리고 스프라이트만 에셋. 매듭 계약 (48,106). lift/drift 는 textBoost 를 탄다(폰에서 커진 이름표를 덮지 않게).
+- kx 를 트랙 폭으로 클램프. 화면 상단은 머리 자체가 32px 안쪽이면 잘린다(이름표·zz 와 같은 한계, 명세에 명시).
+- 부착은 sim.simulate 뒤(attachCosmetics) — 결정성 불변, 3개 시드 직접 대조 확인.
+
+### [에셋] PIL 생성기
+- 이미지 생성 모델 없이 도형으로 그린 임시본. 같은 스크립트 → 바이트 동일.
+- contract_check 5항목(캔버스·하드알파·매듭·여백·외곽선 경계색 ±40). --verify 로 외부 그림 인수 검사에도 쓴다.
+- 외곽선 검사가 없던 동안 족발·치킨(캔버스 상단 접촉)·탕수육(하이라이트가 외곽선 덮음) 3장이 잘린 채 통과했었다 → 검사 추가 후 전량 0.0% 이탈.
+
+### [검증에서 나온 수정] Fable 서브에이전트 2대
+- socket/chat.js 가 CRLF → LF 로 통째 재작성돼 2줄 변경이 1450줄 유령 diff가 될 뻔함 → CRLF 복구. 전 파일 --ignore-cr-at-eol 대조 통과.
+- marble:equip 이 슬롯 불일치 id 를 ok:true 로 받고 그 슬롯을 비웠다(equipFromItem 의 null 이 "불일치"와 "해제" 두 뜻). getCatalogEntry 로 슬롯 확인 후 notfound.
+  같은 확인을 marble:shop:buy 에도 걸어, 다른 게임 항목이 sprite 키를 얻으면 데구리 코인으로 팔리던 잠재 구멍 차단.
+- QA 테스트 "재입장 → 풍선 장착 없음" 이 풍선을 산 적 없는 방장 기준이라 항상 통과하는 공허한 검사였다 → 손님 기준으로 재작성.
+
+### [UI] 상점
+- 구매 확인 → 성공 시 즉시 장착(autoEquipOnBuy, 데구리만). 토스트 "구매하고 바로 장착했어요".
+- 야식 탭에서는 동물 필터 칩을 숨긴다(hasGroups 가 슬롯의 itemGroup 유무를 본다). closet:true 는 데구리만이라 타 게임 영향 없음.
+- .hshop-grid 는 자기 자신이 스크롤 영역인데 위 여백이 padding 이라 스크롤하면 같이 밀려 카드가 탭에 붙었다 → margin 으로 이동.
+  옷장 섹션 안쪽 그리드(.hshop-inv-grid)는 스크롤 영역이 아니라 제외.
+
+## 검증
+- node AutoTest/qa-marble-skin-shop-test.js: 56/56 PASS
+- node AutoTest/marble-determinism-test.js: ALL PASS
+- 브라우저: 실제 2인 경주 완주(렌더러 에러 0), 375px, 구매→즉시장착, 동물 2종 동시 장착, 선택 버튼 배지
+- 출고 webp 7장 계약 독립 측정 통과
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-23 새벽 (데구리 순단 자동 재입장 — 실서버 "준비했는데 팅김" 제보 수정)
 ========================================
 

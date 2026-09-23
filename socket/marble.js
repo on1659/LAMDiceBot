@@ -4,7 +4,8 @@ const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const sim = require('./marble-sim');
-const { getCatalogItem } = require('./shop');   // 동물 스킨(상점 marble_skin 슬롯) 카탈로그 — 가격·creature/skin 의 권위. 지갑·소유·장착은 전부 방 메모리(DB 미사용)
+const { getCatalogItem, getCatalogEntry } = require('./shop');   // 꾸미기 카탈로그(marble_skin·marble_balloon) — 가격·creature/skin/sprite 의 권위. 지갑·소유·장착은 전부 방 메모리(DB 미사용)
+// getCatalogEntry 는 { slot, item, game } — 카탈로그가 전 게임 통합 인덱스라 id 만 보면 남의 게임·남의 슬롯 항목도 통과한다
 
 // ─── 공유 상수 (js/marble.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운 — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산
@@ -19,17 +20,50 @@ const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamst
 const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
 // ─── 방 단위 스킨 경제 (사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) ───
-// 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN. 구매·소유·장착은 mb.wallets/mb.skins(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
+// 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN. 구매·소유·장착은 mb.wallets/mb.equip(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
 // 로그인 여부와 무관(손님도 동일) — DB coins/cosmetics 는 쓰지 않는다. 승리 보너스 없음.
 const ROOM_SEED_COINS = 200;
 const COIN_RACE_JOIN = 10;
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
-// ─── 동물 스킨 (상점 marble_skin 슬롯, docs/goal/marble-skins-all-creatures.md) ───
-// mb.skins[name] = { id, creature, skin, skinName } | null — 이 방 안에서만 산다. 상점 [장착] → 클라가 marble:equipSkin { cosmeticId|null } →
-// 서버가 카탈로그와 방 지갑 소유(ownsInRoom)를 확인해 여기 넣는다. 방을 나가면 rooms.js/chat.js 가 지운다(지갑도 함께).
-// 시뮬 입력이 아니다: layoutBalls 뒤에 공에 skin 문자열만 얹는다(시트 이름 = creature-skin). 손님도 동일하게 동작(DB 없음).
+// ─── 꾸미기 슬롯 (상점 marble_skin / marble_balloon, docs/goal/marble-skins-all-creatures.md + marble-balloon-accessory.md) ───
+// mb.equip[name] = { marble_skin: {...}|null, marble_balloon: {...}|null } — 이 방 안에서만 산다. 상점 [장착] → 클라가
+// marble:equip { slot, cosmeticId|null } → 서버가 카탈로그와 방 지갑 소유(ownsInRoom)를 확인해 여기 넣는다.
+// 방을 나가면 rooms.js/chat.js 가 지운다(지갑도 함께).
+//   marble_skin   = 동물 시트 교체({creature}-{skin}). **동물마다 따로 장착된다** — equip[name].marble_skin 은
+//                   { creature: {id, creature, skin, skinName} } 맵이다. 고슴도치 스킨을 끼워도 돼지 스킨은 그대로 남는다
+//                   (사용자 2026-09-23). 고른 동물의 것만 공에 적용된다.
+//   marble_balloon = 머리 위에 줄로 매단 스프라이트. **공용이라 하나만** 장착된다(사용자 2026-09-23) — 값 하나.
+// 둘 다 시뮬 입력이 아니다: layoutBalls 뒤에 공에 문자열만 얹는다. 손님도 동일하게 동작(DB 없음).
+const EQUIP_SLOTS = ['marble_skin', 'marble_balloon'];
+
+// 카탈로그 항목 → 방 장착값. 슬롯이 요구하는 필드가 없으면(marble_*_none) 해제(null). 소유 검사는 호출부.
+const SLOT_RESOLVERS = {
+    marble_skin(item) {
+        if (typeof item.creature !== 'string' || typeof item.skin !== 'string' || !CREATURES.includes(item.creature)) return null;
+        return { id: item.id, creature: item.creature, skin: item.skin, skinName: item.displayName || item.name || '' };
+    },
+    marble_balloon(item) {
+        if (typeof item.sprite !== 'string' || !/^[a-z0-9-]+$/.test(item.sprite)) return null;   // 시트 이름이 곧 파일 경로라 형식을 제한한다
+        return { id: item.id, sprite: item.sprite };
+    }
+};
+
+function roomEquip(mb, name) {
+    if (!mb.equip) mb.equip = {};
+    if (!mb.equip[name]) mb.equip[name] = {};
+    return mb.equip[name];
+}
+function equippedIn(mb, name, slot) {
+    const e = mb.equip && mb.equip[name];
+    return (e && e[slot]) || null;
+}
+// 동물별 스킨 맵 (없으면 빈 객체). marble_skin 만 이 형태다.
+function skinMap(mb, name) {
+    const v = equippedIn(mb, name, 'marble_skin');
+    return (v && typeof v === 'object') ? v : {};
+}
 // 방 지갑 — 없으면 시드 코인으로 만든다(첫 접근 = 입장 후 첫 상점/장착/한 판)
 function roomWallet(mb, name) {
     if (!mb.wallets) mb.wallets = {};
@@ -45,18 +79,31 @@ function ownsInRoom(mb, name, item) {
 }
 function walletView(mb, name) {
     const w = roomWallet(mb, name);
-    const s = mb.skins && mb.skins[name];
-    return { balance: w.balance, owned: w.owned.slice(), equipped: s ? { marble_skin: s.id } : {} };
+    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, name) };
 }
-// 카탈로그 항목 → 방 장착값. creature 가 없는 항목(marble_skin_none)은 해제(null). 소유 검사는 호출부.
-function skinFromItem(item) {
-    if (!item || typeof item.creature !== 'string' || typeof item.skin !== 'string' || !CREATURES.includes(item.creature)) return null;
-    return { id: item.id, creature: item.creature, skin: item.skin, skinName: item.displayName || item.name || '' };
+// 클라 공용 형식 { slot: id } — 안 낀 슬롯은 키 자체를 뺀다(ShopModule 이 그렇게 읽는다)
+// 클라(ShopModule)가 '장착중' 표시에 쓴다. 한 슬롯에 여러 개가 동시에 장착될 수 있으면 배열로 준다.
+function equippedIds(mb, name) {
+    const out = {};
+    const skins = Object.keys(skinMap(mb, name)).map(c => skinMap(mb, name)[c].id);
+    if (skins.length) out.marble_skin = skins;            // 동물마다 하나씩 — 배열
+    const b = equippedIn(mb, name, 'marble_balloon');
+    if (b) out.marble_balloon = b.id;                     // 공용 — 값 하나
+    return out;
 }
-// 고른 동물이 스킨의 동물일 때만 { skin, skinName } 을 돌려준다(다른 동물을 고르면 스킨은 무시, 장착은 유지). 공 객체에 스프레드해서 얹는다.
-function skinFields(mb, name, creature) {
-    const s = mb.skins && mb.skins[name];
-    return (s && s.creature === creature) ? { skin: s.skin, skinName: s.skinName } : {};
+function equipFromItem(slot, item) {
+    const resolve = item ? SLOT_RESOLVERS[slot] : null;
+    return resolve ? resolve(item) : null;
+}
+// 공에 얹을 외형 필드. 스킨은 고른 동물이 스킨의 동물일 때만(다른 동물을 고르면 무시하되 장착은 유지),
+// 풍선은 동물과 무관하게 항상. 공 객체에 스프레드해서 얹는다.
+function cosmeticFields(mb, name, creature) {
+    const out = {};
+    const s = skinMap(mb, name)[creature];   // 고른 동물의 스킨만 — 다른 동물 것은 그대로 남아 있되 안 쓰인다
+    if (s) { out.skin = s.skin; out.skinName = s.skinName; }
+    const b = equippedIn(mb, name, 'marble_balloon');
+    if (b) out.balloon = b.sprite;
+    return out;
 }
 
 function clearMarbleTimers(mb) {
@@ -67,7 +114,8 @@ function clearMarbleTimers(mb) {
 
 // 당첨 순위 투표 → 룰렛 (경마 N등 투표와 같은 방식: 득표 비례 가중 랜덤, 서버 RNG).
 // 참가자(준비하고 방에 있는 사람)의 표만 센다. 표가 없으면 기본 꼴등.
-// 한쪽에만 몰려도 룰렛은 돈다(결과는 확정, 연출만) — 경마는 이때 스핀을 건너뛰지만 데구리는 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 고르는 연출을 항상 보여준다(사용자 2026-09-21).
+// 한 표뿐이거나 한쪽에만 몰리면 결과가 이미 정해져 있으니 스핀을 건너뛴다(skipAnim) — 경마와 같다.
+// (2026-09-21 엔 "선택지가 둘뿐이라 항상 돌린다" 였으나 2026-09-23 사용자 결정으로 뒤집음: 몰표면 연출 없이 정답으로 바로)
 function decideTarget(mb, participants) {
     const votes = {};
     participants.forEach(name => { if (VOTE_TARGETS.includes(mb.rankVotes[name])) votes[name] = mb.rankVotes[name]; });
@@ -83,10 +131,11 @@ function decideTarget(mb, participants) {
         if (pick < seg.count) { winning = seg.target; break; }
         pick -= seg.count;
     }
-    const reason = segments.length === 1
-        ? `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`
-        : `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`;
-    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS }, reason };
+    const skipAnim = segments.length === 1;   // 한 표 또는 몰표 — 뽑을 게 없다
+    const reason = !skipAnim ? `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`
+        : voters.length === 1 ? `한 표뿐이라 ${TARGET_LABEL[winning]} 확정`
+        : `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`;
+    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS, skipAnim }, reason };
 }
 
 // 준비했는데 동물을 안 고른 사람 (입장 순서)
@@ -114,14 +163,20 @@ function canStartMarble(room, gameState, opts) {
     return null;
 }
 
-// 시작 시 공에 스킨 얹기 — 장착(marble:equipSkin)때 방 소유를 확인했지만, 시작 시점에 한 번 더 확인한다(spin-arena 잠금 스킨과 같은 규칙).
-// 결과(순위·타임라인)와 무관한 순수 외형.
-function attachSkins(balls, gameState) {
+// 시작 시 공에 외형 얹기 — 장착(marble:equip)때 방 소유를 확인했지만, 시작 시점에 한 번 더 확인한다(spin-arena 잠금 스킨과 같은 규칙).
+// 결과(순위·타임라인)와 무관한 순수 외형. 풍선은 한 사람의 모든 마리에 붙는다(사용자 2026-09-22).
+function attachCosmetics(balls, gameState) {
     const mb = gameState.marble;
-    if (!mb || !mb.skins) return;
+    if (!mb || !mb.equip) return;
+    const ok = (owner, slot) => {
+        const v = equippedIn(mb, owner, slot);
+        return (v && ownsInRoom(mb, owner, getCatalogItem(v.id))) ? v : null;
+    };
     balls.forEach(b => {
-        const s = mb.skins[b.owner];
-        if (s && s.creature === b.creature && ownsInRoom(mb, b.owner, getCatalogItem(s.id))) { b.skin = s.skin; b.skinName = s.skinName; }
+        const s = skinMap(mb, b.owner)[b.creature];
+        if (s && ownsInRoom(mb, b.owner, getCatalogItem(s.id))) { b.skin = s.skin; b.skinName = s.skinName; }
+        const balloon = ok(b.owner, 'marble_balloon');
+        if (balloon) b.balloon = balloon.sprite;
     });
 }
 
@@ -174,7 +229,8 @@ async function startMarble(room, gameState, io, ctx) {
     const holdStartedAt = Date.now();
     let holdMs;
     if (decision.roulette) {
-        holdMs = ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
+        // 스핀을 건너뛰면 결과만 읽을 시간(FALLBACK_HOLD_MS) — 경마 skipRouletteAnim 과 같은 길이
+        holdMs = decision.roulette.skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
         io.to(room.roomId).emit('marble:rouletteStart', { ...decision.roulette, votes: decision.votes, reason: decision.reason });
     } else {
         holdMs = FALLBACK_HOLD_MS;
@@ -186,7 +242,7 @@ async function startMarble(room, gameState, io, ctx) {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
         const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
-        attachSkins(balls, gameState);   // 시뮬 뒤 — 스킨은 물리·순위에 절대 안 들어간다
+        attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
@@ -202,7 +258,7 @@ async function startMarble(room, gameState, io, ctx) {
     // 통로 걷기도 경주 구간(추월 있음). 캡까지 못 들어간 공은 sim 이 진행도 순으로 정산해 뒤에 붙인다.
     // 당첨 = 룰렛이 정한 순위(mb.target)의 주인 — 'last' 꼴찌(기본) / 'first' 1등.
     const rank = sim.rankPlayers(balls, result.finishOrder, participants, mb.target);
-    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, skin: b.skin, skinName: b.skinName }));   // skin/skinName: 있을 때만(없으면 undefined → JSON 에서 빠짐)
+    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, skin: b.skin, skinName: b.skinName, balloon: b.balloon }));   // skin/skinName/balloon: 있을 때만(없으면 undefined → JSON 에서 빠짐)
     const payload = {
         durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
         balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
@@ -333,7 +389,7 @@ module.exports = (socket, io, ctx) => {
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
             track: sim.buildTrack(Math.max(1, balls.length), null, mb.crowd),
-            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), ...skinFields(mb, b.owner, b.creature) })),
+            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), ...cosmeticFields(mb, b.owner, b.creature) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };
     }
@@ -355,7 +411,7 @@ module.exports = (socket, io, ctx) => {
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
         mb.picks[user.name] = data.creatureId;
-        emitState(room, gameState);   // 스킨은 mb.skins(방 장착값)에서 바로 붙는다 — DB 조회 없음
+        emitState(room, gameState);   // 스킨·풍선은 mb.equip(방 장착값)에서 바로 붙는다 — DB 조회 없음
     });
 
     // 방 지갑 조회 — { ok, balance, owned, equipped } (js/marble-shop.js 가 wallet:get 대신 쓴다). 손님도 가능
@@ -381,8 +437,11 @@ module.exports = (socket, io, ctx) => {
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         const id = data && data.cosmeticId;
-        const item = (typeof id === 'string') ? getCatalogItem(id) : null;
-        if (!item || !skinFromItem(item) || !Number.isInteger(item.price) || item.price < 0) return cb({ ok: false, reason: 'notfound' });
+        const entry = (typeof id === 'string') ? getCatalogEntry(id) : null;
+        // 데구리 슬롯 + 그 슬롯으로 해석되는 항목만 판다(_none 은 해석되지 않아 자동 제외).
+        // 슬롯을 안 보고 "어느 슬롯으로든 해석되면" 으로 두면, 나중에 다른 게임 항목이 sprite 키를 얻는 순간 데구리 방 코인으로 팔린다.
+        const item = (entry && EQUIP_SLOTS.includes(entry.slot) && equipFromItem(entry.slot, entry.item)) ? entry.item : null;
+        if (!item || !Number.isInteger(item.price) || item.price < 0) return cb({ ok: false, reason: 'notfound' });
         const mb = gameState.marble;
         const w = roomWallet(mb, user.name);
         if (w.owned.indexOf(id) !== -1) return cb({ ok: false, reason: 'owned', balance: w.balance });
@@ -392,9 +451,13 @@ module.exports = (socket, io, ctx) => {
         cb({ ok: true, balance: w.balance, owned: w.owned.slice() });
     });
 
-    // 동물 스킨 장착/해제 — 이 방에서만 유지. 소유는 방 지갑(이 방에서 산 것 또는 기본 제공)으로 확인. 손님도 가능
-    // { cosmeticId: id | null } → ack { ok, skin: { id, creature, skin, skinName } | null }. marble_skin_none 또는 null = 해제.
-    socket.on('marble:equipSkin', (data, callback) => {
+    // 꾸미기 장착/해제 — 이 방에서만 유지. 소유는 방 지갑(이 방에서 산 것 또는 기본 제공)으로 확인. 손님도 가능
+    // { slot, cosmeticId: id | null, creature? } → ack { ok, equipped }
+    //   marble_skin   : id 를 주면 그 항목의 동물 칸에 넣는다(다른 동물 칸은 안 건드린다).
+    //                   해제는 어느 동물 칸을 비울지 알아야 하므로 creature 를 같이 보낸다.
+    //                   marble_skin_none 은 "전부 기본 모습" — 모든 동물 칸을 비운다.
+    //   marble_balloon: 공용이라 값 하나. _none 또는 null 이면 해제.
+    socket.on('marble:equip', (data, callback) => {
         if (!rateOk()) return;
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
@@ -402,19 +465,35 @@ module.exports = (socket, io, ctx) => {
         if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
+        const slot = data && data.slot;
+        if (!EQUIP_SLOTS.includes(slot)) return cb({ ok: false, reason: 'slot' });
         const mb = gameState.marble;
         const id = data && data.cosmeticId;
         let resolved = null;
         if (id !== null && id !== undefined) {
             if (typeof id !== 'string') return cb({ ok: false, reason: 'notfound' });
-            const item = getCatalogItem(id);
-            if (!item) return cb({ ok: false, reason: 'notfound' });
-            resolved = skinFromItem(item);
-            if (resolved && !ownsInRoom(mb, user.name, item)) return cb({ ok: false, reason: 'unowned' });
+            const entry = getCatalogEntry(id);
+            if (!entry || entry.slot !== slot) return cb({ ok: false, reason: 'notfound' });   // 다른 슬롯/다른 게임 id 는 거절 — 안 그러면 '해제'로 삼켜 끼고 있던 걸 벗긴다
+            resolved = equipFromItem(slot, entry.item);
+            if (resolved && !ownsInRoom(mb, user.name, entry.item)) return cb({ ok: false, reason: 'unowned' });
         }
-        mb.skins[user.name] = resolved;
+        const eq = roomEquip(mb, user.name);
+        if (slot === 'marble_skin') {
+            if (!eq.marble_skin || typeof eq.marble_skin !== 'object') eq.marble_skin = {};
+            if (resolved) {
+                eq.marble_skin[resolved.creature] = resolved;       // 그 동물 칸만 — 다른 동물 스킨은 유지
+            } else if (id === null || id === undefined || CREATURES.includes(data && data.creature)) {
+                const c = data && data.creature;
+                if (CREATURES.includes(c)) delete eq.marble_skin[c];   // 그 동물만 기본 모습으로
+                else eq.marble_skin = {};                              // 동물을 안 주면 전부 기본 모습으로
+            } else {
+                eq.marble_skin = {};   // marble_skin_none = 전부 기본 모습
+            }
+        } else {
+            eq[slot] = resolved;
+        }
         emitState(room, gameState);
-        cb({ ok: true, skin: resolved });
+        cb({ ok: true, equipped: equippedIds(mb, user.name) });
     });
 
     // 당첨 순위 투표 (준비한 사람, 경주 전) — 1등/꼴등 중 한 표. 같은 칸을 다시 누르면 취소 (경마 voteRank 와 같은 규칙)
@@ -469,10 +548,9 @@ module.exports = (socket, io, ctx) => {
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room || room.gameType !== 'marble') return;
-        // mySkin = 이 방에서 내가 장착한 스킨 id(없으면 null) — 요청 소켓에만. 새로고침 재입장 때 상점 UI 의 장착 표시를 서버 값에 맞춘다(방 전체 브로드캐스트에는 안 실린다)
+        // myEquip = 이 방에서 내가 장착한 슬롯별 id — 요청 소켓에만. 새로고침 재입장 때 상점 UI 의 장착 표시를 서버 값에 맞춘다(방 전체 브로드캐스트에는 안 실린다)
         const user = gameState.users.find(u => u.id === socket.id);
-        const mine = user && gameState.marble.skins[user.name];
-        socket.emit('marble:stateUpdated', { ...publicState(gameState), mySkin: mine ? mine.id : null });
+        socket.emit('marble:stateUpdated', { ...publicState(gameState), myEquip: user ? equippedIds(gameState.marble, user.name) : {} });
     });
 
     // 게임 시작 (호스트) — 검문은 canStartMarble, 실행은 startMarble (예약 발화와 같은 경로)

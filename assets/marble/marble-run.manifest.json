@@ -3808,5 +3808,168 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "balloonsPlaceholder": {
+    "batch": "local-pil-2026-09-22",
+    "status": "placeholder-generated",
+    "generator": "AutoTest/spritemake/make-balloons.py",
+    "spec": "docs/goal/marble-balloon-accessory.md",
+    "note": "저녁 메뉴 야식 7종(marble_balloon 슬롯, UI 표기 \"야식\"). 이미지 생성 모델 없이 PIL 도형으로 그린 임시본 — 같은 스크립트로 언제든 바이트 동일하게 재생성된다. 나중에 GPT/SpriteMake 그림으로 갈아끼울 때는 캔버스 96×128, 매듭 (48,106), 외곽선 #5A3D52 4px(±40 허용 — pngquant 팔레트 양자화 때문에 정확한 값은 안 나온다), 하드 에지 알파, 그리고 실루엣이 캔버스 가장자리에서 5px 이상 떨어질 것. 생성기의 contract_check 가 이 다섯 가지를 전부 검사한다(외곽선 검사는 2026-09-23 추가 — 없던 동안 잘린 그림 3장이 통과했다).",
+    "assets": {
+      "balloon-chicken": {
+        "image": "accessories/balloon-chicken.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-chicken.webp",
+        "md5": "f6b9b3a7d837f28ce80013beca222de1",
+        "qaStatus": "PASS"
+      },
+      "balloon-pizza": {
+        "image": "accessories/balloon-pizza.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-pizza.webp",
+        "md5": "72988d07427b6d8256ed14047141e660",
+        "qaStatus": "PASS"
+      },
+      "balloon-tteokbokki": {
+        "image": "accessories/balloon-tteokbokki.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-tteokbokki.webp",
+        "md5": "55d4f36b595b137fb8ca202e3d675533",
+        "qaStatus": "PASS"
+      },
+      "balloon-jokbal": {
+        "image": "accessories/balloon-jokbal.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-jokbal.webp",
+        "md5": "c8d73b6de3ab3efbd0da2f17ca249b2e",
+        "qaStatus": "PASS"
+      },
+      "balloon-gimbap": {
+        "image": "accessories/balloon-gimbap.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-gimbap.webp",
+        "md5": "65ca79809e7155375027c74246899b76",
+        "qaStatus": "PASS"
+      },
+      "balloon-burger": {
+        "image": "accessories/balloon-burger.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-burger.webp",
+        "md5": "88a9726753ba6b3ac2c1763fb771d6f0",
+        "qaStatus": "PASS"
+      },
+      "balloon-tangsuyuk": {
+        "image": "accessories/balloon-tangsuyuk.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-tangsuyuk.webp",
+        "md5": "c6ab69bc862bf1d8caeea3cdc47232dd",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

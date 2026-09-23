@@ -199,6 +199,15 @@ var MarbleRender = (function () {
         if (im === undefined) { im = new Image(); im.src = A + 'creatures/' + key + SKIN_SUFFIX[group] + '.webp' + ASSET_VER; images[k] = im; }
         if (onLoad && im && !im.complete) im.addEventListener('load', onLoad, { once: true });
     }
+    // 풍선(상점 marble_balloon) — 서버가 공에 얹는 b.balloon(= 카탈로그 sprite)으로 'accessories/{sprite}.webp' 를 처음 쓸 때 로드.
+    // 스킨과 같은 이유로 지연 로드한다(한 방에서 실제로 쓰이는 건 몇 종뿐). 파일이 없으면 그냥 안 그린다(줄도 안 그린다).
+    // 규격은 docs/goal/marble-balloon-accessory.md 의 스프라이트 계약 — 셀 96×128, 매듭 (48, 106).
+    function ensureBalloon(sprite, onLoad) {
+        var k = imgKey('accessories', sprite), im = images[k];
+        if (im === undefined) { im = new Image(); im.src = A + 'accessories/' + sprite + '.webp' + ASSET_VER; images[k] = im; }
+        if (onLoad && im && !im.complete) im.addEventListener('load', onLoad, { once: true });
+        return im;
+    }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
@@ -282,7 +291,7 @@ var MarbleRender = (function () {
 
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
+            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
@@ -513,6 +522,7 @@ var MarbleRender = (function () {
 
         // ─── 그리기 유틸 ───
         function toScreenY(y) { return y - cam.y + view.h / 2; }
+        function viewTopY() { return view.h / 2 - view.h / (2 * (cam.zoom || 1)); }   // 현재 줌에서 화면 맨 윗줄에 해당하는 그리기 좌표(머리 위 장식이 잘리는지 볼 때)
         // 컬링은 줌을 반영한 실제 세로 시야로 — 줌아웃(결승 프레임 0.5x)에서 논리 뷰 높이로만 재면 스탠드처럼 아래쪽이 통째로 안 그려진다
         function visible(y, margin) { var half = view.h / 2 / (cam.zoom || 1), dy = y - cam.y; return dy > -half - margin && dy < half + margin; }
         function drawSprite(group, name, x, y, w, h, opt) {
@@ -1054,12 +1064,48 @@ var MarbleRender = (function () {
             }
             ctx.restore();
             drawNameTag(b, x, toScreenY(y) - r - 7 * textBoost(), strong);
+            if (b.balloon && overlayQ) overlay(drawBalloon, [b, x, toScreenY(y) - r, strong]);   // 이름표 뒤에 — 줄이 이름표에 가려지면 풍선이 이름표에 매달린 것처럼 보인다
+        }
+        // ─── 풍선 (상점 marble_balloon, docs/goal/marble-balloon-accessory.md) ───
+        // 동물을 안 가리는 공용 액세서리 — 머리 꼭대기에서 오른쪽 위로 줄을 뻗어 스프라이트를 매단다.
+        // 어느 포즈(서기·구르기·걷기·잠·몸싸움·독수리)든 "몸 위치"만 있으면 되므로 drawBadge/drawRing 두 곳에서만 부른다.
+        // 경주 화면(overlayQ 가 살아 있을 때)에서만 — 응원석·비석은 몸 위 표식을 안 단다.
+        var BALLOON_CELL_W = 96, BALLOON_CELL_H = 128;     // 소스 셀 (스프라이트 계약)
+        var BALLOON_KNOT_X = 48, BALLOON_KNOT_Y = 106;     // 줄이 붙는 점 (소스 px) — 그림이 바뀌어도 여기는 고정
+        var BALLOON_LIFT = 30, BALLOON_DRIFT = 13;         // 머리 꼭대기 → 매듭까지: 위로 / 오른쪽으로 (표시 px)
+        var BALLOON_ANCHOR_DX = 5;                         // 줄이 시작하는 지점을 살짝 오른쪽으로 — 가운데 이름표를 피한다
+        var BALLOON_STRING = '#5a3d52';                    // 동물 시트 외곽선과 같은 색
+        var ballClock = 0;                                 // 흔들림 시계(ms): 재생 중엔 재생 시각(모든 클라 동일), 대기 화면은 idleClock
+        function drawBalloon(b, ax, ay, strong) {          // ax, ay = 머리 꼭대기(그리기 좌표)
+            var im = ensureBalloon(b.balloon);
+            if (!im || !im.complete || !im.naturalWidth) return;   // 아직 로드 전이거나 파일이 없으면 줄도 안 그린다
+            var kOffY = BALLOON_KNOT_Y * SRC_SCALE, w = BALLOON_CELL_W * SRC_SCALE;
+            // 줄 길이·기울기는 이름표와 같이 textBoost 를 탄다. 폰(view.ui≈2.1)에서는 이름표만 커져서,
+            // 안 태우면 풍선이 커진 이름표 오른쪽 절반을 덮어 이름 끝 글자가 가려졌다(2026-09-23 검증).
+            var f = textBoost();
+            // 화면 위로 나가면 줄을 줄여 붙잡는다 — 모든 마리에 달리므로 선두 공은 화면 위쪽에 자주 붙는다.
+            // 머리 자체가 화면 맨 위 (풍선 높이)px 안쪽이면 위에 공간이 없어 잘린다 — 이름표·zz 등 머리 위 표식과 같은 한계다.
+            var ky = Math.min(ay - 4, Math.max(ay - BALLOON_LIFT * f, viewTopY() + 2 + kOffY));
+            var sway = Math.sin(ballClock / 620 + b.id * 1.7);
+            var sx = ax + BALLOON_ANCHOR_DX;
+            var kx = sx + BALLOON_DRIFT * f + sway * 3;
+            kx = clamp(kx, w / 2, TRACK_W - w / 2);   // 트랙 좌우 끝에 붙은 공의 풍선이 화면 밖으로 잘리지 않게
+            ctx.save();
+            if (highlightMine && !strong) ctx.globalAlpha *= OTHER_RING_ALPHA;   // 강조 모드: 남의 풍선은 이름표·링과 같은 만큼 옅게
+            ctx.strokeStyle = BALLOON_STRING; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(sx, ay);
+            ctx.quadraticCurveTo(sx + (kx - sx) * 0.2, ay - (ay - ky) * 0.62, kx, ky);   // 줄이 살짝 처지게
+            ctx.stroke();
+            ctx.drawImage(im, 0, 0, BALLOON_CELL_W, BALLOON_CELL_H,
+                kx - BALLOON_KNOT_X * SRC_SCALE, ky - kOffY, w, BALLOON_CELL_H * SRC_SCALE);
+            ctx.restore();
         }
         // 공이 아닐 때(서 있음·걷기·잠·엎어짐)의 표식: 링 없이 머리 바로 위 이름표만 — 링은 구를 때만(스프라이트 원에 딱 맞게)
         // y = 공 중심 기준점(서기 프레임은 발이 y+25.5). 머리 꼭대기 = 발 − 서 있는 키(standHeight). 머리와의 간격 3px 는 f(폰 확대)와 무관 — 알약 높이만 f 를 따른다
         function drawBadge(b, x, y, strong) {
             var f = textBoost(), headTop = y + 25.5 - standHeight(b);
             drawNameTag(b, x, toScreenY(headTop) - 3 - (6 + (b.id % 2) * 9) * f, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
+            if (b.balloon && overlayQ) overlay(drawBalloon, [b, x, toScreenY(headTop), strong]);   // 이름표 뒤에 — 줄이 이름표에 가려지면 풍선이 이름표에 매달린 것처럼 보인다
         }
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
         var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
@@ -1236,6 +1282,7 @@ var MarbleRender = (function () {
 
         function drawBalls(t) {
             var i, b, mine;
+            ballClock = (phase === 'idle') ? idleClock : t;   // 재생 중엔 재생 시각 — 모든 클라가 같은 각도로 흔들린다
             var hf0 = (pieces.holefield || [])[0];
             // 그림자 먼저
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
@@ -1418,8 +1465,8 @@ var MarbleRender = (function () {
             if (L.rowMap[row] == null) return null;
             return { x: L.z.x + L.colW * (col + 0.5), y: L.z.y + L.rowMap[row] * STAND_ROW_H + 18 };   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
         }
-        // 1등 당첨 축하 정보 — target 'first' 이고 꼴찌 비석이 깔린 뒤. 왕관은 1등의 "가장 늦게 들어온" 동물(순위를 확정한 놈)에게.
-        // since < 0 이면 아직 시작 전(카메라는 비석에). 왕관 동물 자리가 접힌 줄이면 그 사람의 보이는 동물 중 제일 늦은 놈, 그것도 없으면 스탠드 가운데
+        // 1등 당첨 축하 정보 — target 'first' 이고 꼴찌 비석이 깔린 뒤. 왕관은 1등의 "가장 먼저 들어온" 동물(순위를 확정한 놈)에게.
+        // since < 0 이면 아직 시작 전(카메라는 비석에). 왕관 동물 자리가 접힌 줄이면 그 사람의 보이는 동물 중 제일 먼저 온 놈, 그것도 없으면 스탠드 가운데
         var celCache = null;
         function celebration(t) {
             if (!data || data.target !== 'first' || !data.result || !data.result.selected || !data.finishOrder.length) return null;
@@ -1433,7 +1480,7 @@ var MarbleRender = (function () {
                 if (b.owner !== owner || b.state !== 'done' || b.id === loserB.id) continue;
                 var slot = standSlot(L, b.finishIdx);
                 if (!slot) continue;
-                if (!crownB || b.finishIdx > crownB.finishIdx) { crownB = b; crownSlot = slot; }
+                if (!crownB || b.finishIdx < crownB.finishIdx) { crownB = b; crownSlot = slot; }
             }
             if (crownB && L.chute) arrival = crownB.finishAt + ((L.chute.y - L.ln.y) + (L.chute.x - (L.z.x + 4))) / CHUTE_SPEED * 1000 + POOF_FX_MS;   // 홈통을 다 굴러 자리에 앉은 뒤
             var x = crownSlot ? crownSlot.x : L.z.x + L.z.w / 2, y = crownSlot ? crownSlot.y : L.z.y + 18;
@@ -1580,7 +1627,7 @@ var MarbleRender = (function () {
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
                 label(b.owner + ' 님의 ' + (b.skinName || CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);   // 스킨을 끼면 스킨 이름(서버 skinName = 카탈로그 displayName)
-                label(data.target === 'first' ? '꼴찌 확정!' : '꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 당첨 순위가 1등(투표 룰렛)이면 당첨은 1등 — 비석은 꼴찌 연출로만
+                if (data.target !== 'first') label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 1등 룰 판은 꼴찌를 안 따진다 — 비석은 경주 종료 연출로만(문구 없음)
             }
         }
         // 비석 (코드 도형): 둥근 머리 회색 돌 + "꼴찌". yBase = 바닥(월드). sinceLand<120ms 동안 착지 눌림
@@ -1598,7 +1645,7 @@ var MarbleRender = (function () {
                 ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
             }
             ctx.fillStyle = '#2b2f36'; ctx.font = 'bold 10px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('꼴찌', 0, -h / 2 + 2);
+            if (!data || data.target !== 'first') ctx.fillText('꼴찌', 0, -h / 2 + 2);   // 1등 룰 판은 꼴찌 글자 없이
             ctx.restore();
         }
 
@@ -1673,14 +1720,20 @@ var MarbleRender = (function () {
         }
 
         // ─── HUD ───
-        // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다: 자기 동물이 전부 골에 들어간 순서.
-        // 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순. 행의 동물 = 그 기준이 된 동물
+        // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다. 행의 동물 = 그 기준이 된 동물
+        // 꼴등 룰('last'): 자기 동물이 전부 골에 들어간 순서. 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순.
+        // 1등 룰('first'): 자기 동물 중 제일 먼저 들어온 동물 순서. 한 마리라도 들어간 사람은 그 동물의 finishIdx 순으로 위에, 아직 없는 사람은 선두 동물 진행도 순.
         function updateHud() {
-            var rem = 0, byOwner = {};
+            var rem = 0, byOwner = {}, first = data && data.target === 'first';
             for (var i = 0; i < balls.length; i++) {
-                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: true });
+                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: !first });
+                if (b.state !== 'done') rem++;
+                if (first) {
+                    if (b.state === 'done') { if (!o.done || b.finishIdx < o.ball.finishIdx) { o.done = true; o.ball = b; } }
+                    else if (!o.done && (!o.ball || progress(b) > progress(o.ball))) o.ball = b;
+                    continue;
+                }
                 if (b.state === 'done') { if (o.done && (!o.ball || b.finishIdx > o.ball.finishIdx)) o.ball = b; continue; }
-                rem++;
                 if (o.done) { o.done = false; o.ball = b; }
                 else if (progress(b) < progress(o.ball)) o.ball = b;
             }
@@ -1790,7 +1843,7 @@ var MarbleRender = (function () {
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
                     if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(hw - w - 4, yy - 2, w - 8, HUD_RANK_ROW - 1, 4); ctx.fill(); }
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
-                    ctx.fillText(idx === n - 1 && n > 1 ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);
+                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);   // 1등 룰 판은 꼴찌 표기 없이 등수만
                     drawMiniIcon(b, hw - w + 35, yy + 7, HUD_ICON_PX, b.owner === myName);
                     ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';
                     var name = b.owner.length > 7 ? b.owner.slice(0, 7) + '…' : b.owner;
@@ -1882,6 +1935,16 @@ var MarbleRender = (function () {
             c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
             if (im) { c.imageSmoothingEnabled = false; c.drawImage(im, (col || 0) * CELL, 0, CELL, CELL, 0, 0, iconCanvas.width, iconCanvas.height); }
             else { c.fillStyle = '#c8b28c'; c.beginPath(); c.arc(iconCanvas.width / 2, iconCanvas.height / 2, iconCanvas.width / 3, 0, Math.PI * 2); c.fill(); }
+        };
+        // 풍선 아이콘(상점 카드용) — 세로로 긴 셀(96×128)을 캔버스 높이에 맞춰 가운데. 미로드면 로드 뒤 다시 그린다(카드는 한 번만 그리므로)
+        R.drawBalloonIcon = function (iconCanvas, sprite) {
+            var c = iconCanvas.getContext('2d');
+            var im = ensureBalloon(sprite, function () { R.drawBalloonIcon(iconCanvas, sprite); });
+            c.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
+            if (!im || !im.complete || !im.naturalWidth) return;
+            var h = iconCanvas.height, w = h * BALLOON_CELL_W / BALLOON_CELL_H;
+            c.imageSmoothingEnabled = true;
+            c.drawImage(im, 0, 0, BALLOON_CELL_W, BALLOON_CELL_H, (iconCanvas.width - w) / 2, 0, w, h);
         };
 
         return R;
