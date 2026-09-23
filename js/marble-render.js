@@ -372,6 +372,7 @@ var MarbleRender = (function () {
                         break;
                     }
                     case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.scuffle = -1; b.startledAt = -1e9; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'eagleMiss': fxList.push({ type: 'eaglemiss', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;   // 헛발톱 — 동물은 그대로, 독수리만 빈 발로 날아오른다(drawEagleFree)
                     case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'land':
                         if (data.cutMs != null && e.t >= data.cutMs && b.id === data.finishOrder[data.finishOrder.length - 1]) {   // 혼자 내려온 꼴찌: 착지 = 확정, 그 자리에 비석(drawLastBall). 자리는 착지 직후 샘플에서
@@ -1167,10 +1168,13 @@ var MarbleRender = (function () {
             var count = data.track.eagles || 1, tt = Math.max(0, t);
             for (var ei = 0; ei < count; ei++) {
                 var grab = null;   // 이 독수리가 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
-                for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if (ge.type === 'eagleGrab' && (ge.eagle || 0) === ei && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
+                for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if ((ge.type === 'eagleGrab' || ge.type === 'eagleMiss') && (ge.eagle || 0) === ei && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
                 var pos, left;
-                if (grab && t >= grab.t && t < grab.t + grab.dur) continue;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
-                if (grab && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
+                if (grab && grab.type === 'eagleGrab' && t >= grab.t && t < grab.t + grab.dur) continue;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
+                if (grab && t >= grab.t && t < grab.t + grab.dur) {   // 헛발톱: 잡았을 때와 같은 곡선으로 빈 발만 날아오른다
+                    var km = (t - grab.t) / grab.dur, em = km * km * (3 - 2 * km);
+                    pos = { x: grab.x + (grab.tx - grab.x) * em, y: grab.y + (grab.ty - grab.y) * em - Math.sin(km * Math.PI) * EAGLE_ARC - 8 }; left = grab.tx < grab.x;
+                } else if (grab && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
                     var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS, ei); if (!p0) continue;
                     var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
                     pos = { x: p0.x + (grab.x - p0.x) * e, y: p0.y + (grab.y - 8 - p0.y) * e }; left = grab.x < p0.x;
@@ -1674,6 +1678,7 @@ var MarbleRender = (function () {
                         if (kk < 0.7) label('슝!', x, y - 28 - kk * 20, 'rgba(160,225,255,' + (1 - kk).toFixed(2) + ')', 13);
                         break;
                     }
+                    case 'eaglemiss': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y - 6, 80, 80, { sx: frame * 80, sw: 80, alpha: 0.7 * (1 - k) }); label('놓쳤다!', x, y - 40 - k * 24, 'rgba(255,255,255,' + (1 - k).toFixed(2) + ')', 14); break;
                     case 'eagledrop': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y + 8, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } label('툭!', x, y - 24 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14); break;
                     case 'warpout':   // 짝 파이프에서 뿅
                         if (!visible(y, 40)) return;

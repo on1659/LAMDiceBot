@@ -107,7 +107,7 @@ const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위�
 //    꼴찌 결정전에선 쉬는 시간을 짧게 해 바쁘게 움직이고, 통로에서 달리는 놈(walk)을 뚜껑 앞에서 기다리는 놈보다 3배 우선(사용자 2026-09-21 2차).
 //    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
 const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
-const EAGLES_BY_CROWD = { solo: 1, normal: 1, many: 2 };   // 마릿수 단계별 독수리 수(사용자 2026-09-21; 3단계 축소로 옛 조금·보통 값 승계). 같은 독수리는 같은 놈을 두 번 안 잡지만 다른 독수리는 잡을 수 있다
+const EAGLE_COUNT_WEIGHTS = { solo: [0.7, 0.2, 0.1], normal: [0.3, 0.5, 0.2], many: [0.15, 0.35, 0.5] };   // 독수리 1·2·3마리 확률(사용자 2026-09-23: 판마다 랜덤, 1마리 모드는 1마리가 잘 나오게). 한 번 채인 놈은 어느 독수리도 다시 안 잡는다
 // 예산(사용자 2026-09-21): 남은 동물이 EAGLE_FINAL_ALIVE 보다 많을 땐 독수리 전체 합쳐 EAGLE_MAX_EARLY 회 — 초반에 다 써서 막판에 못 움직이던 것.
 //    남은 동물이 EAGLE_FINAL_ALIVE 이하가 되는 순간 카운터를 0 으로 되돌리고 전체 EAGLE_MAX_FINAL 회. 같은 독수리는 같은 놈 재납치 금지(유지).
 //    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
@@ -122,7 +122,10 @@ const EAGLE_WALK_WEIGHT = 3;
 const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
 const EAGLE_ARC = 140;            // 비행 중 곡선 높이(위로)
 const EAGLE_DROP_ABOVE_SEESAW = 70;   // 낙하 지점 = 결승 프레임 위쪽 시소 바로 위(시소 y − 이 값) — 풍차까지 올리면 25s 손해·화면 밖(사용자 2026-09-21: "가운데 돌아가는 거쯤")
+const EAGLE_DROP_MIN_ABOVE_HF = 40;   // 낙하 높이는 랜덤(사용자 2026-09-23): 가장 높으면 지금 자리(시소 위), 가장 낮으면 구멍밭 윗변에서 이만큼 위
+const EAGLE_DROP_LATE_W = 0.6;       // 후반일수록 낮게: 낮은 정도 = 진행도(골인 비율)×이 값 + 랜덤×(1−이 값). 초반 0~40%, 막판 60~100% 구간
 const EAGLE_DROP_DX = 130;        // 시소 좌우 이만큼 떨어진 자리(쪽은 시드)
+const EAGLE_MISS_P = 0.5;         // 헛발톱 확률(사용자 2026-09-23 "독수리 킹받는다"): 급강하는 똑같이 하되 못 채고 빈 발로 같은 곡선을 날아오른다. 동물은 제자리, 출격 예산·쉬는 시간·재도전 금지는 잡은 것과 같이 친다
 const VALLEY_H = DEV_H + VAR_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
 // ⑦-d 워프 파이프 방(갈래 골짜기 끊긴 경사로 아래, docs/goal/marble-warp-pipes.md): 마리오식 서 있는 파이프 6개가 한 화면에.
 //    윗줄 [1][2][3] / 통나무 한 줄 / 아랫줄 [4][5][6], 짝 1↔6·2↔5·3↔4(대각선 교차). 들어가면 짝 파이프에서 위로 뿅 튀어나온다 —
@@ -199,7 +202,6 @@ function mulberry32(seed) {
 // ═══════════════════════════════════════════════════════════
 function buildTrack(ballCount, rng, crowd) {
     rng = rng || (() => 0.75);   // rng 없으면(테스트·덤프) 댐 틈은 오른쪽
-    const eagles = EAGLES_BY_CROWD[crowd] || EAGLES_BY_CROWD[CROWD_DEFAULT];
     const rows = Math.max(1, Math.ceil(ballCount / START_ROW_SIZE));
     const startH = rows * START_SPACING + 40;
     const p = [];
@@ -376,6 +378,10 @@ function buildTrack(ballCount, rng, crowd) {
     ];
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
+    const ew = EAGLE_COUNT_WEIGHTS[crowd] || EAGLE_COUNT_WEIGHTS[CROWD_DEFAULT];   // 맨 끝에서 뽑는다 — 앞선 rng 순서(트랙 모양)를 안 바꾸게
+    let er = rng(), eagles = ew.length;
+    for (let i = 0; i < ew.length; i++) { er -= ew[i]; if (er < 0) { eagles = i + 1; break; } }
+
     return {
         width: TRACK_W, startY: -startH, goalY: laneY, goalX: GOAL_X, endY: laneTop + LANE_H + 260,
         ballR: BALL_R, napR: NAP_R, eagles,
@@ -449,7 +455,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish
  *              scuffle/scuffleEnd 는 ball 대신 { a, b, hole } (a = 왼쪽 공). scuffleEnd.startled = 뚜껑이 열려 떨어진 것(→ land.dizzy)
  */
 async function simulate(balls, seed, track) {
@@ -468,7 +474,7 @@ async function simulate(balls, seed, track) {
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
         stuckSince: 0, lidAt: -1e9, lidHole: -1, lidSince: 0, scuffle: -1, scuffled: false, moleAt: -1e9, springAt: -1e9, springOnSince: -1, ffDone: false,
         warpDone: {}, warpUntil: 0, warpOut: null,
-        carry: null, eagledBy: {}    // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 잡은 적 있는 독수리 index → true
+        carry: null, eagled: false, eagledBy: {}    // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 채인 적 있음 / 노린 적 있는 독수리 index → true
     }));
 
     // 조각 분류
@@ -693,19 +699,24 @@ async function simulate(balls, seed, track) {
             const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? Math.min(EAGLE_MAX_FINAL, eagles.length) : Math.max(EAGLE_MAX_EARLY_MIN, Math.floor(n * EAGLE_MAX_EARLY_RATIO)))) break;   // 결승전 예산은 독수리 수를 넘지 않는다(소인원 1마리 → 1회)
             const cands = [], wWalk = eagleFinal ? EAGLE_WALK_WEIGHT : 1, wWait = eagleFinal ? 1 : EAGLE_WAIT_WEIGHT_EARLY;
             for (const b of B) {
-                if (b.eagledBy[ei]) continue;   // 내가 잡았던 놈은 다시 안 잡는다(다른 독수리는 상관없음)
+                if (b.eagled || b.eagledBy[ei]) continue;   // 한 번 채인 놈은 어느 독수리도 다시 안 잡는다 / 헛발톱 친 놈은 그 독수리만 다시 안 노린다
                 if (b.state === 'walk') { for (let w = 0; w < wWalk; w++) cands.push(b); }   // 막판엔 달리는 놈 우선
                 else if (b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) { for (let w = 0; w < wWait; w++) cands.push(b); }   // 초반엔 몰린 놈 덜어 내기
             }
             if (cands.length && eg.nextAt < 0) eg.nextAt = t + EAGLE_WAIT_MS + ei * EAGLE_STAGGER_MS;
             if (cands.length && eg.nextAt >= 0 && t >= eg.nextAt) {
                 const v = cands[Math.floor(rng() * cands.length)];
-                const side = rng() < 0.5 ? -1 : 1;
-                v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, t0: t, t1: t + EAGLE_FLY_MS };
-                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.scuffled = false; v.eagledBy[ei] = true;
+                const side = rng() < 0.5 ? -1 : 1, miss = rng() < EAGLE_MISS_P;
+                const dropTop = (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, dropLow = holefield.zone.y - EAGLE_DROP_MIN_ABOVE_HF;
+                const tx = TRACK_W / 2 + side * EAGLE_DROP_DX, ty = Math.round(dropTop + (Math.min(1, finishedCount / Math.max(1, n - 1)) * EAGLE_DROP_LATE_W + rng() * (1 - EAGLE_DROP_LATE_W)) * Math.max(0, dropLow - dropTop));
+                v.eagledBy[ei] = true;
+                if (!miss) {
+                    v.carry = { x0: v.x, y0: v.y, x1: tx, y1: ty, t0: t, t1: t + EAGLE_FLY_MS };
+                    v.eagled = true; v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.scuffled = false;
+                }
                 const alive = B.filter(b => b.state !== 'done').length;
                 eagleCount++; eg.nextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
-                pushEvent(t, 'eagleGrab', v, { eagle: ei, x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
+                pushEvent(t, miss ? 'eagleMiss' : 'eagleGrab', v, { eagle: ei, x: Math.round(v.x), y: Math.round(v.y), tx, ty, dur: EAGLE_FLY_MS });
             }
         }
 
