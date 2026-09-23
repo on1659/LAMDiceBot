@@ -1,4 +1,29 @@
 ========================================
+📋 Summit Log - 2026-09-23 (데구리 독수리 너프 — 헛발톱·마릿수 랜덤·재납치 금지·낙하 높이)
+========================================
+
+## 변경 파일
+- socket/marble-sim.js: EAGLE_MISS_P = 0.5 — 잡기 판정 때 헛발톱이면 eagleMiss 이벤트(동물 상태 그대로, eagleGrab 과 같은 x·y·tx·ty·dur). 출격 예산·쉬는 시간·그 독수리 재도전 금지는 잡은 것과 같이 친다
+- socket/marble-sim.js: EAGLES_BY_CROWD(고정 1/1/2) → EAGLE_COUNT_WEIGHTS — 판마다 1~3마리 가중 랜덤(solo 70/20/10, normal 30/50/20, many 15/35/50). buildTrack 맨 끝에서 rng 를 뽑아 트랙 모양 rng 순서는 불변
+- socket/marble-sim.js: b.eagled — 한 번 채인 동물은 어느 독수리도 다시 안 잡음(헛발톱 친 놈은 그 독수리만 제외 — eagledBy 유지)
+- socket/marble-sim.js: 낙하 y 랜덤 — 위 = 기존 자리(시소 y − 70), 아래 = 구멍밭 윗변 − EAGLE_DROP_MIN_ABOVE_HF(40). 낮은 정도 = 진행도(finishedCount/(n−1)) × EAGLE_DROP_LATE_W(0.6) + rng × 0.4 → 후반일수록 낮게
+- js/marble-render.js: eagleMiss 처리 — drawEagleFree 가 eagleGrab·eagleMiss 둘 다 급강하/복귀 대상으로 보고, 헛발톱 구간은 잡은 것과 같은 곡선(EAGLE_ARC)으로 빈 발 비행. fx 'eaglemiss'(먼지 + '놓쳤다!')
+- marble-multiplayer.html: marble-render.js v69 → v70
+
+## 상세
+- 이유: 사용자 제보 "독수리가 너무 킹받는다" — 채 가는 빈도·손해를 줄인다. 급강하·날아오르는 연출은 유지
+- 카메라 독수리 추적(firstGrabT)은 eagleGrab 만 — 헛발톱은 추적 안 함
+- 결과는 서버 시뮬에서만 결정(rng = 시드). 클라는 이벤트 재생
+
+## 검증
+- node -c 통과(sim·render)
+- 노드 하네스 40시드 × 3모드: 독수리 수 분포 solo 24/11/5·normal 7/24/9·many 5/11/24, 잡기:헛발톱 ≈ 1:1, 같은 동물 중복 납치 0, SIM_CAP 도달 0, 평균 길이 58~66s(변경 전과 비슷)
+- 낙하 낮은 정도(0 = 시소 위, 100% = 구멍밭 위): 초반 22~25% → 후반 63~71%
+- 브라우저 실제 한 판은 미확인
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-23 (데구리 대기 화면 몸싸움 연출 버그 3개)
 ========================================
 
