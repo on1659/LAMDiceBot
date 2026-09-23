@@ -16,6 +16,7 @@ var MarbleRender = (function () {
     // 대기 화면 애니: 출발대 위 동물들이 가만있지 않고 서성이고, 주기마다 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
     var IDLE_SCUF_PERIOD_MS = 5200;  // 몸싸움 한 판 주기 (다가감 → 밀기 → 화들짝 → 어지러움)
     var IDLE_WANDER_X = 9, IDLE_WANDER_Y = 3;
+    var IDLE_SCUF_REACH = 2;         // 몸싸움 때 서로 쪽으로 다가가는 거리 — 중심 간격 30 → 26, 머리만 맞닿게
     // 카운트다운 복제 연출: 사람당 1마리(num 1)는 대기 때부터 서 있고, 나머지는 이 구간에 순서대로 위에서 떨어져 마릿수를 보여준다
     var SPAWN_START_MS = -COUNTDOWN_MS + 400;
     var SPAWN_END_MS = CURL_START_MS - 350;   // 웅크리기 전에 전원 착지
@@ -1249,10 +1250,11 @@ var MarbleRender = (function () {
             var isA = b.id === aId, loserIsA = hash01(w * 3 + 2) < 0.5, loser = isA === loserIsA;
             var toward = isA ? 1 : -1;   // a(왼쪽)는 오른쪽으로, b(오른쪽)는 왼쪽으로
             res.flip = !isA;             // 서로 마주 봄 (시트는 오른쪽을 향함)
-            if (ph < 0.2) { res.dx = toward * 7 * (ph / 0.2); res.dy = 0; res.col = Math.floor(ic / 120) % 4; }
-            else if (ph < 0.7) { res.dx = toward * 7 + toward * Math.sin(ic / 70) * 1.5; res.dy = 0; res.pose = 'push'; res.col = Math.floor(ic / 130) % 4; res.growl = true; }
-            else if (ph < 0.85) { res.dx = toward * (loser ? -6 : 7); res.dy = 0; res.pose = loser ? 'startled' : 'walk'; res.col = 0; }
-            else { res.dx = toward * (loser ? -6 : 4); res.dy = 0; res.pose = loser ? 'dizzy' : 'walk'; res.col = Math.floor(ic / 220); }
+            res.fight = true;            // drawBalls 대기 화면 z-order: 싸우는 둘은 맨 앞
+            if (ph < 0.2) { res.dx = toward * IDLE_SCUF_REACH * (ph / 0.2); res.dy = 0; res.col = Math.floor(ic / 120) % 4; }
+            else if (ph < 0.7) { res.dx = toward * IDLE_SCUF_REACH + toward * Math.sin(ic / 70) * 1.5; res.dy = 0; res.pose = 'push'; res.col = Math.floor(ic / 130) % 4; res.growl = true; }
+            else if (ph < 0.85) { res.dx = toward * (loser ? -8 : IDLE_SCUF_REACH); res.dy = 0; res.pose = loser ? 'startled' : 'walk'; res.col = 0; }
+            else { res.dx = toward * (loser ? -8 : 1); res.dy = 0; res.pose = loser ? 'dizzy' : 'walk'; res.col = Math.floor(ic / 220) % 4; }
             return res;
         }
         // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
@@ -1293,6 +1295,14 @@ var MarbleRender = (function () {
             // 독수리에 들린 놈은 공중이라 모든 몸 위에, 이름표·zz 같은 머리 위 표식은 overlayQ 로 맨 위에
             overlayQ = [];
             var order = balls.slice().sort(function (a, c) { return a.y - c.y || a.x - c.x || a.id - c.id; }), carried = [];
+            if (t < 0 && phase === 'idle') {   // 대기 화면: 서성임·몸싸움으로 그려지는 자리가 칸과 달라 실제 자리 기준으로 다시 — 싸우는 둘은 맨 앞
+                var ip = {};
+                for (i = 0; i < balls.length; i++) ip[balls[i].id] = idlePose(balls[i]);
+                order.sort(function (a, c) {
+                    var pa = ip[a.id], pc = ip[c.id];
+                    return (pa.fight ? 1 : 0) - (pc.fight ? 1 : 0) || (a.y + pa.dy) - (c.y + pc.dy) || (a.x + pa.dx) - (c.x + pc.dx) || a.id - c.id;
+                });
+            }
             for (i = 0; i < order.length; i++) {
                 b = order[i];
                 if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
