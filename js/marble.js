@@ -562,7 +562,7 @@ var rouletteTimer = null;
 function clearRouletteTick() { if (rouletteTimer) { clearTimeout(rouletteTimer); rouletteTimer = null; } }
 
 // 룰렛: 칸(=막대, 표 없는 쪽은 빈 칸 자체)을 DOM 순서로 돌다가 서버가 정한 쪽(winning)의 첫 막대에서 멈춘다. 감속 곡선은 경마와 동일.
-// 한쪽에만 표가 몰려도 돈다 — 빈 칸을 스쳐 지나가며 "1등이냐 꼴등이냐" 고르는 연출을 항상 보여준다(사용자 2026-09-21)
+// 한 표뿐이거나 한쪽에만 몰리면 서버가 skipAnim 을 준다 — 돌리지 않고 당첨 막대 + 배너로 바로 간다(경마와 같음, 사용자 2026-09-23)
 function playRouletteAnimation(data) {
     var winning = data.winning;
     var animMs = (typeof data.animDurationMs === 'number') ? data.animDurationMs : ROULETTE_ANIM_MS;
@@ -582,6 +582,11 @@ function playRouletteAnimation(data) {
     cells.forEach(function (c) { c.el.classList.remove(c.cls, 'winner'); });
     clearRouletteTick();
     if (!targetBar || targetIdx < 0) {   // 당첨 쪽에 막대가 없을 리 없지만(표가 있어야 당첨) 방어 — 배너만
+        updateTargetBanner(winning, true, marbleState.targetReason);
+        return;
+    }
+    if (data.skipAnim) {   // 뽑을 게 없다 — 스핀 없이 결과로 점프
+        targetBar.classList.add('winner');
         updateTargetBanner(winning, true, marbleState.targetReason);
         return;
     }
@@ -1308,7 +1313,7 @@ socket.on('marble:rouletteStart', function (data) {
     marbleState.target = data.winning;
     marbleState.targetReason = data.reason || '';
     enterRoulettePhase();
-    setGameStatus('당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active', 'target');
+    setGameStatus(data.skipAnim ? '당첨 순위 확정' : '당첨 순위 룰렛 — 누가 당첨될지 정하는 중…', 'active', 'target');
     playRouletteAnimation(data);
 });
 

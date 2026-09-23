@@ -114,7 +114,8 @@ function clearMarbleTimers(mb) {
 
 // 당첨 순위 투표 → 룰렛 (경마 N등 투표와 같은 방식: 득표 비례 가중 랜덤, 서버 RNG).
 // 참가자(준비하고 방에 있는 사람)의 표만 센다. 표가 없으면 기본 꼴등.
-// 한쪽에만 몰려도 룰렛은 돈다(결과는 확정, 연출만) — 경마는 이때 스핀을 건너뛰지만 데구리는 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 고르는 연출을 항상 보여준다(사용자 2026-09-21).
+// 한 표뿐이거나 한쪽에만 몰리면 결과가 이미 정해져 있으니 스핀을 건너뛴다(skipAnim) — 경마와 같다.
+// (2026-09-21 엔 "선택지가 둘뿐이라 항상 돌린다" 였으나 2026-09-23 사용자 결정으로 뒤집음: 몰표면 연출 없이 정답으로 바로)
 function decideTarget(mb, participants) {
     const votes = {};
     participants.forEach(name => { if (VOTE_TARGETS.includes(mb.rankVotes[name])) votes[name] = mb.rankVotes[name]; });
@@ -130,10 +131,11 @@ function decideTarget(mb, participants) {
         if (pick < seg.count) { winning = seg.target; break; }
         pick -= seg.count;
     }
-    const reason = segments.length === 1
-        ? `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`
-        : `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`;
-    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS }, reason };
+    const skipAnim = segments.length === 1;   // 한 표 또는 몰표 — 뽑을 게 없다
+    const reason = !skipAnim ? `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`
+        : voters.length === 1 ? `한 표뿐이라 ${TARGET_LABEL[winning]} 확정`
+        : `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`;
+    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS, skipAnim }, reason };
 }
 
 // 준비했는데 동물을 안 고른 사람 (입장 순서)
@@ -227,7 +229,8 @@ async function startMarble(room, gameState, io, ctx) {
     const holdStartedAt = Date.now();
     let holdMs;
     if (decision.roulette) {
-        holdMs = ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
+        // 스핀을 건너뛰면 결과만 읽을 시간(FALLBACK_HOLD_MS) — 경마 skipRouletteAnim 과 같은 길이
+        holdMs = decision.roulette.skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
         io.to(room.roomId).emit('marble:rouletteStart', { ...decision.roulette, votes: decision.votes, reason: decision.reason });
     } else {
         holdMs = FALLBACK_HOLD_MS;

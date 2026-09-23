@@ -1,4 +1,30 @@
 ========================================
+📋 Summit Log - 2026-09-23 (데구리 한 표·몰표면 룰렛 스핀 생략)
+========================================
+
+## 변경 파일
+- socket/marble.js: decideTarget 이 roulette.skipAnim(segments 1개) 을 싣는다. 시작 흐름 holdMs = skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS
+- js/marble.js: playRouletteAnimation 이 skipAnim 이면 틱 없이 당첨 막대 winner + 배너로 점프. 상태 문구 '당첨 순위 확정'
+- marble-multiplayer.html: marble.js 캐시 v37 → v38
+
+## 상세
+- 사용자 2026-09-23 요청: "투표할 때 한 표나 몰표면 연출 없이 정답으로 바로".
+  2026-09-21 결정("선택지가 둘뿐이라 몰려도 항상 돌린다")을 뒤집은 것 — 코드 주석에 경위를 남김.
+- 레퍼런스(경마 socket/horse.js skipRouletteAnim · js/horse-race.js skipAnim)와 같은 방식: 스핀만 건너뛰고,
+  결과를 읽을 FALLBACK_HOLD_MS(3초)는 둔다. 0초로 하면 배너가 한 프레임 뜨고 바로 카운트다운이라 결과를 못 읽는다.
+- 이벤트는 그대로 marble:rouletteStart — 필드 skipAnim 만 추가(없으면 undefined → 기존 스핀). 새 이벤트 없음.
+- 사유 문구를 한 표/몰표로 갈랐다: "한 표뿐이라 1등 확정" / "투표가 1등에만 몰려 1등 확정". 투표는 익명이라 이름은 안 넣는다.
+- 투표 0 표(기본 꼴등, marble:reasonHold) 경로는 원래부터 스핀이 없어 변경 없음.
+- 결과 결정(서버 RNG 가중 추첨)은 그대로 — 몰표면 원래도 확정이었다. 연출·대기 시간만 바뀐다.
+
+## 검증
+- 소켓 3케이스(스크래치 스크립트): 몰표 skipAnim=true 룰렛→reveal 3.0s / 한 표 true 3.0s / 갈린 표 false 8.5s, 당첨=reveal.target 일치
+- 브라우저: 몰표로 시작 → 0.9초 뒤 1등 막대 winner + 배너 + 사유 카드, 스핀 틱 0회
+- qa-marble-skin-shop-test ALL PASS, marble-determinism-test ALL PASS
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-23 (데구리 야식 슬롯 + 동물별 스킨 장착 + 구매 즉시 장착)
 ========================================
 
