@@ -3,7 +3,7 @@
   "sheets": {
     "aura": {
       "label": "LAMDiceBot Horse Aura Cosmetics",
-      "image": "aura-atlas.png",
+      "image": "aura-atlas.webp",
       "grid": { "columns": 4, "rows": 23 },
       "cell": { "width": 128, "height": 128 },
       "canvas": { "width": 512, "height": 2944 },
