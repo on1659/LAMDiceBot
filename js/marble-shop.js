@@ -9,7 +9,7 @@
  *   - 미리보기(buildPreview hook) — 스킨은 시트(creatures/{creature}-{skin}.webp) idle 첫 칸, 야식은 accessories/{sprite}.webp
  *   - 소유/구매 상태(itemState hook — tier/requires 없음)
  *   - 지갑·구매·장착 전부 방 단위(roomWallet: marble:shop:get / marble:shop:buy / marble:equip) — 계정 DB 지갑·prefs 를 쓰지 않는다.
- *     방에 들어오면 200코인, 한 판 +10, 산 스킨·장착은 그 방에서만 유효하고 나가면 전부 사라진다(사용자 2026-09-22: 1회용). 손님도 동일.
+ *     방에 들어오면 200코인, 한 판 +10, 머문 5분마다 +10, 산 스킨·장착은 그 방에서만 유효하고 나가면 전부 사라진다(사용자 2026-09-22: 1회용). 손님도 동일.
  *   - 장착 스킨 조회(getEquippedSkinFor) — 동물마다 따로 장착된다. js/marble.js 가 선택 버튼 아이콘·배지에 쓴다
  *
  * 공정성: 스킨·풍선 모두 순수 외형. 서버(socket/marble.js)가 소유를 확인해 공에 얹고(시뮬 뒤), 클라는 id 만 보낸다.
@@ -27,6 +27,15 @@
     var _socket = null;
     var _roomEquip = {};   // { slot: id } — 이 방에서 서버가 확인해 준 장착값. 페이지 수명 = 방 수명(나가면 /game 으로 이동)
 
+    // 동물 없는 스킨 카드(기본 모습)에 그릴 동물: 동물 탭 → 그 동물, 전체 탭 → 내가 고른 동물. 없으면 null(이모지)
+    function baseCreatureForPreview(item) {
+        if (item.id !== 'marble_skin_none') return null;
+        var g = typeof ShopModule.getGroupFilter === 'function' ? ShopModule.getGroupFilter() : 'all';
+        if (g && g !== 'all') return g;
+        var picks = (window.marbleState && marbleState.picks) || {};
+        return picks[window.currentUser] || null;
+    }
+
     // ── 미리보기 빌더 (스킨 = 시트 idle 첫 칸 / 풍선 = 스프라이트 한 장) ──
     function buildItemPreview(slot, item) {
         var box = document.createElement('div');
@@ -34,7 +43,13 @@
         box.setAttribute('aria-hidden', 'true');
         var R = window.marbleRendererForShop;   // js/marble.js 가 렌더러 생성 후 노출
         var cv = null;
-        if (item.creature && R && typeof R.drawCreatureIcon === 'function') {
+        var baseCreature = item.creature ? null : baseCreatureForPreview(item);
+        if (baseCreature && R && typeof R.drawCreatureIcon === 'function') {
+            // '전부 기본 모습' — 동물 탭이면 그 동물, 전체 탭이면 내가 고른 동물의 기본 모습(스킨 없음)
+            cv = document.createElement('canvas');
+            cv.width = ICON_PX; cv.height = ICON_PX; cv.className = 'mshop-icon';
+            R.drawCreatureIcon(cv, baseCreature, 0, null);
+        } else if (item.creature && R && typeof R.drawCreatureIcon === 'function') {
             cv = document.createElement('canvas');
             cv.width = ICON_PX; cv.height = ICON_PX; cv.className = 'mshop-icon';
             R.drawCreatureIcon(cv, item.creature, 0, item.skin);   // 시트 미로드면 기본 시트/원 폴백(렌더러가 처리)
@@ -118,6 +133,17 @@
                 var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
                 R.drawCreatureIcon(cv, creature, 0, null);
                 return cv;
+            },
+            // '전체' 필터에서 지금 고른 동물의 스킨을 기본 모습 카드 바로 뒤로 당긴다 — 상점·옷장을 열자마자 갈아입힐 후보가 보이게(데구리 c0013fa).
+            // 나머지는 카탈로그 순서 그대로, 동물 필터에서는 원래 순서. 공유 셸(shop-shared.js)에는 이 정렬 훅만 추가됐다
+            sortItems: function (items, ctx) {
+                if (ctx.slot !== SKIN_SLOT || ctx.groupFilter !== 'all') return items;
+                var picks = (window.marbleState && marbleState.picks) || {}, mine = picks[window.currentUser];
+                if (!mine) return items;
+                var base = items.filter(function (it) { return !it.creature; });
+                var own = items.filter(function (it) { return it.creature === mine; });
+                var rest = items.filter(function (it) { return it.creature && it.creature !== mine; });
+                return base.concat(own, rest);
             },
             buildPreview: buildItemPreview,
             itemState: itemState,

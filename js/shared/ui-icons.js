@@ -1,5 +1,5 @@
 /**
- * 공용 UI 아이콘 — OS 이모지 대체 (assets/ui/icons.png, 10×10 셀 128px)
+ * 공용 UI 아이콘 — OS 이모지 대체 (assets/ui/icons.webp — 원본 icons.png 무손실 변환, 10×10 셀 128px)
  * 의뢰서: docs/spritemake-request/applied/2026-09-22-ui-icons-shared-m.md
  *
  * 마크업:  <i class="ui ui-dice"></i>  (css/ui-icons.css, 글자 크기를 따라감 1.2em)
@@ -17,7 +17,7 @@
 (function (global) {
     'use strict';
 
-    var ATLAS_URL = '/assets/ui/icons.png?v=2';
+    var ATLAS_URL = '/assets/ui/icons.webp?v=3';
     var UI_ICON_COLS = 10;
     var UI_ICON_PX = 128;
 

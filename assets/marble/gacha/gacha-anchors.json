@@ -1,0 +1,443 @@
+{
+ "measurementMethod": "pixel scans of final rest art; prior target coordinates are not pass criteria",
+ "machine": {
+  "w": 512,
+  "h": 704,
+  "opaqueBBox": [
+   22,
+   4,
+   489,
+   700
+  ],
+  "ground": 699,
+  "globe": {
+   "cx": 204,
+   "cy": 268,
+   "r": 130,
+   "method": "largest cyan glass-fill component bbox"
+  },
+  "lamp": {
+   "x": 179,
+   "y": 7,
+   "w": 54,
+   "h": 52,
+   "method": "neutral off-bulb component plus 5px outline inset"
+  },
+  "crankPivot": [
+   228,
+   524
+  ],
+  "coinSlot": {
+   "frame": [
+    284,
+    444,
+    310,
+    491
+   ],
+   "slit": [
+    294,
+    452,
+    301,
+    483
+   ],
+   "center": [
+    297,
+    467
+   ],
+   "note": "2026-09-24 LAMDiceBot: gold coin slot right of the paw emblem, measured on the rest frame (gold outline bbox / dark slit bbox). The coin animation flies to center and is pushed in edge-on; a coin of visible diameter ~29 fits the 32 px slit"
+  },
+  "outlet": [
+   165,
+   596
+  ],
+  "rail": {
+   "rail": {
+    "from": [
+     165,
+     578
+    ],
+    "to": [
+     380,
+     615
+    ]
+   },
+   "stopperLeft": 416,
+   "method": "warm wood top-pixel line fit; rightmost wood component left face"
+  },
+  "path": {
+   "from": [
+    172,
+    587
+   ],
+   "to": [
+    396,
+    641
+   ],
+   "diameter": 40,
+   "centreAboveRail": 20,
+   "method": "2026-09-23 LAMDiceBot: per-column groove (dark line between the beams); capsule bottom sinks 12 px below the groove (hidden by railFront)",
+   "sink": 12
+  },
+  "crankPivotMethod": "round 3: centre of the brass plate bbox (66 px) measured on the rest frame",
+  "outletHole": {
+   "box": [
+    140,
+    546,
+    182,
+    580
+   ],
+   "note": "dark opening measured on the rest frame (42x34) \u2014 the capsule starts here"
+  },
+  "lip": "removed 2026-09-23 \u2014 the round-2 lip layer was a mis-cut blob of body/crank plate above the outlet, occluding the rolling capsule. The capsule is always drawn in front of the machine now.",
+  "railGroove": {
+   "line": [
+    [
+     170,
+     599
+    ],
+    [
+     396,
+     649
+    ]
+   ],
+   "samples": [
+    [
+     200,
+     604
+    ],
+    [
+     260,
+     620
+    ],
+    [
+     320,
+     633
+    ],
+    [
+     380,
+     644
+    ]
+   ],
+   "note": "2026-09-23: the rail is two parallel beams with a dark groove between them \u2014 the ball rolls in the groove, not on the back beam top edge (it looked floating)"
+  },
+  "railFront": {
+   "file": "machine/gacha-machine-rail-front.webp",
+   "x": [
+    168,
+    416
+   ],
+   "band": 34,
+   "note": "2026-09-23: front beam of the two-beam rail (rows from the per-column groove down 34 px, x 168..415) cut from the rest frame. Draw order while rolling: machine -> capsule -> railFront, so the capsule sits IN the groove and its lower part is hidden"
+  },
+  "globeBalls": {
+   "empty": "machine/gacha-globe-empty.webp",
+   "sheet": "machine/gacha-globe-balls.webp",
+   "cell": 58,
+   "colors": [
+    "pink",
+    "green",
+    "blue",
+    "purple",
+    "yellow",
+    "gold"
+   ],
+   "center": [
+    204,
+    275
+   ],
+   "orbitMax": 98,
+   "pile": [
+    {
+     "c": 5,
+     "x": 299.7,
+     "y": 292.0
+    },
+    {
+     "c": 0,
+     "x": 260.7,
+     "y": 377.5
+    },
+    {
+     "c": 2,
+     "x": 230.1,
+     "y": 261.4
+    },
+    {
+     "c": 0,
+     "x": 71.0,
+     "y": 318.2
+    },
+    {
+     "c": 4,
+     "x": 186.4,
+     "y": 259.7
+    },
+    {
+     "c": 3,
+     "x": 152.1,
+     "y": 339.1
+    },
+    {
+     "c": 2,
+     "x": 212.6,
+     "y": 301.6
+    },
+    {
+     "c": 3,
+     "x": 95.0,
+     "y": 354.4
+    },
+    {
+     "c": 1,
+     "x": 274.0,
+     "y": 256.7
+    },
+    {
+     "c": 3,
+     "x": 329.0,
+     "y": 334.0
+    },
+    {
+     "c": 4,
+     "x": 132.0,
+     "y": 275.9
+    },
+    {
+     "c": 0,
+     "x": 173.7,
+     "y": 379.4
+    },
+    {
+     "c": 4,
+     "x": 238.9,
+     "y": 339.0
+    },
+    {
+     "c": 2,
+     "x": 302.3,
+     "y": 369.2
+    },
+    {
+     "c": 1,
+     "x": 343.5,
+     "y": 292.5
+    },
+    {
+     "c": 0,
+     "x": 88.1,
+     "y": 277.7
+    },
+    {
+     "c": 1,
+     "x": 114.8,
+     "y": 316.4
+    },
+    {
+     "c": 4,
+     "x": 169.1,
+     "y": 299.6
+    },
+    {
+     "c": 1,
+     "x": 195.3,
+     "y": 341.4
+    },
+    {
+     "c": 2,
+     "x": 131.2,
+     "y": 377.2
+    },
+    {
+     "c": 0,
+     "x": 282.2,
+     "y": 331.9
+    },
+    {
+     "c": 2,
+     "x": 217.7,
+     "y": 379.2
+    },
+    {
+     "c": 1,
+     "x": 149.6,
+     "y": 235.6
+    },
+    {
+     "c": 3,
+     "x": 256.0,
+     "y": 296.5
+    }
+   ],
+   "note": "2026-09-24 LAMDiceBot: balls cut from the rest art (pink/green/blue/yellow; purple = blue hue-shift, gold = yellow recolour) + empty glass layer. The game draws the pile itself so balls can tumble while the crank turns; replaces the 3 baked stir frames",
+   "orbitNote": "safe radius: min glass inner radius ~127 - ball radius 29; horizontal stretch x1.28 in code (globe is wider)",
+   "boundary": {
+    "center": [
+     204,
+     268
+    ],
+    "radii": [
+     165,
+     167,
+     168,
+     168,
+     168,
+     168,
+     168,
+     168,
+     167,
+     167,
+     167,
+     156,
+     157,
+     149,
+     145,
+     139,
+     138,
+     138,
+     136,
+     137,
+     138,
+     141,
+     146,
+     150,
+     155,
+     159,
+     167,
+     167,
+     167,
+     167,
+     168,
+     169,
+     168,
+     168,
+     168,
+     167,
+     165,
+     166,
+     165,
+     163,
+     161,
+     161,
+     158,
+     158,
+     157,
+     156,
+     154,
+     155,
+     149,
+     143,
+     134,
+     129,
+     127,
+     125,
+     125,
+     125,
+     131,
+     133,
+     135,
+     143,
+     162,
+     154,
+     154,
+     154,
+     156,
+     159,
+     159,
+     161,
+     162,
+     163,
+     165,
+     166
+    ],
+    "note": "glass inner edge: distance from center per 5 deg (0 deg = +x, clockwise in screen coords), from the eroded glass mask"
+   }
+  },
+  "chute": {
+   "hole": [
+    161,
+    399
+   ],
+   "holeRx": 13,
+   "pipe": [
+    147,
+    404,
+    175,
+    468
+   ],
+   "note": "2026-09-24 LAMDiceBot edit (user sketch): brass pipe from the glass floor down into the body right above the outlet hole (x 161). The picked ball shrinks into the hole and drops in; the capsule then comes out of the outlet. Hole painted on globe-empty, pipe on the rest frame; ball-bottom fringe under the empty glass cleaned"
+  }
+ },
+ "crank": {
+  "size": 256,
+  "pivot": [
+   128,
+   128
+  ],
+  "hubDiameter": 68,
+  "zeroDeg": "arm up",
+  "method": "round 3: hub centre of the image-tool source, one NN scale",
+  "restDeg": 90,
+  "restNote": "rest/skip angle 90 (arm pointing right): at 0 (arm up) the arm covers the paw emblem. Spin = restDeg + 360*n clockwise."
+ },
+ "capsule": {
+  "cell": 192,
+  "center": [
+   96,
+   100
+  ],
+  "diameter": 144,
+  "ground": 172,
+  "machineScale": 0.2778,
+  "closed": "capsule-{tier}.png 192x192 \u2014 the game rotates this one sprite while rolling",
+  "open": {
+   "cellW": 256,
+   "cellH": 192,
+   "frames": 6,
+   "center": [
+    96,
+    100
+   ],
+   "ground": 172,
+   "itemAnchor": {
+    "rare": [
+     96,
+     112
+    ],
+    "epic": [
+     96,
+     112
+    ],
+    "legend": [
+     96,
+     114
+    ]
+   },
+   "note": "frame 5 = skip end state; item is drawn over the capsule (feet in the cup opening), lid leans on the right"
+  },
+  "hinge": {
+   "cup": "capsule/capsule-{tier}-cup.webp",
+   "lid": "capsule/capsule-{tier}-lid.webp",
+   "cell": 192,
+   "pivot": [
+    33,
+    104
+   ],
+   "restDeg": -180,
+   "note": "2026-09-24 LAMDiceBot: open frame 5 is drawn as cup + lid hinged at the cup LEFT rim (user: lid on the left, dangling). Lid/cup share the closed-capsule 192 cell coords (centre 96,100). The baked frame 5 (lid on the right) is no longer used. 2026-09-24: rest -180 (fully flipped open, user) + continuous sway"
+  }
+ },
+ "rays": {
+  "size": 384,
+  "center": [
+   192,
+   192
+  ]
+ },
+ "sparkle": {
+  "cell": 96,
+  "center": [
+   48,
+   48
+  ]
+ }
+}

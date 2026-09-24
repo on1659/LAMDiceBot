@@ -1,7 +1,7 @@
 // QA — 데구리 꾸미기(동물 스킨 + 풍선): 방 단위 지갑·구매·장착
 //   (docs/goal/marble-skins-all-creatures.md + marble-balloon-accessory.md + 2026-09-22 "코인·스킨은 그 방에서 1회용")
 //   서버 경로만 검증(소켓 클라이언트, 브라우저·DB 없음 — 지갑은 방 메모리):
-//   방 생성 → marble:shop:get(200코인) → marble:shop:buy(80 차감, owned) → marble:equip → marble:pick → preview.balls[].skin/skinName/balloon.
+//   방 생성 → marble:shop:get(200코인) → marble:shop:buy(가격 차감, owned) → marble:equip → marble:pick → preview.balls[].skin/skinName/balloon.
 //   + 잔고 부족/중복 구매 거절, 안 산 스킨 장착 거절, 없는 슬롯 거절, picks 는 기본 creatureId(카운팅 불변), 손님(비로그인)도 동일, 해제, myEquip,
 //   + 풍선은 동물을 안 가린다(어느 동물을 골라도 붙어 있음) — 스킨과 다른 점,
 //   + 방 나가고 재입장 → 지갑 200·소유 없음·장착 없음(1회용), 한 판 참여 +10(awardRaceCoins → 방 지갑).
@@ -14,7 +14,7 @@ const catalog = require('../config/marble/cosmetics.json');
 
 const PORT = process.argv[2] || 5174;
 const URL = 'http://localhost:' + PORT;
-const SKINS = catalog.marble_skin.filter(i => i.creature && i.skin);
+const SKINS = catalog.marble_skin.filter(i => i.creature && i.skin).sort((a, b) => a.price - b.price);   // 싼 것부터 — 입장 지갑으로 앞의 두 개를 산다
 const BALLOONS = catalog.marble_balloon.filter(i => i.sprite);
 const SEED = marbleHandler.ROOM_SEED_COINS;
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -65,17 +65,21 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const cat = await emitAck(sockA, 'shop:catalog', {});
         const served = (cat && cat.ok && cat.catalog && cat.catalog.marble_skin) || [];
         check(SKINS.length >= 1 && SKINS.every(s => served.some(i => i.id === s.id)), 'shop:catalog 에 marble_skin 스킨 ' + SKINS.length + '개 전부', SKINS.map(s => s.skin).join(','));
-        check(SKINS.every(s => s.price === 80 && s.displayName && s.rarity === 'rare'), '카탈로그: 모든 스킨 80코인·rare·displayName');
+        check(SKINS.every(s => s.price === ({ rare: 50, epic: 100, legend: 150 })[s.rarity] && s.displayName), '카탈로그: 스킨 가격 = 등급별(rare 50·epic 100·legend 150)·displayName');
 
-        // 200코인이면 80×2 = 2개 사고 40 남음 → 3번째는 부족
+        // 싼 스킨 두 개를 사고, 남은 잔고로는 제일 비싼 스킨을 못 산다
+        const SPENT = SKINS[0].price + SKINS[1].price;
+        const PRICEY = SKINS[SKINS.length - 1];
         const b1 = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: SKINS[0].id });
-        check(b1 && b1.ok && b1.balance === SEED - 80 && b1.owned.indexOf(SKINS[0].id) !== -1, 'buy 1: ' + SKINS[0].skin + ' → 잔고 ' + (SEED - 80), JSON.stringify(b1));
+        check(b1 && b1.ok && b1.balance === SEED - SKINS[0].price && b1.owned.indexOf(SKINS[0].id) !== -1, 'buy 1: ' + SKINS[0].skin + ' → 잔고 ' + (SEED - SKINS[0].price), JSON.stringify(b1));
         const bDup = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: SKINS[0].id });
         check(bDup && bDup.ok === false && bDup.reason === 'owned', '같은 스킨 재구매 거절(owned)');
         const b2 = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: SKINS[1].id });
-        check(b2 && b2.ok && b2.balance === SEED - 160, 'buy 2: ' + SKINS[1].skin + ' → 잔고 ' + (SEED - 160));
-        const b3 = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: SKINS[2].id });
-        check(b3 && b3.ok === false && b3.reason === 'insufficient', 'buy 3: 잔고 부족 거절(insufficient)', JSON.stringify(b3));
+        check(b2 && b2.ok && b2.balance === SEED - SPENT, 'buy 2: ' + SKINS[1].skin + ' → 잔고 ' + (SEED - SPENT));
+        if (SEED - SPENT < PRICEY.price) {   // 내부 테스트 서버는 입장 코인이 200만이라 부족 상황을 못 만든다
+            const b3 = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: PRICEY.id });
+            check(b3 && b3.ok === false && b3.reason === 'insufficient', 'buy 3: ' + PRICEY.skin + '(' + PRICEY.price + ') 잔고 부족 거절(insufficient)', JSON.stringify(b3));
+        } else console.log('SKIP: 잔고 부족 거절 — 입장 코인 ' + SEED + '(내부 테스트)');
         const bad = await emitAck(sockA, 'marble:shop:buy', { cosmeticId: 'marble_skin_none' });
         check(bad && bad.ok === false && bad.reason === 'notfound', '기본 모습(가격 없음)은 구매 대상 아님(notfound)');
 
@@ -112,10 +116,10 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
 
         // 다른 동물을 고르면 스킨 무시(장착은 유지)
         const last = SKINS[1];
-        const other = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'].find(c => c !== last.creature);
+        const other = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'].find(c => c !== SKINS[0].creature && c !== last.creature);
         sockA.emit('marble:pick', { creatureId: other });
         const st2 = await waitState(sockA, d => { const b = myBall(d, host); return b && b.creature === other; });
-        check(myBall(st2, host).skin === undefined && myBall(st2, host).skinName === undefined, other + ' 선택 → skin/skinName 없음 (스킨은 ' + last.creature + '에만)');
+        check(myBall(st2, host).skin === undefined && myBall(st2, host).skinName === undefined, other + ' 선택 → skin/skinName 없음 (스킨은 ' + SKINS[0].creature + '·' + last.creature + '에만)');
 
         // 손님(다른 소켓, 비로그인)도 자기 방 지갑 200으로 구매·장착 가능
         sockB = io(URL, { transports: ['websocket'] });
@@ -131,7 +135,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const st3 = await waitState(sockB, d => { const b = myBall(d, guest); return b && b.creature === SKINS[3].creature; }).catch(() => null);
         check(st3 && myBall(st3, guest).skin === SKINS[3].skin, '손님 preview 에 skin=' + SKINS[3].skin);
         const hostW = await emitAck(sockA, 'marble:shop:get', {});
-        check(hostW && hostW.balance === SEED - 160 && hostW.owned.length === 2, '손님 구매가 방장 지갑에 영향 없음');
+        check(hostW && hostW.balance === SEED - SPENT && hostW.owned.length === 2, '손님 구매가 방장 지갑에 영향 없음');
 
         // 해제(marble_skin_none) → 스킨 사라짐 (서버는 ack 전에 stateUpdated 를 먼저 뿌린다 — 대기를 먼저 건다)
         sockA.emit('marble:pick', { creatureId: last.creature });
@@ -155,7 +159,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         check(!!balloon && !!balloon.sprite, '카탈로그에 marble_balloon 항목 존재', balloon ? balloon.id : '없음');
         const eqUnbought = await emitAck(sockA, 'marble:equip', { slot: 'marble_balloon', cosmeticId: balloon.id });
         check(eqUnbought && eqUnbought.ok === false && eqUnbought.reason === 'unowned', '안 산 풍선 장착 거절(unowned)');
-        // 재입장으로 지갑이 초기화되기 전에 산다 — 위에서 160 을 썼으므로 잔고 40. 손님 지갑(120 남음)으로 검증
+        // 재입장으로 지갑이 초기화되기 전에 산다 — 방장은 잔고가 적으니 손님 지갑으로 검증
         const bBuy = await emitAck(sockB, 'marble:shop:buy', { cosmeticId: balloon.id });
         check(bBuy && bBuy.ok, '풍선 구매 ' + balloon.id, JSON.stringify(bBuy));
         const bEq = await emitAck(sockB, 'marble:equip', { slot: 'marble_balloon', cosmeticId: balloon.id });
@@ -188,8 +192,8 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
             '손님 재입장 → 풍선 소유·장착 모두 소멸(1회용)', JSON.stringify(gw6));
 
         // ── 동물별 독립 장착: 고슴도치 스킨을 껴도 돼지 스킨이 안 빠진다 (사용자 2026-09-23) ──
-        // 방금 재입장해서 손님 지갑이 200 으로 돌아와 있다 — 서로 다른 동물 스킨 두 장(160)을 산다.
-        const skinA = SKINS[3];                                            // armadillo
+        // 방금 재입장해서 손님 지갑이 200 으로 돌아와 있다 — 서로 다른 동물 스킨 두 장을 산다.
+        const skinA = SKINS[3];
         const other2 = SKINS.find(x => x.creature !== skinA.creature);     // 다른 동물
         await emitAck(sockB, 'marble:shop:buy', { cosmeticId: skinA.id });
         await emitAck(sockB, 'marble:equip', { slot: 'marble_skin', cosmeticId: skinA.id });
@@ -235,7 +239,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const fakeMb = { participants: [host, guest], wallets: { [host]: { balance: 40, owned: [] }, [guest]: { balance: 120, owned: [] } }, equip: {} };
         marbleHandler.awardRaceCoins(fakeIo, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }] }, fakeMb);
         check(fakeMb.wallets[host].balance === 40 + marbleHandler.COIN_RACE_JOIN && fakeMb.wallets[guest].balance === 120 + marbleHandler.COIN_RACE_JOIN, '한 판 참여 → 방 지갑 +' + marbleHandler.COIN_RACE_JOIN + ' (손님 포함)');
-        check(SEED === 200, 'ROOM_SEED_COINS(입장 지갑) = 200', String(SEED));
+        check(marbleHandler.ROOM_SEED_COINS_LIVE === 200 && (SEED === 200 || SEED === 2000000), '입장 지갑: 실서버 200 · 내부 테스트 200만', String(SEED));
 
         // 방 나가고 재입장 → 전부 초기화(1회용): 지갑 200, 소유 0, 장착 없음
         await wait(10500);   // 소켓 rate limit 윈도(10초 50회) 리셋

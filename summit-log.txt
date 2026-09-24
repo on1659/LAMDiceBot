@@ -1,4 +1,48 @@
 ========================================
+📋 Summit Log - 2026-09-24 (데구리 구슬 뽑기 + 코인 머문 시간 보상 + 단독판 역반영 25개 + 갈림길 판·착지 숨 고르기)
+========================================
+
+## 변경 파일
+- socket/marble.js: marble:gacha:pull(60코인, 등급 60/30/10 → 등급 안 균등, 중복 30 환급, 전설이면 방 채팅 gachaNotice), drawGacha/gachaPool 순수 함수 export, 머문 시간 보상 accrueStay/userWallet(STAY_COIN 10 / STAY_COIN_MS 5분, 타이머 없이 지갑 접근 때 joinTime 기준 누적, stayNextMs 응답), ROOM_SEED_COINS = DEV_GAMES_ENABLED ? 2,000,000 : 200(ROOM_SEED_COINS_LIVE/TEST export), walletView 가 stay 반영
+- socket/marble-sim.js: 플립플롭 갈림길 — 팔(56px, 35°) → 축을 지나는 젖힘판(FF_LEN 85 양쪽, 45°, 축 y +190, 갈림 벽 +280). 옛 팔은 깔때기 왼쪽 벽에서 오른쪽 속도를 얻은 공이 스치지도 않아 20시드 92% 오른쪽행. 젖힘은 판 구역(FF_ZONE_TOP_PAD)에 공이 없는 스텝에 홀수 통과분만 적용(ffPending/ffTouched) — 타고 내려가는 공 밑에서 뒤집히지 않게. 40시드 보통 55%·우르르 50%·솔로 50%. LAND_REST_MS 800: 파이프 착지 뒤 전원 0.8초 숨 고르기(stallKind 'rest', 몸싸움 기절은 그 위에 SCUFFLE_DIZZY_MS 추가)
+- js/marble-gacha.js(신규)·css/marble-gacha.css(신규): 뽑기 모달 + 캔버스 연출. 전부 drawAt(t) 순수 함수, 스킵 = t0 를 timeline(tier).end 로. 오늘 마무리: 타임라인을 timeline(tier) 절대 시각으로 재구성(coin0/crank0/crank1/pick/roll0/roll1/rise0/rise1/shake0/open0/pop/open5/end); ① 코인 넣기 T_COIN 900 — 무대 오른쪽 아래 밖(COIN_FROM)에서 올라와 투입구(anchors machine.coinSlot 실측 (297,467))로 오른쪽에서 진입, 한 바퀴 반 뒤집혀 모로 서서 슬릿 안으로(짧아지고 어두워짐) → 쨍그랑 흔들림·반짝, 잔고 감소는 이 순간(payShown; 스킵·닫기는 showResult) ② 손잡이(섞기) 등급별 TIER_FX.crank/turns 레어 3120(옛 2400×1.3)·4바퀴 / 에픽 3700·5 / 전설 4400·6 ③ 바람 drawWindCone(공 뒤 빛기둥)+drawWind(공 앞 lighter 갈매기 6·줄기 5·시동 고리 2, boundary 클립) — 물리보다 먼저 120ms 부터, 첫 0.7초 돌풍 1.8× ④ 레일 구르기 T_ROLL 1000 → 1350. 유리구 시뮬(simulateGlobe: 중력·충돌·유리벽·바람 기둥·난류, 시드 난수)은 crankMs 를 받아 pickMs/airEnd 를 돌려주고 그리기는 손잡이 기준 tc. 열린 캡슐 = 컵+경첩 뚜껑(왼쪽, 상시 흔들림), 두근두근·섬광·눈부심·반짝이 폭발은 TIER_FX 표. 코인 그림 = 공용 아틀라스 UIIcons.draw('coin')
+- assets/marble/gacha/(신규, 의뢰서 docs/spritemake-request/2026-09-23-marble-gacha-machine.md): machine(휴지·빈 유리·공 6색 시트·램프 4칸·크랭크·레일 앞판)·capsule(닫힘/열림/컵/뚜껑 × 3등급)·fx(빛살 3·반짝이)·icon-gacha·gacha-anchors.json(실측 원본: 유리 boundary 72방향, chute, coinSlot, 캡슐 경첩 pivot 등). ASSET_VER 12
+- config/marble/cosmetics.json: 스킨 등급·가격 재편 — 레어(색만) 50 / 에픽(새 무늬) 100 / 전설(소품) 150, 야식 7종 50(옛 전부 rare 80). 리본돼지·스카프 리본돼지·닌자 너구리·기사 고슴도치·신사 토끼 = legend, 무지개 공벌레·수박 거북이·레서판다·쿠키 햄스터 = epic
+- js/marble.js(+379): 수동 카메라 버튼 연동·순위표 행 클릭 따라가기, 동물 누르면 반응, 동물 마당 MarbleYard('내 동물 고르기' 아래 띠: 서성임·구르기·낮잠·몸싸움·장애물, 시드 PRNG, 소켓 없음), 결과 오버레이 재작성(당첨 동물 크게·순위 줄 동물 idle 스프라이트·꼴등 룰 당첨 줄 스크롤·이름 6자), 동물수 버튼 말풍선 updateCrowdTips(서버 값), 경주 시작 스크롤, MarbleGacha.connect/onRoomEntered 연결
+- js/marble-render.js(+602): 데구리 단독판 역반영 — 축하 카메라 X 클램프 해제(cam.mode celebrate), 줌 반영 세로 클램프, finalK 상한(2~3마리 rear 금지), 폰 순위표 42%·미니맵 70% 상한, 폰 결승 프레임(MOBILE_FRAME_ABOVE_PX 280, 캔버스 비율 1.25→1.4, 줌 하한 1.25), 수동 카메라(드래그·핀치·ctrl+휠, 6px 임계, 더블클릭·꼴찌 확정·새 경주에 자동 복귀, touchAction none, 카메라 버튼 assets/ui/camera-auto/manual.png), 반응(reacts 결정론 해시), 카운트다운 준비!→3→2→1→START!, 조기 확정 판 비석 연기 alpha 음수 버그, 독수리 운반 이름표 중복(noTag), 이름표 높이 통일·「N번」은 한 사람 여러 마리일 때만, 출발대 동물 판자 위(+4)·좌우로만 서성임, 비석 빛 맥박·2.4초 들썩, 대기 화면 미니맵 생략, 순위표·미니맵 얼굴 확대(머리 영역 잘라 그리기), 상태 문구 2배속 구간에만, 야식 줄 30→21, 시트 지연 로드(방에 나온 동물만·sleep/scuffle 시트)
+- css/marble.css(+467): 게임 재질(나무·크림) — '내 동물 고르기'·캔버스 틀·결과 카드(.marble-result-card 300px, 공용 .result-card 는 그대로), 동물 마당·장애물, 카메라 버튼, 동물수 말풍선, 코인 알약
+- js/marble-shop.js·js/shared/shop-shared.js: 공유 셸에 hooks.sortItems(items, {slot, view, groupFilter}) 정렬 훅 + getGroupFilter 추가(데구리만 사용 — '전체' 탭에서 고른 동물 스킨을 기본 모습 카드 뒤로), '전부 기본 모습' 카드에 동물 기본 모습 그리기(baseCreatureForPreview). shop-shared v6·marble-shop v12
+- js/shared/ui-icons.js·css/ui-icons.css·dice-game-multiplayer.html: 공용 아이콘 아틀라스 icons.png → icons.webp(무손실) ?v=3. assets/ui/icons.webp 추가
+- css/horse-shop.css: .hshop-thumb--legend 도 어두운 썸 배경(경마 상점 공용 셸이 데구리 legend 등급을 그릴 때)
+- marble-multiplayer.html: 뽑기 버튼·코인 알약(#marbleCoinPill)·동물 마당(#marbleYard)·결과 카드 marble 전용 클래스·동물수 버튼 data-tip, 캐시버스터 marble.css v26 / marble-gacha.css v18 / marble-gacha.js v42 / marble-render.js v72 / marble.js v44
+- assets/marble: 옛 beaver.webp·mole.webp·fx/dam-burst.webp·pieces/ramp.png 삭제(5차 v2 시트로 대체, 런타임 참조 없음), stage/meadow-tile.webp 손실 압축(226KB → 164KB), marble-run.manifest.json 인수 기록 갱신
+- AutoTest: qa-marble-gacha-test.js(신규 — 풀=살 수 있는 스킨+야식, 2만 회 추첨 60/30/10 ±2%p, 소켓 e2e pull·잔고·중복·장착, 에셋 존재), qa-marble-skin-shop-test.js(등급별 가격·내부 테스트 200만 코인 SKIP 분기)
+- docs: goal 5개 applied(marble-gacha, marble-deguri-backport — camera-finale-fixes·manual-camera·mobile-finish-frame 셋을 대체), spritemake-request 뽑기 기계 의뢰서 + ref/marble-pieces-wood.png
+- update-log.md: 2026-09-24 항목에 뽑기·코인·상점·경주 추가
+
+## 상세 변경 내역
+
+### [뽑기 — 서버 권위]
+- 추첨·가격·환급·소유 전부 socket/marble.js. 클라는 응답(tier·cosmeticId·balance·dupe)을 받은 뒤 연출만 튼다 → 스킵이 네트워크를 기다리지 않는다
+- 풀은 서버 시작 때 카탈로그에서 한 번 계산(gachaPool): 데구리 슬롯의 가격 있는 항목 전부, 야식은 rare. 빈 등급은 가중치에서 빠짐
+- 전설 결과는 chatHistory + newMessage 로 방 전체 알림(CHAT_HISTORY_MAX 100)
+
+### [코인 — 머문 시간 보상]
+- 광고 클릭 보상은 애드센스 무효 클릭 정책 위반이라 거절 → 5분마다 +10. setInterval 없이 지갑을 볼 때 밀린 칸 수만큼 넣고 stayFrom 을 옮긴다(남은 조각은 이월)
+- 내부 테스트(로컬·DEV_GAMES=1 lamtest)는 입장 200만 코인 — 테스트가 잔고 부족 검사를 SKIP 하도록 분기
+
+### [연출 원칙]
+- 클라 연출에 Math.random 없음(흔들림·반짝임·마당 = t 함수 또는 시드 PRNG). 게임 결과와 무관한 화면 상태는 소켓으로 보내지 않는다(수동 카메라·반응·마당)
+- anchors json 이 좌표 원본. anchors·그림이 바뀌면 ASSET_VER 를 올려야 옛 캐시(7일)로 연출이 멈추지 않는다(2026-09-24 사고)
+
+## 검증
+- node --check: server.js·socket/marble.js·marble-sim.js·js/marble.js·marble-render.js·marble-shop.js·marble-gacha.js·shared/shop-shared.js·ui-icons.js·AutoTest 2개 통과
+- 뽑기 연출: 헤드리스 크롬(가짜 시계)으로 레어·전설 프레임 격자 + 전설 12초 GIF 확인(코인 진입·바람·찜·구르기·열림), 코인 단계 스킵 시 잔고·결과 반영 확인
+- 삭제한 에셋 4장의 런타임 참조 없음(grep). 원본 branch 는 origin/feature/marble-run 의 경마 WebP 커밋(acebfe2) 1개 뒤 — 커밋 후 병합
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-23 (데구리 독수리 너프 — 헛발톱·마릿수 랜덤·재납치 금지·낙하 높이)
 ========================================
 
