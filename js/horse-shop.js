@@ -32,12 +32,12 @@
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
 
     // ── 오라 스프라이트 아틀라스 (SpriteMake: horse-aura-cosmetics) ──
-    //   /assets/cosmetics/aura-atlas.png : 512×2944, 4열(펄스 프레임) × 23행(오라별), 셀 128×128.
+    //   /assets/cosmetics/aura-atlas.webp : 512×2944, 4열(펄스 프레임) × 23행(오라별), 셀 128×128.
     //   행 순서는 매니페스트 rowOrder 기준 — 카탈로그 배열 순서와 다르다(rainbow=21, prism=22).
     //   아틀라스 로드 성공 시에만 data-aura-atlas 부여 → CSS가 스프라이트로 렌더.
     //   로드 실패(미배포 등) 시 data-aura-atlas 미부여 → 기존 currentColor 글로우로 안전 폴백.
     //   공정성: 순수 외관. 결과/속도/기믹/소켓 페이로드에 진입하지 않는다.
-    var AURA_ATLAS_URL = '/assets/cosmetics/aura-atlas.png';
+    var AURA_ATLAS_URL = '/assets/cosmetics/aura-atlas.webp';
     var AURA_ATLAS_ROWS = {
         aura_red: 0, aura_blue: 1, aura_green: 2, aura_gold: 3, aura_violet: 4,
         aura_cyan: 5, aura_pink: 6, aura_orange: 7, aura_lime: 8, aura_white: 9,
