@@ -313,7 +313,7 @@ body.hshop-open {
 .hshop-preview-aura[data-aura-atlas] {
     width: 96px;                /* 차(62px)보다 크게 — 작으면 글로우가 차 뒤에 완전히 가려짐 */
     height: 96px;
-    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background: url('/assets/cosmetics/aura-atlas.webp') no-repeat;
     background-size: 384px 2208px;   /* 96*4 × 96*23 */
     background-position-x: 0;
     background-position-y: calc(var(--aura-row, 0) * -96px);
@@ -782,7 +782,7 @@ body.hshop-open {
 .hshop-inv-aura[data-aura-atlas] {
     width: 180px;               /* 차(120px)보다 크게 — 무대(140px)는 세로 클리핑되나 색 링은 또렷 */
     height: 180px;
-    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background: url('/assets/cosmetics/aura-atlas.webp') no-repeat;
     background-size: 720px 4140px;   /* 180*4 × 180*23 */
     background-position-x: 0;
     background-position-y: calc(var(--aura-row, 0) * -180px);
@@ -1090,7 +1090,7 @@ body.hshop-open {
 .cosmetic-aura[data-aura-atlas] {
     width: 84px;                /* 탈것(60px)보다 크게 — 말 박스(80px) 약간 넘지만 클리핑 없음 */
     height: 84px;
-    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background: url('/assets/cosmetics/aura-atlas.webp') no-repeat;
     background-size: 336px 1932px;   /* 84*4 × 84*23 */
     background-position-x: 0;
     background-position-y: calc(var(--aura-row, 0) * -84px);
