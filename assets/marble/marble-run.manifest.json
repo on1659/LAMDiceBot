@@ -3971,5 +3971,109 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "gachaMachine": {
+    "batch": "marble-run-gacha-machine-2026-09-23",
+    "status": "picked-up",
+    "request": "docs/spritemake-request/2026-09-23-marble-gacha-machine.md",
+    "note": "뽑기 기계 세트. 기계 = Codex 2번 시도(이미지 도구) 한 배율 정규화, 섞기 3칸 = 이미지 편집 + 유리 실측 마스크, 손잡이 = 이미지 도구 원본 재정규화, 캡슐 = 이미지 도구 원본에서 포켓몬볼 버튼·띠 제거 편집, 열기 6칸 = 닫힌 캡슐로 LAMDiceBot 세션이 조립(3라운드), 빛살·반짝이 = 코드 생성. 좌표·크기는 gacha/gacha-anchors.json 이 원본. 게이트 54/54(배치 qa/r3-gates.md). 2026-09-23 · 같은 날 lip 레이어 삭제(배출구 위 몸통을 잘못 오려 캡슐을 가림) + 기계 위 캡슐 지름 72→40·경로 재측정(구멍 42×34). · 2026-09-24: 섞기 3칸 삭제 → 빈 유리(globe-empty) + 공 6색 시트(globe-balls, 휴지 그림에서 오림) + 더미 배치(anchors)로 코드가 굴린다. 레일 앞 나무판 레이어(rail-front), 방 화면 뽑기 아이콘(icon-gacha) 추가. · 2026-09-24: 컵·뚜껑 분리(경첩), 유리구 바닥 관(chute) 추가 — 휴지 그림·빈 유리 레이어 편집.",
+    "assets": {
+      "gacha/capsule/capsule-epic-open.webp": {
+        "md5": "c0ef639ce19eadcae4c5f0893f785eea",
+        "bytes": 18964
+      },
+      "gacha/capsule/capsule-epic.webp": {
+        "md5": "13f4c61f709624813e098f1e53fefdae",
+        "bytes": 6526
+      },
+      "gacha/capsule/capsule-legend-open.webp": {
+        "md5": "6f309e4ac1b0827443189c420f90539f",
+        "bytes": 19794
+      },
+      "gacha/capsule/capsule-legend.webp": {
+        "md5": "18d67143807a3b5a90393a03bb2c30ee",
+        "bytes": 6664
+      },
+      "gacha/capsule/capsule-rare-open.webp": {
+        "md5": "0ed5a35630020aa777e8f08cbc06f3d9",
+        "bytes": 19076
+      },
+      "gacha/capsule/capsule-rare.webp": {
+        "md5": "9419181fc1a019ac57d7e1962369a924",
+        "bytes": 5908
+      },
+      "gacha/fx/gacha-rays-epic.webp": {
+        "md5": "df3765fe0627148c89a6eee706bdd474",
+        "bytes": 3012
+      },
+      "gacha/fx/gacha-rays-legend.webp": {
+        "md5": "02f7d892bc8952253f48e7e4cb4785f3",
+        "bytes": 3012
+      },
+      "gacha/fx/gacha-rays-rare.webp": {
+        "md5": "252a8e73159563efc9dcfa21e7cdceb6",
+        "bytes": 3012
+      },
+      "gacha/fx/gacha-sparkle.webp": {
+        "md5": "0538e3e7d54882b1c08ce6ce66f0fa1c",
+        "bytes": 362
+      },
+      "gacha/machine/gacha-crank.webp": {
+        "md5": "48a9b3c3ec530420e68c090b55c2c468",
+        "bytes": 2696
+      },
+      "gacha/machine/gacha-machine-lamp.webp": {
+        "md5": "4f00d1f0d33bbf0f4383538318806e79",
+        "bytes": 3610
+      },
+      "gacha/machine/gacha-machine.webp": {
+        "md5": "e8b5d9c3ccc9ad559cbfb982ad0bd7fe",
+        "bytes": 72386
+      },
+      "gacha/gacha-anchors.json": {
+        "md5": "753118b7fc6ad4f59ff586b76b7d6de0",
+        "bytes": 7413
+      },
+      "gacha/machine/gacha-globe-empty.webp": {
+        "md5": "1e4073aa65da4d0e7a414aee3d6da089",
+        "bytes": 6334
+      },
+      "gacha/machine/gacha-globe-balls.webp": {
+        "md5": "b5ca0c32f5f70774ca5c7e93d1ce44fd",
+        "bytes": 4882
+      },
+      "gacha/machine/gacha-machine-rail-front.webp": {
+        "md5": "8de23319617bd7fd9b862bdec02e1786",
+        "bytes": 3696
+      },
+      "gacha/icon-gacha.webp": {
+        "md5": "646f830b6a933cfd164a2812ce8739cb",
+        "bytes": 4478
+      },
+      "gacha/capsule/capsule-rare-cup.webp": {
+        "md5": "6950cf33e809564936580479a260b305",
+        "bytes": 5680
+      },
+      "gacha/capsule/capsule-rare-lid.webp": {
+        "md5": "c0c7f240d6101652f1d405e87a82ce78",
+        "bytes": 9120
+      },
+      "gacha/capsule/capsule-epic-cup.webp": {
+        "md5": "fbbdacb2e2ed72b5773c9171c0ee8bd5",
+        "bytes": 5868
+      },
+      "gacha/capsule/capsule-epic-lid.webp": {
+        "md5": "a3b7adb4ba48faa296f2e0562cf5222d",
+        "bytes": 9884
+      },
+      "gacha/capsule/capsule-legend-cup.webp": {
+        "md5": "6b6e974d34042b6466cad8f8404edd5b",
+        "bytes": 5686
+      },
+      "gacha/capsule/capsule-legend-lid.webp": {
+        "md5": "496b2b0b40a7745e37cef3e79caea734",
+        "bytes": 10688
+      }
+    }
   }
 }

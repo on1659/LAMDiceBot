@@ -11,6 +11,21 @@
     --marble-200: rgba(var(--marble-500-rgb), 0.24);
     --marble-sky: #bfe7ff;
 
+    /* 게임 재질(데구리 eca74cb 역반영, 24): 캔버스(픽셀 초원·나무 울타리·금색 HUD 배지)와 같은 재료 — '내 동물 고르기'·캔버스 틀·결과 카드에만 쓴다. 공용 부품(ControlBar·채팅·주문·준비·상점 모달)은 손대지 않는다 */
+    --marble-ink: #2b2416;
+    --marble-muted: #6e6350;
+    --marble-wood-line: #d9b27f;
+    --marble-wood-edge: #d3b184;
+    --marble-wood-soft: #eadbbd;
+    --marble-cream: #fff8e6;
+    --marble-paper: #fffdf5;
+    --marble-gold: #ffd166;
+    --marble-gold-deep: #e0a93a;
+    --marble-gold-ink: #3a2a00;
+    --marble-gold-soft: #fff3cc;
+    --marble-gold-soft-ink: #3a2a00;
+    --marble-gold-ring: #ffe7a8;
+
     /* horse-race.css가 사용하는 var(--horse-*)를 marble 색으로 alias (C-4) */
     --horse-500: var(--marble-500);
     --horse-600: var(--marble-600);
@@ -40,7 +55,7 @@
     width: 1.2em;
     height: 1.2em;
     vertical-align: -0.25em;
-    background: url('/assets/ui/icons.png?v=2') no-repeat 0 0 / 1000% 1000%;
+    background: url('/assets/ui/icons.webp?v=3') no-repeat 0 0 / 1000% 1000%;
     flex-shrink: 0;
 }
 .mi-paw       { background-position: 0% 0%; }
@@ -79,13 +94,29 @@
 /* 로딩 화면 발자국 — 80px 이모지 자리 */
 .mi-loading { width: 80px; height: 80px; margin: 0 auto 20px; display: block; animation: bounce 1s infinite; }
 
-/* ===== 동물 선택 (대기 중) ===== */
+/* 다크 모드(theme.css [data-theme="dark"]) — 재질 색을 어둡게 뒤집어 글자 대비 4.5:1 이상을 지킨다(밝은 크림 위 진한 글자 → 어두운 나무 위 밝은 글자) */
+[data-theme="dark"] {
+    --marble-ink: #f3e9d2;
+    --marble-muted: #cdbfa3;
+    --marble-wood-line: #8a6a3a;
+    --marble-wood-edge: #5a4322;
+    --marble-wood-soft: #4a3a24;
+    --marble-cream: #33291b;
+    --marble-paper: #2a2419;
+    --marble-gold-soft: #4d3d14;
+    --marble-gold-soft-ink: #ffe7a8;
+    --marble-gold-ring: #8a6a3a;
+}
+
+/* ===== 동물 선택 (대기 중) — 나무 테두리 팻말(두꺼운 아래 모서리) 위 크림색 카드 ===== */
 #marblePickSection {
     margin: 0 0 20px;
     padding: 14px 12px 12px;
-    background: var(--bg-primary);
-    border: 2px solid var(--marble-100);
-    border-radius: 12px;
+    background: var(--marble-paper);
+    color: var(--marble-ink);
+    border: 3px solid var(--marble-wood-line);
+    border-radius: 18px;
+    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(90, 60, 20, 0.10);
 }
 
 .marble-pick-title {
@@ -134,10 +165,11 @@
     max-width: 140px;
     margin: 0;
     padding: 10px 8px 8px;
-    background: var(--bg-white);
-    color: var(--text-primary);
-    border: 2px solid var(--gray-300);
-    border-radius: 12px;
+    background: var(--marble-cream);
+    color: var(--marble-ink);
+    border: 2px solid var(--marble-wood-soft);
+    border-radius: 14px;
+    box-shadow: 0 2px 0 var(--marble-wood-edge);   /* 눌리는 나무 버튼 */
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -145,17 +177,24 @@
     -webkit-tap-highlight-color: transparent;
 }
 .marble-creature-btn:hover {
-    border-color: var(--marble-500);
+    border-color: var(--marble-wood-line);
     transform: translateY(-2px);
+    box-shadow: 0 4px 0 var(--marble-wood-edge);
+}
+.marble-creature-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
 }
 .marble-creature-btn:focus-visible {
-    outline: 3px solid var(--marble-accent);
+    outline: 3px solid var(--marble-gold-deep);
     outline-offset: 2px;
 }
+/* 선택 = HUD 금색 배지 색 */
 .marble-creature-btn.selected {
-    border-color: var(--marble-500);
-    background: var(--marble-50);
-    box-shadow: 0 0 0 3px var(--marble-200), 0 6px 16px rgba(var(--marble-500-rgb), 0.28);
+    border-color: var(--marble-gold-deep);
+    background: var(--marble-gold-soft);
+    color: var(--marble-gold-soft-ink);
+    box-shadow: 0 0 0 3px var(--marble-gold-ring), 0 2px 0 var(--marble-wood-edge);
 }
 .marble-creature-btn:disabled {
     opacity: 0.55;
@@ -344,10 +383,11 @@
     width: auto;
     margin: 0;
     padding: 6px 11px;
-    border: 1.5px solid var(--gray-300);
+    border: 2px solid var(--marble-wood-line);
     border-radius: 999px;
-    background: var(--bg-white);
-    color: var(--text-secondary);
+    background: var(--marble-cream);
+    color: var(--marble-ink);
+    box-shadow: 0 2px 0 var(--marble-wood-edge);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 12px;
     font-weight: 800;
@@ -355,10 +395,14 @@
     min-height: 36px;              /* 터치 타깃 */
     cursor: pointer;
 }
+.marble-stage-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
 .marble-stage-btn.is-on {
-    border-color: var(--yellow-400);
-    background: var(--yellow-400);
-    color: #4a3000;
+    border-color: var(--marble-gold-deep);
+    background: var(--marble-gold);
+    color: var(--marble-gold-ink);
 }
 .marble-after-race {
     display: flex;
@@ -370,14 +414,19 @@
     width: auto;
     margin: 0;
     padding: 12px;
-    border: 2px solid var(--marble-accent);
-    border-radius: 8px;
-    background: var(--bg-white);
-    color: var(--marble-accent);
+    border: 2px solid var(--marble-wood-line);
+    border-radius: 12px;
+    background: var(--marble-cream);
+    color: var(--marble-ink);
+    box-shadow: 0 3px 0 var(--marble-wood-edge);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
+}
+.marble-after-btn:active {
+    transform: translateY(3px);
+    box-shadow: none;
 }
 .marble-after-btn-order {
     border-color: var(--yellow-500);
@@ -405,21 +454,67 @@
     z-index: 2;
 }
 
+/* 캔버스 틀 — 나무 테두리(전체화면에선 뗀다). 렌더러는 box.clientWidth(테두리 안쪽)로 캔버스 크기를 잡는다 */
 #marbleCanvasBox {
     position: relative;
     width: 100%;
+    border: 3px solid var(--marble-wood-line);
+    border-radius: 18px;
+    background: var(--marble-sky);
+    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(90, 60, 20, 0.10);
 }
 
 #marbleCanvas {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--marble-sky);
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
+
+/* 카메라 버튼(자동 ⇄ 수동, js/marble-render.js 가 캔버스 박스에 붙인다) — 아래 오른쪽: 미니맵(왼쪽)·순위표(오른쪽 위, 폰 42% 상한)·다시 보기 배지(아래 가운데)·베타 배지·전체화면 버튼과 안 겹친다. 전체화면에서도 보인다 */
+.marble-cam-btn {
+    position: absolute;
+    z-index: 3;
+    right: 10px;
+    bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    max-width: calc(50% - 20px);
+    margin: 0;
+    padding: 6px 12px 6px 9px;
+    border: 2px solid var(--marble-gold-deep);
+    border-radius: 999px;
+    color: var(--marble-gold);
+    background: rgba(43, 36, 22, 0.88);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+.marble-cam-btn[hidden] { display: none; }
+.marble-cam-btn.is-manual {
+    border-color: var(--marble-cream);
+    color: #fff8e6;
+    background: rgba(90, 61, 30, 0.92);
+}
+.marble-cam-btn__icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    image-rendering: pixelated;
+}
+.marble-cam-btn:hover { background: rgba(43, 36, 22, 0.96); }
+.marble-cam-btn:focus-visible { outline: 3px solid var(--marble-gold); outline-offset: 2px; }
 
 /* 캔버스 위 HUD (JS가 채움) — 클릭은 캔버스로 통과 */
 #marbleHud {
@@ -482,11 +577,14 @@
     outline: 2px solid var(--marble-accent);
 }
 
-/* 전체화면: 캔버스가 화면을 채우되 비율 유지 */
+/* 전체화면: 캔버스가 화면을 채우되 비율 유지 (나무 테두리는 뗀다) */
 #marbleCanvasBox:fullscreen {
     width: 100vw;
     height: 100vh;
     background: #000;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -507,6 +605,9 @@
     width: 100vw;
     height: 100vh;
     background: #000;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -558,6 +659,9 @@
         line-height: 32px;
         font-size: 16px;
     }
+    #marbleReplayBadge {   /* 폰: 아래 오른쪽 카메라 버튼과 겹치지 않게 한 단 위로 */
+        bottom: 50px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -570,40 +674,315 @@
     }
 }
 
-/* 결과 오버레이 */
-.marble-result-selected {
-    font-size: 22px;
+/* ===== 결과 카드(8·22) — 공용 .result-overlay/.result-card 는 그대로, .marble-result-card 로만 덮는다.
+   폭 300 = 이름 최대 6글자+… 기준 순위 줄(순위 40 + 동물 26 + 이름 + (나) + 과녁 아이콘)이 넘치지 않는 폭. 이름 줄임은 js/marble.js resultShortName ===== */
+.result-card.marble-result-card {
+    width: min(92vw, 300px);
+    max-width: 300px;
+    padding: 18px 14px 16px;
+    border: 3px solid var(--marble-wood-line);
+    border-radius: 18px;
+    background: var(--marble-paper);
+    color: var(--marble-ink);
+    box-shadow: 0 6px 0 var(--marble-wood-edge), 0 24px 80px rgba(0, 0, 0, 0.32);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.marble-result-card .result-title {
+    font-size: 20px;
+    margin-bottom: 12px;
+}
+.marble-result-body {
+    margin-bottom: 14px;
+}
+/* 당첨자 머리 — 캔버스 대기 화면과 같은 하늘→잔디, 당첨 동물이 흰 원(나무 링) 안에서 대기 스프라이트로 움직인다(글자는 테마와 무관하게 진한 잉크) */
+.marble-result-card .marble-result-selected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 12px 10px 10px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
+    color: #2b2416;
+    font-size: 16px;
     font-weight: 800;
+}
+.marble-result-sprite {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 3px var(--marble-wood-line), 0 6px 0 rgba(138, 90, 43, 0.25), 0 8px 18px rgba(90, 60, 20, 0.14);
+    image-rendering: pixelated;
+}
+.marble-result-selected-name {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.marble-result-selected-name span {
+    font-size: 22px;
     color: var(--red-500);
-    margin-bottom: 10px;
+}
+.marble-result-selected-name small {
+    font-size: 12px;
+    color: #4f5f3a;
 }
 .marble-result-ranks {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 2px;
     max-height: 40vh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     text-align: left;
 }
 .marble-result-ranks li {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--gray-200);
-    font-size: 15px;
-    color: var(--text-primary);
+    gap: 6px;
+    margin: 0 0 4px;
+    padding: 4px 8px;
+    border: 2px solid var(--marble-wood-soft);
+    border-radius: 10px;
+    background: var(--marble-cream);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--marble-ink);
 }
 .marble-result-ranks li .rk {
-    flex: 0 0 44px;
+    flex: 0 0 40px;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    color: var(--marble-muted);
+}
+.marble-result-icon {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    image-rendering: pixelated;
+}
+.marble-result-ranks li b {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-weight: 700;
-    color: var(--marble-600);
 }
-.marble-result-ranks li.loser {
-    background: rgba(var(--marble-500-rgb), 0.08);
+.marble-result-ranks li .me {   /* 내 줄 '(나)' — 당첨 줄 강조(금색)와 구분되는 옅은 글자 */
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--marble-muted);
 }
-.marble-result-ranks li.loser .rk,
-.marble-result-ranks li.loser b {
-    color: var(--red-500);
+.marble-result-ranks li .mi {
+    flex: 0 0 auto;
+}
+.marble-result-ranks li.is-winner {   /* 당첨 줄(1등 당첨이든 꼴등 당첨이든) — HUD 와 같은 금색 */
+    border-color: var(--marble-gold-deep);
+    background: var(--marble-gold-soft);
+    box-shadow: 0 0 0 2px var(--marble-gold-ring);
+}
+.marble-result-ranks li.is-winner .rk,
+.marble-result-ranks li.is-winner b {
+    color: var(--marble-gold-soft-ink);
+}
+.marble-result-btn {
+    width: auto;
+    margin: 0;
+    min-height: 44px;
+    padding: 10px 28px;
+    border: 2px solid var(--marble-wood-line);
+    border-radius: 13px;
+    background: var(--marble-cream);
+    color: var(--marble-ink);
+    box-shadow: 0 3px 0 var(--marble-wood-edge);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.marble-result-btn:active {
+    transform: translateY(3px);
+    box-shadow: none;
+}
+@media (max-width: 600px) {
+    .result-card.marble-result-card {
+        width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
+        padding: 16px 12px 14px;
+    }
+    .marble-result-ranks {
+        max-height: 38vh;
+    }
+}
+
+/* ===== 동물수 버튼 말풍선(20) — data-tip 은 js/marble.js updateCrowdTips 가 서버 값으로 채운다. 호버·키보드 포커스에 바로 뜬다 ===== */
+.marble-crowd-btn[data-tip] {
+    position: relative;
+}
+.marble-crowd-btn[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    z-index: 5;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    padding: 6px 10px;
+    border-radius: 9px;
+    color: var(--marble-gold);
+    background: rgba(43, 36, 22, 0.94);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    line-height: 1;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+.marble-crowd-btn[data-tip]::before {
+    content: "";
+    position: absolute;
+    z-index: 5;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    border: 6px solid transparent;
+    border-top-color: rgba(43, 36, 22, 0.94);
+    border-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+/* 양 끝 버튼은 말풍선이 화면 밖으로 안 나가게 안쪽으로 붙인다 */
+.marble-crowd-btn[data-tip]:first-child::after { left: 0; transform: translate(0, 4px); }
+.marble-crowd-btn[data-tip]:last-child::after { left: auto; right: 0; transform: translate(0, 4px); }
+.marble-crowd-btn[data-tip]:hover::after,
+.marble-crowd-btn[data-tip]:hover::before,
+.marble-crowd-btn[data-tip]:focus-visible::after,
+.marble-crowd-btn[data-tip]:focus-visible::before {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+.marble-crowd-btn[data-tip]:first-child:hover::after,
+.marble-crowd-btn[data-tip]:first-child:focus-visible::after,
+.marble-crowd-btn[data-tip]:last-child:hover::after,
+.marble-crowd-btn[data-tip]:last-child:focus-visible::after {
+    transform: translate(0, 0);
+}
+
+/* ===== 동물 마당(23) — '내 동물 고르기' 머리 아래 낮은 띠. 동물은 js/marble.js MarbleYard 가 넣는다(방에 나온 동물·스킨만). 비어 있으면 띠도 숨김 ===== */
+.marble-yard {
+    position: relative;
+    height: 60px;
+    margin: 0 0 10px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(111, 180, 90, 0) 0%, rgba(111, 180, 90, 0.16) 100%);
+}
+.marble-yard.is-empty {   /* 방에 나온 동물이 없으면 띠도 숨김 — JS 가 동물을 넣기 전에 클래스를 벗겨 폭을 잰다 */
+    display: none;
+}
+.marble-yard::after {   /* 울타리 — 렌더러가 이미 받은 조각 시트(같은 URL) */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20px;
+    background: url('/assets/marble/pieces/fence-mid.webp?v=1') repeat-x left bottom / 64px 20px;
+    opacity: 0.85;
+    pointer-events: none;
+}
+.marble-yard-critter {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 48px;
+    height: 48px;
+    z-index: 1;
+    will-change: transform;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.marble-yard-critter::before {   /* 발밑 그림자 */
+    content: "";
+    position: absolute;
+    bottom: 1px;
+    left: 12px;
+    width: 24px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(60, 45, 20, 0.18);
+}
+.marble-yard-critter__body {
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat;
+    transform-origin: 50% 50%;
+    image-rendering: pixelated;
+}
+.marble-yard-critter.is-napping::after {
+    content: "z";
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    color: #6d7fb8;
+    font: bold 12px/1 'Jua', sans-serif;
+    animation: marble-yard-zz 1.4s ease-out infinite;
+}
+@keyframes marble-yard-zz {
+    from { opacity: 0; transform: translate(0, 4px) scale(0.7); }
+    30% { opacity: 1; }
+    to { opacity: 0; transform: translate(8px, -14px) scale(1.2); }
+}
+/* 마당 장애물 — 가끔 위에서 떨어져 앉는다(바위·덤불·통나무·스프링 판·진흙, js/marble.js MarbleYard). 동물 뒤(z 0)에 두어 위에 올라선 동물이 앞에 보인다 */
+.marble-yard-obstacle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 0;
+    will-change: transform;
+    pointer-events: none;
+}
+.marble-yard-obstacle__img {
+    display: block;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    transform-origin: 50% 100%;
+}
+.marble-yard-obstacle.is-landed .marble-yard-obstacle__img {   /* 착지 눌림 */
+    animation: marble-yard-land 260ms ease-out;
+}
+@keyframes marble-yard-land {
+    0% { transform: scale(1.15, 0.75); }
+    60% { transform: scale(0.95, 1.06); }
+    100% { transform: scale(1, 1); }
+}
+.marble-yard-obstacle.is-leaving {   /* 땅으로 꺼지며 사라진다 */
+    transition: transform 600ms ease-in, opacity 600ms ease-in;
+    opacity: 0;
+}
+.marble-yard-dust {   /* 착지 먼지 — fx dust-puff 4프레임(80×80 → 40px) */
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    z-index: 2;
+    background-repeat: no-repeat;
+    background-size: 160px 40px;
+    image-rendering: pixelated;
+    pointer-events: none;
+    animation: marble-yard-dust 420ms steps(4) forwards;
+}
+@keyframes marble-yard-dust {
+    from { background-position: 0 0; opacity: 1; }
+    to { background-position: -160px 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .marble-yard { display: none; }
 }

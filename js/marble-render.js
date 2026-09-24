@@ -15,7 +15,10 @@ var MarbleRender = (function () {
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
     // 대기 화면 애니: 출발대 위 동물들이 가만있지 않고 서성이고, 주기마다 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
     var IDLE_SCUF_PERIOD_MS = 5200;  // 몸싸움 한 판 주기 (다가감 → 밀기 → 화들짝 → 어지러움)
-    var IDLE_WANDER_X = 9, IDLE_WANDER_Y = 3;
+    // 출발대에 서 있는 동물(대기·카운트다운)을 공 중심보다 이만큼 위로 — 출발 판자(start-gate)는 y 0~+5 에 그려지는데, +8 에 그리면 발끝(그림 중심 +17.3)이 +5.3 으로 판자 아래 가장자리였다.
+    // 4 올리면 발끝 ≈ +1.3 = 판자 윗면(데구리 8b14a1c). 공으로 말린 뒤는 공 위치 그대로
+    var STAND_LIFT = 4;
+    var IDLE_WANDER_X = 9;           // 좌우로만 서성인다 — 위아래로 흔들면 발이 출발대 판자 아래로 내려갔다(데구리 6628dd3)
     var IDLE_SCUF_REACH = 2;         // 몸싸움 때 서로 쪽으로 다가가는 거리 — 중심 간격 30 → 26, 머리만 맞닿게
     // 카운트다운 복제 연출: 사람당 1마리(num 1)는 대기 때부터 서 있고, 나머지는 이 구간에 순서대로 위에서 떨어져 마릿수를 보여준다
     var SPAWN_START_MS = -COUNTDOWN_MS + 400;
@@ -60,20 +63,28 @@ var MarbleRender = (function () {
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
     var ZOOM_MIN = 0.5;              // 결승 프레임(범퍼·시소·진흙 + 구멍밭 + 스탠드)을 한 화면에 넣기 위한 줌아웃 하한
-    var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유 — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
+    var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유(데스크톱) — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
+    var MOBILE_FRAME_ABOVE_PX = 280; // 폰 결승 프레임 위쪽 여유 — 시소(구멍밭 위 240, 팔 ±36)부터 스탠드 바닥까지 882px 가 세로 캔버스(view.h 1120)에 줌 ≈1.27 로 통째로 들어간다(데구리 b04643a: 폰에서 골·스탠드가 잘리고 카메라가 꼴등만 봄)
     var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
     var MINIMAP_MAX_W_NARROW = 60;   // 모바일(HUD 단위 = CSS px)에서의 미니맵 최대 폭
+    var MINIMAP_MAX_H_NARROW = 0.70; // 모바일 미니맵 아래 끝(캔버스 높이 비율) — 결승 프레임이 캔버스를 꽉 채우면 홈통이 ≈77%, 스탠드 1·2위 자리가 그 아래 왼쪽에 오므로 그 위에서 끝낸다
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
     var HUD_ICON_PX = 18;            // 순위표 동물 얼굴 아이콘 크기
-    var HUD_RANK_W = 170;            // 순위표 패널 폭(HUD 단위)
-    var HUD_RANK_ROW = 18;           // 순위표 한 줄 높이
-    var HUD_RANK_TOP_PX = 56;        // 순위표 위 여백(CSS px) — 캔버스 위 HTML 전체화면 버튼(top 8~12 + 36)·베타 배지 아래로
+    var HUD_RANK_W_MAX = 170;        // 순위표 패널 폭 상한(HUD 단위) — 실제 폭은 내용(이름 최대 7자)에 맞춘다
+    var HUD_RANK_NAME_MAX = 7;       // 순위표 이름 글자 수 상한 — 넘으면 앞 7자 + …
+    var HUD_RANK_ROW = 22;           // 순위표 한 줄 높이 — 얼굴 원(18)이 행 강조 네모 밖으로 삐져나오지 않게
+    var HUD_RANK_TOP_PX = 56;        // 순위표(위의 당첨 룰 배지 포함) 위 여백(CSS px) — 캔버스 위 HTML 전체화면 버튼(top 8~12 + 36)·베타 배지 아래로
+    var HUD_RULE_H = 26 + 6;         // 당첨 룰 배지 높이 + 순위표와의 간격(HUD 단위)
+    var HUD_RANK_BOTTOM_GAP = 60;    // 순위표 아래 여백(HUD 단위) — 캔버스 박스 아래 오른쪽 카메라 버튼(≈46 CSS px)과 안 겹치게
+    var HUD_RANK_MAX_H_NARROW = 0.42; // 폰: 배지+순위표 높이 상한(캔버스 높이 비율) — 긴 명단이 트랙을 덮지 않게 행을 자른다(당첨 쪽은 남김)
     var UI_SCALE_MAX = 2.2;          // 폰에서 HUD·라벨을 키우는 배율 상한 (375px 폰 ≈ 2.13 → HUD 단위 = CSS px)
-    var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일 카메라(폭 맞춤 + 후미 추적)·줌 하한
-    var MOBILE_ZOOM_MIN = 1.3;       // 모바일 줌 하한(공 지름 ≥ 17 CSS px)
-    var MOBILE_FRAME_W = 560;        // 모바일 결승 프레임: 트랙 폭 500 + 여유를 화면 폭에 맞춘다
+    var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일(세로 캔버스·줌 하한·짧은 결승 프레임)
+    var MOBILE_ZOOM_MIN = 1.25;      // 모바일 줌 하한(공 지름 ≥ 16 CSS px @375 · 17 @390) — 폰 결승 프레임의 fit 줌(≈1.27)이 이 위에 있어야 프레임이 고정된다
+    var DESKTOP_ASPECT = 0.72, MOBILE_ASPECT = 1.4;   // 캔버스 세로/가로 비 — 폰은 세로로 길게(논리 view.h 1120) 결승 프레임이 통째로 들어가게
+    var MANUAL_ZOOM_MIN_NARROW = 0.8;  // 수동 카메라 줌 하한(폰). 데스크톱은 ZOOM_MIN
+    var MANUAL_DRAG_PX = 6;          // 이만큼 끌어야 드래그로 본다(탭·클릭과 구분)
     var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
     var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
@@ -94,6 +105,7 @@ var MarbleRender = (function () {
     var STARTLE_MS = 350;            // 뚜껑 열림 → 화들짝 포즈(⑤) 시간, 그 뒤 파이프 안에선 떨어지는 포즈(⑥)
     var FALL_POSE_MS = 2500;         // 화들짝 뒤 이 시간 안에 구멍 아래(파이프·통로)에 있으면 떨어지는 포즈
     var SCUFFLE_DIZZY_MS = 500;      // 착지 기절 — socket/marble-sim.js SCUFFLE_DIZZY_MS 와 동일
+    var LAND_REST_MS = 800;          // 착지 뒤 제자리에서 숨 고르기(전원) — socket/marble-sim.js LAND_REST_MS 와 동일. 기절한 놈은 이 뒤에 SCUFFLE_DIZZY_MS 더
     var DIZZY_SWAP_MS = 150;         // 어지러움 A/B·별 궤도 프레임 교대
     var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
     var DAM_FRAMES = 5;              // beaver-dam.png 프레임 수 (2400×256, 셀 480×256): 온전/금 살짝/금 많이/금+물/터짐
@@ -111,18 +123,18 @@ var MarbleRender = (function () {
     function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
-        sleep: { hedgehog: A + 'creatures/hedgehog-sleep.webp', armadillo: A + 'creatures/armadillo-sleep.webp', pillbug: A + 'creatures/pillbug-sleep.webp', turtle: A + 'creatures/turtle-sleep.webp', panda: A + 'creatures/panda-sleep.webp', hamster: A + 'creatures/hamster-sleep.webp', pufferfish: A + 'creatures/pufferfish-sleep.webp', raccoon: A + 'creatures/raccoon-sleep.webp', rabbit: A + 'creatures/rabbit-sleep.webp', ribbonpig: A + 'creatures/ribbonpig-sleep.webp' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
-        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.webp', armadillo: A + 'creatures/armadillo-scuffle.webp', pillbug: A + 'creatures/pillbug-scuffle.webp', turtle: A + 'creatures/turtle-scuffle.webp', panda: A + 'creatures/panda-scuffle.webp', hamster: A + 'creatures/hamster-scuffle.webp', pufferfish: A + 'creatures/pufferfish-scuffle.webp', raccoon: A + 'creatures/raccoon-scuffle.webp', rabbit: A + 'creatures/rabbit-scuffle.webp', ribbonpig: A + 'creatures/ribbonpig-scuffle.webp' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
+        // sleep(4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡)·scuffle(6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B, 오른쪽 향함) 시트는 진입 때 받지 않는다 —
+        // setTimeline 이 방에 나온 동물 것만 미리 받는다(10종 전부 = 약 0.8MB, 2026-09-24). 선택 버튼 아이콘이 쓰는 기본 시트만 여기서 로드
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.webp', 'start-platform-end': A + 'pieces/start-platform-end.webp',
             'start-gate': A + 'pieces/start-gate.webp', 'log-bumper': A + 'pieces/log-bumper.webp', 'stake': A + 'pieces/stake.webp',
             'seesaw-plank': A + 'pieces/seesaw-plank.webp', 'seesaw-pivot': A + 'pieces/seesaw-pivot.webp', 'mud-puddle': A + 'pieces/mud-puddle.webp',
             'fence-mid': A + 'pieces/fence-mid.webp', 'fence-post': A + 'pieces/fence-post.webp',
             'goal-basket-back': A + 'pieces/goal-basket-back.webp', 'goal-basket-front': A + 'pieces/goal-basket-front.webp', 'dump-wall': A + 'pieces/dump-wall.webp',
-            'beehive': A + 'pieces/beehive.webp', 'sun-patch': A + 'pieces/sun-patch.webp', 'beaver-dam': A + 'pieces/beaver-dam.webp', 'beaver': A + 'pieces/beaver.webp',
+            'beehive': A + 'pieces/beehive.webp', 'sun-patch': A + 'pieces/sun-patch.webp', 'beaver-dam': A + 'pieces/beaver-dam.webp',
             'pit': A + 'pieces/pit.webp', 'last-gate': A + 'pieces/last-gate.webp', 'flag': A + 'pieces/flag.webp',
             'windmill-pole': A + 'pieces/windmill-pole.webp', 'windmill-rotor': A + 'pieces/windmill-rotor.webp',
-            'mole-hole': A + 'pieces/mole-hole.webp', 'mole': A + 'pieces/mole.webp', 'flipflop-arm': A + 'pieces/flipflop-arm.webp', 'flipflop-pivot': A + 'pieces/flipflop-pivot.webp',
+            'mole-hole': A + 'pieces/mole-hole.webp', 'flipflop-arm': A + 'pieces/flipflop-arm.webp', 'flipflop-pivot': A + 'pieces/flipflop-pivot.webp',
             'belt': A + 'pieces/belt.webp', 'belt-end': A + 'pieces/belt-end.webp', 'fan': A + 'pieces/fan.webp',
             'warp-pipe': A + 'pieces/warp-pipe.webp',   // 4차(finale-d) gravestone·gap-mark 는 미도착 — 코드 도형으로 그린다. 시트가 오면 여기 다시 등록(2026-09-22 404 헛요청 제거)
             'spring-plank': A + 'pieces/spring-plank.webp',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
@@ -130,18 +142,18 @@ var MarbleRender = (function () {
             'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp'   // 5차
         },
         stage: {
-            'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 WebP q92 (PNG 1.2~1.3MB → 44K/226K)
+            'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 손실 WebP — sky q92 44K, meadow q85 160K (PNG 1.2~1.3MB)
             'tree': A + 'stage/decor-tree.webp', 'bush-big': A + 'stage/decor-bush-big.webp', 'bush-small': A + 'stage/decor-bush-small.webp',
             'rock': A + 'stage/decor-rock.webp', 'signpost': A + 'stage/decor-signpost.webp',
             'flower-pink': A + 'stage/decor-flower-pink.webp', 'flower-yellow': A + 'stage/decor-flower-yellow.webp', 'flower-white': A + 'stage/decor-flower-white.webp'   // 4차 lane-dirt 미도착 — 오면 여기 등록
         },
         fx: {
             'dust-puff': A + 'fx/dust-puff.webp', 'impact-star': A + 'fx/impact-star.webp', 'mud-splash': A + 'fx/mud-splash.webp', 'curl-poof': A + 'fx/curl-poof.webp',
-            'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'dam-burst': A + 'fx/dam-burst.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
+            'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
             'eagle-shadow': A + 'fx/eagle-shadow.webp', 'mole-alert': A + 'fx/mole-alert.webp', 'dam-burst-v2': A + 'fx/dam-burst-v2.webp', 'geyser': A + 'fx/geyser.webp',   // 5차
             'dizzy-swirl': A + 'fx/dizzy-swirl.webp'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
         },
-        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.png') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
+        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=3') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
     // 공용 UI 아이콘 아틀라스 — 10×10 격자, 셀 128 소스(→32px). js/shared/ui-icons.js 의 UI_ICON_CELL/UI_ICON_COLS 와 같은 배치(의뢰서 docs/spritemake-request/2026-09-22-ui-icons-shared-m.md)
     var ICON_COLS = (typeof UI_ICON_COLS === 'number') ? UI_ICON_COLS : 10, ICON_PX = 128;
@@ -150,7 +162,7 @@ var MarbleRender = (function () {
         warn: 24, info: 25, book: 26, home: 27, flag: 28, sun: 29, hole: 30, dash: 31, x: 32 };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48] };
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -161,6 +173,7 @@ var MarbleRender = (function () {
     // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백.
     // 스킨 시트는 여기서 처음 필요할 때 로드한다(ensureSkin) — 카탈로그 전부(45장 3.3MB)를 진입 때 받지 않으려고(2026-09-22)
     function sheet(group, b) {
+        if (group !== 'creatures') ensureSkin(group, b.creature);   // sleep·scuffle 기본 시트도 지연 로드(보통은 setTimeline 이 이미 받아 둠)
         if (!b.skin) return img(group, b.creature);
         var key = b.creature + '-' + b.skin; ensureSkin(group, key);
         return img(group, key) || img(group, b.creature);
@@ -251,8 +264,12 @@ var MarbleRender = (function () {
         var lastT = -1;
         var myName = '';
         var phase = 'idle';       // idle | countdown | play | finale | done
-        var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
-        var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false, cssW: TRACK_W };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라, cssW = 캔버스 CSS 폭(HUD 단위 ↔ CSS px 환산)
+        var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead', target: null, loserSeen: false };   // target = 지금 카메라가 따라가는 동물(순위표 카메라 표시용)
+        // 수동 카메라(보는 사람 화면 상태 — 소켓으로 안 나간다): 경주 중 드래그·핀치·ctrl+휠·순위표 행 누르기로 켜지고, 카메라 버튼·더블클릭·꼴찌 확정·새 타임라인에서 꺼진다
+        var manual = { on: false, x: 0, y: 0, zoom: 1, follow: null };   // follow = 순위표에서 누른 동물 — 수동 카메라가 그 동물을 따라간다
+        var rankHits = [];   // 순위표 행 클릭 영역(HUD 단위) { x, y, w, h, ball } — drawHud 가 매 프레임 채운다
+        var onCameraModeCb = null;
+        var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false, cssW: TRACK_W, fs: false };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라, cssW = 캔버스 CSS 폭(HUD 단위 ↔ CSS px 환산), fs = 전체화면
         var pieces = {};          // kind → 조각 배열
         var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
@@ -267,7 +284,7 @@ var MarbleRender = (function () {
 
         R.loadAssets = loadAll;
         R.setIdleClock = function (ms) { idleClock = ms; idleStart = performance.now() - ms; };   // 테스트·프리뷰용: 대기 애니 시계를 특정 시각으로
-        R.debug = function () { return { cam: cam, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT) }; };
+        R.debug = function () { return { cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT) }; };
 
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
@@ -279,7 +296,7 @@ var MarbleRender = (function () {
             if (!cssW) cssW = TRACK_W;   // display:none 상태(대기 중) — 0폭이면 논리폭으로 (NaN 방지)
             var cssH;
             if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
-            else { cssH = Math.round(cssW < 600 ? cssW * 1.25 : cssW * 0.72); }
+            else { cssH = Math.round(cssW * (cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT)); }
             var dpr = Math.min(2, window.devicePixelRatio || 1);
             canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
@@ -288,6 +305,7 @@ var MarbleRender = (function () {
             view.ui = Math.min(UI_SCALE_MAX, Math.max(1, TRACK_W / cssW));   // 논리 800 을 좁은 화면에 축소하면 글자가 절반이 되므로 HUD·라벨만 되돌린다(폰: HUD 단위 ≈ CSS px)
             view.narrow = cssW < NARROW_PX;
             view.cssW = cssW;
+            view.fs = fs;
         };
 
         R.setTimeline = function (payload, me) {
@@ -295,6 +313,10 @@ var MarbleRender = (function () {
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
+            balls.forEach(function (b) {   // 이 판에 나온 동물의 sleep·scuffle(+스킨 시트)을 미리 받는다 — 첫 낮잠·몸싸움 때 한 박자 비지 않게
+                ensureSkin('sleep', b.creature); ensureSkin('scuffle', b.creature);
+                if (b.skin) ['creatures', 'sleep', 'scuffle'].forEach(function (g) { ensureSkin(g, b.creature + '-' + b.skin); });
+            });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
             var extras = balls.filter(function (b) { return b.num > 1; }).sort(function (a, c) { return a.num - c.num || a.id - c.id; });
             var spawnIv = extras.length ? (SPAWN_END_MS - SPAWN_START_MS) / extras.length : 0;
@@ -302,18 +324,21 @@ var MarbleRender = (function () {
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {}; mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
             hudInfo = { remaining: balls.length, rows: [] };
             R.resize();
+            updateCamButton();
         };
-        R.setPhase = function (p) { phase = p; };
+        R.setPhase = function (p) { phase = p; updateCamButton(); };
         R.setHighlight = function (on) { highlightMine = !!on; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
 
         // ─── 재생 ───
         R.play = function (countdownMs) {
+            setTouchCapture(true);   // 경주 중엔 캔버스 위 터치가 페이지 스크롤이 아니라 카메라 조작
             startWall = performance.now() + (countdownMs == null ? COUNTDOWN_MS : countdownMs);
             phase = 'countdown';
+            updateCamButton();
             lastFrameWall = performance.now();
             if (rafId) cancelAnimationFrame(rafId);
             var loop = function () {
@@ -325,8 +350,154 @@ var MarbleRender = (function () {
             };
             rafId = requestAnimationFrame(loop);
         };
-        R.stop = function () { if (rafId) cancelAnimationFrame(rafId); rafId = null; };
+        R.stop = function () { if (rafId) cancelAnimationFrame(rafId); rafId = null; setTouchCapture(false); };
         R.isPlaying = function () { return !!rafId; };
+
+        // ─── 수동 카메라 (데구리 dea6fd5·6628dd3 역반영 — 보는 사람 화면 상태만, 소켓으로 나가지 않는다) ───
+        // 자동 카메라는 선두/후미·내 동물·결승 프레임을 알아서 따라간다. 캔버스를 끌거나(마우스·터치)·핀치하거나·ctrl+휠·순위표 행을 누르면 수동으로 바뀌고,
+        // 캔버스 박스의 카메라 버튼(토글)·더블클릭·꼴찌 확정(비석 장면)·새 경주/다시 보기·대기 화면에서 자동으로 돌아간다.
+        // 우선순위: 수동(손으로 옮김) = 순위표로 고른 동물 > 기존 자동 카메라('내 동물 따라가기' → 시스템 카메라)
+        function setManual(on) {
+            on = !!on;
+            if (manual.on === on) return;
+            if (on) { manual.x = cam.x; manual.y = cam.y; manual.zoom = cam.zoom; }   // 지금 보이는 자리에서 이어서 — 튀지 않게
+            manual.on = on; manual.follow = null;
+            updateCamButton();
+            if (onCameraModeCb) onCameraModeCb(on ? 'manual' : 'auto');
+        }
+        // 카메라 버튼 — 캔버스 박스(#marbleCanvasBox, position:relative) 아래 오른쪽. 도구 줄(.marble-stage-tools)은 전체화면에서 안 보여서 캔버스 박스 안에 둔다.
+        // 경주 중(카운트다운~결과)에만 보이고 지금 상태(자동 / 수동 / 누구 따라가는 중 / 내 동물 따라가는 중)를 보여 주며, 누를 때마다 자동 ↔ 수동 토글.
+        // 아이콘(64×64 픽셀, 22px 표시): 데구리 assets/ui/camera-auto.png·camera-manual.png(SpriteMake sprite-tile-icon-20260923-124222) 그대로 복사. 공용 아틀라스의 camera 칸은 스틸 카메라라 뜻이 달라 안 쓴다
+        var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };
+        var camButton = null, camButtonIcon = null, camButtonText = null, camBtnMine = false;
+        function updateCamButton() {
+            if (!camButton) return;
+            var who = manual.follow ? String(manual.follow.owner || '') : '';
+            if (who.length > HUD_RANK_NAME_MAX) who = who.slice(0, HUD_RANK_NAME_MAX) + '…';
+            var icon = manual.on ? CAM_ICONS.manual : CAM_ICONS.auto;
+            if (camButtonIcon.getAttribute('src') !== icon) camButtonIcon.src = icon;
+            camButtonText.textContent = manual.follow ? who + ' 따라가는 중' : manual.on ? '수동 카메라' : camBtnMine ? '내 동물 따라가는 중' : '자동 카메라';
+            camButton.classList.toggle('is-manual', manual.on);
+            camButton.setAttribute('aria-pressed', manual.on ? 'true' : 'false');
+            camButton.setAttribute('aria-label', (manual.on ? '지금 수동 카메라' : '지금 자동 카메라') + ' — 누르면 ' + (manual.on ? '자동' : '수동') + '으로');
+            camButton.hidden = !data || phase === 'idle';   // 대기 화면(프리뷰 트랙)은 카메라 입력을 안 받는다 — 실제 경주 트랙과 달라 미리 둘러보면 오해를 부른다
+        }
+        if (canvas.parentElement && document.createElement) {
+            camButton = document.createElement('button');
+            camButton.type = 'button';
+            camButton.className = 'marble-cam-btn';
+            camButtonIcon = document.createElement('img');
+            camButtonIcon.alt = ''; camButtonIcon.width = 22; camButtonIcon.height = 22;
+            camButtonIcon.className = 'marble-cam-btn__icon';
+            camButtonText = document.createElement('span');
+            camButton.appendChild(camButtonIcon);
+            camButton.appendChild(camButtonText);
+            camButton.hidden = true;
+            camButton.addEventListener('click', function () { setManual(!manual.on); });
+            canvas.parentElement.appendChild(camButton);
+            new Image().src = CAM_ICONS.manual;   // 처음 토글할 때 아이콘이 늦게 뜨지 않게
+            updateCamButton();
+        }
+        // 경주 중에는 캔버스 위 터치가 페이지 스크롤이 아니라 카메라 조작이 되게 한다. 경주가 끝나면(phase done) 되돌려 폰에서 캔버스 위에서도 결과·주문 쪽으로 스크롤할 수 있게(마우스 드래그는 계속 허용)
+        function setTouchCapture(on) { canvas.style.touchAction = on ? 'none' : ''; }
+        function racing() { return !!data && phase !== 'idle'; }   // 카메라 입력을 받는 때 — 경주 중(결과 화면 포함). 대기 화면은 안 받는다
+        function tappable() { return !!data && (phase === 'idle' || phase === 'finale' || phase === 'done'); }   // 동물 누르면 반응(12) — 대기 출발대·결승 스탠드
+        function logicalPerCss() { return TRACK_W / (view.cssW || TRACK_W); }   // CSS px 1 = 논리 px 몇
+        function manualZoomMin() { return view.narrow ? MANUAL_ZOOM_MIN_NARROW : ZOOM_MIN; }
+        // 화면을 CSS px 로 (dx, dy) 끈 만큼 내용이 손을 따라오게 카메라를 반대로 옮긴다
+        function panBy(dxCss, dyCss) {
+            setManual(true); if (manual.follow) { manual.follow = null; updateCamButton(); }   // 끌면 따라가기를 멈추고 그 자리에서 손으로
+            var k = logicalPerCss() / manual.zoom;
+            manual.x -= dxCss * k; manual.y -= dyCss * k;
+        }
+        // 배율 바꾸기 — (cx, cy)(캔버스 기준 CSS px) 아래 지점이 손가락/커서 밑에 그대로 남도록
+        function zoomBy(factor, cxCss, cyCss) {
+            setManual(true);
+            var z0 = manual.zoom, z1 = clamp(z0 * factor, manualZoomMin(), ZOOM_MAX);
+            if (z1 === z0) return;
+            var lp = logicalPerCss(), ox = cxCss * lp - view.w / 2, oy = cyCss * lp - view.h / 2;
+            manual.x += ox / z0 - ox / z1; manual.y += oy / z0 - oy / z1;
+            manual.zoom = z1;
+        }
+        // 순위표 행을 누르면 그 동물로 카메라가 부드럽게 옮겨 가서 계속 따라간다. 끌기·카메라 버튼·더블클릭으로 풀린다
+        function followBall(b) {
+            setManual(true);
+            manual.follow = b; manual.zoom = Math.max(manual.zoom, view.narrow ? MOBILE_ZOOM_MIN : 1);
+            updateCamButton();
+        }
+        function rankHitAt(p) {   // p = 캔버스 기준 CSS px
+            var k = logicalPerCss() / view.ui, hx = p.x * k, hy = p.y * k;
+            for (var i = 0; i < rankHits.length; i++) { var r = rankHits[i]; if (hx >= r.x && hx <= r.x + r.w && hy >= r.y && hy <= r.y + r.h) return r.ball; }
+            return null;
+        }
+        R.isManualCamera = function () { return manual.on; };
+        R.setManualCamera = function (on) { setManual(on); };
+        R.onCameraModeChange = function (cb) { onCameraModeCb = cb; };
+
+        (function bindCameraInput() {
+            var pointers = {};        // pointerId → { x, y }
+            var dragFrom = null;      // 한 손가락/마우스 드래그 시작점
+            var dragging = false;
+            var pinch = null;         // { dist, mx, my }
+            function local(e) { var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+            function ids() { return Object.keys(pointers); }
+            canvas.addEventListener('pointerdown', function (e) {
+                if (!data || (e.pointerType === 'mouse' && e.button !== 0)) return;
+                if (!ids().length && tappable()) {   // 동물을 누르면 반응(대기 출발대·결승 스탠드) — 탭(6px 미만)만, 끌면 아래 카메라 드래그
+                    var critter = critterHitAt(local(e));
+                    if (critter) { pointers[e.pointerId] = local(e); dragFrom = pointers[e.pointerId]; dragFrom.critter = critter; dragging = false; pinch = null; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 무음 */ } return; }
+                }
+                if (!racing()) return;   // 대기 화면: 카메라 입력 없음(페이지 스크롤 그대로)
+                if (!ids().length) { var hitBall = rankHitAt(local(e)); if (hitBall) { followBall(hitBall); e.preventDefault(); return; } }
+                pointers[e.pointerId] = local(e);
+                try { canvas.setPointerCapture(e.pointerId); } catch (err2) { /* 무음 */ }
+                if (ids().length === 1) { dragFrom = pointers[e.pointerId]; dragging = false; pinch = null; }
+                else if (ids().length === 2) {
+                    var a = pointers[ids()[0]], b = pointers[ids()[1]];
+                    pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+                    dragFrom = null;
+                }
+            });
+            canvas.addEventListener('pointermove', function (e) {
+                if (e.pointerType === 'mouse' && !ids().length) canvas.style.cursor = data && ((racing() && rankHitAt(local(e))) || (tappable() && critterHitAt(local(e)))) ? 'pointer' : '';
+                if (!pointers[e.pointerId]) return;
+                var prev = pointers[e.pointerId], cur = local(e);
+                pointers[e.pointerId] = cur;
+                if (pinch && ids().length >= 2) {
+                    var a = pointers[ids()[0]], b = pointers[ids()[1]];
+                    var dist = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                    zoomBy(dist / pinch.dist, mx, my);
+                    panBy(mx - pinch.mx, my - pinch.my);
+                    pinch = { dist: dist, mx: mx, my: my };
+                    e.preventDefault();
+                    return;
+                }
+                if (!dragFrom) return;
+                if (!dragging && Math.hypot(cur.x - dragFrom.x, cur.y - dragFrom.y) < MANUAL_DRAG_PX) return;
+                if (!racing()) return;   // 대기 화면에서 동물 위에서 끌기 — 반응도 카메라도 없음
+                if (!dragging) { dragging = true; panBy(cur.x - dragFrom.x, cur.y - dragFrom.y); }   // 문턱을 넘는 순간까지 끈 양도 반영
+                else panBy(cur.x - prev.x, cur.y - prev.y);
+                e.preventDefault();
+            });
+            function release(e) {
+                var was = pointers[e.pointerId];
+                delete pointers[e.pointerId];
+                if (was && e.type === 'pointerup' && dragFrom && dragFrom.critter && !dragging && !ids().length && tappable()) reactTo(dragFrom.critter);   // 탭이었으면 반응(pointercancel = 브라우저가 페이지 스크롤로 가져감 → 반응 없음)
+                if (ids().length < 2) pinch = null;
+                if (!ids().length) { dragFrom = null; dragging = false; }
+                else if (ids().length === 1) { dragFrom = pointers[ids()[0]]; dragging = true; }   // 핀치에서 한 손가락이 남으면 그 손가락으로 계속 끈다
+            }
+            canvas.addEventListener('pointerup', release);
+            canvas.addEventListener('pointercancel', release);
+            // 일반 휠은 페이지 스크롤 그대로(데구리 6628dd3 에서 되돌림) — PC 카메라 이동은 클릭 후 끌기. ctrl+휠(트랙패드 핀치)만 확대·축소
+            canvas.addEventListener('wheel', function (e) {
+                if (!racing() || !e.ctrlKey) return;
+                e.preventDefault();
+                var unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? (view.cssW || TRACK_W) : 1;
+                var p = local(e); zoomBy(Math.exp(-e.deltaY * unit * 0.01), p.x, p.y);
+            }, { passive: false });
+            canvas.addEventListener('dblclick', function () { if (manual.on) setManual(false); });
+        })();
 
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
@@ -383,7 +554,7 @@ var MarbleRender = (function () {
                             break;
                         }
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; b.startledAt = -1e9; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS });
-                        if (e.dizzy) { b.walkKind = 'dizzy'; b.walkStallAt = e.t; }   // 몸싸움하다 떨어진 놈: 주저앉아 어지러움 → SCUFFLE_DIZZY_MS 뒤 걷기
+                        b.walkKind = e.dizzy ? 'dizzy' : 'rest'; b.walkStallAt = e.t;   // 착지 → 숨 고르기(LAND_REST_MS) → 걷기. 몸싸움하다 떨어진 놈은 주저앉아 어지러움까지(+SCUFFLE_DIZZY_MS)
                         break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
@@ -436,9 +607,13 @@ var MarbleRender = (function () {
                 if (!lead || progress(b) > progress(lead)) lead = b;
                 if (!rear || progress(b) < progress(rear)) rear = b;
             }
-            var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
+            // 후미 추적 인원: 최소 3·전체 10% 이되 전체의 1/3 을 넘지 않게(최소 1) — 2~3마리 경주가 출발부터 꼴등만 보는 일이 없게(데구리 b04643a). 1등 룰은 끝까지 선두 추적
+            var finalK = Math.min(Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO)), Math.max(1, Math.floor(balls.length / 3)));
+            var rearMode = remaining <= finalK && data.target !== 'first';
             var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done'), celNow = null;
             var hf = (pieces.holefield || [])[0];
+            // 결승 프레임 위쪽 여유 — 폰은 세로 캔버스에 맞춘 짧은 값. '내 동물 따라가기' 해제 기준도 같은 값이라 구멍밭 위 400~280 구간에서 카메라가 튀지 않는다
+            var frameAbove = view.narrow ? MOBILE_FRAME_ABOVE_PX : FRAME_ABOVE_PX;
             // 내 동물 따라가기(강조 모드): 내 동물 중 선두를 따라가다가, 내 것이 하나라도 들어가면 그때부터 내 것 중 꼴찌를 따라간다.
             // 내 것이 다 들어갔거나(myFocus 없음) 결승 프레임 구역에 들어오면 시스템 카메라로 돌아간다(프레임은 어차피 전원이 보인다)
             var myFocus = null;
@@ -451,36 +626,40 @@ var MarbleRender = (function () {
                     if (!myRear || progress(mb) < progress(myRear)) myRear = mb;
                 }
                 myFocus = myDone ? myRear : myLead;
-                if (myFocus && hf && myFocus.y >= hf.zone.y - FRAME_ABOVE_PX) myFocus = null;
+                if (myFocus && hf && myFocus.y >= hf.zone.y - frameAbove) myFocus = null;
             }
             var wallP = (pieces.dumpwall || [])[0];
-            // 결승 프레임: 선두가 구멍밭 위 FRAME_ABOVE_PX 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
-            var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ABOVE_PX;
-            cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
-            focus = cam.mode === 'rear' ? rear : lead;
+            // 결승 프레임: 선두가 구멍밭 위 frameAbove 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
+            var frameMode = hf && lead && lead.y >= hf.zone.y - frameAbove;
+            cam.mode = frameMode ? 'frame' : (rearMode ? 'rear' : 'lead');
+            focus = rearMode ? rear : lead;
+            var camTarget = frameMode ? null : focus;   // 순위표 카메라 표시용 — 지금 카메라가 따라가는 동물(결승 프레임처럼 전원을 한 화면에 잡을 땐 없음)
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
             if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
-            if (t < 0) targetY = data.track.startY * 0.5 + 60;
-            else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
-            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; }   // 내 동물 따라가기
-            else if (loserDone && (celNow = celebration(t)) && celNow.since >= 0) { targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; }   // 1등 당첨 축하: 비석에서 스탠드의 1등 동물로 건너간다
-            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
+            if (t < 0) { targetY = data.track.startY * 0.5 + 60; camTarget = null; }
+            else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
+            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; camTarget = myFocus; }   // 내 동물 따라가기
+            else if (loserDone && (celNow = celebration(t)) && celNow.since >= 0) { cam.mode = 'celebrate'; targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = celNow.ball; }   // 1등 당첨 축하: 비석에서 스탠드의 1등 동물로 건너간다
+            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = loserB; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
-                var top = hf.zone.y - FRAME_ABOVE_PX, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
-                targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
-                targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
-                if (view.narrow) {   // 모바일: 프레임 전체를 세로로 넣으면 공이 8px — 폭만 맞추고 후미 무리를 프레임 안에서 세로로 따라간다
-                    targetZoom = clamp(view.w / MOBILE_FRAME_W, ZOOM_MIN, ZOOM_MAX);
-                    var half = view.h / 2 / targetZoom, follow = rear || lead;
-                    targetY = clamp(follow.y + view.h * CAM_LEAD / targetZoom, top + half, Math.max(top + half, bottom - half));
+                var top = hf.zone.y - frameAbove, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
+                // 가로 중심은 결승 콘텐츠(스탠드 왼쪽 벽 ~ 판자벽, x 150~745)의 가운데 — 폰은 시야 폭 ≈630 이라 400 중심이면 골(700)·판자벽(745)이 화면 밖이었다.
+                // 데스크톱은 줌아웃 시야가 트랙보다 넓어 아래 클램프가 400 으로 되돌린다(기존 구도 ≈0.575 그대로)
+                targetY = (top + bottom) / 2; targetX = standP && wallP ? (standP.zone.x + wallP.x) / 2 : TRACK_W / 2;
+                var fitZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
+                targetZoom = fitZoom;
+                if (view.narrow && fitZoom < MOBILE_ZOOM_MIN) {   // 폰: 줌 하한 때문에 프레임이 다 안 들어가면 초점 공(선두 / 꼴등 룰 마지막 1/3 은 후미)을 프레임 안에서 세로로 따라간다
+                    targetZoom = MOBILE_ZOOM_MIN;
+                    var half = view.h / 2 / targetZoom, follow = focus || rear || lead;
+                    targetY = clamp(follow.y + view.h * CAM_LEAD / targetZoom, top + half, Math.max(top + half, bottom - half)); camTarget = follow;
                 }
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
                     var kk = clamp((rear.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
                     targetZoom = Math.max(targetZoom, 1 + (ZOOM_MAX - 1) * kk);
-                    if (kk > 0.3) { targetX = rear.x; targetY = rear.y + view.h * CAM_LEAD / targetZoom; }
+                    if (kk > 0.3) { targetX = rear.x; targetY = rear.y + view.h * CAM_LEAD / targetZoom; camTarget = rear; }
                 }
             }
             else {
@@ -489,20 +668,43 @@ var MarbleRender = (function () {
                 targetZoom = 1 + (ZOOM_MAX - 1) * k;
                 if (targetZoom > 1.01) { targetX = focus.x; targetY = focus.y + view.h * CAM_LEAD / targetZoom; }
             }
-            if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) {   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 좁아진 시야는 초점 공을 가로로 따라가 메운다
+            // 꼴찌가 확정되는 순간 한 번 자동으로 돌아가 비석·축하 장면을 놓치지 않게 한다. 그 뒤(결과 화면)에 순위표를 누르면 다시 따라간다
+            if (!loserDone) cam.loserSeen = false;
+            else if (!cam.loserSeen) { cam.loserSeen = true; if (manual.on) setManual(false); }
+            if (manual.on && manual.follow) {   // 순위표에서 고른 동물 따라가기
+                var fb = manual.follow;
+                targetX = fb.state === 'done' && fb.doneX != null ? fb.doneX : fb.x; targetY = (fb.state === 'done' && fb.doneY != null ? fb.doneY : fb.y) + 20; targetZoom = manual.zoom; cam.mode = 'follow'; camTarget = fb;
+            }
+            else if (manual.on) {   // 수동: 사용자가 옮긴 자리·배율 그대로(아래 세로·가로 한계만 적용)
+                targetX = manual.x; targetY = manual.y; targetZoom = manual.zoom; cam.mode = 'manual'; camTarget = null;
+            }
+            else if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) {   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 좁아진 시야는 초점 공을 가로로 따라가 메운다
                 targetZoom = MOBILE_ZOOM_MIN;
                 var fx = carried || myFocus || focus; if (fx && !frameMode) targetX = fx.x;
             }
-            var minY = data.track.startY + view.h / 2 - 140, maxY = data.track.endY - view.h / 2 + 20;   // 출발대 위 140px(하늘 띠)까지
+            // 세로 한계: 출발대 위 140px(하늘 띠) ~ 트랙 끝 20px 아래. 실제 보이는 반높이는 줌을 따르므로 줌으로 나눈다 — 논리 반높이로 조이면 폰(세로 캔버스, view.h 1120)에서
+            // 줌 1.36 의 비석·1등 축하 장면이 화면 아래 130px 을 비워 둔 채 바닥에 붙는다(데구리 b37d160). 줌 1(출발·주행)은 변화 없다
+            var halfH = view.h / 2 / targetZoom;
+            var minY = data.track.startY + halfH - 140, maxY = data.track.endY - halfH + 20;
             targetY = clamp(targetY, minY, maxY);
             var halfW = view.w / 2 / targetZoom;
-            targetX = halfW >= TRACK_W / 2 ? TRACK_W / 2 : clamp(targetX, halfW, TRACK_W - halfW);   // 줌아웃으로 트랙보다 넓으면 중앙 고정
-            if (!cam.init) { cam.y = targetY; cam.x = targetX; cam.zoom = targetZoom; cam.init = true; }
+            // 줌아웃으로 트랙보다 넓으면 중앙 고정. 1등 축하는 왕관 동물을 화면 가운데에 — 스탠드 가장자리 자리(x 175·625)는 트랙 안쪽으로 조이면 한쪽에 몰려 보인다(폰).
+            // 트랙 밖은 초원 타일이 padX 만큼 더 깔려 있어 빈 곳이 안 보인다
+            targetX = halfW >= TRACK_W / 2 ? TRACK_W / 2 : cam.mode === 'celebrate' ? targetX : clamp(targetX, halfW, TRACK_W - halfW);
+            if (manual.on && !manual.follow) {   // 한계에 걸린 값을 되돌려 써서, 끝까지 끈 뒤 반대로 끌 때 헛도는 구간이 없게 한다. 손가락을 바로 따라오도록 스무딩 없이
+                manual.x = targetX; manual.y = targetY;
+                cam.x = targetX; cam.y = targetY; cam.zoom = targetZoom; cam.init = true;
+            }
+            else if (!cam.init) { cam.y = targetY; cam.x = targetX; cam.zoom = targetZoom; cam.init = true; }
             else {
                 var k2 = Math.min(1, dt * CAM_SMOOTH);
                 cam.y += (targetY - cam.y) * k2; cam.x += (targetX - cam.x) * k2; cam.zoom += (targetZoom - cam.zoom) * Math.min(1, dt * 2.5);
                 if (Math.abs(cam.zoom - 1) < 0.004) cam.zoom = 1;   // 1 근처에서 스냅 — 미세 배율의 타일 이음새 방지
             }
+            if (manual.follow) { manual.x = cam.x; manual.y = cam.y; }   // 따라가다 끌면 지금 보이는 자리에서 이어서
+            cam.target = camTarget;
+            var mineNow = !manual.on && cam.mode === 'mine';   // 자동 상태에서 내 동물을 따라가는 중이면 버튼 문구도 그렇게
+            if (mineNow !== camBtnMine) { camBtnMine = mineNow; updateCamButton(); }
         }
         // 재생 시각(벽시계) → 시뮬 시각: 서버 slow 구간에서 rate 배 느리게 (서버 durationMs 와 같은 식)
         // 구간(시뮬 시각 기준) [startMs, endMs] 를 rate 배로 재생: fast(2배속, 꼴찌 한 마리만 남은 동안) → slow(골 앞 0.3배). 서버 durationMs 와 같은 식
@@ -774,7 +976,7 @@ var MarbleRender = (function () {
                 if (!on && toOn < MOLE_ALERT_MS) drawSprite('fx', 'mole-alert', m.x, m.y - 34, 48, 48, { sx: (Math.floor(Math.max(0, t) / 100) % 2) * 48, sw: 48 });   // 예고 '!' (5차)
                 if (pop > 0.05) {
                     var mf = pop < 0.4 ? 0 : pop < 0.75 ? 1 : 2;
-                    if (!drawSprite('pieces', 'mole-v2', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 }) && !drawSprite('pieces', 'mole', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {   // v2(청회색·안전모) 우선, 없으면 3차 mole
+                    if (!drawSprite('pieces', 'mole-v2', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {   // v2(청회색·안전모), 없으면 코드 도형
                         var mh = 26 * pop;
                         ctx.save(); ctx.translate(m.x, toScreenY(m.y));
                         ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();
@@ -785,15 +987,17 @@ var MarbleRender = (function () {
                 }
             });
             (pieces.flipflop || []).forEach(function (f) {
-                if (!visible(f.y, 80)) return;
-                // 팔: 축에서 아래로, ffDir 쪽으로 젖힘. 라벨로 지름길/돌아가는 길 표시
-                var a = f.angleDeg * Math.PI / 180, armIm = img('pieces', 'flipflop-arm');
-                ctx.save(); ctx.translate(f.x, toScreenY(f.y)); ctx.rotate(-ffDir * a);
-                if (armIm) ctx.drawImage(armIm, 0, 0, 40, 240, -5, -4, 10, 60);   // 축(20,16) → 표시 (0,0)
-                else { ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, f.len + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke(); }
-                ctx.restore();
+                if (!visible(f.y, 120)) return;
+                // 젖힘판: 축을 지나는 널빤지 — ffDir 쪽으로 아래, 반대쪽으로 위(끝이 깔때기 목 벽에 닿는다). 팔 스프라이트(축 구멍이 위)를 축에서 양쪽으로 한 번씩 그린다
+                var a = f.angleDeg * Math.PI / 180, armIm = img('pieces', 'flipflop-arm'), L = f.len || 56;
+                [-ffDir * a, Math.PI - ffDir * a].forEach(function (rot) {
+                    ctx.save(); ctx.translate(f.x, toScreenY(f.y)); ctx.rotate(rot);
+                    if (armIm) ctx.drawImage(armIm, 0, 0, 40, 240, -5, -4, 10, L + 4);   // 축(20,16) → 표시 (0,0)
+                    else { ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, L + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke(); }
+                    ctx.restore();
+                });
                 if (!drawSprite('pieces', 'flipflop-pivot', f.x, f.y, 48, 48)) { ctx.fillStyle = '#4a3420'; ctx.beginPath(); ctx.arc(f.x, toScreenY(f.y), 6, 0, Math.PI * 2); ctx.fill(); }
-                label(ffDir < 0 ? '◀ 이번엔 왼쪽' : '이번엔 오른쪽 ▶', f.x, f.y - 22, '#ffe08a', 12);
+                label(ffDir < 0 ? '◀ 이번엔 왼쪽' : '이번엔 오른쪽 ▶', f.x, f.y - L * Math.cos(a) - 34, '#ffe08a', 12);   // 판 꼭대기 위(깔때기 목 입구)
                 label('지름길', f.x - 125, f.y + 80, '#dfffd0', 12);
                 label('돌아가는 길', f.x + 125, f.y + 80, '#ffd0d0', 12);
             });
@@ -926,7 +1130,7 @@ var MarbleRender = (function () {
                 if (!burstEv) label('부딪히면 크게 튕겨요', cx, d.y1 - 64, '#fff', 11);
                 var bvf = burstEv ? 3 : st > 0 ? 2 : Math.floor(Math.max(0, t) / BEAVER_TAP_MS) % 2;   // 두드리기 A/B 루프 → 금 가면 놀람 → 터지면 도망 (5차 beaver-v2)
                 var flee = burstEv ? clamp((t - burstE.t) / BEAVER_FLEE_MS, 0, 1) : 0;   // 터지면 오른쪽 벽 쪽으로 달려가 사라진다
-                if (flee < 1 && !drawSprite('pieces', 'beaver-v2', d.beaverX + flee * 110, d.y1 + 26 - Math.abs(Math.sin(flee * 18)) * 6 * (1 - flee), 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee * flee }) && !drawSprite('pieces', 'beaver', d.beaverX + flee * 110, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee })) {
+                if (flee < 1 && !drawSprite('pieces', 'beaver-v2', d.beaverX + flee * 110, d.y1 + 26 - Math.abs(Math.sin(flee * 18)) * 6 * (1 - flee), 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee * flee })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
@@ -1050,7 +1254,7 @@ var MarbleRender = (function () {
             ctx.fillStyle = hl ? '#4a3000' : '#fff'; ctx.fillText(name, cx, cy + 0.5);
             ctx.restore();
         }
-        function drawRing(b, x, y, r, strong) {
+        function drawRing(b, x, y, r, strong, noTag) {   // noTag: 독수리 운반은 이름표·야식을 drawEagleCarry 가 독수리 위에 따로 단다(데구리 8b14a1c — 링 이름표까지 그리면 두 개였다)
             ctx.save();
             if (highlightMine && strong) {   // 내 동물: 금색 굵은 링 + 흰 바깥 링 + 글로우
                 ctx.shadowColor = MY_RING; ctx.shadowBlur = 12;
@@ -1065,6 +1269,7 @@ var MarbleRender = (function () {
                 ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
             }
             ctx.restore();
+            if (noTag) return;
             drawNameTag(b, x, toScreenY(y) - r - 7 * textBoost(), strong);
             if (b.balloon && overlayQ) overlay(drawBalloon, [b, x, toScreenY(y) - r, strong]);   // 이름표 뒤에 — 줄이 이름표에 가려지면 풍선이 이름표에 매달린 것처럼 보인다
         }
@@ -1074,7 +1279,7 @@ var MarbleRender = (function () {
         // 경주 화면(overlayQ 가 살아 있을 때)에서만 — 응원석·비석은 몸 위 표식을 안 단다.
         var BALLOON_CELL_W = 96, BALLOON_CELL_H = 128;     // 소스 셀 (스프라이트 계약)
         var BALLOON_KNOT_X = 48, BALLOON_KNOT_Y = 106;     // 줄이 붙는 점 (소스 px) — 그림이 바뀌어도 여기는 고정
-        var BALLOON_LIFT = 30, BALLOON_DRIFT = 13;         // 머리 꼭대기 → 매듭까지: 위로 / 오른쪽으로 (표시 px)
+        var BALLOON_LIFT = 21, BALLOON_DRIFT = 13;         // 머리 꼭대기 → 매듭까지: 위로 / 오른쪽으로 (표시 px). 30 → 21(2026-09-24): 폰에서 줄이 64px라 내 풍선인지 헷갈림 — 더 줄이면 지그재그 높은 이름표를 덮는다
         var BALLOON_ANCHOR_DX = 5;                         // 줄이 시작하는 지점을 살짝 오른쪽으로 — 가운데 이름표를 피한다
         var BALLOON_STRING = '#5a3d52';                    // 동물 시트 외곽선과 같은 색
         var ballClock = 0;                                 // 흔들림 시계(ms): 재생 중엔 재생 시각(모든 클라 동일), 대기 화면은 idleClock
@@ -1106,11 +1311,11 @@ var MarbleRender = (function () {
         // y = 공 중심 기준점(서기 프레임은 발이 y+25.5). 머리 꼭대기 = 발 − 서 있는 키(standHeight). 머리와의 간격 3px 는 f(폰 확대)와 무관 — 알약 높이만 f 를 따른다
         function drawBadge(b, x, y, strong) {
             var f = textBoost(), headTop = y + 25.5 - standHeight(b);
-            drawNameTag(b, x, toScreenY(headTop) - 3 - (6 + (b.id % 2) * 9) * f, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
+            drawNameTag(b, x, toScreenY(headTop) - 3 - 6 * f, strong);   // 모두 같은 높이 — 지그재그는 겹침보다 들쭉날쭉이 더 어색했다(데구리 6628dd3)
             if (b.balloon && overlayQ) overlay(drawBalloon, [b, x, toScreenY(headTop), strong]);   // 이름표 뒤에 — 줄이 이름표에 가려지면 풍선이 이름표에 매달린 것처럼 보인다
         }
         // 작은 동물 아이콘(HUD·미니맵용): 서 있는 프레임(row 0, col 0)의 얼굴 부분(FACE_CROP)을 원으로 잘라 size px 로 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
-        var FACE_CROP = { x: 22, y: 6, w: 116, h: 116 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px)
+        var FACE_CROP = { x: 62, y: 34, w: 86, h: 86 };   // 160 셀 안에서 머리가 들어오는 정사각 영역(소스 px) — 옆모습이라 머리는 셀 오른쪽 위. 예전 116 칸은 몸통까지 들어가 얼굴이 작았다(데구리 6628dd3)
         function drawMiniIcon(b, sx, sy, size, strong) {
             var im = sheet('creatures', b);
             var r = size / 2;
@@ -1136,9 +1341,10 @@ var MarbleRender = (function () {
             var gy = b.y + lift;   // 땅 자리
             if (!drawSprite('fx', 'eagle-shadow', b.x, gy, 128, 48, { alpha: 0.35 + 0.3 * (1 - lift / EAGLE_ARC), scale: 1 - 0.3 * lift / EAGLE_ARC })) drawShadow(b.x, gy, BALL_R + 6);
             drawCreatureFrame(b, 2, 0, b.x, b.y + 4, Math.sin(t / 120) * 0.15, 1);
-            drawRing(b, b.x, b.y + 4, BALL_R + 1, mine);
+            drawRing(b, b.x, b.y + 4, BALL_R + 1, mine, true);   // 이름표·야식은 아래에서 독수리 위에 한 번만
             drawEagleSprite(b.x, b.y - 8, faceLeft, t);   // 발톱(아래에서 16px 소스 = 4px) 이 공 위
             drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
+            if (b.balloon && overlayQ) overlay(drawBalloon, [b, b.x, toScreenY(b.y + 4) - BALL_R - 1, mine]);   // 채 간 공에도 야식은 매달려 간다
             if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
         }
         // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
@@ -1239,14 +1445,89 @@ var MarbleRender = (function () {
             ctx.restore();
             return true;
         }
+        // ── 동물 누르면 반응(데구리 8b14a1c) — 대기 출발대·결승 스탠드. 내 화면에서만 보이고, 내 동물이든 남의 동물이든 다 반응한다. 연출만, 물리·순위·타임라인 무관 ──
+        // reacts[ballId] = { kind, at(벽시계 ms) }. 누를 때마다 직전과 다른 반응을 고른다. 종류는 공 id·시각 해시(결정론 해시 — 결과 계산이 아니라도 Math.random 은 안 쓴다)
+        var REACT_KINDS = ['startle', 'sleep', 'dizzy', 'wave', 'hop'], REACT_MS = 1500, reacts = {};
+        function reactTo(b) {
+            var prev = reacts[b.id] && reacts[b.id].kind, kinds = REACT_KINDS.filter(function (k) { return k !== prev; });
+            reacts[b.id] = { kind: kinds[Math.floor(hash01(b.id * 31 + Math.floor(performance.now())) * kinds.length)], at: performance.now() };
+        }
+        function reactionOf(b) {
+            var r = reacts[b.id]; if (!r) return null;
+            var k = (performance.now() - r.at) / REACT_MS; if (k >= 1) { delete reacts[b.id]; b.idlePause = (b.idlePause || 0) + REACT_MS; return null; }
+            return { kind: r.kind, k: k, ms: performance.now() - r.at };
+        }
+        function drawCellOf(group, b, row, col, x, y, flip, scale) {
+            var im = sheet(group, b); if (!im) return false;
+            var sc = SRC_SCALE * (scale || 1);
+            ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
+            ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
+            ctx.restore();
+            return true;
+        }
+        function drawBang(x, y, k) {   // 놀람 '!' — 경주의 wake fx 와 같은 시트(없으면 글자)
+            if (!drawSprite('fx', 'wake', x, y, 48, 48, { sx: Math.min(3, Math.floor(k * 4)) * 48, sw: 48 })) label('!', x, y, '#fff7a0', 16);
+        }
+        // (x, cy) = 서 있는 스프라이트 중심. 반응 중이면 그리고 true
+        function drawReaction(b, x, cy, flip, scale) {
+            var re = reactionOf(b); if (!re) return false;
+            var k = re.k, ms = re.ms, s = scale || 1, head = cy - 22 * s;
+            if (re.kind === 'startle') {          // 펄쩍 → 좌우 두리번
+                var lift = k < 0.25 ? Math.sin(k / 0.25 * Math.PI) * 12 * s : 0;
+                if (k < 0.25) { if (!drawCellOf('scuffle', b, 1, 0, x, cy - lift, flip, s)) drawCellOf('creatures', b, 4, 1, x, cy - lift, flip, s); }
+                else drawCellOf('creatures', b, 0, 0, x, cy, Math.floor(ms / 260) % 2 ? !flip : flip, s);
+                if (k < 0.6) overlay(drawBang, [x + 10 * s, head - lift - 8, k / 0.6]);
+            } else if (re.kind === 'sleep') {     // 꾸벅 잠 → 깸. 잠 시트도 발끝이 기본 시트와 같은 칸 위치(149/160)라 같은 cy 에 그린다
+                if (k < 0.8) { if (!drawCellOf('sleep', b, 0, Math.floor(ms / 400) % 2, x, cy, flip, s)) drawCellOf('creatures', b, 4, 2, x, cy, flip, s); var zt = ms % 900; overlay(drawZz, [x + 12 * s, head + 4 - zt / 45, Math.floor(zt / 225), 1 - zt / 900, zt < 450 ? 'z' : 'Z']); }
+                else if (!drawCellOf('sleep', b, 0, k < 0.9 ? 2 : 3, x, cy, flip, s)) drawCellOf('creatures', b, 0, 0, x, cy, flip, s);
+            } else if (re.kind === 'dizzy') {     // 빙글빙글 어지러움
+                if (!drawCellOf('scuffle', b, 1, 2 + Math.floor(ms / 180) % 2, x, cy, flip, s)) drawCellOf('creatures', b, 4, 2, x, cy, flip, s);
+                drawSprite('fx', 'dizzy-swirl', x, head + 8, 48, 48, { sx: (Math.floor(ms / 180) % 2) * 48, sw: 48, anchor: 'bottom', scale: 1.2 * s });
+            } else if (re.kind === 'wave') {      // 손 흔들기(3행 2·3칸)
+                drawCellOf('creatures', b, 3, 2 + Math.floor(ms / 240) % 2, x, cy, flip, s);
+            } else {                              // 깡충깡충 두 번
+                var p = (k * 2) % 1, up = Math.sin(p * Math.PI) * (k < 0.5 ? 14 : 9) * s;
+                drawCellOf('creatures', b, 0, p < 0.15 || p > 0.85 ? 0 : 1, x, cy - up, flip, s);
+            }
+            return true;
+        }
+        // 클릭 자리(캔버스 CSS px) → 그 자리에 서 있는 동물. 대기 화면 출발대, 경주 뒤 결승 스탠드만(경주 중엔 카메라 조작이 우선)
+        function critterHitAt(p) {
+            if (!data) return null;
+            var lp = logicalPerCss(), z = cam.zoom || 1;
+            var wx = cam.x + (p.x * lp - view.w / 2) / z, wy = cam.y + (p.y * lp - view.h / 2) / z;
+            var best = null, bestD = 1e9, i, b, cx, cy, d;
+            if (phase === 'idle') {
+                for (i = 0; i < balls.length; i++) {
+                    b = balls[i]; var ia = idlePose(b);
+                    cx = clamp(b.x + ia.dx, 200 + 16, 600 - 16); cy = b.y + ia.dy - STAND_LIFT + 8;
+                    if (Math.abs(wx - cx) > 16 || wy < cy - 20 || wy > cy + 18) continue;
+                    d = Math.abs(wx - cx); if (d < bestD) { bestD = d; best = b; }
+                }
+                return best;
+            }
+            var L = standLayout(); if (!L || !data.finishOrder.length) return null;
+            var lastId = data.finishOrder[data.finishOrder.length - 1];
+            for (i = 0; i < balls.length; i++) {
+                b = balls[i]; if (b.state !== 'done' || b.id === lastId) continue;
+                var slot = standSlot(L, b.finishIdx); if (!slot) continue;
+                cx = slot.x; cy = slot.y - 6;
+                if (Math.abs(wx - cx) > 15 || wy < cy - 18 || wy > cy + 16) continue;
+                d = Math.abs(wx - cx); if (d < bestD) { bestD = d; best = b; }
+            }
+            return best;
+        }
         // 대기 화면 포즈 — idleClock 에서 파생. 반환 { dx, dy, flip, pose: 'walk'|'push'|'startled'|'dizzy', col, growl }
         // 서성임: 마리마다 다른 위상의 사인 왕복(발 구르기 프레임은 걷는 방향으로). 몸싸움: IDLE_SCUF_PERIOD 마다 x 순 이웃 한 쌍이
         // 다가가서(0~20%) 밀고(20~70%, 으르렁) 한 놈이 화들짝(70~85%) 어지러움(85~100%). 준비 안 한(dim) 놈은 몸싸움에서 뺀다
         function idlePose(b) {
-            var ic = idleClock, ph0 = ic / 1900 + b.id * 1.7;
-            var dx = Math.sin(ph0) * IDLE_WANDER_X, dy = Math.sin(ic / 2600 + b.id * 0.9) * IDLE_WANDER_Y;
+            // 반응(잠·어지러움 등) 중에는 그 자리에 가만히 — 서성임 시계를 반응한 시간만큼 멈춰서, 끝나면 멈춘 자리에서 이어 걷는다
+            var paused = (b.idlePause || 0) + (reacts[b.id] ? Math.min(REACT_MS, performance.now() - reacts[b.id].at) : 0);
+            var ic = idleClock - paused, ph0 = ic / 1900 + b.id * 1.7;
+            var dx = Math.sin(ph0) * IDLE_WANDER_X, dy = 0;   // 좌우로만 — 위아래로 흔들면 발이 판자 아래로 내려갔다
             var res = { dx: dx, dy: dy, flip: Math.cos(ph0) < 0, pose: 'walk', col: Math.floor(ic / 160 + b.id) % 4, growl: false };
             var n = idleOrder.length; if (n < 2) return res;
+            ic = idleClock;   // 몸싸움 짝·박자는 두 마리가 같은 시계를 봐야 한다 — 멈춘 시계는 위 서성임에만
             var w = Math.floor(ic / IDLE_SCUF_PERIOD_MS), ph = (ic % IDLE_SCUF_PERIOD_MS) / IDLE_SCUF_PERIOD_MS;
             var k = Math.floor(hash01(w * 7 + 1) * (n - 1));
             var aId = idleOrder[k], bId = idleOrder[k + 1];
@@ -1324,20 +1605,22 @@ var MarbleRender = (function () {
                     if (b.dim) ctx.globalAlpha = 0.45;   // 대기 프리뷰: 동물은 골랐지만 아직 준비 안 한 사람(반투명)
                     if (phase === 'idle') {   // 대기 화면: 서성임 + 몸싸움. 시작(reveal)하면 R.play 가 이 루프를 끊고 카운트다운 위치로 팍 바뀐다
                         var ia = idlePose(b);
-                        var ix = clamp(b.x + ia.dx, 200 + 16, 600 - 16), iy = by + ia.dy;
-                        if (ia.pose === 'push') { if (!drawScuffleFrame(b, 0, ia.col, ix, iy + 4, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip); }
-                        else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 1, ix, iy + 4); }
-                        else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, iy + 4, ia.flip)) drawCreatureFrame(b, 4, 2, ix, iy + 4); }
+                        var ix = clamp(b.x + ia.dx, 200 + 16, 600 - 16), iy = by + ia.dy - STAND_LIFT;
+                        if (drawReaction(b, ix, iy + 8, ia.flip, 1)) { drawBadge(b, ix, iy, mine); ctx.globalAlpha = 1; continue; }   // 눌러서 반응 중이면 서성임·몸싸움 대신
+                        // 모든 자세를 +8 에 그려 발끝(시트 중심 +17.3, 걷기·밀기·어지러움 공통)이 같은 판자 선에 닿게 — 예전 +4 는 몸싸움 때만 4px 떠 있었다
+                        if (ia.pose === 'push') { if (!drawScuffleFrame(b, 0, ia.col, ix, iy + 8, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip); }
+                        else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, iy + 8, ia.flip)) drawCreatureFrame(b, 4, 1, ix, iy + 8); }
+                        else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, iy + 8, ia.flip)) drawCreatureFrame(b, 4, 2, ix, iy + 8); }
                         else drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip);
                         if (ia.growl) overlay(label, ['으르렁!', ix + (ia.flip ? -14 : 14), iy - 26 + Math.sin(idleClock / 60) * 1.5, '#fff', 11]);
                         drawBadge(b, ix, iy, mine);
                         ctx.globalAlpha = 1;
                         continue;
                     }
-                    if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8);
-                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8)); }
+                    if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8 - STAND_LIFT);
+                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8 - STAND_LIFT)); }
                     if (curled) drawRing(b, b.x, by, BALL_R + 1, mine);
-                    else drawBadge(b, b.x, by, mine);
+                    else drawBadge(b, b.x, by - STAND_LIFT, mine);
                     ctx.globalAlpha = 1;
                     continue;
                 }
@@ -1365,7 +1648,7 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
-                    if (b.walkKind === 'dizzy' && t - b.walkStallAt < SCUFFLE_DIZZY_MS) {   // 몸싸움 → 화들짝 낙하 → 착지 기절 0.5s
+                    if (b.walkKind === 'dizzy' && t - b.walkStallAt < LAND_REST_MS + SCUFFLE_DIZZY_MS) {   // 몸싸움 → 화들짝 낙하 → 착지 기절(숨 고르기 + 0.5s)
                         drawDizzy(b, t); drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임만(col 1 은 정면으로 놀라는 그림이라 달리다 뒤돌아보는 것처럼 보였다)
@@ -1381,9 +1664,9 @@ var MarbleRender = (function () {
                         overlay(drawZz, [b.x + 14, zyw, Math.floor(ztw / 225), 1 - ztw / 900, 'z']);
                         continue;
                     }
-                    var ws = t - b.landAt;
+                    var ws = t - b.landAt, resting = b.walkKind === 'rest' && ws < LAND_REST_MS;   // 숨 고르기: 펴진 뒤 발을 안 구르고 서 있다(서버도 이 동안 제자리)
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
-                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
+                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : resting ? 0 : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
                     var wim = sheet('creatures', b);
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
@@ -1550,6 +1833,12 @@ var MarbleRender = (function () {
             ctx.fillStyle = '#3b82e2'; ctx.beginPath(); ctx.arc(-w / 3, -h * 0.25, 1.6, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(w / 3, -h * 0.25, 1.6, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
         }
+        // 스탠드 이름표 알약 "순위 이름(앞 6자)" — 데구리 6628dd3
+        function standTagText(idx) {
+            var ob = byId[data.finishOrder[idx]], nm = String((ob && ob.owner) || '');
+            if (nm.length > 6) nm = nm.slice(0, 6) + '…';
+            return (idx + 1) + ' ' + nm;
+        }
         // 도착 동물: 파이프 이동 중이면 그 위치에 공으로, 자리에 도착했으면 순위 배지와 함께 판자 위에
         function drawCheerStand(t) {
             var L = standLayout(); if (!L) return;
@@ -1593,17 +1882,16 @@ var MarbleRender = (function () {
                     ctx.beginPath(); ctx.arc(x2, toScreenY(y2 - 6 - hop), BALL_R * 0.85 + 2, 0, Math.PI * 2); ctx.stroke();
                     ctx.restore();
                 }
-                drawCreatureFrame(b, 3, frame, x2, y2 - 6 - hop, 0, 0.85);
+                if (!drawReaction(b, x2, y2 - 6 - hop, false, 0.85)) drawCreatureFrame(b, 3, frame, x2, y2 - 6 - hop, 0, 0.85);   // 눌렀으면 반응(12)
                 // 순위 + 주인 이름 알약(플레이어 색): "3 호스트" — 머리 위 (사용자 2026-09-21: 숫자만으론 누구 동물인지 안 읽힘).
-                // 칸 폭(colW)보다 넓어질 수 있어 홀수 칸은 한 단 위로 지그재그 — 같은 높이끼리는 두 칸 떨어져 안 겹친다. 이름은 앞 6자.
+                // 이름은 앞 6자(standTagText). 칸 폭(colW)보다 넓으면 옆 알약과 조금 겹친다 — 홀수 칸 한 단 올리던 지그재그는 겹침보다 더 어색했다(데구리 6628dd3).
                 // 왕관 쓴 1등 동물은 알약 대신 아래 큰 글자(왕관과 겹침)
                 if (!(cel && cel.since >= 0 && cel.ball === b)) {
-                    var nm = String(b.owner || ''); if (nm.length > 6) nm = nm.slice(0, 6) + '…';
                     var f = textBoost();
                     ctx.save();
                     ctx.font = 'bold ' + Math.round(8 * f) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    var tagTxt = (idx + 1) + ' ' + nm, tagW = Math.min(colW * 1.6, ctx.measureText(tagTxt).width + 7 * f), tagH = 12 * f;
-                    var tagY = toScreenY(y2 - hop) - 23 - ((idx % cols) % 2) * 12;
+                    var tagTxt = standTagText(idx), tagW = Math.min(colW * 1.6, ctx.measureText(tagTxt).width + 7 * f), tagH = 12 * f;
+                    var tagY = toScreenY(y2 - hop) - 23;
                     ctx.fillStyle = ringColor(b); roundRect(x2 - tagW / 2, tagY - tagH / 2, tagW, tagH, 6 * f); ctx.fill();
                     if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물은 흰 테두리
                     ctx.fillStyle = '#fff'; ctx.fillText(tagTxt, x2, tagY + 0.5);
@@ -1633,14 +1921,15 @@ var MarbleRender = (function () {
             if (since > GRAVE_DROP_MS + 250) {   // 비석 뒤 은은한 빛 (먼저 그려 비석을 덮지 않게). 화면 전체를 어둡게 하는 스포트라이트는 통로·스탠드와 겹쳐 뺐다
                 ctx.save();
                 var glow = ctx.createRadialGradient(x, toScreenY(y - 10), 6, x, toScreenY(y - 10), 70);
-                glow.addColorStop(0, 'rgba(255,240,170,0.55)'); glow.addColorStop(1, 'rgba(255,240,170,0)');
+                glow.addColorStop(0, 'rgba(255,240,170,' + (0.45 + 0.15 * Math.sin(since / 420)).toFixed(3) + ')');   // 은은하게 숨 쉬듯(데구리 작업 트리 2026-09-24 — 정지점 두 개가 모두 있어야 가장자리로 번진다)
+                glow.addColorStop(1, 'rgba(255,240,170,0)');
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, toScreenY(y - 10), 70, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
             }
             drawGravestone(x, y + 8 - drop, since - GRAVE_DROP_MS);
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
-                label(b.owner + ' 님의 ' + (b.skinName || CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);   // 스킨을 끼면 스킨 이름(서버 skinName = 카탈로그 displayName)
+                label(b.owner + ' 님의 ' + (b.skinName || CREATURE_NAMES[b.creature] || '') + (balls.some(function (o) { return o.num > 1; }) ? ' ' + b.num + '번' : ''), x, y - 62, '#fff', 15);   // 'N번'은 한 사람 여러 마리일 때만(순위표와 같게). 스킨을 끼면 스킨 이름(서버 skinName = 카탈로그 displayName)
                 if (data.target !== 'first') label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);   // 1등 룰 판은 꼴찌를 안 따진다 — 비석은 경주 종료 연출로만(문구 없음)
             }
         }
@@ -1650,6 +1939,9 @@ var MarbleRender = (function () {
             var squash = (sinceLand >= 0 && sinceLand < 120) ? 1 - 0.18 * (1 - sinceLand / 120) : 1;
             ctx.save();
             ctx.translate(x, toScreenY(yBase)); ctx.scale(1 / Math.sqrt(squash), squash);
+            // 착지 뒤 2.4초마다 한 번 들썩(밑동 기준으로 좌우 흔들림) — 결과 화면에서 비석이 굳은 그림처럼 보이지 않게(데구리 6628dd3)
+            var wob = sinceLand > 600 ? (sinceLand - 600) % 2400 : -1;
+            if (wob >= 0 && wob < 420) ctx.rotate(Math.sin(wob / 420 * Math.PI * 3) * 0.07 * (1 - wob / 420));
             var gim = img('pieces', 'gravestone');   // 4차 비석(128×160, 하단 정렬, 글자 없음) — 없으면 코드 도형
             if (gim) { var gw = 128 * SRC_SCALE, gh = 160 * SRC_SCALE; ctx.drawImage(gim, 0, 0, 128, 160, -gw / 2, -gh, gw, gh); }
             else {
@@ -1667,6 +1959,9 @@ var MarbleRender = (function () {
         function drawFx(t) {
             fxList.forEach(function (f) {
                 var age = t - f.t0, k = age / f.dur, frame = Math.min(3, Math.floor(k * 4));
+                // 끝난 fx 는 그리지 않는다 — 조기 확정(cutMs) 뒤엔 fxList 정리(applyEventsUpTo)가 멈춘 세계 시각 tw 로 돌아 비석·왕관·스탠드 착지 연기(t0 = 실제 t)가 안 지워지고,
+                // alpha 1-k 가 음수가 되면 캔버스가 무시해 마지막 프레임이 불투명하게 비석 위에 굳어 있었다(데구리 6628dd3)
+                if (age < 0 || k >= 1) return;
                 var b = f.ball != null ? byId[f.ball] : null;
                 var x = f.x != null ? f.x : (b ? b.x : 0), y = f.y != null ? f.y : (b ? b.y : 0);
                 switch (f.type) {
@@ -1724,7 +2019,7 @@ var MarbleRender = (function () {
                     case 'damburst': {
                         var d = (pieces.dam || [])[0]; if (!d || !visible(d.y1, 80)) return;
                         var cx = (d.x1 + d.x2) / 2;
-                        if (!drawSprite('fx', 'dam-burst-v2', cx, d.y1 + 20, 192, 128, { sx: Math.min(5, Math.floor(k * 6)) * 192, sw: 192, anchor: 'bottom', alpha: 1 - k * k, scale: 1.4 }) && !drawSprite('fx', 'dam-burst', cx, d.y1 - 10, 192, 128, { sx: frame * 192, sw: 192, alpha: 1 - k })) {   // 5차 6프레임 물살 우선
+                        if (!drawSprite('fx', 'dam-burst-v2', cx, d.y1 + 20, 192, 128, { sx: Math.min(5, Math.floor(k * 6)) * 192, sw: 192, anchor: 'bottom', alpha: 1 - k * k, scale: 1.4 })) {   // 5차 6프레임 물살, 없으면 코드 도형
                             for (var q = 0; q < 10; q++) { var ang = hash01(q + 3) * Math.PI * 2, dist = k * (40 + hash01(q + 9) * 60); ctx.fillStyle = q % 2 ? 'rgba(120,80,40,' + (1 - k) + ')' : 'rgba(120,190,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * dist, toScreenY(d.y1) + Math.sin(ang) * dist * 0.6 + k * 30, 4, 0, Math.PI * 2); ctx.fill(); }
                             label('댐이 터졌다!', cx, d.y1 - 70, '#fff', 15);
                         }
@@ -1797,7 +2092,8 @@ var MarbleRender = (function () {
             return c;
         }
         function drawMinimap(t, hh) {   // drawHud 의 ui 배율 변환 안에서 호출됨 — hh = HUD 단위 높이
-            var x0 = 12, y0 = view.narrow ? 74 : 44, hMax = (hh || view.h) - y0 - 16;   // 폰: 상태 문구 아래 당첨 룰 배지 줄(y 38~64) 아래로. 아래 여백 16
+            var x0 = 12, y0 = 44, hMax = (hh || view.h) - y0 - 16;   // 왼쪽 위 상태 문구(y 8~34) 아래로. 당첨 룰 배지는 오른쪽 순위표 위로 옮겼다(19). 아래 여백 16
+            if (view.narrow) hMax = Math.min(hMax, (hh || view.h) * MINIMAP_MAX_H_NARROW - y0);   // 폰: 결승 프레임의 홈통·스탠드 왼쪽 자리(1·2위)를 미니맵이 덮지 않게(데구리 b04643a)
             var startY = data.track.startY - 40, endY = data.track.endY;
             var sc = Math.min(hMax / (endY - startY), (view.narrow ? MINIMAP_MAX_W_NARROW : MINIMAP_MAX_W) / TRACK_W);   // 폰에선 HUD 단위 = CSS px 라 96 이면 화면 1/4 — 좁게
             var w = TRACK_W * sc, h = (endY - startY) * sc, res = view.scale * view.ui;
@@ -1828,56 +2124,110 @@ var MarbleRender = (function () {
             ctx.restore();
         }
 
+        // 순위표 카메라 표시 — 카메라 버튼과 같은 픽셀 카메라 아이콘(로드 전이면 생략). 내 줄 강조(흰 글씨·강조 아이콘)와 모양이 다르다
+        var camMarkImg = null;
+        function drawCamMark(cx, cy) {
+            if (!camMarkImg) { camMarkImg = new Image(); camMarkImg.src = CAM_ICONS.auto; }
+            if (!camMarkImg.complete || !camMarkImg.naturalWidth) return;
+            ctx.imageSmoothingEnabled = false; ctx.drawImage(camMarkImg, cx - 8, cy - 8, 16, 16); ctx.imageSmoothingEnabled = true;
+        }
+        // 출발 카운트다운: 준비!(첫 1초) → 3 → 2 → 1(1초씩) → 출발 순간 START! — 화면 가운데 큰 글자, 매 초 커졌다 줄며 톡 튀어나온다(데구리 6628dd3)
+        var COUNT_START_SHOW_MS = 700;
+        function drawCountdown(t, hw, hh) {
+            if (phase === 'idle' || t >= COUNT_START_SHOW_MS) return;
+            var n = Math.ceil(-t / 1000), isStart = t >= 0, txt = isStart ? 'START!' : n >= 4 ? '준비!' : String(n);
+            var k = isStart ? t / COUNT_START_SHOW_MS : 1 - ((-t) % 1000 || 1000) / 1000;   // 이 글자가 뜬 뒤 경과(0→1)
+            var pop = k < 0.18 ? 1.5 - (k / 0.18) * 0.5 : 1;                               // 처음 0.18 동안 1.5배 → 1배
+            var alpha = isStart ? 1 - Math.max(0, (k - 0.5) / 0.5) : (k > 0.85 ? 1 - (k - 0.85) / 0.15 : 1);
+            var size = (isStart || n >= 4 ? 56 : 84) * pop;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, alpha);
+            ctx.font = size.toFixed(1) + 'px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(6, size * 0.12); ctx.strokeStyle = '#5a3d1e';
+            ctx.strokeText(txt, hw / 2, hh * 0.42);
+            ctx.fillStyle = isStart ? '#ffd166' : '#fff';
+            ctx.fillText(txt, hw / 2, hh * 0.42);
+            ctx.restore();
+        }
         function drawHud(t) {
             ctx.save();
             ctx.scale(view.ui, view.ui);   // 폰에선 HUD 를 view.ui 배 — 아래 배치는 hw×hh(HUD 단위) 기준
             var hw = view.w / view.ui, hh = view.h / view.ui;
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
-            var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : (data.target === 'first' && data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : '꼴찌 확정!'));
-            var sw = ctx.measureText(txt).width + 20;
-            ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, sw, 26, 8); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
-            // 당첨 룰 배지 — 캔버스 위 HTML 배너("N등을 찾아라!")는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에도 띄운다
-            if (phase !== 'idle' && data.target) {
-                var rule = (data.target === 'first' ? '1등' : '꼴등') + ' 당첨', rx = 8 + sw + 6, ry = 8;
-                if (view.narrow) { rx = 8; ry = 38; }   // 폰: 같은 줄에 두면 우상단 베타 배지·전체화면 버튼에 가린다 — 상태 문구 아래 줄(미니맵은 그만큼 내려 시작)
-                ctx.fillStyle = '#ffd166'; roundRect(rx, ry, ctx.measureText(rule).width + 38, 26, 8); ctx.fill();
-                ctx.fillStyle = '#3a2a00'; ctx.fillText(rule, iconScreen('target', rx + 8, ry + 5, 16) ? rx + 28 : rx + 10, ry + 5);
+            // 왼쪽 위 상태 문구 — 전체화면이 아닐 땐 2배속 구간에만('출발 준비…'·'남은 동물 N마리'·'꼴찌 확정!' 은 순위표·카운트다운·결승 글자와 겹치는 정보라 뺐다, 데구리 8b14a1c).
+            // 전체화면에서는 캔버스 밖 HTML 상태가 안 보여 유일한 진행 정보이므로 지금처럼 계속 보인다. 대기 화면 문구('출발대 대기 N마리')는 유지
+            var txt = null;
+            if (phase === 'idle') txt = balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대';
+            else if (view.fs) {
+                var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
+                txt = t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : (data.target === 'first' && data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : '꼴찌 확정!'));
             }
-            // 순위표 — 화면 높이에 안 들어가면 당첨 순위 쪽(1등 룰이면 위, 꼴등 룰이면 아래)을 남기고 자른다. 당첨 자리 행은 금색
+            else if (t >= 0 && inFast(t)) txt = '▷▷ 2배속';
+            if (txt) {
+                var sw = ctx.measureText(txt).width + 20;
+                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, sw, 26, 8); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
+            }
+            // 당첨 룰 배지 — 오른쪽 위, 순위표 바로 위(19). 순위표가 있으면 둘을 같은 폭·같은 왼쪽 끝으로 맞춘다. 캔버스 위 HTML 배너는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에 띄운다
+            var ruleH = (phase !== 'idle' && data.target) ? HUD_RULE_H : 0;
+            var hudTop = Math.round(HUD_RANK_TOP_PX * hw / view.cssW);   // CSS px → HUD 단위(1 CSS px = hw / cssW) — 전체화면 버튼·베타 배지 아래
+            var ruleText = ruleH ? (data.target === 'first' ? '1등' : '꼴등') + ' 당첨' : '', ruleW = 0;
+            if (ruleH) { ctx.save(); ctx.font = 'bold 14px "Jua", sans-serif'; ruleW = ctx.measureText(ruleText).width + 16 + 4 + 20; ctx.restore(); }   // 아틀라스 target 아이콘(16) + 간격 + 좌우 여백
+            var drawRuleBadge = function (bx, bw) {
+                ctx.save(); ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+                if (bw == null) { bw = ruleW; bx = hw - bw - 8; }
+                var tw = ctx.measureText(ruleText).width, left = bx + (bw - (16 + 4 + tw)) / 2;
+                ctx.fillStyle = '#ffd166'; roundRect(bx, hudTop, bw, 26, 8); ctx.fill();
+                ctx.fillStyle = '#3a2a00'; ctx.fillText(ruleText, iconScreen('target', left, hudTop + 5, 16) ? left + 20 : bx + (bw - tw) / 2, hudTop + 5);
+                ctx.restore();
+            };
+            var badgeDone = false;
+            drawCountdown(t, hw, hh);
+            // 순위표 — 화면 높이에 안 들어가면 당첨 순위 쪽(1등 룰이면 위, 꼴등 룰이면 아래)을 남기고 자른다. 당첨 자리 행은 금색. 피날레에도 최종 순위로 남는다
+            rankHits = [];
             if (t >= 0 && hudInfo.rows.length) {
                 ctx.font = 'bold 12px "Jua", sans-serif';
-                var y = Math.round(HUD_RANK_TOP_PX * hw / view.cssW), w = HUD_RANK_W, rows = hudInfo.rows, n = rows.length;   // CSS px → HUD 단위(1 CSS px = hw / cssW)
-                var maxRows = Math.max(1, Math.floor((hh - y - 30) / HUD_RANK_ROW));
+                var y = hudTop + ruleH, rows = hudInfo.rows, n = rows.length;
+                var multi = balls.some(function (b) { return b.num > 1; });   // 한 사람 여러 마리일 때만 'N번'(그 사람의 몇 번째 동물) — 1마리 경주는 늘 1번이라 뺀다(17)
+                var shortName = function (nm) { return nm.length > HUD_RANK_NAME_MAX ? nm.slice(0, HUD_RANK_NAME_MAX) + '…' : nm; };
+                var rankText = function (r) { return shortName(r.ball.owner) + (r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
+                // 폭 = 이름 앞(카메라 표시·순위·얼굴 68) + 가장 긴 이름 + 뒤 꼬리(' 도착'·' 9번' 중 긴 것 — 경주 중 폭이 들썩이지 않게) + 오른쪽 여백. 상한 HUD_RANK_W_MAX
+                var tailW = Math.max(ctx.measureText(' 도착').width, multi ? ctx.measureText(' 9번').width : 0);
+                var textW = ctx.measureText('순위표').width + 17 - 60;
+                rows.forEach(function (r) { textW = Math.max(textW, ctx.measureText(shortName(r.ball.owner)).width + tailW); });
+                var blockW = Math.ceil(textW + 62);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
+                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), ruleW), L = hw - w - 8;
+                var X = L + Math.round((w - blockW) / 2) - 6;   // 묶음을 패널 가운데로
+                if (ruleH) { drawRuleBadge(L, w); badgeDone = true; }
+                var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW - ruleH);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
+                var maxRows = Math.max(1, Math.floor((panelMaxH - 26) / HUD_RANK_ROW));
                 var from = n > maxRows && data.target !== 'first' ? n - maxRows : 0, shown = rows.slice(from, from + maxRows);
-                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(hw - w - 8, y, w, 22 + shown.length * HUD_RANK_ROW, 8); ctx.fill();
-                ctx.fillStyle = '#ffd166'; ctx.fillText('순위표', iconScreen('list', hw - w, y + 4, 14) ? hw - w + 17 : hw - w, y + 5);
+                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(L, y, w, 26 + shown.length * HUD_RANK_ROW, 8); ctx.fill();
+                var titleW = ctx.measureText('순위표').width, titleLeft = L + w / 2 - (14 + 3 + titleW) / 2;   // 제목(아틀라스 list 아이콘 + 글자)은 패널 가운데
+                ctx.fillStyle = '#ffd166'; ctx.textAlign = 'left'; ctx.fillText('순위표', iconScreen('list', titleLeft, y + 5, 14) ? titleLeft + 17 : L + w / 2 - titleW / 2, y + 6);
+                ctx.textBaseline = 'middle';
                 shown.forEach(function (r, i) {
-                    var idx = from + i, yy = y + 24 + i * HUD_RANK_ROW, b = r.ball;
+                    var idx = from + i, top = y + 24 + i * HUD_RANK_ROW, cy = top + HUD_RANK_ROW / 2, b = r.ball, mineRow = b.owner === myName;
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
-                    if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(hw - w - 4, yy - 2, w - 8, HUD_RANK_ROW - 1, 4); ctx.fill(); }
+                    if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.fill(); }
+                    if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
+                    if (cam.target === b) drawCamMark(X + 13, cy);   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11)
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
-                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', hw - w + 24, yy);   // 1등 룰 판은 꼴찌 표기 없이 등수만
-                    drawMiniIcon(b, hw - w + 35, yy + 7, HUD_ICON_PX, b.owner === myName);
-                    ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';
-                    var name = b.owner.length > 7 ? b.owner.slice(0, 7) + '…' : b.owner;
-                    ctx.fillText(name + (r.done ? ' 도착' : ' ' + b.num + '번'), hw - w + 48, yy);
+                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + 44, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만
+                    drawMiniIcon(b, X + 56, cy, HUD_ICON_PX, mineRow);
+                    ctx.fillStyle = mineRow ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';   // 내 줄 강조: 흰 글씨 + 강조 아이콘(흰 바깥 링)
+                    ctx.fillText(rankText(r), X + 68, cy + 1);
+                    rankHits.push({ x: L, y: top, w: w, h: HUD_RANK_ROW, ball: b });
                 });
+                ctx.textBaseline = 'top';
             }
-            drawMinimap(t, hh);
-            if (phase === 'idle') {
-                if (!balls.length) {
-                    ctx.font = 'bold 18px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
-                    ctx.strokeText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6); ctx.fillText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6);
-                }
-            } else if (t < 0) {
-                var n = Math.ceil(-t / 1000);
-                ctx.font = 'bold 64px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
-                var s = n >= 4 ? '준비!' : String(n);
-                ctx.strokeText(s, hw / 2, hh / 2); ctx.fillText(s, hw / 2, hh / 2);
+            if (ruleH && !badgeDone) drawRuleBadge();   // 순위표가 아직 없을 때(카운트다운) — 배지만 오른쪽 끝에
+            // 대기 화면의 출발대는 화면 중앙에 놓이지만, 좌측 미니맵이 함께 있으면 동물 줄이 오른쪽으로 밀린 것처럼 보인다. 미니맵은 실제 경주 중에만(25)
+            if (phase !== 'idle') drawMinimap(t, hh);
+            if (phase === 'idle' && !balls.length) {
+                ctx.font = 'bold 18px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
+                ctx.strokeText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6); ctx.fillText('동물을 고르고 준비하면 출발대에 섭니다', hw / 2, hh * 0.6);
             }
             ctx.restore();
         }
@@ -1913,16 +2263,17 @@ var MarbleRender = (function () {
             ctx.restore();
             if (t >= 0 && phase !== 'finale' && phase !== 'done' && hudInfo.remaining === 0) { phase = 'finale'; if (onFinaleCb) onFinaleCb(); }
             if (t >= 0 && phase === 'countdown') phase = 'play';
-            if (tPlay >= data.durationMs && phase !== 'done') phase = 'done';   // 끝나도 루프는 계속 — 스탠드 응원·수면·독수리 순찰 같은 배경 애니가 멈추지 않게(사용자 2026-09-21). 멈추는 건 방 리셋/퇴장(js/marble.js renderer.stop)
+            if (tPlay >= data.durationMs && phase !== 'done') { phase = 'done'; setTouchCapture(false); }   // 끝나도 루프는 계속 — 스탠드 응원·수면·독수리 순찰 같은 배경 애니가 멈추지 않게(사용자 2026-09-21). 멈추는 건 방 리셋/퇴장(js/marble.js renderer.stop). 터치는 페이지 스크롤로 되돌린다(폰에서 결과·주문 쪽으로 내려갈 수 있게)
         };
 
         // 대기 화면 — 출발대 프리뷰. preview = 서버 marble:stateUpdated.preview { track, balls, frame } (준비한 사람의 동물이 출발대에 서 있음).
         // 카운트다운 전 구간(IDLE_T)을 한 프레임 그린다 — 재생 루프 없음. preview 가 없으면 하늘만.
         R.drawIdle = function (preview, me) {
             R.stop();
+            if (manual.on) setManual(false);   // 경주 → 대기로 올 때는 자동으로
             if (preview && preview.track) {
                 R.setTimeline({ track: preview.track, balls: preview.balls, frames: [preview.frame], sampleMs: 100, events: [], finishOrder: [], durationMs: 0, slow: null }, me);
-                phase = 'idle';
+                phase = 'idle'; updateCamButton();
                 // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다. 몸싸움 짝은 준비한(dim 아님) 놈들만, 출발대 x 순
                 idleOrder = balls.filter(function (b) { return !b.dim; }).sort(function (a, c) { return a.y - c.y || a.x - c.x; }).map(function (b) { return b.id; });
                 idleStart = performance.now(); idleClock = 0;
@@ -1931,7 +2282,7 @@ var MarbleRender = (function () {
                 rafId = requestAnimationFrame(loop);
                 return;
             }
-            phase = 'idle'; data = null;
+            phase = 'idle'; data = null; updateCamButton();
             R.resize();
             ctx.save(); ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
             var g = ctx.createLinearGradient(0, 0, 0, view.h); g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#cdefc0');
@@ -1965,5 +2316,10 @@ var MarbleRender = (function () {
         return R;
     }
 
-    return { create: create, loadAssets: loadAll, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
+    // 시트 URL('{creature}[-{skin}]' + 그룹 접미사 + 캐시 버전) — js/marble.js 동물 마당이 CSS 배경으로 같은 파일을 쓴다(같은 URL 이어야 캐시를 공유해 새 다운로드가 없다)
+    function sheetUrl(look, group) { return A + 'creatures/' + look + (SKIN_SUFFIX[group] || '') + '.webp' + ASSET_VER; }
+    // 조각·장식·fx 시트 URL(캐시 버전 포함) — 동물 마당의 장애물이 같은 파일을 CSS 배경으로 쓴다
+    function assetUrl(group, name) { var src = ASSETS[group] && ASSETS[group][name]; return src ? withVer(src) : ''; }
+
+    return { create: create, loadAssets: loadAll, sheetUrl: sheetUrl, assetUrl: assetUrl, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
 })();

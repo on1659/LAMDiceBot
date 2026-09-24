@@ -42,7 +42,8 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=3">
-    <link rel="stylesheet" href="/css/marble.css?v=23">
+    <link rel="stylesheet" href="/css/marble.css?v=26">
+    <link rel="stylesheet" href="/css/marble-gacha.css?v=18">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -235,9 +236,10 @@
                 <div id="marbleHostSettings" class="marble-host-settings">
                     <label>동물수</label>
                     <div class="marble-crowd-group" role="group" aria-label="동물수">
-                        <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')" aria-label="솔로" title="솔로 — 인당 1마리"><i class="mi mi-paw"></i></button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')" aria-label="보통" title="보통"><i class="mi mi-paw"></i><i class="mi mi-paw"></i></button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')" aria-label="많이" title="많이"><span class="paw-stack"><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span></span></button>
+                        <!-- 말풍선(data-tip)은 js/marble.js updateCrowdTips 가 서버 값으로 채운다 — 호버·포커스에 바로 뜬다(기본 title 은 늦게 떠서 안 쓴다) -->
+                        <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')" aria-label="솔로"><i class="mi mi-paw"></i></button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')" aria-label="보통"><i class="mi mi-paw"></i><i class="mi mi-paw"></i></button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')" aria-label="많이"><span class="paw-stack"><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span></span></button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -315,7 +317,13 @@
                     <div class="marble-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
                     <!-- 꾸미기(동물 스킨·야식): 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 모달은 js/marble-shop.js 가 채움 -->
                     <button type="button" class="marble-shop-btn" onclick="if(window.MarbleShop)MarbleShop.openShop()" title="동물 스킨·야식 구매·장착">🎀 꾸미기</button>
+                    <!-- 구슬 뽑기(사용자 2026-09-23) — 모달은 js/marble-gacha.js 가 body 에 붙인다 -->
+                    <button type="button" class="marble-shop-btn" onclick="if(window.MarbleGacha)MarbleGacha.open()" title="60코인으로 스킨·야식 뽑기"><span class="mgacha-icon" aria-hidden="true"></span>뽑기</button>
+                    <!-- 순서 꾸미기·뽑기·코인(사용자 2026-09-24). 방 지갑 알약: 코인 아이콘 + 잔고(남은 시간은 뽑기 창에서만) — js/marble-gacha.js 가 채운다 -->
+                    <span id="marbleCoinPill" class="marble-coin-pill" hidden></span>
                 </div>
+                <!-- 동물 마당(장식) — 방에 나온 동물·스킨만 돌아다닌다. js/marble.js MarbleYard 가 채운다(비어 있으면 :empty 로 숨김) -->
+                <div id="marbleYard" class="marble-yard is-empty" aria-hidden="true"></div>
                 <div id="marblePicker" class="marble-picker">
                     <button type="button" class="marble-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
                     <button type="button" class="marble-creature-btn" data-creature="armadillo" onclick="pickCreature('armadillo')"><canvas class="marble-creature-icon" width="56" height="56"></canvas><span>아르마딜로</span></button>
@@ -412,12 +420,13 @@
     </div>
 
     <!-- 결과 오버레이 -->
+    <!-- 공용 .result-overlay/.result-card 는 그대로 두고 marble 전용 클래스(.marble-result-card)로만 크기·재질을 입힌다(css/marble.css) -->
     <div class="result-overlay" id="resultOverlay">
-        <div class="result-card">
+        <div class="result-card marble-result-card">
             <div class="result-title"><i class="mi mi-trophy"></i> 이번 판 순위 <i class="mi mi-trophy"></i></div>
-            <div id="resultRankings" style="margin-bottom: 20px;"></div>
+            <div id="resultRankings" class="marble-result-body"></div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
+                <button type="button" class="marble-result-btn" onclick="closeResultOverlay()">확인</button>
             </div>
         </div>
     </div>
@@ -481,10 +490,11 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
-    <script src="/js/shared/shop-shared.js?v=5"></script>
-    <script src="/js/marble-shop.js?v=11"></script>
-    <script src="/js/marble-render.js?v=70"></script>
-    <script src="/js/marble.js?v=39"></script>
+    <script src="/js/shared/shop-shared.js?v=6"></script>
+    <script src="/js/marble-shop.js?v=12"></script>
+    <script src="/js/marble-gacha.js?v=42"></script>
+    <script src="/js/marble-render.js?v=72"></script>
+    <script src="/js/marble.js?v=44"></script>
 
     <script>
         // ============================================

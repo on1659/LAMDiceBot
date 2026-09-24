@@ -82,10 +82,15 @@ const PIT_ERUPT_VX = 150;
 const MUD_STALL_MS = 500, MUD_DIZZY_MS = 800, MUD_RESUME_VY = 60;
 const SEESAW_LEN = 84, SEESAW_AMP_DEG = 25, SEESAW_PERIOD_MS = 2400;
 // ⑦-b 장치 골짜기(DEV_TOP ~ DEV_TOP+DEV_H): 대각선 필러 없이 순위가 뒤집히는 장치만.
-//    (a) 플립플롭 갈림길 — 공이 지날 때마다 팔이 반대로 젖혀져 왼쪽 지름길 / 오른쪽 컨베이어 돌아가기(≈2.5s 손해)를 번갈아 보낸다. 앞뒤 순서가 곧 운
+//    (a) 플립플롭 갈림길 — 공이 지날 때마다 판이 반대로 젖혀져 왼쪽 지름길 / 오른쪽 컨베이어 돌아가기(≈2.5s 손해)를 번갈아 보낸다. 앞뒤 순서가 곧 운
+//        판은 깔때기 목 바로 아래 축을 중심으로 기울어진 널빤지: 위쪽 끝이 목 벽(x 340/460)에 닿아 목에서 나오는 공 전원이 판 위로 떨어져 낮은 쪽으로 미끄러진다.
+//        (옛 팔은 축에서 아래로만 56px·가로 32px — 위 경사로가 왼쪽 끝에서 떨어뜨려 깔때기 왼쪽 벽에서 오른쪽 속도를 얻은 공이 목 오른쪽 벽을 타고 내려와
+//         팔을 스치지도 않아 20시드 92% 가 오른쪽으로 갔다, 사용자 2026-09-24)
 //    (b) 선풍기 — 양쪽 벽에서 엇박으로 바람. 켜진 순간 띠 안에 있던 놈만 옆으로 밀린다
 const DEV_TOP = 3100;             // 두더지 경사로 아래
-const FF_LEN = 56, FF_ANGLE_DEG = 35;   // 플립플롭 팔 길이·수직에서 젖힌 각
+const FF_ANGLE_DEG = 45;          // 젖힘판이 수직에서 기운 각
+const FF_LEN = 85;                // 축에서 양쪽으로 각각 — 가로 60 = 목 반폭. 위쪽 끝은 목 벽에 닿아 새는 틈이 없고, 아래쪽 끝은 목 벽 연장선(x 340/460)이라 벽을 타고 온 공도 판을 스치지 않고 지나갈 수 없다
+const FF_ZONE_TOP_PAD = BALL_R;   // 젖힘 보류 구역 윗선 = 판 꼭대기 + 이만큼(simulate 의 ffPending 주석). 40시드: 보통 55%·우르르 50%·솔로 50% 오른쪽
 const BELT_SPEED = 160;           // 컨베이어 표면 속도 px/s
 const BELT_GRIP = 8;              // 공이 벨트 속도에 붙는 세기 /s
 const FAN_PERIOD_MS = 2400, FAN_ON_MS = 900, FAN_ACCEL = 1600, FAN_BAND = 200;
@@ -164,6 +169,7 @@ const SCUFFLE_DIZZY_MS = 500;     // 화들짝 낙하 뒤 착지 기절 시간
 // ⑩ 집결 통로 = 마지막 경주 구간: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 제 속도로 달린다 — 추월 있음.
 //    골(x ≥ GOAL_X)에 들어간 순서가 곧 순위, 꼴찌 = 골에 마지막으로 들어간 놈 (사용자 확정 2026-09-20 밤, 그림으로).
 const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운)
+const LAND_REST_MS = 800;         // 착지 뒤 이만큼 제자리에서 숨 고르고 출발(전원 동일, 순위 무관). 파이프에서 떨어지자마자 뛰면 맛이 없다(사용자 2026-09-24). 클라(js/marble-render.js)와 같은 값
 const WALK_SPACING = 30;          // 졸고 있는 동물은 뒤가 이 거리로 붙으면 깨운다
 const WALK_TRIP_P = 0.08;         // 초당 넘어질 확률
 const WALK_TRIP_MS = 700;         // 넘어져 있는 시간
@@ -263,11 +269,12 @@ function buildTrack(ballCount, rng, crowd) {
     ramp(150, 2700, 560, 2830, [0.25, 0.5, 0.75], 0);   // 오른쪽 내리막, 끝(560~650)으로 떨어짐
     ramp(650, 2910, 240, 3040, [0.25, 0.5, 0.75], 1.5); // 왼쪽 내리막, 끝(150~240)으로 떨어짐
 
-    // ⑦-b 장치 골짜기 — (a) 플립플롭 갈림길: 깔때기 500→120 → 팔(공이 지날 때마다 반대로) → 왼쪽 지름길(바로 낙하+범퍼 1) / 오른쪽 돌아가기(컨베이어 2단 왕복)
+    // ⑦-b 장치 골짜기 — (a) 플립플롭 갈림길: 깔때기 500→120 → 젖힘판(공이 지날 때마다 반대로) → 왼쪽 지름길(바로 낙하+범퍼 1) / 오른쪽 돌아가기(컨베이어 2단 왕복)
     wall(150, DEV_TOP + 20, 340, DEV_TOP + 100); wall(650, DEV_TOP + 20, 460, DEV_TOP + 100);
     wall(340, DEV_TOP + 100, 340, DEV_TOP + 160); wall(460, DEV_TOP + 100, 460, DEV_TOP + 160);
-    p.push({ kind: 'flipflop', x: 400, y: DEV_TOP + 170, len: FF_LEN, angleDeg: FF_ANGLE_DEG, triggerY: DEV_TOP + 245, dir: rng() < 0.5 ? -1 : 1 });
-    wall(400, DEV_TOP + 230, 400, DEV_TOP + 400);                                                   // 갈림 벽
+    // 축 y=+190: 위쪽 끝 (340|460, +130) 이 목 벽(+100~+160) 위에 닿고, 아래쪽 끝 (460|340, +250) 은 갈림 벽 꼭대기(+280) 보다 30 위·60 옆
+    p.push({ kind: 'flipflop', x: 400, y: DEV_TOP + 190, len: FF_LEN, angleDeg: FF_ANGLE_DEG, triggerY: DEV_TOP + 265, dir: rng() < 0.5 ? -1 : 1 });
+    wall(400, DEV_TOP + 280, 400, DEV_TOP + 400);                                                   // 갈림 벽
     p.push({ kind: 'log', x: 275, y: DEV_TOP + 330, r: LOG_R });                                    // 지름길 범퍼
     p.push({ kind: 'belt', x1: 410, y1: DEV_TOP + 300, x2: 590, y2: DEV_TOP + 300, speed: BELT_SPEED });    // → 오른쪽 끝(590~650)에서 아래로. 틈 60(공 2개+) — 40이면 200마리 때 끝 롤러에 걸친 공과 벽에 기댄 공이 아치를 만들어 캡까지 막힌다
     p.push({ kind: 'belt', x1: 440, y1: DEV_TOP + 380, x2: 650, y2: DEV_TOP + 380, speed: -BELT_SPEED });   // ← 왼쪽 끝(400~440)에서 아래로
@@ -524,7 +531,11 @@ async function simulate(balls, seed, track) {
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
-    let ffDir = flipflop ? flipflop.dir : 1;   // 플립플롭 팔 방향(-1 왼쪽으로 젖힘 → 공은 왼쪽 지름길)
+    let ffDir = flipflop ? flipflop.dir : 1;   // 플립플롭 젖힘판 방향(-1 왼쪽으로 낮음 → 공은 왼쪽 지름길)
+    // 젖힘은 판 구역에 공이 하나도 없는 스텝에 적용(그동안 홀수 마리가 지났으면 반대로). 타고 내려가던 공 밑에서 판이 뒤집히면 그 공은 새 방향으로 실려 가는데,
+    // 공이 목 오른쪽 벽을 타고 들어와 왼쪽 판에선 위쪽 끝에 얹혀 오래 미끄러지므로 실려 가는 쪽이 오른쪽으로 쏠린다(40시드 보통 61:39·우르르 62:38).
+    // 구역 윗선은 판 꼭대기 + 공 반지름(FF_ZONE_TOP_PAD) — 목 바닥까지 내리면 보통 59%, 판 꼭대기까지 올리면 목 안 대기 공까지 붙들어 왼쪽으로 쏠린다(우르르 36%)
+    let ffPending = 0, ffTouched = false, ffLastBall = null;
 
     const events = [{ t: 0, type: 'gateOpen' }];
     const frames = [];
@@ -721,6 +732,7 @@ async function simulate(balls, seed, track) {
         }
 
         // ── 공 적분 ──
+        ffTouched = false;
         for (const b of B) {
             if (b.state === 'done' || b.state === 'walk') continue;
             if (b.state === 'carried') {   // 독수리 발톱에: 곡선(위로 EAGLE_ARC)으로 떨어뜨릴 자리까지, 도착하면 놓는다
@@ -812,13 +824,13 @@ async function simulate(balls, seed, track) {
                 if (Math.abs(b.y - bt.y1) > BALL_R + 4 || b.x < bt.x1 - BALL_R || b.x > bt.x2 + BALL_R) continue;
                 if (collideSegment(t, b, bt.x1, bt.y1, bt.x2, bt.y2, WALL_RESTITUTION) && b.y < bt.y1) b.vx += (bt.speed - b.vx) * Math.min(1, BELT_GRIP * dt);
             }
-            if (flipflop && Math.abs(b.y - flipflop.y) < flipflop.len + BALL_R + 4) {   // 플립플롭 팔(정지 선분, 방향만 바뀜)
-                const a = flipflop.angleDeg * Math.PI / 180;
-                collideSegment(t, b, flipflop.x, flipflop.y, flipflop.x + ffDir * Math.sin(a) * flipflop.len, flipflop.y + Math.cos(a) * flipflop.len, WALL_RESTITUTION);
-                collideCircle(t, b, flipflop.x, flipflop.y, 6, WALL_RESTITUTION);
+            if (flipflop && Math.abs(b.y - flipflop.y) < flipflop.len + BALL_R + 4) {   // 플립플롭 젖힘판(축을 지나는 정지 선분, 방향만 바뀜): 반대쪽 위 ~ 보내는 쪽 아래
+                const a = flipflop.angleDeg * Math.PI / 180, dx = ffDir * Math.sin(a) * flipflop.len, dy = Math.cos(a) * flipflop.len;
+                const hit = collideSegment(t, b, flipflop.x - dx, flipflop.y - dy, flipflop.x + dx, flipflop.y + dy, WALL_RESTITUTION);
+                if (hit || (Math.abs(b.x - flipflop.x) < Math.abs(dx) + BALL_R && b.y > flipflop.y - dy + FF_ZONE_TOP_PAD)) ffTouched = true;   // 판에 닿았거나 판 구역 안(타고 내려가는 중·튕겨 떠 있는 중) → 젖힘 보류
             }
-            if (flipflop && !b.ffDone && b.y > flipflop.triggerY && b.y < flipflop.triggerY + 80 && Math.abs(b.x - flipflop.x) < 200) {   // 지나가면 팔이 반대로
-                b.ffDone = true; ffDir = -ffDir; pushEvent(t, 'flip', b, { dir: ffDir });
+            if (flipflop && !b.ffDone && b.y > flipflop.triggerY && b.y < flipflop.triggerY + 80 && Math.abs(b.x - flipflop.x) < 200) {   // 지나가면 판이 반대로(판이 비는 스텝에 적용)
+                b.ffDone = true; ffPending++; ffLastBall = b;
             }
             if (holefield && Math.abs(b.y - holefield.floorY) < BALL_R + 4) {   // 구멍 뚜껑(닫힌 만큼만 벽)
                 for (let hi = 0; hi < holefield.holes.length; hi++) {
@@ -885,8 +897,9 @@ async function simulate(balls, seed, track) {
                 b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
                 b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
                 b.walkRow = Math.floor(rng() * lane.rows);
-                const dizzy = b.scuffled;   // 몸싸움하다 화들짝 떨어진 놈만 착지 기절 — 걷기 시작이 SCUFFLE_DIZZY_MS 늦어질 뿐(순위는 통로 경주에서)
-                if (dizzy) { b.scuffled = false; b.stallKind = 'dizzy'; b.stallAt = t; b.stallUntil = t + SCUFFLE_DIZZY_MS; }
+                const dizzy = b.scuffled;   // 몸싸움하다 화들짝 떨어진 놈은 숨 고르기 위에 SCUFFLE_DIZZY_MS 기절을 더 얹는다 — 걷기 시작이 늦어질 뿐(순위는 통로 경주에서)
+                if (dizzy) b.scuffled = false;
+                b.stallKind = dizzy ? 'dizzy' : 'rest'; b.stallAt = t; b.stallUntil = t + LAND_REST_MS + (dizzy ? SCUFFLE_DIZZY_MS : 0);
                 pushEvent(t, 'land', b, dizzy ? { speed: b.walkSpeed, row: b.walkRow, dizzy: true } : { speed: b.walkSpeed, row: b.walkRow });
                 continue;
             }
@@ -899,6 +912,8 @@ async function simulate(balls, seed, track) {
                 b.vx = (b.x < TRACK_W / 2 ? 1 : -1) * (STUCK_KICK_X_MIN + rng() * STUCK_KICK_X_RND); b.vy = STUCK_KICK_Y; b.stuckSince = t;
             }
         }
+
+        if (ffPending && !ffTouched) { if (ffPending % 2) { ffDir = -ffDir; pushEvent(t, 'flip', ffLastBall, { dir: ffDir }); } ffPending = 0; }
 
         // ── 공-공 충돌(해시) ──
         const grid = new Map();

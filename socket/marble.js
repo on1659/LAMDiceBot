@@ -1,6 +1,6 @@
 // 데구리(marble) 게임 소켓 핸들러
 // spin-arena.js 패턴: 결과는 서버에서만 결정(시드 결정론 시뮬 socket/marble-sim.js), 클라는 타임라인 재생만.
-const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
+const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, DEV_GAMES_ENABLED } = require('../config');
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const sim = require('./marble-sim');
@@ -20,10 +20,24 @@ const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamst
 const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
 // ─── 방 단위 스킨 경제 (사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) ───
-// 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN. 구매·소유·장착은 mb.wallets/mb.equip(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
+// 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN, 머문 5분마다 +STAY_COIN. 구매·소유·장착은 mb.wallets/mb.equip(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
 // 로그인 여부와 무관(손님도 동일) — DB coins/cosmetics 는 쓰지 않는다. 승리 보너스 없음.
-const ROOM_SEED_COINS = 200;
+// 내부 테스트(로컬 개발 서버·테스트 서버 DEV_GAMES=1)에서는 200만 코인(사용자 2026-09-24) — 실서버는 200
+const ROOM_SEED_COINS_LIVE = 200;
+const ROOM_SEED_COINS_TEST = 2000000;
+const ROOM_SEED_COINS = DEV_GAMES_ENABLED ? ROOM_SEED_COINS_TEST : ROOM_SEED_COINS_LIVE;
 const COIN_RACE_JOIN = 10;
+// ─── 구슬 뽑기 (docs/goal/marble-gacha.md, 사용자 2026-09-23) — 방 지갑에서 한 번 60, 중복이면 30 돌려줌 ───
+// 등급 추첨 → 그 등급 안에서 균등. 스킨은 카탈로그 rarity, 야식(marble_balloon)은 전부 rare. 추첨은 서버에서만.
+const GACHA_PRICE = 60;
+const GACHA_REFUND = 30;
+const GACHA_WEIGHTS = { rare: 60, epic: 30, legend: 10 };
+const GACHA_TIER_LABEL = { rare: '레어', epic: '에픽', legend: '전설' };
+const CHAT_HISTORY_MAX = 100;     // socket/chat.js·scheduled-start.js 와 같은 상한
+// 방에 머문 시간 보상(사용자 2026-09-23: 광고 클릭 보상은 애드센스 정책 위반이라 대신) — 입장(joinTime)부터 STAY_COIN_MS 마다 +STAY_COIN.
+// 타이머 없이 지갑을 볼 때(상점·구매·뽑기·한 판 보상) 밀린 만큼 한 번에 넣는다. 나가면 지갑과 함께 사라진다.
+const STAY_COIN = 10;
+const STAY_COIN_MS = 5 * 60 * 1000;
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
@@ -70,6 +84,18 @@ function roomWallet(mb, name) {
     if (!mb.wallets[name]) mb.wallets[name] = { balance: ROOM_SEED_COINS, owned: [] };
     return mb.wallets[name];
 }
+// 머문 시간 보상을 지갑에 반영 — stayFrom(첫 기준 = 입장 시각)부터 지난 STAY_COIN_MS 칸 수만큼. 남은 조각은 다음으로 넘긴다
+function accrueStay(w, user, now) {
+    if (!w.stayFrom) {
+        const jt = user && user.joinTime ? new Date(user.joinTime).getTime() : NaN;
+        w.stayFrom = Number.isFinite(jt) ? jt : now;
+    }
+    const n = Math.floor((now - w.stayFrom) / STAY_COIN_MS);
+    if (n > 0) { w.balance += n * STAY_COIN; w.stayFrom += n * STAY_COIN_MS; }
+    return w;
+}
+// 접속한 사람의 방 지갑(머문 시간 보상 반영). user = gameState.users 항목
+function userWallet(mb, user) { return accrueStay(roomWallet(mb, user.name), user, Date.now()); }
 // 이 방에서 그 스킨을 쓸 수 있나 — 기본 제공(defaultOwned) 또는 이 방에서 샀는지
 function ownsInRoom(mb, name, item) {
     if (!item) return false;
@@ -77,9 +103,51 @@ function ownsInRoom(mb, name, item) {
     const w = mb.wallets && mb.wallets[name];
     return !!(w && w.owned.indexOf(item.id) !== -1);
 }
-function walletView(mb, name) {
-    const w = roomWallet(mb, name);
-    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, name) };
+// 뽑기 풀 — 데구리 슬롯의 살 수 있는 항목 전부(가격 있음·해석됨·기본 제공 아님). 카탈로그는 서버 시작 때 고정이라 한 번만 만든다
+let _gachaPool = null;
+function gachaPool() {
+    if (_gachaPool) return _gachaPool;
+    const catalog = require('../config/marble/cosmetics.json');
+    const pool = { rare: [], epic: [], legend: [] };
+    EQUIP_SLOTS.forEach(slot => (catalog[slot] || []).forEach(raw => {
+        const entry = getCatalogEntry(raw.id);
+        if (!entry || entry.slot !== slot) return;
+        const item = entry.item;
+        if (item.defaultOwned || !Number.isInteger(item.price) || !equipFromItem(slot, item)) return;
+        const tier = slot === 'marble_balloon' ? 'rare' : item.rarity;
+        if (pool[tier]) pool[tier].push({ id: item.id, slot, tier });
+    }));
+    _gachaPool = pool;
+    return pool;
+}
+// 등급 → 항목 추첨. rng 는 [0,1) 함수(서버 Math.random — 테스트는 주입). 빈 등급은 가중치에서 빠진다
+function drawGacha(pool, rng) {
+    const tiers = Object.keys(GACHA_WEIGHTS).filter(t => pool[t] && pool[t].length);
+    if (!tiers.length) return null;
+    const total = tiers.reduce((s, t) => s + GACHA_WEIGHTS[t], 0);
+    let r = rng() * total, tier = tiers[tiers.length - 1];
+    for (const t of tiers) { if (r < GACHA_WEIGHTS[t]) { tier = t; break; } r -= GACHA_WEIGHTS[t]; }
+    const list = pool[tier];
+    return list[Math.min(list.length - 1, Math.floor(rng() * list.length))];
+}
+// 방 채팅 시스템 한 줄 — scheduled-start.roomNotice 와 같은 모양(예약 안내 팝업 이벤트는 빼고)
+function gachaNotice(io, room, gameState, message) {
+    const notice = {
+        userName: '시스템',
+        message,
+        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        isHost: false,
+        isSystemMessage: true,
+        isSystem: true
+    };
+    gameState.chatHistory.push(notice);
+    if (gameState.chatHistory.length > CHAT_HISTORY_MAX) gameState.chatHistory.shift();
+    io.to(room.roomId).emit('newMessage', notice);
+}
+// stayNextMs = 다음 머문 시간 보상까지 남은 ms(클라 안내용)
+function walletView(mb, user) {
+    const w = userWallet(mb, user);
+    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: Math.max(0, w.stayFrom + STAY_COIN_MS - Date.now()) };
 }
 // 클라 공용 형식 { slot: id } — 안 낀 슬롯은 키 자체를 뺀다(ShopModule 이 그렇게 읽는다)
 // 클라(ShopModule)가 '장착중' 표시에 쓴다. 한 슬롯에 여러 개가 동시에 장착될 수 있으면 배열로 준다.
@@ -186,7 +254,7 @@ function awardRaceCoins(io, gameState, mb) {
     for (const name of mb.participants || []) {
         const u = gameState.users.find(x => x.name === name);
         if (!u) continue;
-        const w = roomWallet(mb, name);
+        const w = userWallet(mb, u);
         w.balance += COIN_RACE_JOIN;
         io.to(u.id).emit('wallet:updated', { balance: w.balance });
     }
@@ -373,10 +441,14 @@ module.exports = (socket, io, ctx) => {
     // preview = 대기 화면용 출발대 배치(사람당 1마리 — 복제는 카운트다운 연출에서). 결과와 무관한 순수 배치라 공정성 문제 없음.
     // 준비 인원이 바뀌면 클라가 marble:requestState 로 다시 받는다.
     // votes = 당첨 순위 투표 현황(이름→'first'|'last') — 재입장·준비 변동 때 막대를 다시 그리는 용도.
+    // crowdInfo = 프리셋별 인당 마릿수(표시용 — 동물수 버튼 말풍선 '지금 N명이면 한 사람당 M마리'). 클라가 CROWD_PRESETS 를 복제하지 않도록 서버 값 하나로
     function publicState(gameState) {
         const mb = gameState.marble;
         const readyCount = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name)).length;
-        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, votes: { ...mb.rankVotes }, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, Math.max(1, readyCount)), preview: idlePreview(gameState) };
+        const players = Math.max(1, readyCount);
+        const perPlayer = {};
+        Object.keys(sim.constants.CROWD_PRESETS).forEach(c => { perPlayer[c] = sim.crowdBallsPerPlayer(c, players); });
+        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, votes: { ...mb.rankVotes }, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, players), crowdInfo: { players, perPlayer }, preview: idlePreview(gameState) };
     }
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
@@ -423,7 +495,7 @@ module.exports = (socket, io, ctx) => {
         if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
-        cb({ ok: true, ...walletView(gameState.marble, user.name) });
+        cb({ ok: true, ...walletView(gameState.marble, user) });
     });
 
     // 스킨 구매 — 방 지갑에서 차감, 방 소유 목록에 추가. 가격은 서버 카탈로그가 권위.
@@ -443,12 +515,38 @@ module.exports = (socket, io, ctx) => {
         const item = (entry && EQUIP_SLOTS.includes(entry.slot) && equipFromItem(entry.slot, entry.item)) ? entry.item : null;
         if (!item || !Number.isInteger(item.price) || item.price < 0) return cb({ ok: false, reason: 'notfound' });
         const mb = gameState.marble;
-        const w = roomWallet(mb, user.name);
+        const w = userWallet(mb, user);
         if (w.owned.indexOf(id) !== -1) return cb({ ok: false, reason: 'owned', balance: w.balance });
         if (w.balance < item.price) return cb({ ok: false, reason: 'insufficient', balance: w.balance });
         w.balance -= item.price;
         w.owned.push(id);
         cb({ ok: true, balance: w.balance, owned: w.owned.slice() });
+    });
+
+    // 구슬 뽑기 — 방 지갑에서 GACHA_PRICE 차감, 서버가 등급·항목 추첨. 이미 가진 거면 GACHA_REFUND 돌려주고 소유 변화 없음.
+    // 새 항목은 소유에만 추가(장착은 결과 화면 [장착하기] → marble:equip). 전설은 방 채팅에 알린다.
+    // {} → ack { ok, cosmeticId, slot, tier, dupe, refund, balance, owned } | { ok:false, reason: room|insufficient|empty, balance? }
+    socket.on('marble:gacha:pull', (data, callback) => {
+        if (!rateOk()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return cb({ ok: false, reason: 'room' });
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return cb({ ok: false, reason: 'room' });
+        const w = userWallet(gameState.marble, user);
+        if (w.balance < GACHA_PRICE) return cb({ ok: false, reason: 'insufficient', balance: w.balance });
+        const got = drawGacha(gachaPool(), Math.random);   // 서버 RNG 허용(결과 결정)
+        if (!got) return cb({ ok: false, reason: 'empty', balance: w.balance });
+        w.balance -= GACHA_PRICE;
+        const dupe = w.owned.indexOf(got.id) !== -1;
+        if (dupe) w.balance += GACHA_REFUND;
+        else w.owned.push(got.id);
+        cb({ ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe, refund: dupe ? GACHA_REFUND : 0, balance: w.balance, owned: w.owned.slice() });
+        if (got.tier === 'legend') {
+            const item = getCatalogItem(got.id) || {};
+            gachaNotice(io, room, gameState, `🎉 ${user.name}님이 구슬 뽑기에서 ${GACHA_TIER_LABEL.legend} 「${item.displayName || item.name || ''}」을 뽑았어요!`);
+        }
     });
 
     // 꾸미기 장착/해제 — 이 방에서만 유지. 소유는 방 지갑(이 방에서 산 것 또는 기본 제공)으로 확인. 손님도 가능
@@ -598,3 +696,12 @@ module.exports.start = startMarble;
 module.exports.awardRaceCoins = awardRaceCoins;
 module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;
 module.exports.ROOM_SEED_COINS = ROOM_SEED_COINS;
+module.exports.GACHA_PRICE = GACHA_PRICE;
+module.exports.GACHA_REFUND = GACHA_REFUND;
+module.exports.GACHA_WEIGHTS = GACHA_WEIGHTS;
+module.exports.gachaPool = gachaPool;
+module.exports.drawGacha = drawGacha;
+module.exports.STAY_COIN = STAY_COIN;
+module.exports.STAY_COIN_MS = STAY_COIN_MS;
+module.exports.accrueStay = accrueStay;
+module.exports.ROOM_SEED_COINS_LIVE = ROOM_SEED_COINS_LIVE;

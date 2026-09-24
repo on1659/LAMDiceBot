@@ -11,6 +11,9 @@ var TARGET_LABEL = { first: '1등', last: '꼴등' };   // 당첨 순위 표기 
 var FS_SETTLE_MS = 400;
 var RESIZE_DEBOUNCE_MS = 120;      // resize/orientationchange 묶기            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
+var REVEAL_SCROLL_RETRY_MS = 500;  // 경주 화면으로 부드러운 스크롤이 시작도 못 했으면 이 뒤에 즉시 옮긴다(revealStage)
+var RESULT_SCROLL_RECHECK_MS = 60; // 결과 카드 당첨 줄 스크롤을 한 번 더 맞추는 지연
+var RESULT_NAME_MAX = 6;           // 결과 카드 이름 글자 수 — 스탠드 이름표와 같은 규칙, 넘으면 … (전체 이름은 title)
 var MARBLE_CROWDS = ['solo', 'normal', 'many'];   // 마릿수 3단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
 var MY_HIGHLIGHT_KEY = 'marbleMyHighlight';   // sessionStorage — 내 동물 따라가기(보는 사람 설정). 들어올 때마다 켜져 있고, 끄면 이 탭에서만 유지(사용자 2026-09-21)
@@ -67,6 +70,7 @@ var marbleState = {
     picks: {},               // { userName: creatureId }
     crowd: 'solo',           // 마릿수 단계 solo|normal|many (기본 솔로 — 서버 utils/room-helpers.js 와 동일)
     ballsPerPlayer: 1,       // 서버가 준비 인원으로 환산한 인당 마릿수 (안내용)
+    crowdInfo: null,         // { players, perPlayer: { solo, normal, many } } — 동물수 버튼 말풍선용(서버 값, 클라 복제 없음)
     reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
     preview: null,           // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
     votes: {},               // 당첨 순위 투표 { userName: 'first' | 'last' } (서버 broadcast — 막대는 익명, 이름은 안 보여준다)
@@ -93,6 +97,7 @@ function runWhenSocketConnected(callback) {
 // 꾸미기 상점(동물 스킨 marble_skin · 풍선 marble_balloon): 소켓 연결 + 토큰 인증 (js/ladder.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
 // 장착은 js/marble-shop.js 가 'marble:equip' 으로 이 방에만 걸고, 서버가 stateUpdated 로 출발대에 반영한다.
 socket.on('connect', function () {
+    if (window.MarbleGacha) MarbleGacha.connect(socket);   // 구슬 뽑기(js/marble-gacha.js) — 방 지갑 이벤트만 쓴다
     if (window.MarbleShop) {
         MarbleShop.connect(socket);
         MarbleShop.loadCatalog().then(function () { renderPickStatus(); });   // 카탈로그가 있어야 장착 id → creature/skin 을 풀 수 있다(배지·아이콘)
@@ -276,6 +281,7 @@ window.addEventListener('DOMContentLoaded', function () {
             });
             startPickerIconAnim();
             if (!isMarbleActive) renderer.drawIdle(marbleState.preview, currentUser);
+            MarbleYard.init('marbleYard'); MarbleYard.setLooks(marbleYardLooks());   // 시트가 다 온 뒤에 — 마당은 렌더러가 받은 같은 시트를 CSS 배경으로 쓴다
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
         var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && !replaying && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
@@ -392,6 +398,7 @@ function toggleReady() { ReadyModule.toggleReady(); }
 function closeResultOverlay() {
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
+    stopResultAnimation();
 }
 // 경주 시작 — 준비했는데 동물을 안 고른 사람이 있으면 팝업으로 "자동 배정하고 시작할지" 묻는다(별도 강제 시작 버튼 없음, 사용자 2026-09-21).
 // 확인하면 force 로 보내 서버가 자동 배정(예약 시작과 같은 규칙).
@@ -454,6 +461,285 @@ function updateStartButton() {
 
 function syncBallsControl() {
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.classList.toggle('selected', b.getAttribute('data-crowd') === marbleState.crowd); });
+    updateCrowdTips();
+}
+// 동물수 버튼 말풍선: '지금 N명이면 한 사람당 M마리' — M 은 서버가 방 상태(crowdInfo)에 실어 준 실제 값(socket/marble-sim.js crowdBallsPerPlayer 와 같은 함수).
+// 클라가 프리셋을 복제하지 않는다. 준비 인원이 바뀌면 requestState → stateUpdated 로 갱신된다. 말풍선은 CSS [data-tip](호버·포커스에 바로)
+function updateCrowdTips() {
+    var info = marbleState.crowdInfo;
+    document.querySelectorAll('.marble-crowd-btn').forEach(function (b) {
+        var per = info && info.perPlayer ? info.perPlayer[b.getAttribute('data-crowd')] : null;
+        if (per == null) { b.removeAttribute('data-tip'); return; }
+        b.setAttribute('data-tip', '지금 ' + info.players + '명이면 한 사람당 ' + per + '마리');
+    });
+}
+
+// ── 동물 마당(데구리 baacca8·8b14a1c 역반영): '내 동물 고르기' 머리 아래 낮은 띠에서 동물들이 돌아다니고·구르고·낮잠 자고·마주치면 몸싸움하고·구르는 공에 치이면 놀란다. 누르면 반응.
+//    로딩 예산: 방에 나온 동물·스킨(서버 preview.balls — 참가자들이 고른 것)만 등장 — 렌더러가 대기 화면에 이미 받는 시트(기본·-sleep·-scuffle)라 새 다운로드가 없다.
+//    로컬 연출(동기화 없음), 결과와 무관. 종류·타이밍은 시드 PRNG(mulberry32) — Math.random 은 안 쓴다. reduced motion 이면 끄고, 띠가 화면 밖이거나 탭이 숨으면 멈춘다 ──
+var MarbleYard = (function () {
+    var C = 48, FLOOR = 6;   // 셀 표시 크기 / 발 높이(울타리 아래 가로대 위)
+    var SHEETS = { main: ['creatures', '192px 240px'], sleep: ['sleep', '192px 48px'], scuffle: ['scuffle', '192px 96px'] };
+    var WEIGHTS = [['walk', 30], ['idle', 16], ['wave', 8], ['roll', 12], ['nap', 7], ['jump', 10], ['leave', 5]];
+    var POKE_ACTS = ['startle', 'nap', 'jump', 'wave', 'trip', 'roll'];
+    // ── 장애물(사용자 2026-09-24): 가끔 위에서 떨어져 앉고, 동물은 걸어가다 가장자리에서 비스듬히 타고 올라갔다 내려온다. 스프링 판은 밟으면 높이 튕기고, 진흙은 미끄러진다.
+    //    종류는 직전 둘과 다르게 골라 계속 바뀌고, 한동안 있다가 땅으로 꺼진다. 그림은 렌더러가 이미 받은 조각·장식·fx 시트(같은 URL — 새 다운로드 없음). w = 표시 폭, h = 위에 설 때 발 높이
+    var OBSTACLES = [
+        { key: 'rock', group: 'stage', name: 'rock', sw: 64, sh: 48, w: 26, h: 12 },
+        { key: 'bush-small', group: 'stage', name: 'bush-small', sw: 64, sh: 48, w: 28, h: 12 },
+        { key: 'bush-big', group: 'stage', name: 'bush-big', sw: 128, sh: 96, w: 46, h: 22 },
+        { key: 'log', group: 'pieces', name: 'log-bumper', sw: 96, sh: 96, w: 30, h: 24 },
+        { key: 'spring', group: 'pieces', name: 'spring-plank', sw: 240, sh: 64, cols: 4, w: 60, h: 8, launch: true },
+        { key: 'mud', group: 'pieces', name: 'mud-puddle', sw: 192, sh: 80, w: 56, h: 0, slip: true }
+    ];
+    var OBS_MAX = 2, OBS_GAP_MS = [6000, 14000], OBS_STAY_MS = [9000, 18000], OBS_FIRST_MS = [4000, 9000];   // 동시 최대 수 / 다음 낙하까지 / 앉아 있는 시간 / 첫 낙하까지
+    var OBS_RAMP = 10, OBS_FALL_FROM = 90, OBS_G = 1100, OBS_LEAVE_MS = 600, OBS_SNAP_MS = 260, OBS_JUMP_H = 40;   // 가장자리 경사 폭 / 낙하 시작 높이 / 중력 px/s² / 꺼지는 시간 / 스프링 판 젖힘 / 튕겨 오르는 높이
+    var obstacles = [], nextDropAt = 0, recentKinds = [];
+    var host = null, critters = [], looks = [], width = 0, last = 0, rafId = 0, visible = true, off = false;
+    var seed = (Date.now() ^ 0x9e3779b9) >>> 0;
+    function rand01() { seed = (seed + 0x6D2B79F5) | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+    function rand(a, b) { return a + rand01() * (b - a); }
+    function pickLook() { return looks[Math.floor(rand01() * looks.length)]; }
+    function pickAct() {
+        var total = 0, i; for (i = 0; i < WEIGHTS.length; i += 1) total += WEIGHTS[i][1];
+        var r = rand01() * total;
+        for (i = 0; i < WEIGHTS.length; i += 1) { r -= WEIGHTS[i][1]; if (r < 0) return WEIGHTS[i][0]; }
+        return 'idle';
+    }
+    function frame(c, sheet, row, col) { c.sheet = sheet; c.row = row; c.col = col; }
+    function calm(c) { return c.act === 'walk' || c.act === 'idle' || c.act === 'wave'; }
+    function start(c, act, opts) {
+        opts = opts || {};
+        c.act = act; c.t = 0; c.rot = 0; c.lift = 0; c.napping = false;
+        if (act === 'walk') { c.dur = rand(1800, 4200); c.speed = rand(38, 70); if (!opts.keepDir && rand01() < 0.5) c.dir = -c.dir; c.tripAt = rand01() < 0.12 ? rand(600, c.dur - 200) : -1; }
+        else if (act === 'idle') { c.dur = rand(1200, 3000); c.turnAt = rand01() < 0.5 ? c.dur / 2 : -1; }
+        else if (act === 'wave') c.dur = rand(900, 1600);
+        else if (act === 'roll') { c.rollDur = rand(900, 2000); c.speed = rand(150, 230); if (rand01() < 0.5) c.dir = -c.dir; }
+        else if (act === 'nap') c.dur = rand(2600, 4800);
+        else if (act === 'jump') { c.hops = opts.high ? 1 : rand01() < 0.35 ? 2 : 1; c.speed = rand(30, 70); c.jumpH = opts.high ? OBS_JUMP_H : 22; }
+        else if (act === 'leave') { c.dir = c.x < width / 2 ? -1 : 1; c.speed = rand(55, 80); }
+        else if (act === 'scuffle') { c.win = opts.win; c.dir = opts.dir; }
+        else if (act === 'startle') { c.dir = opts.dir; }
+    }
+    function update(c, dt) {
+        var t = (c.t += dt), done = false;
+        if (c.act === 'walk') {
+            c.x += c.dir * c.speed * dt / 1000;
+            if ((c.x < 20 && c.dir < 0) || (c.x > width - 20 && c.dir > 0)) c.dir = -c.dir;
+            frame(c, 'main', 0, Math.floor(t / 150) % 2); c.lift = Math.abs(Math.sin(t / 150 * Math.PI)) * 3;
+            if (c.tripAt > 0 && t > c.tripAt) { start(c, 'trip'); return; }
+            done = t > c.dur;
+        } else if (c.act === 'trip') {
+            if (t < 220) c.x += c.dir * 50 * dt / 1000;
+            frame(c, 'main', 4, t < 300 ? 0 : t < 800 ? 2 : 3); done = t > 1700;
+        } else if (c.act === 'idle') {
+            frame(c, 'main', 0, [0, 3, 3, 2, 3, 0][Math.floor(t / 380) % 6]);
+            if (c.turnAt > 0 && t > c.turnAt) { c.dir = -c.dir; c.turnAt = -1; }
+            done = t > c.dur;
+        } else if (c.act === 'wave') {
+            frame(c, 'main', 3, 2 + Math.floor(t / 260) % 2); done = t > c.dur;
+        } else if (c.act === 'roll') {
+            var curl = 360, rollEnd = curl + c.rollDur;
+            if (t < curl) frame(c, 'main', 1, Math.min(3, Math.floor(t / 90)));
+            else if (t < rollEnd) {
+                c.x += c.dir * c.speed * dt / 1000;
+                if ((c.x < 20 && c.dir < 0) || (c.x > width - 20 && c.dir > 0)) { c.dir = -c.dir; c.lift = 6; }
+                c.rot += c.speed * dt / 1000 / 17; c.lift = Math.max(0, c.lift - dt / 40);
+                frame(c, 'main', 2, 0);
+            } else { c.rot = 0; c.lift = 0; frame(c, 'main', 3, t < rollEnd + 160 ? 0 : 1); done = t > rollEnd + 420; }
+        } else if (c.act === 'nap') {
+            c.napping = t < c.dur;
+            frame(c, 'sleep', 0, t < c.dur ? Math.floor(t / 650) % 2 : t < c.dur + 420 ? 2 : 3); done = t > c.dur + 820;
+        } else if (c.act === 'jump') {
+            var hop = 520, k = Math.floor(t / hop), p = (t % hop) / hop;
+            c.x += c.dir * c.speed * dt / 1000;
+            c.lift = Math.sin(p * Math.PI) * (k === 0 ? (c.jumpH || 22) : 14);
+            frame(c, 'main', 0, p < 0.12 || p > 0.88 ? 0 : 1);
+            done = k >= c.hops;
+        } else if (c.act === 'leave') {
+            c.x += c.dir * c.speed * dt / 1000;
+            frame(c, 'main', 0, Math.floor(t / 140) % 2); c.lift = Math.abs(Math.sin(t / 140 * Math.PI)) * 3;
+            if (c.x < -40 || c.x > width + 40) {   // 방의 다른 동물로 갈아입고 같은 쪽에서 다시 들어온다
+                dress(c, pickLook()); c.dir = -c.dir; start(c, 'walk', { keepDir: true }); c.dur = rand(2200, 3800); c.tripAt = -1; return;
+            }
+        } else if (c.act === 'scuffle') {
+            if (t < 1400) { frame(c, 'scuffle', 0, Math.floor(t / 170) % 3); c.x += Math.sin(t / 90) * 0.4; }
+            else if (c.win) { frame(c, 'main', 3, 3); done = t > 2400; }
+            else if (t < 1650) frame(c, 'scuffle', 0, 3);
+            else if (t < 2050) { frame(c, 'scuffle', 1, t < 1850 ? 0 : 1); c.x -= c.dir * 90 * dt / 1000; c.lift = Math.sin((t - 1650) / 400 * Math.PI) * 10; }
+            else { c.lift = 0; frame(c, 'scuffle', 1, 2 + Math.floor(t / 300) % 2); done = t > 3100; }
+        } else if (c.act === 'startle') {
+            c.lift = t < 360 ? Math.sin(t / 360 * Math.PI) * 16 : 0;
+            frame(c, 'scuffle', 0, 3); done = t > 800;
+        }
+        if (done) { c.cool = 900; start(c, pickAct()); }
+    }
+    // 서로 부딪힘: 구르는 공 → 옆 동물 깜짝, 마주 걸어온 둘 → 밀치기(아니면 하나가 폴짝)
+    function meet() {
+        for (var i = 0; i < critters.length; i += 1) for (var j = i + 1; j < critters.length; j += 1) {
+            var a = critters[i], b = critters[j], d = b.x - a.x, ad = Math.abs(d);
+            if (a.cool > 0 || b.cool > 0 || ad > 30) continue;
+            var roller = a.act === 'roll' && a.t > 360 ? a : b.act === 'roll' && b.t > 360 ? b : null;
+            if (roller) {
+                var hit = roller === a ? b : a;
+                if (calm(hit)) { start(hit, 'startle', { dir: hit.x < roller.x ? 1 : -1 }); hit.cool = roller.cool = 1500; }
+                continue;
+            }
+            if (a.act === 'walk' && b.act === 'walk' && (d > 0 ? a.dir > 0 && b.dir < 0 : a.dir < 0 && b.dir > 0)) {
+                if (rand01() < 0.65) {
+                    var aw = rand01() < 0.5;
+                    start(a, 'scuffle', { win: aw, dir: d > 0 ? 1 : -1 }); start(b, 'scuffle', { win: !aw, dir: d > 0 ? -1 : 1 });
+                    a.x = b.x - (d > 0 ? 26 : -26);
+                } else start(rand01() < 0.5 ? a : b, 'jump');
+                a.cool = b.cool = 4000;
+            }
+        }
+    }
+    // ── 장애물 ──
+    function pickKind() { var pool = OBSTACLES.filter(function (k) { return recentKinds.indexOf(k.key) < 0; }); return pool[Math.floor(rand01() * pool.length)]; }
+    function spawnObstacle() {
+        var k = pickKind(), w = k.w, h = Math.round(k.w * k.sh / k.sw), x = 0, ok = false;
+        for (var t = 0; t < 8 && !ok; t++) {   // 이미 앉은 것과 겹치지 않는 자리
+            x = rand(24 + w / 2, Math.max(24 + w / 2, width - 24 - w / 2));
+            ok = obstacles.every(function (o) { return Math.abs(o.x - x) > (o.w + w) / 2 + 10; });
+        }
+        if (!ok) return;
+        recentKinds.push(k.key); if (recentKinds.length > 2) recentKinds.shift();   // 직전 둘과 다른 종류 — 계속 바뀐다
+        var el = document.createElement('div'), im = document.createElement('span');
+        el.className = 'marble-yard-obstacle'; im.className = 'marble-yard-obstacle__img';
+        im.style.width = w + 'px'; im.style.height = h + 'px';
+        im.style.backgroundImage = 'url("' + MarbleRender.assetUrl(k.group, k.name) + '")';
+        im.style.backgroundSize = (w * (k.cols || 1)) + 'px ' + h + 'px';
+        el.appendChild(im); host.appendChild(el);
+        obstacles.push({ kind: k, el: el, im: im, x: x, w: w, h: k.h, y: -OBS_FALL_FROM - h, vy: 0, state: 'fall', leaveAt: 0, removeAt: 0, snapAt: -1e9 });
+    }
+    function landObstacle(o, now) {
+        o.state = 'stay'; o.y = 0; o.leaveAt = now + rand(OBS_STAY_MS[0], OBS_STAY_MS[1]);
+        o.el.classList.add('is-landed');
+        var dust = document.createElement('span'); dust.className = 'marble-yard-dust';   // 착지 먼지(fx dust-puff 4프레임)
+        dust.style.backgroundImage = 'url("' + MarbleRender.assetUrl('fx', 'dust-puff') + '")'; dust.style.transform = 'translate(' + (o.x - 20).toFixed(1) + 'px,0)';
+        host.appendChild(dust); setTimeout(function () { if (dust.parentNode) dust.parentNode.removeChild(dust); }, 450);
+        critters.forEach(function (c) {   // 머리 위로 떨어지면 깜짝 놀라 옆으로 비킨다
+            if (Math.abs(c.x - o.x) > o.w / 2 + 8 || !calm(c)) return;
+            var side = c.x < o.x ? -1 : 1; c.x = o.x + side * (o.w / 2 + 14); start(c, 'startle', { dir: -side }); c.cool = 1500;
+        });
+    }
+    function clearObstacles() { obstacles.forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); }); obstacles = []; nextDropAt = 0; }
+    function updateObstacles(now, dt) {
+        if (!nextDropAt) nextDropAt = now + rand(OBS_FIRST_MS[0], OBS_FIRST_MS[1]);
+        if (obstacles.length < OBS_MAX && now >= nextDropAt) { spawnObstacle(); nextDropAt = now + rand(OBS_GAP_MS[0], OBS_GAP_MS[1]); }
+        for (var i = obstacles.length - 1; i >= 0; i--) {
+            var o = obstacles[i];
+            if (o.state === 'fall') { o.vy += OBS_G * dt / 1000; o.y += o.vy * dt / 1000; if (o.y >= 0) landObstacle(o, now); }
+            else if (o.state === 'stay' && now >= o.leaveAt) {   // 땅으로 꺼진다(CSS 전환) — 그동안은 발판이 아니다
+                o.state = 'leave'; o.removeAt = now + OBS_LEAVE_MS; o.el.classList.add('is-leaving');
+                o.el.style.transform = 'translate(' + (o.x - o.w / 2).toFixed(1) + 'px,' + (-FLOOR + 30) + 'px)';
+                continue;
+            }
+            else if (o.state === 'leave') { if (now >= o.removeAt) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); obstacles.splice(i, 1); } continue; }
+            o.el.style.transform = 'translate(' + (o.x - o.w / 2).toFixed(1) + 'px,' + (-FLOOR + o.y).toFixed(1) + 'px)';
+            if (o.kind.cols) o.im.style.backgroundPosition = (now - o.snapAt < OBS_SNAP_MS ? -(o.kind.cols - 1) * o.w : 0) + 'px 0';   // 스프링 판: 밟힌 직후 젖힌 프레임
+        }
+    }
+    // 앉아 있는 장애물 위 발 높이 — 가장자리 OBS_RAMP 안에서 비스듬히 올라가고 내려온다(구르는 공도 같은 식으로 넘는다)
+    function groundAt(x) {
+        var g = 0;
+        for (var i = 0; i < obstacles.length; i++) {
+            var o = obstacles[i]; if (o.state !== 'stay' || !o.h) continue;
+            var x0 = o.x - o.w / 2, x1 = o.x + o.w / 2; if (x < x0 || x > x1) continue;
+            g = Math.max(g, o.h * Math.min(x - x0, x1 - x, OBS_RAMP) / OBS_RAMP);
+        }
+        return g;
+    }
+    function hazards(c, now) {   // 스프링 판을 밟으면 높이 튕기고, 진흙에 들어가면 미끄러져 넘어진다
+        if (c.cool > 0 || !(c.act === 'walk' || c.act === 'leave')) return;
+        for (var i = 0; i < obstacles.length; i++) {
+            var o = obstacles[i]; if (o.state !== 'stay') continue;
+            if (o.kind.launch && Math.abs(c.x - o.x) < 10) { o.snapAt = now; start(c, 'jump', { high: true }); c.cool = 1500; return; }
+            if (o.kind.slip && Math.abs(c.x - o.x) < o.w / 2 - 8) { start(c, 'trip'); c.cool = 2500; return; }
+        }
+    }
+    function dress(c, look) {
+        c.look = look; c.urls = {};
+        Object.keys(SHEETS).forEach(function (k) { c.urls[k] = 'url("' + MarbleRender.sheetUrl(look, SHEETS[k][0]) + '")'; });   // 렌더러와 같은 URL(캐시 공유 — 새 다운로드 없음)
+        c.shown = '';
+    }
+    function draw(c) {
+        var key = c.sheet + c.row + ',' + c.col;
+        if (key !== c.shown) {
+            c.body.style.backgroundImage = c.urls[c.sheet];
+            c.body.style.backgroundSize = SHEETS[c.sheet][1];
+            c.body.style.backgroundPosition = (-c.col * C) + 'px ' + (-c.row * C) + 'px';
+            c.shown = key;
+        }
+        c.el.style.transform = 'translate(' + (c.x - C / 2).toFixed(1) + 'px,' + (-FLOOR) + 'px)';
+        c.body.style.transform = 'translateY(' + (-(c.lift + (c.ground || 0))).toFixed(1) + 'px) scaleX(' + c.dir + ') rotate(' + c.rot.toFixed(2) + 'rad)';   // ground = 장애물 위 발 높이(그림자는 땅에 남는다)
+        c.el.classList.toggle('is-napping', !!c.napping);
+    }
+    // 띠 폭 — 숨겨진 상태(display:none: 빈 띠·경주 중 피커 접힘)에서 재면 0 이라, 0 이면 이전 값을 유지한다.
+    // 폭이 0 이면 walk 의 양 끝 튕김 조건(x<20 / x>width-20)이 매 프레임 번갈아 걸려 왼쪽 끝에서 떨었다(사용자 2026-09-24)
+    function measure() { var w = host.clientWidth; if (w) width = w; return width; }
+    function tick(now) {
+        if (!visible || document.hidden || !critters.length) { rafId = 0; return; }
+        if (!width) measure();
+        var dt = Math.min(50, now - (last || now)); last = now;
+        critters.forEach(function (c) { c.cool = Math.max(0, (c.cool || 0) - dt); update(c, dt); });
+        updateObstacles(now, dt);
+        critters.forEach(function (c) { hazards(c, now); c.ground = groundAt(c.x); });
+        meet();
+        critters.forEach(draw);
+        rafId = requestAnimationFrame(tick);
+    }
+    function resume() { if (!rafId && visible && !document.hidden && critters.length) { measure(); last = 0; rafId = requestAnimationFrame(tick); } }
+    // 누르면 반응 — 지금 하던 것 말고 놀람·낮잠·점프·손 흔들기·넘어짐·구르기 중 하나. 잠깐은 다른 동물과 부딪혀도 끊기지 않게
+    function poke(c, e) {
+        if (e) e.preventDefault();
+        var acts = POKE_ACTS.filter(function (a) { return a !== c.act; }), act = acts[Math.floor(rand01() * acts.length)];
+        start(c, act, { dir: rand01() < 0.5 ? 1 : -1 });
+        if (act === 'nap') c.dur = rand(1600, 2400);
+        c.cool = 2500;
+        resume();
+    }
+    function populate() {
+        if (!host) return;
+        host.classList.toggle('is-empty', !looks.length);   // 비면 띠를 숨긴다 — 보이게 한 뒤에 폭을 재야 0 이 아니다
+        measure();
+        var want = looks.length ? Math.min(width < 520 ? 3 : width < 800 ? 4 : 6, looks.length * 2) : 0;   // 방에 나온 동물이 적으면 마당도 한산하게
+        if (!want) clearObstacles();
+        while (critters.length > want) host.removeChild(critters.pop().el);
+        while (critters.length < want) {
+            var el = document.createElement('div'), body = document.createElement('span');
+            el.className = 'marble-yard-critter'; body.className = 'marble-yard-critter__body'; el.appendChild(body); host.appendChild(el);
+            var c = { el: el, body: body, x: rand(30, Math.max(40, width - 30)), dir: rand01() < 0.5 ? 1 : -1, rot: 0, lift: 0, cool: 1000 };
+            dress(c, pickLook()); start(c, pickAct() === 'leave' ? 'idle' : pickAct());
+            el.addEventListener('pointerdown', poke.bind(null, c));
+            critters.push(c);
+        }
+        critters.forEach(function (c) { c.x = Math.min(Math.max(c.x, -40), width + 40); if (looks.indexOf(c.look) < 0) dress(c, pickLook()); });   // 방에서 사라진 동물·스킨은 갈아입힌다
+        resume();
+    }
+    return {
+        init: function (hostId) {
+            host = document.getElementById(hostId); if (!host) return;
+            off = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            if (off) return;
+            window.addEventListener('resize', populate);
+            document.addEventListener('visibilitychange', resume);
+            if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; resume(); }).observe(host);   // 띠가 화면 밖(경주 보는 중 스크롤·피커 숨김)이면 멈춘다
+        },
+        // 방에 나온 동물·스킨 목록('{creature}[-{skin}]'). 빈 목록이면 마당을 비운다(:empty 로 띠도 숨는다)
+        setLooks: function (list) {
+            if (!host || off) return;
+            var next = (list || []).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+            if (next.join(',') === looks.join(',')) return;
+            looks = next;
+            populate();
+        }
+    };
+})();
+function marbleYardLooks() {
+    var pv = marbleState.preview;
+    return pv && pv.balls ? pv.balls.map(function (b) { return b.creature + (b.skin ? '-' + b.skin : ''); }) : [];
 }
 
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 상태 문구
@@ -626,6 +912,20 @@ function playRouletteAnimation(data) {
     tick();
 }
 
+// 경주(룰렛·다시 보기 포함)를 시작하면 경주 화면이 다 보이게 부드럽게 스크롤 — 화면보다 작으면 가운데(위아래 모두 보임),
+// 폰 세로 캔버스(1.4 비율) 등으로 화면보다 크면 아래쪽을 창 바닥에 맞춘다(하단이 다 보이는 게 더 중요). 데구리 8b14a1c
+function revealStage() {
+    var stage = document.getElementById('marbleStage');
+    if (!stage || !stage.scrollIntoView) return;
+    var fits = stage.getBoundingClientRect().height <= window.innerHeight, block = fits ? 'center' : 'end', y0 = window.scrollY;
+    try { stage.scrollIntoView({ behavior: 'smooth', block: block }); } catch (e) { return; }
+    // 부드러운 스크롤은 탭이 가려져 있거나 레이아웃이 바뀌면 시작도 못 하고 끊길 때가 있다 — 잠시 뒤에도 그대로면 즉시 옮긴다
+    setTimeout(function () {
+        var r = stage.getBoundingClientRect(), inView = fits ? r.top >= 0 && r.bottom <= window.innerHeight : Math.abs(r.bottom - window.innerHeight) < 2;
+        if (window.scrollY === y0 && !inView) stage.scrollIntoView({ block: block });
+    }, REVEAL_SCROLL_RETRY_MS);
+}
+
 // 룰렛/사유 단계 진입 — 서버는 이미 playing. 피커를 접고 투표 막대·배너만 캔버스 위에 남긴다
 function enterRoulettePhase() {
     stopReplay(false);
@@ -637,7 +937,7 @@ function enterRoulettePhase() {
     renderPickStatus();
     updateStartButton();
     moveVoteUiToCanvas();
-    try { document.getElementById('marbleStage').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    revealStage();
 }
 
 // 룰렛 동안 배너·투표 막대·사유를 캔버스 한가운데 팝업으로 (경마 moveResultUiToCanvas 와 같은 방식 — 위쪽에서 돌면 진행 중인지 안 보인다, 사용자 2026-09-21).
@@ -770,7 +1070,7 @@ function replayRace() {
     setReplayUi(true);
     clearTimeout(replayEndTimer);
     replayEndTimer = setTimeout(function () { if (replaying) stopReplay(false); }, data.durationMs + REPLAY_END_GRACE_MS);   // 재생기가 끝에서 스스로 멈추면 버튼만 되돌린다
-    try { if (document.getElementById('marbleStage').scrollIntoView) document.getElementById('marbleStage').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    revealStage();
 }
 // jumpToEnd: 도중에 끊었으면 마지막 화면(비석)으로 되돌린다
 function stopReplay(jumpToEnd) {
@@ -784,29 +1084,83 @@ function stopReplay(jumpToEnd) {
 }
 window.replayRace = replayRace;
 
-// 결과 오버레이 (gameEnd 도착 시)
+// 결과 오버레이 (gameEnd 도착 시). 당첨 동물·순위 줄 동물은 marble:gameEnd 에 없어 marbleState.reveal.balls 에서 주인 이름으로 찾는다(데구리 d816793·8b14a1c 역반영).
+// 한 사람이 여러 마리면 순위를 정한 동물(꼴등 룰 = 제일 늦게, 1등 룰 = 제일 먼저 들어온 놈) 기준. 재접속 복원(순위 없이 열림)이면 reveal 이 없어 스프라이트를 안 그린다
+function resultShortName(name) { var chars = Array.from(String(name || '')); return chars.length > RESULT_NAME_MAX ? chars.slice(0, RESULT_NAME_MAX).join('') + '…' : chars.join(''); }
+function resultBallFor(owner, target) {
+    var rv = marbleState.reveal; if (!rv || !rv.balls) return null;
+    var order = rv.finishOrder || [], pick = null, pickIdx = -1;
+    rv.balls.forEach(function (b) {
+        if (b.owner !== owner) return;
+        var idx = order.indexOf(b.id); if (idx < 0) idx = order.length + b.id;   // 못 들어온 놈은 뒤로
+        if (!pick || (target === 'first' ? idx < pickIdx : idx > pickIdx)) { pick = b; pickIdx = idx; }
+    });
+    return pick;
+}
+// 결과 카드의 당첨 동물·순위 줄 동물은 선택 버튼과 같은 대기 스프라이트 프레임(PICKER_ICON_FRAMES·230ms)으로 움직인다. 카드가 닫히면 멈추고, reduced motion 이면 안 움직인다
+var resultAnimTimer = null;
+function stopResultAnimation() { if (resultAnimTimer) { clearInterval(resultAnimTimer); resultAnimTimer = null; } }
+function drawResultIcons(box, frameAt) {
+    if (!renderer || !box) return;
+    box.querySelectorAll('canvas[data-creature]').forEach(function (cv, i) { renderer.drawCreatureIcon(cv, cv.getAttribute('data-creature'), frameAt(i), cv.getAttribute('data-skin') || null); });
+}
+function startResultAnimation(box) {
+    stopResultAnimation();
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    resultAnimTimer = setInterval(function () {
+        if (document.hidden) return;
+        var overlay = document.getElementById('resultOverlay');
+        if (!overlay || !overlay.classList.contains('visible')) { stopResultAnimation(); return; }
+        var step = Math.floor(performance.now() / PICKER_ICON_MS);
+        drawResultIcons(box, function (i) { return PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length]; });
+    }, PICKER_ICON_MS);
+}
+// 꼴등 룰에 인원이 많으면 당첨 줄이 목록(최대 40vh) 아래에 숨는다 — 열자마자 당첨 줄로 굴린다(데구리 087bc59).
+// scrollIntoView 를 먼저(막 연 상자에서 scrollTop 대입이 무시될 때가 있다), 목록 scrollTop 도 맞추고, 잠시 뒤 한 번 더 확인. 오버레이는 fixed 라 페이지는 안 움직이지만 혹시 움직였으면 되돌린다
+function revealSelectedRankRow(list) {
+    var row = list.querySelector('.is-winner'); if (!row) return;
+    var target = function () { return Math.max(0, Math.min(row.offsetTop - list.offsetTop - (list.clientHeight - row.offsetHeight) / 2, list.scrollHeight - list.clientHeight)); };
+    var pageY = window.scrollY;
+    if (row.scrollIntoView) row.scrollIntoView({ block: 'center', inline: 'nearest' });
+    if (window.scrollY !== pageY) window.scrollTo(0, pageY);
+    list.scrollTop = target();
+    setTimeout(function () { if (Math.abs(list.scrollTop - target()) > 2) list.scrollTop = target(); }, RESULT_SCROLL_RECHECK_MS);
+}
 function showResultOverlay(data) {
     if (document.body) document.body.classList.remove('race-running');
-    var box = document.getElementById('resultRankings');
+    stopResultAnimation();
+    var box = document.getElementById('resultRankings'), list = null;
     if (box) {
         var html = '';
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
-        if (data.selected) html += '<div class="marble-result-selected"><i class="mi mi-paw"></i> 당첨자: ' + escapeHtml(data.selected) + ' <small>(' + targetLabel + ')</small></div>';
+        var spriteAttr = function (b) { return ' data-creature="' + escapeHtml(b.creature) + '"' + (b.skin ? ' data-skin="' + escapeHtml(b.skin) + '"' : ''); };
+        var winBall = data.selected ? resultBallFor(data.selected, data.target) : null;
+        if (data.selected) {
+            html += '<div class="marble-result-selected">' + (winBall ? '<canvas class="marble-result-sprite" width="112" height="112"' + spriteAttr(winBall) + ' aria-hidden="true"></canvas>' : '') +
+                '<div class="marble-result-selected-name"><i class="mi mi-paw"></i> 당첨자: <span title="' + escapeHtml(data.selected) + '">' + escapeHtml(resultShortName(data.selected)) + '</span> <small>(' + targetLabel + ')</small></div></div>';
+        }
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
         // 순위: 서버 rankings [{name, rank}] 그대로 — 꼴등 룰은 각자 제일 늦게 들어간 동물 순, 1등 룰은 각자 제일 먼저 들어간 동물 순 (socket/marble-sim.js rankPlayers).
-        // 당첨(강조)은 룰렛이 정한 순위(target)의 주인 — 꼴찌일 수도, 1위일 수도
+        // 당첨 줄(.is-winner, 강조)은 룰렛이 정한 순위(target)의 주인 — 꼴찌일 수도, 1위일 수도. 내 줄(.is-me)의 '(나)' 표시는 당첨 강조와 구분되는 옅은 글자
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
-                var isSelected = r.name === data.selected;
+                var isSelected = r.name === data.selected, isMe = r.name === currentUser;
                 var isLast = r.rank === rk.length && data.target !== 'first';   // 1등 룰 판은 꼴찌 표기 없이 등수만
-                return '<li class="' + (isSelected ? 'loser' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span><b>' + escapeHtml(r.name) + '</b>' + (r.name === currentUser ? ' (나)' : '') + (isSelected ? ' <i class="mi mi-target"></i>' : '') + '</li>';
+                var rb = resultBallFor(r.name, data.target);
+                return '<li class="' + (isSelected ? 'is-winner' : '') + (isMe ? ' is-me' : '') + '"><span class="rk">' + (isLast ? '꼴찌' : r.rank + '위') + '</span>' +
+                    (rb ? '<canvas class="marble-result-icon" width="56" height="56"' + spriteAttr(rb) + ' aria-hidden="true"></canvas>' : '') +
+                    '<b title="' + escapeHtml(r.name) + '">' + escapeHtml(resultShortName(r.name)) + '</b>' + (isMe ? '<span class="me">(나)</span>' : '') + (isSelected ? '<i class="mi mi-target"></i>' : '') + '</li>';
             }).join('') + '</ol>';
         }
         box.innerHTML = html;
+        drawResultIcons(box, function () { return 0; });
+        list = box.querySelector('.marble-result-ranks');
     }
     var overlay = document.getElementById('resultOverlay');
-    if (overlay) overlay.classList.add('visible');
+    if (overlay) overlay.classList.add('visible');   // 보이게 한 뒤에 재야 목록 높이가 잡힌다
+    if (list) revealSelectedRankRow(list);
+    if (box && box.querySelector('canvas[data-creature]')) startResultAnimation(box);
 }
 
 function renderHistory(history) {
@@ -1015,6 +1369,7 @@ socket.on('roomCreated', function (data) {
     readyUsers = data.readyUsers || [];
     sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     marbleInitModules();
+    if (window.MarbleGacha) MarbleGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
     addDebugLog('방 생성: ' + data.roomId);
     if (window.FreeInvite && data.shortcode) window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
 });
@@ -1031,6 +1386,7 @@ socket.on('roomJoined', function (data) {
     readyUsers = data.readyUsers || [];
     sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     marbleInitModules();
+    if (window.MarbleGacha) MarbleGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
 
     if (data.gameState) applyScheduledStart(data.gameState.scheduledStartAt, data.gameState.scheduledStartLabel);
 
@@ -1286,7 +1642,8 @@ socket.on('marble:stateUpdated', function (data) {
     if (data.crowd) marbleState.crowd = data.crowd;
     if (data.votes) marbleState.votes = data.votes;
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
-    if (data.preview !== undefined) marbleState.preview = data.preview;
+    if (data.crowdInfo) marbleState.crowdInfo = data.crowdInfo;
+    if (data.preview !== undefined) { marbleState.preview = data.preview; if (assetsLoaded) MarbleYard.setLooks(marbleYardLooks()); }
     if (data.myEquip !== undefined && window.MarbleShop) MarbleShop.syncRoomEquip(data.myEquip);   // requestState 응답에만 실림 — 내 방 장착값 { slot: id }(새로고침 재입장 동기화)
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이거나 룰렛 단계면 phase 는 rouletteStart/reveal 이 관리한다.
     if (data.phase === 'playing' && !isMarbleActive && marbleState.phase !== 'playing') {
@@ -1353,7 +1710,7 @@ socket.on('marble:reveal', function (data) {
         renderer.onFinale(function () { playMarbleSound('marble_lose'); setGameStatus(isFirst ? '전원 도착! 1등은…' : '전원 도착! 꼴찌는…', 'active'); });
         renderer.play(MARBLE_COUNTDOWN_MS);
         playMarbleSound('marble_start');
-        try { if (document.getElementById('marbleStage').scrollIntoView) document.getElementById('marbleStage').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        revealStage();
     };
     if (assetsLoaded) begin(); else MarbleRender.loadAssets(begin);
 });

@@ -97,6 +97,12 @@
         var g = _config.hooks.itemGroup(item);
         return g == null || g === _groupFilter;
     }
+    // 목록 정렬 옵션 훅(어댑터 hooks.sortItems(items, { slot, view, groupFilter }) → 새 배열). 없으면 카탈로그 순서 그대로 — 데구리만 쓴다('전체'에서 내 동물 스킨을 앞으로)
+    function applySort(slot, items) {
+        var h = _config && _config.hooks && _config.hooks.sortItems;
+        if (typeof h !== 'function') return items;
+        try { var out = h(items.slice(), { slot: slot, view: _view, groupFilter: _groupFilter }); return Array.isArray(out) ? out : items; } catch (e) { return items; }
+    }
     function renderGroupChips() {
         var chips = document.createElement('div');
         chips.className = 'hshop-inv-chips hshop-groupchips';
@@ -1038,7 +1044,7 @@
         slots.forEach(function (slot) {
             var ownedAll = (_catalog[slot.key] || []).filter(ownsForInventory);
             if (ownedAll.some(function (it) { return !it.defaultOwned; })) anyBought = true;
-            var list = ownedAll.filter(passesGroup);
+            var list = applySort(slot.key, ownedAll.filter(passesGroup));
             if (list.length === 0) return;
             anyOwned = true;
             var section = document.createElement('div');
@@ -1193,7 +1199,7 @@
             if (showMainTabs) {
                 list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
             }
-            list = list.filter(passesGroup);
+            list = applySort(_activeTab, list.filter(passesGroup));
             if (list.length === 0) {
                 var empty = document.createElement('div');
                 empty.className = 'hshop-empty';
@@ -1767,6 +1773,8 @@
         getEquipped: function () { return _wallet.equipped; },
         getCatalog: function () { return _catalog; },
         getCatalogItem: getCatalogItem,
+        getGroupFilter: function () { return _groupFilter; },   // 현재 그룹 칩('all' | 그룹 key) — 어댑터 미리보기가 탭에 따라 그림을 바꿀 때
+
         findItem: findItem
     };
 })();
