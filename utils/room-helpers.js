@@ -97,6 +97,7 @@ function createRoomGameState() {
             timeline: null,         // server-only: 토너먼트 브래킷 { slots, bracket:{ poolOrder, rounds[{roundIdx,durationMs,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }, geom, sampleMs, durationMs } (재진입 마스킹 대상 — bracket은 timeline에만, reveal 1회 외 비노출)
             result: null,           // server-only: { selected, rankings, successionList } (selected = finalLoser = 당첨)
             seed: 0,                // server-only
+            trackSeed: 0,                // server-only: 다음 판 트랙 배치 시드(대기 화면 미리보기 = 경주 맵, socket/marble.js ensureTrackSeed). 리셋 때 0
             round: 0,
             history: [],
             isActive: false,
@@ -125,6 +126,7 @@ function createRoomGameState() {
             picks: {},              // { userName: creatureId }  creatureId ∈ socket/marble.js CREATURES(8종)
             equip: {},              // { userName: { marble_skin: {...}|null, marble_balloon: {...}|null } }  방 단위 꾸미기 장착(socket/marble.js marble:equip) — 소유는 아래 wallets 로 검증, 클라 신뢰 X
             wallets: {},            // { userName: { balance, owned: [id] } }  방 단위 스킨 지갑(socket/marble.js roomWallet) — 입장 시 ROOM_SEED_COINS, 한 판 +10, 나가면 소멸(사용자 2026-09-22: 코인·스킨은 그 방에서 1회용)
+            randomTrack: true,      // 호스트 설정 랜덤 맵(판마다 가운데 모듈 조합) — false 면 고정 맵(트랙 A). socket/marble.js marble:setRandomTrack
             crowd: 'solo',          // 호스트 설정 마릿수 단계 solo|normal|many — 기본 솔로(인당 1, 사용자 2026-09-22) (인당 수는 socket/marble-sim.js crowdBallsPerPlayer 가 인원으로 환산)
             rankVotes: {},          // { userName: 'first' | 'last' }  당첨 순위 투표(경마 userRankVotes 와 같은 방식, 선택지는 1등/꼴등 둘) — 시작 시 룰렛이 target 을 정한다
             target: 'last',         // 이번 판 당첨 순위 'first' | 'last' (시작 시 결정, 투표 없으면 꼴등)

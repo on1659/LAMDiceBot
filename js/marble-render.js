@@ -41,6 +41,8 @@ var MarbleRender = (function () {
     var EAGLE_ARC = 140;             // 독수리 비행 곡선 높이 — socket/marble-sim.js EAGLE_ARC 와 동일(그림자 자리 계산)
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
+    var TRAMP_FX_MS = 260;           // 트램펄린 천 눌림→튕김 프레임 시간
+    var QUAKE_SHAKE_PX = 6;          // 지진 카메라 흔들림 진폭(감쇠)
     var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
     var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
     var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 40, EAGLE_PATROL_H = 130;   // 구멍밭 위 순찰: 좌우 폭·기준 높이·상하 폭(구멍밭~통로 위를 오르내림)
@@ -78,6 +80,10 @@ var MarbleRender = (function () {
     var HUD_RANK_TOP_PX = 56;        // 순위표(위의 당첨 룰 배지 포함) 위 여백(CSS px) — 캔버스 위 HTML 전체화면 버튼(top 8~12 + 36)·베타 배지 아래로
     var HUD_RULE_H = 26 + 6;         // 당첨 룰 배지 높이 + 순위표와의 간격(HUD 단위)
     var HUD_RANK_BOTTOM_GAP = 60;    // 순위표 아래 여백(HUD 단위) — 캔버스 박스 아래 오른쪽 카메라 버튼(≈46 CSS px)과 안 겹치게
+    var HUD_RANK_COLLAPSED_TOP = 3;  // 접힌 순위표에 늘 보이는 윗줄 수(+ 내 줄·당첨 자리·따라가는 동물). 명단이 이보다 +2 이하면 접기 없음
+    var HUD_RANK_GAP_H = 10;
+    var HUD_RANK_TOGGLE_H = 22;      // 순위표 맨 아래 펼치기/접기 버튼 높이         // 접힌 순위표의 건너뛴 줄 표시(⋯) 높이
+    var HUD_RANK_FRAME_ALPHA = 0.7;  // 결승 프레임(구멍밭)에서 순위표·미니맵 불투명도 — 뒤 트랙이 비쳐 보이게
     var HUD_RANK_MAX_H_NARROW = 0.42; // 폰: 배지+순위표 높이 상한(캔버스 높이 비율) — 긴 명단이 트랙을 덮지 않게 행을 자른다(당첨 쪽은 남김)
     var UI_SCALE_MAX = 2.2;          // 폰에서 HUD·라벨을 키우는 배율 상한 (375px 폰 ≈ 2.13 → HUD 단위 = CSS px)
     var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일(세로 캔버스·줌 하한·짧은 결승 프레임)
@@ -85,6 +91,7 @@ var MarbleRender = (function () {
     var DESKTOP_ASPECT = 0.72, MOBILE_ASPECT = 1.4;   // 캔버스 세로/가로 비 — 폰은 세로로 길게(논리 view.h 1120) 결승 프레임이 통째로 들어가게
     var MANUAL_ZOOM_MIN_NARROW = 0.8;  // 수동 카메라 줌 하한(폰). 데스크톱은 ZOOM_MIN
     var MANUAL_DRAG_PX = 6;          // 이만큼 끌어야 드래그로 본다(탭·클릭과 구분)
+    var MANUAL_IDLE_RETURN_MS = 3000; // 손으로 옮긴 수동 카메라는 이만큼 추가 입력이 없으면 자동으로 돌아간다(순위표로 고른 동물 따라가기는 제외)
     var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
     var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
@@ -132,7 +139,7 @@ var MarbleRender = (function () {
             'fence-mid': A + 'pieces/fence-mid.webp', 'fence-post': A + 'pieces/fence-post.webp',
             'goal-basket-back': A + 'pieces/goal-basket-back.webp', 'goal-basket-front': A + 'pieces/goal-basket-front.webp', 'dump-wall': A + 'pieces/dump-wall.webp',
             'beehive': A + 'pieces/beehive.webp', 'sun-patch': A + 'pieces/sun-patch.webp', 'beaver-dam': A + 'pieces/beaver-dam.webp',
-            'pit': A + 'pieces/pit.webp', 'last-gate': A + 'pieces/last-gate.webp', 'flag': A + 'pieces/flag.webp',
+            'pit': A + 'pieces/pit.webp', 'last-gate': A + 'pieces/last-gate.webp', 'trampoline': A + 'pieces/trampoline.webp', 'flag': A + 'pieces/flag.webp',
             'windmill-pole': A + 'pieces/windmill-pole.webp', 'windmill-rotor': A + 'pieces/windmill-rotor.webp',
             'mole-hole': A + 'pieces/mole-hole.webp', 'flipflop-arm': A + 'pieces/flipflop-arm.webp', 'flipflop-pivot': A + 'pieces/flipflop-pivot.webp',
             'belt': A + 'pieces/belt.webp', 'belt-end': A + 'pieces/belt-end.webp', 'fan': A + 'pieces/fan.webp',
@@ -266,7 +273,8 @@ var MarbleRender = (function () {
         var phase = 'idle';       // idle | countdown | play | finale | done
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead', target: null, loserSeen: false };   // target = 지금 카메라가 따라가는 동물(순위표 카메라 표시용)
         // 수동 카메라(보는 사람 화면 상태 — 소켓으로 안 나간다): 경주 중 드래그·핀치·ctrl+휠·순위표 행 누르기로 켜지고, 카메라 버튼·더블클릭·꼴찌 확정·새 타임라인에서 꺼진다
-        var manual = { on: false, x: 0, y: 0, zoom: 1, follow: null };   // follow = 순위표에서 누른 동물 — 수동 카메라가 그 동물을 따라간다
+        var manual = { on: false, x: 0, y: 0, zoom: 1, follow: null, lastInput: 0, held: false };   // follow = 순위표에서 누른 동물 — 수동 카메라가 그 동물을 따라간다. lastInput·held = 입력 없음 자동 복귀(MANUAL_IDLE_RETURN_MS) 판정
+        var rankOpen = false;   // 순위표 펼침(제목 눌러 토글) — 기본은 접힘
         var rankHits = [];   // 순위표 행 클릭 영역(HUD 단위) { x, y, w, h, ball } — drawHud 가 매 프레임 채운다
         var onCameraModeCb = null;
         var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false, cssW: TRACK_W, fs: false };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라, cssW = 캔버스 CSS 폭(HUD 단위 ↔ CSS px 환산), fs = 전체화면
@@ -284,7 +292,7 @@ var MarbleRender = (function () {
 
         R.loadAssets = loadAll;
         R.setIdleClock = function (ms) { idleClock = ms; idleStart = performance.now() - ms; };   // 테스트·프리뷰용: 대기 애니 시계를 특정 시각으로
-        R.debug = function () { return { cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT) }; };
+        R.debug = function () { return { cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT), idleClock: idleClock, balls: balls }; };
 
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
@@ -308,23 +316,33 @@ var MarbleRender = (function () {
             view.fs = fs;
         };
 
+        // 공 객체 — 타임라인 balls[] 항목에서. idleSeed = 대기 화면 서성임 위상(만들 때 한 번 정해 두고, 대기 화면 갱신으로 id 가 바뀌어도 유지)
+        function makeBall(b) {
+            return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim, idleSeed: b.id,
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 };
+        }
+        function preloadSheets(b) {   // 이 판에 나온 동물의 sleep·scuffle(+스킨 시트)을 미리 받는다 — 첫 낮잠·몸싸움 때 한 박자 비지 않게
+            ensureSkin('sleep', b.creature); ensureSkin('scuffle', b.creature);
+            if (b.skin) ['creatures', 'sleep', 'scuffle'].forEach(function (g) { ensureSkin(g, b.creature + '-' + b.skin); });
+        }
+        function applyTrack(payload) {   // 타임라인·트랙 조각 교체(캐시 무효화). 공·시계·카메라는 건드리지 않는다
+            data = payload;
+            pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
+            firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
+            mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
+        }
         R.setTimeline = function (payload, me) {
-            data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
+            myName = me || '';
+            balls = payload.balls.map(makeBall);
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
-            balls.forEach(function (b) {   // 이 판에 나온 동물의 sleep·scuffle(+스킨 시트)을 미리 받는다 — 첫 낮잠·몸싸움 때 한 박자 비지 않게
-                ensureSkin('sleep', b.creature); ensureSkin('scuffle', b.creature);
-                if (b.skin) ['creatures', 'sleep', 'scuffle'].forEach(function (g) { ensureSkin(g, b.creature + '-' + b.skin); });
-            });
+            balls.forEach(preloadSheets);
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
             var extras = balls.filter(function (b) { return b.num > 1; }).sort(function (a, c) { return a.num - c.num || a.id - c.id; });
             var spawnIv = extras.length ? (SPAWN_END_MS - SPAWN_START_MS) / extras.length : 0;
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
-            pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
-            firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {}; mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
+            applyTrack(payload);
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {};
             hudInfo = { remaining: balls.length, rows: [] };
             R.resize();
             updateCamButton();
@@ -355,12 +373,12 @@ var MarbleRender = (function () {
 
         // ─── 수동 카메라 (데구리 dea6fd5·6628dd3 역반영 — 보는 사람 화면 상태만, 소켓으로 나가지 않는다) ───
         // 자동 카메라는 선두/후미·내 동물·결승 프레임을 알아서 따라간다. 캔버스를 끌거나(마우스·터치)·핀치하거나·ctrl+휠·순위표 행을 누르면 수동으로 바뀌고,
-        // 캔버스 박스의 카메라 버튼(토글)·더블클릭·꼴찌 확정(비석 장면)·새 경주/다시 보기·대기 화면에서 자동으로 돌아간다.
+        // 캔버스 박스의 카메라 버튼(토글)·더블클릭·꼴찌 확정(비석 장면)·새 경주/다시 보기·대기 화면·손으로 옮긴 뒤 3초 입력 없음에서 자동으로 돌아간다.
         // 우선순위: 수동(손으로 옮김) = 순위표로 고른 동물 > 기존 자동 카메라('내 동물 따라가기' → 시스템 카메라)
         function setManual(on) {
             on = !!on;
             if (manual.on === on) return;
-            if (on) { manual.x = cam.x; manual.y = cam.y; manual.zoom = cam.zoom; }   // 지금 보이는 자리에서 이어서 — 튀지 않게
+            if (on) { manual.x = cam.x; manual.y = cam.y; manual.zoom = cam.zoom; manual.lastInput = Date.now(); }   // 지금 보이는 자리에서 이어서 — 튀지 않게
             manual.on = on; manual.follow = null;
             updateCamButton();
             if (onCameraModeCb) onCameraModeCb(on ? 'manual' : 'auto');
@@ -408,11 +426,11 @@ var MarbleRender = (function () {
         function panBy(dxCss, dyCss) {
             setManual(true); if (manual.follow) { manual.follow = null; updateCamButton(); }   // 끌면 따라가기를 멈추고 그 자리에서 손으로
             var k = logicalPerCss() / manual.zoom;
-            manual.x -= dxCss * k; manual.y -= dyCss * k;
+            manual.x -= dxCss * k; manual.y -= dyCss * k; manual.lastInput = Date.now();
         }
         // 배율 바꾸기 — (cx, cy)(캔버스 기준 CSS px) 아래 지점이 손가락/커서 밑에 그대로 남도록
         function zoomBy(factor, cxCss, cyCss) {
-            setManual(true);
+            setManual(true); manual.lastInput = Date.now();
             var z0 = manual.zoom, z1 = clamp(z0 * factor, manualZoomMin(), ZOOM_MAX);
             if (z1 === z0) return;
             var lp = logicalPerCss(), ox = cxCss * lp - view.w / 2, oy = cyCss * lp - view.h / 2;
@@ -427,8 +445,18 @@ var MarbleRender = (function () {
         }
         function rankHitAt(p) {   // p = 캔버스 기준 CSS px
             var k = logicalPerCss() / view.ui, hx = p.x * k, hy = p.y * k;
-            for (var i = 0; i < rankHits.length; i++) { var r = rankHits[i]; if (hx >= r.x && hx <= r.x + r.w && hy >= r.y && hy <= r.y + r.h) return r.ball; }
+            for (var i = 0; i < rankHits.length; i++) { var r = rankHits[i]; if (hx >= r.x && hx <= r.x + r.w && hy >= r.y && hy <= r.y + r.h) return r; }
             return null;
+        }
+        function minimapHitAt(p) {   // p = 캔버스 기준 CSS px → 미니맵 안이면 그 자리의 세계 y, 아니면 null
+            if (!mmRect) return null;
+            var k = logicalPerCss() / view.ui, hx = p.x * k, hy = p.y * k, r = mmRect;
+            if (hx < r.x0 - 6 || hx > r.x0 + r.w + 6 || hy < r.y0 || hy > r.y0 + r.h) return null;
+            return r.startY + (hy - r.y0) / r.sc;
+        }
+        function jumpTo(wy) {   // 미니맵에서 고른 세계 y 로 수동 카메라 즉시 이동(가로는 트랙 가운데, 배율 유지). 세로 한계는 updateCamera 가 조인다
+            setManual(true); if (manual.follow) { manual.follow = null; updateCamButton(); }
+            manual.x = TRACK_W / 2; manual.y = wy; manual.lastInput = Date.now();
         }
         R.isManualCamera = function () { return manual.on; };
         R.setManualCamera = function (on) { setManual(on); };
@@ -448,8 +476,9 @@ var MarbleRender = (function () {
                     if (critter) { pointers[e.pointerId] = local(e); dragFrom = pointers[e.pointerId]; dragFrom.critter = critter; dragging = false; pinch = null; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 무음 */ } return; }
                 }
                 if (!racing()) return;   // 대기 화면: 카메라 입력 없음(페이지 스크롤 그대로)
-                if (!ids().length) { var hitBall = rankHitAt(local(e)); if (hitBall) { followBall(hitBall); e.preventDefault(); return; } }
-                pointers[e.pointerId] = local(e);
+                if (!ids().length) { var hit = rankHitAt(local(e)); if (hit) { if (hit.toggle) rankOpen = !rankOpen; else followBall(hit.ball); e.preventDefault(); return; } }
+                if (!ids().length) { var mmy = minimapHitAt(local(e)); if (mmy != null) { jumpTo(mmy); pointers[e.pointerId] = local(e); manual.held = true; dragFrom = pointers[e.pointerId]; dragFrom.minimap = true; dragging = false; pinch = null; try { canvas.setPointerCapture(e.pointerId); } catch (err3) { /* 무음 */ } e.preventDefault(); return; } }   // 미니맵 누르기 → 그 자리로, 끌면 따라 움직인다
+                pointers[e.pointerId] = local(e); manual.held = true;   // 누르고 있는 동안은 자동 복귀 안 함
                 try { canvas.setPointerCapture(e.pointerId); } catch (err2) { /* 무음 */ }
                 if (ids().length === 1) { dragFrom = pointers[e.pointerId]; dragging = false; pinch = null; }
                 else if (ids().length === 2) {
@@ -459,7 +488,7 @@ var MarbleRender = (function () {
                 }
             });
             canvas.addEventListener('pointermove', function (e) {
-                if (e.pointerType === 'mouse' && !ids().length) canvas.style.cursor = data && ((racing() && rankHitAt(local(e))) || (tappable() && critterHitAt(local(e)))) ? 'pointer' : '';
+                if (e.pointerType === 'mouse' && !ids().length) canvas.style.cursor = data && ((racing() && (rankHitAt(local(e)) || minimapHitAt(local(e)) != null)) || (tappable() && critterHitAt(local(e)))) ? 'pointer' : '';
                 if (!pointers[e.pointerId]) return;
                 var prev = pointers[e.pointerId], cur = local(e);
                 pointers[e.pointerId] = cur;
@@ -473,6 +502,7 @@ var MarbleRender = (function () {
                     return;
                 }
                 if (!dragFrom) return;
+                if (dragFrom.minimap) { var mmy2 = minimapHitAt(cur); if (mmy2 != null) jumpTo(mmy2); e.preventDefault(); return; }
                 if (!dragging && Math.hypot(cur.x - dragFrom.x, cur.y - dragFrom.y) < MANUAL_DRAG_PX) return;
                 if (!racing()) return;   // 대기 화면에서 동물 위에서 끌기 — 반응도 카메라도 없음
                 if (!dragging) { dragging = true; panBy(cur.x - dragFrom.x, cur.y - dragFrom.y); }   // 문턱을 넘는 순간까지 끈 양도 반영
@@ -482,6 +512,7 @@ var MarbleRender = (function () {
             function release(e) {
                 var was = pointers[e.pointerId];
                 delete pointers[e.pointerId];
+                if (manual.held && !ids().length) { manual.held = false; manual.lastInput = Date.now(); }   // 자동 복귀 대기는 손을 뗀 때부터
                 if (was && e.type === 'pointerup' && dragFrom && dragFrom.critter && !dragging && !ids().length && tappable()) reactTo(dragFrom.critter);   // 탭이었으면 반응(pointercancel = 브라우저가 페이지 스크롤로 가져감 → 반응 없음)
                 if (ids().length < 2) pinch = null;
                 if (!ids().length) { dragFrom = null; dragging = false; }
@@ -502,7 +533,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); (pieces.trampoline || []).forEach(function (q) { q.hitAt = -1e9; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -516,6 +547,8 @@ var MarbleRender = (function () {
                     case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160;
                         (pieces.spring || []).forEach(function (sp) { if (Math.abs(sp.x + Math.cos(sp.angle) * sp.len - e.x) < 3) { sp.firedAt = e.t; sp.readyAt = e.readyAt || (e.t + sp.cooldown); } }); break;
                     case 'flip': ffDir = e.dir; break;
+                    case 'tramp': { var tp = (pieces.trampoline || []).find(function (q) { return e.x >= q.x1 - 20 && e.x <= q.x2 + 20 && Math.abs(e.y - (q.y1 + (q.y2 - q.y1) * ((e.x - q.x1) / (q.x2 - q.x1 || 1)))) < 40; }); if (tp) tp.hitAt = e.t; if (b) b.squashUntil = e.t + 160; break; }   // 천 눌림→튕김 프레임
+                    case 'quake': fxList.push({ type: 'quake', x: e.x, y: e.y, t0: e.t, dur: e.dur }); break;   // 카메라 흔들림(R.render) + 먼지·금
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
                     case 'bump': fxList.push({ type: 'star', x: e.x, y: e.y, t0: e.t, dur: BUMP_FX_MS }); if (b) b.squashUntil = e.t + 160; break;
@@ -671,6 +704,7 @@ var MarbleRender = (function () {
             // 꼴찌가 확정되는 순간 한 번 자동으로 돌아가 비석·축하 장면을 놓치지 않게 한다. 그 뒤(결과 화면)에 순위표를 누르면 다시 따라간다
             if (!loserDone) cam.loserSeen = false;
             else if (!cam.loserSeen) { cam.loserSeen = true; if (manual.on) setManual(false); }
+            if (manual.on && !manual.follow && !manual.held && Date.now() - manual.lastInput > MANUAL_IDLE_RETURN_MS) setManual(false);   // 손으로 옮긴 뒤 입력이 없으면 자동으로
             if (manual.on && manual.follow) {   // 순위표에서 고른 동물 따라가기
                 var fb = manual.follow;
                 targetX = fb.state === 'done' && fb.doneX != null ? fb.doneX : fb.x; targetY = (fb.state === 'done' && fb.doneY != null ? fb.doneY : fb.y) + 20; targetZoom = manual.zoom; cam.mode = 'follow'; camTarget = fb;
@@ -929,7 +963,6 @@ var MarbleRender = (function () {
                 if (!visible(bw.y + bw.r, bw.r)) return;
                 ctx.save(); ctx.fillStyle = 'rgba(40,25,10,0.85)'; ctx.beginPath(); ctx.ellipse(bw.x, toScreenY(bw.y + bw.r), bw.gapW / 2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                 label('그릇 — 바닥 틈으로만 빠져요', bw.x, bw.y + bw.r * 0.55, '#fff', 12);
-                label('↓', bw.x, bw.y + bw.r - 16, '#ffe08a', 12);
             });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;
@@ -1002,27 +1035,29 @@ var MarbleRender = (function () {
                 label('돌아가는 길', f.x + 125, f.y + 80, '#ffd0d0', 12);
             });
             (pieces.belt || []).forEach(function (bt) {
-                if (!visible(bt.y1, 30)) return;
-                // 컨베이어: 어두운 띠 + 이동 방향으로 흐르는 밝은 줄(t 파생). 에셋 오면 belt.png 4프레임 타일로 교체
-                var w = bt.x2 - bt.x1, sy = toScreenY(bt.y1);
-                var beltIm = img('pieces', 'belt');
+                if (!visible((bt.y1 + bt.y2) / 2, Math.abs(bt.y2 - bt.y1) / 2 + 30)) return;
+                // 컨베이어: 어두운 띠 + 이동 방향으로 흐르는 밝은 줄(t 파생). 기울어진 벨트(등반)는 선분 각도로 돌려 그린다. period 가 있으면 멈춘 동안 줄무늬가 안 흐른다. 에셋 오면 belt.png 4프레임 타일로 교체
+                var w = Math.hypot(bt.x2 - bt.x1, bt.y2 - bt.y1), bang = Math.atan2(bt.y2 - bt.y1, bt.x2 - bt.x1);
+                var bon = !bt.period || deviceOn(bt, Math.max(0, t)), btt = bon ? Math.max(0, t) : 0;
+                var beltIm = img('pieces', 'belt'), endIm = img('pieces', 'belt-end');
+                ctx.save(); ctx.translate(bt.x1, toScreenY(bt.y1)); ctx.rotate(bang);
                 if (beltIm) {
-                    var bf = Math.floor(Math.max(0, t) / 90) % 4, tw = 64 * SRC_SCALE, th = 56 * SRC_SCALE;
-                    ctx.save(); ctx.beginPath(); ctx.rect(bt.x1, sy - th / 2, w, th); ctx.clip();
-                    if (bt.speed < 0) { ctx.translate(bt.x1 + bt.x2, 0); ctx.scale(-1, 1); }   // 왼쪽 흐름 = 좌우 반전(프레임은 같은 순서)
-                    for (var tx = bt.x1; tx < bt.x2; tx += tw) ctx.drawImage(beltIm, bf * 64, 0, 64, 56, tx, sy - th / 2, tw + 0.5, th);
+                    var bf = Math.floor(btt / 90) % 4, tw = 64 * SRC_SCALE, th = 56 * SRC_SCALE;
+                    ctx.save(); ctx.beginPath(); ctx.rect(0, -2, w, th); ctx.clip();   // 몸통은 물리 선 아래 — 공·동물이 위에 얹혀 보인다(가운데 걸치면 묻혀 보였다, 사용자 2026-09-25)
+                    if (bt.speed < 0) { ctx.translate(w, 0); ctx.scale(-1, 1); }   // 왼쪽 흐름 = 좌우 반전(프레임은 같은 순서)
+                    for (var tx = 0; tx < w; tx += tw) ctx.drawImage(beltIm, bf * 64, 0, 64, 56, tx, -2, tw + 0.5, th);
                     ctx.restore();
-                    drawSprite('pieces', 'belt-end', bt.x1, bt.y1, 56, 56); drawSprite('pieces', 'belt-end', bt.x2, bt.y1, 56, 56);
-                    return;
+                    if (endIm) { ctx.drawImage(endIm, 0, 0, 56, 56, -7, th / 2 - 9, 14, 14); ctx.drawImage(endIm, 0, 0, 56, 56, w - 7, th / 2 - 9, 14, 14); }
+                } else {
+                    ctx.fillStyle = '#3b3b3b'; roundRect(0, -2, w, 14, 5); ctx.fill();
+                    ctx.save(); ctx.beginPath(); ctx.rect(2, -1, w - 4, 12); ctx.clip();
+                    ctx.strokeStyle = 'rgba(255,220,120,0.8)'; ctx.lineWidth = 2;
+                    var off = ((btt / 1000 * bt.speed) % 16 + 16) % 16;
+                    for (var sx = -16 + off; sx < w + 16; sx += 16) { ctx.beginPath(); ctx.moveTo(sx, 1); ctx.lineTo(sx + (bt.speed > 0 ? 6 : -6), 5); ctx.lineTo(sx, 10); ctx.stroke(); }
+                    ctx.restore();
+                    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(0, 5, 6, 0, Math.PI * 2); ctx.arc(w, 5, 6, 0, Math.PI * 2); ctx.fill();
                 }
-                ctx.save();
-                ctx.fillStyle = '#3b3b3b'; roundRect(bt.x1, sy - 7, w, 14, 5); ctx.fill();
-                ctx.beginPath(); ctx.rect(bt.x1 + 2, sy - 6, w - 4, 12); ctx.clip();
-                ctx.strokeStyle = 'rgba(255,220,120,0.8)'; ctx.lineWidth = 2;
-                var off = ((Math.max(0, t) / 1000 * bt.speed) % 16 + 16) % 16;
-                for (var sx = bt.x1 - 16 + off; sx < bt.x2 + 16; sx += 16) { ctx.beginPath(); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx + (bt.speed > 0 ? 6 : -6), sy); ctx.lineTo(sx, sy + 5); ctx.stroke(); }
                 ctx.restore();
-                ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(bt.x1, sy, 6, 0, Math.PI * 2); ctx.arc(bt.x2, sy, 6, 0, Math.PI * 2); ctx.fill();
             });
             (pieces.fan || []).forEach(function (f) {
                 if (!visible(f.y, f.band)) return;
@@ -1170,6 +1205,53 @@ var MarbleRender = (function () {
                 label('골', ln.goalX, ln.y - ln.h / 2 - 10, '#ffe08a', 12);
                 label('→ 떨어진 자리에서 골까지 달려요 — 골에 들어간 순서가 순위', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
             });
+            // ── 움직이는 장애물(docs/goal/marble-moving-gimmicks.md) — 에셋 계약 이름으로 먼저 그려 보고 없으면 폴백. 파일이 오면 에셋 맵에 이름만 추가 ──
+            (pieces.pendulum || []).forEach(function (pd) {   // 진자 통나무 — 계약: pendulum-log 48×48(중심), pendulum-pivot 32×24(위 중앙). 폴백: log-bumper + 코드 밧줄
+                if (!visible(pd.y + pd.len / 2, pd.len + 60)) return;
+                var pw = 2 * Math.PI / pd.period, th = (pd.amp * Math.PI / 180) * Math.sin(pw * (Math.max(0, t) + pd.phase));
+                var bx = pd.x + pd.len * Math.sin(th), by = pd.y + pd.len * Math.cos(th);
+                ctx.save(); ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(pd.x, toScreenY(pd.y)); ctx.lineTo(bx, toScreenY(by)); ctx.stroke(); ctx.restore();
+                if (!drawSprite('pieces', 'pendulum-pivot', pd.x, pd.y + 12, 128, 96)) { ctx.fillStyle = '#3b2412'; ctx.fillRect(pd.x - 10, toScreenY(pd.y) - 6, 20, 10); }
+                if (!drawSprite('pieces', 'pendulum-log', bx, by, 192, 192) && !drawSprite('pieces', 'log-bumper', bx, by, 96, 96, { scale: pd.r * 2 / (96 * SRC_SCALE) })) { ctx.fillStyle = '#a06a35'; ctx.beginPath(); ctx.arc(bx, toScreenY(by), pd.r, 0, Math.PI * 2); ctx.fill(); }
+            });
+            (pieces.piston || []).forEach(function (ps) {   // 밀대 — 계약: piston-head 24×64(앞면이 벽 반대쪽 끝), piston-shaft 32×24 타일. 폴백: 코드 판자
+                if (!visible(ps.y, 60)) return;
+                var pc = ((Math.max(0, t) + ps.phase) % ps.period + ps.period) % ps.period, pe = pc < ps.out ? ps.ext * Math.sin(Math.PI * pc / ps.out) : 0;
+                var fx = ps.x + ps.dir * pe, psy = toScreenY(ps.y), sx0 = Math.min(ps.x, fx), sw = Math.abs(fx - ps.x);
+                ctx.save();
+                if (sw > 0) { ctx.fillStyle = '#8a5a2b'; ctx.fillRect(sx0, psy - 8, sw, 16); ctx.fillStyle = '#6b4320'; for (var sd = 0; sd < sw; sd += 16) ctx.fillRect(sx0 + sd, psy - 8, 2, 16); }   // 축(벽→머리) 판자
+                var hx = ps.dir > 0 ? fx - ps.head : fx;
+                if (!drawSprite('pieces', 'piston-head', fx - ps.dir * ps.head / 2, ps.y, 96, 256)) { ctx.fillStyle = '#4a2f16'; ctx.fillRect(hx, psy - ps.h / 2, ps.head, ps.h); ctx.fillStyle = '#c9a26a'; ctx.beginPath(); ctx.arc(hx + ps.head / 2, psy - ps.h / 4, 3, 0, Math.PI * 2); ctx.arc(hx + ps.head / 2, psy + ps.h / 4, 3, 0, Math.PI * 2); ctx.fill(); }
+                ctx.restore();
+            });
+            (pieces.trampoline || []).forEach(function (tr) {   // 트램펄린 — 계약: trampoline 32×12 타일 3프레임(평상·눌림·튕김, 아랫단 = 물리 선). 지금은 파이썬 리컬러 천, 없으면 파란 띠
+                if (!visible((tr.y1 + tr.y2) / 2, 60)) return;
+                var tk = (t - (tr.hitAt != null ? tr.hitAt : -1e9)) / TRAMP_FX_MS, tfr = tk < 0 || tk >= 1 ? 0 : (tk < 0.5 ? 1 : 2);
+                var tlen = Math.hypot(tr.x2 - tr.x1, tr.y2 - tr.y1), tang = Math.atan2(tr.y2 - tr.y1, tr.x2 - tr.x1), tim = img('pieces', 'trampoline');
+                ctx.save(); ctx.translate(tr.x1, toScreenY(tr.y1)); ctx.rotate(tang);
+                if (tim) { for (var td = 0; td < tlen; td += 32) { var tw = Math.min(32, tlen - td); ctx.drawImage(tim, tfr * 128, 0, 128 * tw / 32, 48, td, -12, tw, 12); } }
+                else { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(0, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), tlen, 8); ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
+                ctx.restore();
+            });
+            (pieces.gust || []).forEach(function (g) {   // 돌풍 — 계약: fx gust-band 64×32 타일 4프레임(구간 전폭), wind-vane 32×48. 폴백: wind fx 줄 24개 + 라벨
+                var gz = g.zone; if (!visible(gz.y + gz.h / 2, gz.h / 2 + 40)) return;
+                var gt = Math.max(0, t), gc = ((gt + g.phase) % g.period + g.period) % g.period; if (gc >= g.on) return;
+                var gdir = g.dirs[Math.floor((gt + g.phase) / g.period) % g.dirs.length], gwind = img('fx', 'wind');
+                for (var gi = 0; gi < 24; gi++) {
+                    var gph = ((gt / 700 + hash01(gi + 101)) % 1), gx = gz.x + (gdir > 0 ? gph : 1 - gph) * gz.w, gy = gz.y + hash01(gi + 53) * gz.h, gfr = Math.floor(gt / 110 + gi) % 4;
+                    if (!visible(gy, 20)) continue;
+                    ctx.save(); ctx.translate(gx, toScreenY(gy)); if (gdir < 0) ctx.scale(-1, 1); ctx.globalAlpha = 0.85 * Math.sin(gph * Math.PI);
+                    if (gwind) ctx.drawImage(gwind, gfr * 96, 0, 96, 48, -24, -12, 48, 24); else { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(20, 0); ctx.stroke(); }
+                    ctx.restore();
+                }
+                if (gc < 500) label(gdir > 0 ? '돌풍! →' : '← 돌풍!', gz.x + gz.w / 2, gz.y + 40, '#fff', 18);
+            });
+            (pieces.shutter || []).forEach(function (sh) {   // 셔터 문 — last-gate 타일(32px 칸)을 문 폭만큼, 닫힘 0 → 열림 3 프레임(서버 lidCover 와 같은 식). 물리 선(y1)이 문 아랫단
+                if (!visible(sh.y1, 60)) return;
+                var cover = lidCover(sh, t), frame = Math.round((1 - clamp(cover, 0, 1)) * 3);
+                if (img('pieces', 'last-gate')) { for (var gx = sh.x1; gx < sh.x2; gx += 32) { var gw = Math.min(32, sh.x2 - gx); drawSprite('pieces', 'last-gate', gx + gw / 2, sh.y1 + 2, gw * 4, 96, { sx: frame * 128, sw: gw * 4, anchor: 'bottom' }); } }   // 마지막 칸은 토막 폭에 맞춰 자른다(넘치면 옆 토막·벽 밖으로 튀어나온다)
+                else if (cover > 0) { ctx.fillStyle = '#b8863b'; ctx.fillRect(sh.x1, toScreenY(sh.y1) - 6 - (1 - cover) * 16, sh.x2 - sh.x1, 8); }
+            });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
                 var prog = t <= 0 ? 0 : clamp(t / GATE_ANIM_MS, 0, 1);
@@ -1219,6 +1301,32 @@ var MarbleRender = (function () {
 
         // ─── 동물 ───
         function ringColor(b) { return RING_COLORS[b.colorIdx % RING_COLORS.length]; }
+        // 등반 벨트(climb 플래그 belt) 위에 얹힌 공인가 — 선분에서 반지름+6 안, 얹힌 쪽(위). 있으면 { ang: 오르는 방향 각, on: 벨트 도는 중 }
+        function onClimbBelt(b, t) {
+            var belts = pieces.belt || [];
+            for (var i = 0; i < belts.length; i++) {
+                var bt = belts[i]; if (!bt.climb) continue;
+                var dx = bt.x2 - bt.x1, dy = bt.y2 - bt.y1, L2 = dx * dx + dy * dy;
+                var tt = ((b.x - bt.x1) * dx + (b.y - bt.y1) * dy) / L2; if (tt < -0.02 || tt > 1.02) continue;
+                var cx = bt.x1 + dx * tt, cy = bt.y1 + dy * tt;
+                if (Math.hypot(b.x - cx, b.y - cy) > BALL_R + 6 || dx * (b.y - bt.y1) - dy * (b.x - bt.x1) >= 0) continue;
+                var up = bt.speed > 0 ? 1 : -1;
+                return { ang: Math.atan2(up * dy, up * dx), up: up, on: !bt.period || deviceOn(bt, Math.max(0, t)) };
+            }
+            return null;
+        }
+        // 기어오르는 동물: 걷기 두 칸을 빨리 번갈아, 오르는 방향을 보며 경사만큼 기울인다(왼쪽으로 오르면 좌우 반전 뒤 회전). 벨트가 멈추면 어지러운 포즈로 미끄러진다
+        function drawClimber(b, t, cb, mine) {
+            drawShadow(b.x, b.y, BALL_R);
+            if (!cb.on) { drawDizzy(b, t); drawBadge(b, b.x, b.y, mine); return; }
+            var im = sheet('creatures', b), col = Math.floor(Math.max(0, t) / 110) % 2;
+            if (im) {
+                ctx.save(); ctx.translate(b.x, toScreenY(b.y - 6)); ctx.rotate(cb.up > 0 ? cb.ang : cb.ang - Math.PI); if (cb.up < 0) ctx.scale(-1, 1);   // 발이 벨트 표면(공 중심 − 반지름)에 닿게, 왼쪽으로 오르면 좌우 반전(주석을 줄 끝에 붙이다 이 반전을 주석 처리했던 적 있음 — 2026-09-25)
+                ctx.drawImage(im, col * CELL, 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE);
+                ctx.restore();
+            } else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
+            drawBadge(b, b.x, b.y, mine);
+        }
         function drawCreatureFrame(b, row, col, x, y, rot, scale) {
             var im = sheet('creatures', b);
             var sc = (scale || 1) * SRC_SCALE;
@@ -1523,9 +1631,9 @@ var MarbleRender = (function () {
         function idlePose(b) {
             // 반응(잠·어지러움 등) 중에는 그 자리에 가만히 — 서성임 시계를 반응한 시간만큼 멈춰서, 끝나면 멈춘 자리에서 이어 걷는다
             var paused = (b.idlePause || 0) + (reacts[b.id] ? Math.min(REACT_MS, performance.now() - reacts[b.id].at) : 0);
-            var ic = idleClock - paused, ph0 = ic / 1900 + b.id * 1.7;
+            var ic = idleClock - paused, ph0 = ic / 1900 + b.idleSeed * 1.7;   // 위상은 idleSeed(대기 화면 갱신으로 id 가 바뀌어도 그 자리에서 이어 걷는다)
             var dx = Math.sin(ph0) * IDLE_WANDER_X, dy = 0;   // 좌우로만 — 위아래로 흔들면 발이 판자 아래로 내려갔다
-            var res = { dx: dx, dy: dy, flip: Math.cos(ph0) < 0, pose: 'walk', col: Math.floor(ic / 160 + b.id) % 4, growl: false };
+            var res = { dx: dx, dy: dy, flip: Math.cos(ph0) < 0, pose: 'walk', col: Math.floor(ic / 160 + b.idleSeed) % 4, growl: false };
             var n = idleOrder.length; if (n < 2) return res;
             ic = idleClock;   // 몸싸움 짝·박자는 두 마리가 같은 시계를 봐야 한다 — 멈춘 시계는 위 서성임에만
             var w = Math.floor(ic / IDLE_SCUF_PERIOD_MS), ph = (ic % IDLE_SCUF_PERIOD_MS) / IDLE_SCUF_PERIOD_MS;
@@ -1676,6 +1784,8 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawBadge(b, b.x, b.y, mine); continue; }
+                var cb = onClimbBelt(b, t);   // 등반 벨트 위 — 공을 풀고 경사를 기어오른다, 벨트가 멈추면 미끄러지며 어지러움(사용자 2026-09-25 "기어올라야")
+                if (cb) { drawClimber(b, t, cb, mine); continue; }
                 // 구멍 앞 몸싸움: 서서 밀기 → (뚜껑 열림) 화들짝 → 파이프 낙하 포즈. 서버 이벤트 기준, 위치는 프레임 그대로
                 if (b.scuffle >= 0 && t >= b.scuffleAt) { drawScuffler(b, t); drawBadge(b, b.x, b.y, mine); continue; }
                 if (t - b.startledAt < STARTLE_MS) {
@@ -1985,6 +2095,20 @@ var MarbleRender = (function () {
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
                     case 'spring': if (!visible(y, 40)) return; drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 }); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
+                    case 'quake': {   // 지진: 구역 안 먼지 6개(시드 자리) + 땅 금(에셋 없으면 코드 금) + 라벨. 카메라 흔들림은 R.render
+                        if (!visible(y, 400)) return;
+                        for (var qi = 0; qi < 6; qi++) {
+                            var qx = 190 + hash01(qi * 7 + f.t0) * 420, qy = y - 200 + hash01(qi * 13 + f.t0) * 400, qfr = Math.floor(k * 4 + qi) % 4;
+                            if (!drawSprite('fx', 'dust-puff', qx, qy, 80, 80, { sx: qfr * 80, sw: 80, alpha: 0.8 * (1 - k) })) { ctx.fillStyle = 'rgba(230,220,200,' + (0.6 * (1 - k)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(qx, toScreenY(qy), 8 + k * 10, 0, Math.PI * 2); ctx.fill(); }
+                        }
+                        if (!drawSprite('fx', 'ground-crack', x, y, 512, 256, { alpha: 1 - k })) {
+                            ctx.save(); ctx.strokeStyle = 'rgba(40,25,10,' + (0.8 * (1 - k)).toFixed(2) + ')'; ctx.lineWidth = 3;
+                            for (var ci = 0; ci < 3; ci++) { var cx0 = 230 + ci * 150, cy0 = toScreenY(y - 80 + ci * 60); ctx.beginPath(); ctx.moveTo(cx0, cy0); ctx.lineTo(cx0 + 30, cy0 + 14); ctx.lineTo(cx0 + 50, cy0 + 4); ctx.lineTo(cx0 + 90, cy0 + 22); ctx.stroke(); }
+                            ctx.restore();
+                        }
+                        if (k < 0.6) label('지진!', x, y - 120, 'rgba(255,255,255,' + (1 - k).toFixed(2) + ')', 18);
+                        break;
+                    }
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -2033,21 +2157,11 @@ var MarbleRender = (function () {
         // 순위표(플레이어 단위) — 순위 기준은 서버 rankPlayers 와 같다. 행의 동물 = 그 기준이 된 동물
         // 꼴등 룰('last'): 자기 동물이 전부 골에 들어간 순서. 다 들어간 사람은 마지막 동물의 finishIdx 순으로 위에, 아직 뛰는 사람은 후미 동물(제일 뒤처진 놈) 진행도 순.
         // 1등 룰('first'): 자기 동물 중 제일 먼저 들어온 동물 순서. 한 마리라도 들어간 사람은 그 동물의 finishIdx 순으로 위에, 아직 없는 사람은 선두 동물 진행도 순.
-        function updateHud() {
-            var rem = 0, byOwner = {}, first = data && data.target === 'first';
-            for (var i = 0; i < balls.length; i++) {
-                var b = balls[i], o = byOwner[b.owner] || (byOwner[b.owner] = { owner: b.owner, ball: null, done: !first });
-                if (b.state !== 'done') rem++;
-                if (first) {
-                    if (b.state === 'done') { if (!o.done || b.finishIdx < o.ball.finishIdx) { o.done = true; o.ball = b; } }
-                    else if (!o.done && (!o.ball || progress(b) > progress(o.ball))) o.ball = b;
-                    continue;
-                }
-                if (b.state === 'done') { if (o.done && (!o.ball || b.finishIdx > o.ball.finishIdx)) o.ball = b; continue; }
-                if (o.done) { o.done = false; o.ball = b; }
-                else if (progress(b) < progress(o.ball)) o.ball = b;
-            }
-            var rows = Object.keys(byOwner).map(function (k) { return byOwner[k]; }).sort(function (a, b) {
+        function updateHud() {   // 공 단위 순위(사용자 2026-09-25): 도착한 공은 도착 순, 나머지는 진행도 — 굴러가는 동안은 y(아래일수록 앞), 통로에선 x(골 쪽일수록 앞).
+            // 예전엔 사람마다 "가장 뒤처진 공"을 대표로 세워(꼴찌 룰) 화면에서 제일 앞선 공이 1위가 아니어서 "진짜 1등이랑 다르다"고 보였다. 꼴찌 = 마지막 줄, 1등 룰 = 첫 줄 — 둘 다 그대로 맞는다
+            var rem = 0, rows = [];
+            for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state !== 'done') rem++; rows.push({ owner: b.owner, ball: b, done: b.state === 'done' }); }
+            rows.sort(function (a, b) {
                 if (a.done !== b.done) return a.done ? -1 : 1;
                 return a.done ? a.ball.finishIdx - b.ball.finishIdx : progress(b.ball) - progress(a.ball);
             });
@@ -2056,7 +2170,7 @@ var MarbleRender = (function () {
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
         // 미니맵 — 좌측 세로 스트립에 실제 트랙 배치(벽·말뚝·장치·구멍·통로·스탠드)를 축소해 그린다. 정적 부분은 오프스크린 캐시,
         // 공 점(플레이어 색, 내 공 크게)과 현재 화면 범위만 매 프레임. 리플레이 시각 기준이라 모든 클라 동일.
-        var mmCache = null;
+        var mmCache = null, mmRect = null;
         function buildMinimapCache(sc, w, h, dpr, startY) {
             var c = document.createElement('canvas'); c.width = Math.ceil(w * dpr); c.height = Math.ceil(h * dpr);
             var g = c.getContext('2d'); g.scale(dpr, dpr);
@@ -2084,6 +2198,12 @@ var MarbleRender = (function () {
                     case 'belt': g.strokeStyle = '#ffd166'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
                     case 'fan': g.fillStyle = '#c8d0da'; g.beginPath(); g.moveTo(X(p.x), Y(p.y - 12)); g.lineTo(X(p.x + p.dir * 24), Y(p.y)); g.lineTo(X(p.x), Y(p.y + 12)); g.closePath(); g.fill(); break;
                     case 'seesaw': g.strokeStyle = '#c9944f'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len / 2), Y(p.y)); g.lineTo(X(p.x + p.len / 2), Y(p.y)); g.stroke(); break;
+                    case 'pendulum': g.strokeStyle = '#a06a35'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x), Y(p.y + p.len)); g.stroke(); g.fillStyle = '#a06a35'; dot(X(p.x), Y(p.y + p.len), 2); break;
+                    case 'piston': g.fillStyle = '#c9944f'; g.fillRect(X(Math.min(p.x, p.x + p.dir * p.ext)), Y(p.y) - 1, p.ext * sc, 2); break;
+                    case 'trampoline': g.strokeStyle = '#4aa3ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'gust': g.fillStyle = 'rgba(200,230,255,0.25)'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
+                    case 'quake': g.fillStyle = 'rgba(120,80,40,0.25)'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
+                    case 'shutter': g.fillStyle = '#c9944f'; g.fillRect(X(p.x1), Y(p.y1) - 1, (p.x2 - p.x1) * sc, 2); break;
                     case 'holefield': g.fillStyle = '#1e1208'; p.holes.forEach(function (hh) { g.fillRect(X(hh.x - hh.w / 2), Y(hh.y), Math.max(1.5, hh.w * sc), Math.max(2, p.pipeH * sc)); }); break;
                     case 'lane': g.fillStyle = 'rgba(150,115,70,0.85)'; g.fillRect(X(p.x0), Y(p.y - p.h / 2), (p.x1 - p.x0) * sc, Math.max(2, p.h * sc)); g.fillStyle = '#ffe08a'; g.fillRect(X(p.goalX) - 0.5, Y(p.y - p.h / 2), 1, Math.max(2, p.h * sc)); break;
                     case 'stand': g.fillStyle = '#c9a26a'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
@@ -2100,7 +2220,9 @@ var MarbleRender = (function () {
             var key = w.toFixed(1) + ':' + h.toFixed(1) + ':' + res + ':' + data.track.pieces.length;
             if (!mmCache || mmCache.key !== key) mmCache = { key: key, canvas: buildMinimapCache(sc, w, h, res, startY) };
             var mx = function (wx) { return x0 + wx * sc; }, my = function (wy) { return y0 + (wy - startY) * sc; };
+            mmRect = { x0: x0, y0: y0, w: w, h: h, sc: sc, startY: startY };   // 미니맵 누르기/끌기 → 그 자리로 카메라(minimapHitAt)
             ctx.save();
+            if (cam.mode === 'frame') ctx.globalAlpha = HUD_RANK_FRAME_ALPHA;   // 결승 프레임에선 뒤 트랙이 비치게
             ctx.drawImage(mmCache.canvas, x0, y0, w, h);
             // 공: 마리 수가 적으면 동물 공 아이콘(플레이어 색 테두리, 내 공은 흰 테두리 추가), 많으면 색 점. 내 공은 맨 위에
             var useIcon = balls.length <= MINIMAP_ICON_MAX;
@@ -2187,7 +2309,7 @@ var MarbleRender = (function () {
             rankHits = [];
             if (t >= 0 && hudInfo.rows.length) {
                 ctx.font = 'bold 12px "Jua", sans-serif';
-                var y = hudTop + ruleH, rows = hudInfo.rows, n = rows.length;
+                var y = hudTop, rows = hudInfo.rows, n = rows.length;   // 당첨 룰은 따로 배지 없이 순위표 머리줄로(사용자 2026-09-24)
                 var multi = balls.some(function (b) { return b.num > 1; });   // 한 사람 여러 마리일 때만 'N번'(그 사람의 몇 번째 동물) — 1마리 경주는 늘 1번이라 뺀다(17)
                 var shortName = function (nm) { return nm.length > HUD_RANK_NAME_MAX ? nm.slice(0, HUD_RANK_NAME_MAX) + '…' : nm; };
                 var rankText = function (r) { return shortName(r.ball.owner) + (r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
@@ -2198,16 +2320,53 @@ var MarbleRender = (function () {
                 var blockW = Math.ceil(textW + 62);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
                 var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), ruleW), L = hw - w - 8;
                 var X = L + Math.round((w - blockW) / 2) - 6;   // 묶음을 패널 가운데로
-                if (ruleH) { drawRuleBadge(L, w); badgeDone = true; }
-                var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW - ruleH);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
-                var maxRows = Math.max(1, Math.floor((panelMaxH - 26) / HUD_RANK_ROW));
-                var from = n > maxRows && data.target !== 'first' ? n - maxRows : 0, shown = rows.slice(from, from + maxRows);
-                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(L, y, w, 26 + shown.length * HUD_RANK_ROW, 8); ctx.fill();
-                var titleW = ctx.measureText('순위표').width, titleLeft = L + w / 2 - (14 + 3 + titleW) / 2;   // 제목(아틀라스 list 아이콘 + 글자)은 패널 가운데
-                ctx.fillStyle = '#ffd166'; ctx.textAlign = 'left'; ctx.fillText('순위표', iconScreen('list', titleLeft, y + 5, 14) ? titleLeft + 17 : L + w / 2 - titleW / 2, y + 6);
+                badgeDone = true;
+                var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
+                var maxRows = Math.max(1, Math.floor((panelMaxH - 26 - HUD_RANK_TOGGLE_H) / HUD_RANK_ROW));
+                var targetIdx = data.target === 'first' ? 0 : n - 1;
+                // 접힌 순위표(기본): 1~3위 + 내 줄 + 당첨 자리 + 따라가는 동물만 — 트랙을 덜 가린다. 결승 프레임(구멍밭)에선 당첨 자리·내 줄·따라가는 동물만 + 더 투명(사용자 2026-09-24)
+                var frameCam = cam.mode === 'frame', collapsible = n > HUD_RANK_COLLAPSED_TOP + 2, keep = null;
+                if (!rankOpen && collapsible) {
+                    keep = {}; keep[targetIdx] = true;
+                    if (!frameCam) for (var ki = 0; ki < Math.min(n, HUD_RANK_COLLAPSED_TOP); ki++) keep[ki] = true;
+                    var mineIdx = []; rows.forEach(function (r, ri) { if (r.ball.owner === myName) mineIdx.push(ri); if (manual.follow === r.ball) keep[ri] = true; });
+                    if (mineIdx.length) { keep[mineIdx[0]] = true; keep[mineIdx[mineIdx.length - 1]] = true; }   // 내 공은 제일 앞·제일 뒤 둘만(마리 수만큼 줄이 늘지 않게)
+                }
+                var shownIdx = [];
+                if (keep) { for (var si2 = 0; si2 < n; si2++) if (keep[si2]) shownIdx.push(si2); }
+                else { var from = n > maxRows && data.target !== 'first' ? n - maxRows : 0; for (var fi = from; fi < Math.min(n, from + maxRows); fi++) shownIdx.push(fi); }
+                if (shownIdx.length > maxRows) shownIdx = data.target === 'first' ? shownIdx.slice(0, maxRows) : shownIdx.slice(shownIdx.length - maxRows);
+                var gapCount = 0; for (var gi2 = 1; gi2 < shownIdx.length; gi2++) if (shownIdx[gi2] !== shownIdx[gi2 - 1] + 1) gapCount++;
+                var panelA = frameCam ? HUD_RANK_FRAME_ALPHA : 1;
+                ctx.save(); ctx.globalAlpha = panelA;
+                var hdrH = 26, bodyH = shownIdx.length * HUD_RANK_ROW + gapCount * HUD_RANK_GAP_H + 4, togH = collapsible ? HUD_RANK_TOGGLE_H : 0;
+                ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(L, y, w, hdrH + bodyH + togH, 8); ctx.fill();
+                // 머리줄 = 당첨 룰(금색 띠). 룰이 없으면(대기 등) '순위표'
+                if (ruleH) {
+                    ctx.fillStyle = '#ffd166'; roundRect(L, y, w, hdrH, 8); ctx.fill();
+                    ctx.font = 'bold 14px "Jua", sans-serif';
+                    var tw = ctx.measureText(ruleText).width, hl = L + (w - (16 + 4 + tw)) / 2;
+                    ctx.fillStyle = '#3a2a00'; ctx.textAlign = 'left'; ctx.fillText(ruleText, iconScreen('target', hl, y + 5, 16) ? hl + 20 : L + (w - tw) / 2, y + 5);
+                    ctx.font = 'bold 12px "Jua", sans-serif';
+                } else {
+                    var titleW = ctx.measureText('순위표').width, titleLeft = L + w / 2 - (14 + 3 + titleW) / 2;
+                    ctx.fillStyle = '#ffd166'; ctx.textAlign = 'left'; ctx.fillText('순위표', iconScreen('list', titleLeft, y + 5, 14) ? titleLeft + 17 : L + w / 2 - titleW / 2, y + 6);
+                }
                 ctx.textBaseline = 'middle';
-                shown.forEach(function (r, i) {
-                    var idx = from + i, top = y + 24 + i * HUD_RANK_ROW, cy = top + HUD_RANK_ROW / 2, b = r.ball, mineRow = b.owner === myName;
+                if (collapsible) {   // 맨 아래 펼치기/접기 버튼
+                    var tgy = y + hdrH + bodyH;
+                    ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(L + 4, tgy, w - 8, togH - 4, 5); ctx.fill();
+                    ctx.fillStyle = '#ffd166'; ctx.textAlign = 'center'; ctx.fillText(rankOpen ? '▲ 접기' : '▼ 전체 보기', L + w / 2, tgy + (togH - 4) / 2 + 1);
+                    rankHits.push({ x: L, y: tgy, w: w, h: togH, toggle: true });
+                }
+                var rowTop = y + hdrH + 2;
+                shownIdx.forEach(function (idx, i) {
+                    if (i > 0 && idx !== shownIdx[i - 1] + 1) {   // 건너뛴 줄 표시
+                        ctx.fillStyle = '#9e9e9e'; ctx.textAlign = 'center'; ctx.fillText('⋯', L + w / 2, rowTop + HUD_RANK_GAP_H / 2 - 1);
+                        rowTop += HUD_RANK_GAP_H;
+                    }
+                    var r = rows[idx], top = rowTop, cy = top + HUD_RANK_ROW / 2, b = r.ball, mineRow = b.owner === myName;
+                    rowTop += HUD_RANK_ROW;
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
                     if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.fill(); }
                     if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
@@ -2219,11 +2378,11 @@ var MarbleRender = (function () {
                     ctx.fillText(rankText(r), X + 68, cy + 1);
                     rankHits.push({ x: L, y: top, w: w, h: HUD_RANK_ROW, ball: b });
                 });
+                ctx.restore();
                 ctx.textBaseline = 'top';
             }
             if (ruleH && !badgeDone) drawRuleBadge();   // 순위표가 아직 없을 때(카운트다운) — 배지만 오른쪽 끝에
-            // 대기 화면의 출발대는 화면 중앙에 놓이지만, 좌측 미니맵이 함께 있으면 동물 줄이 오른쪽으로 밀린 것처럼 보인다. 미니맵은 실제 경주 중에만(25)
-            if (phase !== 'idle') drawMinimap(t, hh);
+            drawMinimap(t, hh);   // 대기 화면에도 — 트랙이 판마다 달라지므로(서버 buildTrack 모듈 셔플) 다음 판 맵을 미리 보여준다(사용자 2026-09-24). 공 점은 t<0 이라 안 찍힌다
             if (phase === 'idle' && !balls.length) {
                 ctx.font = 'bold 18px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
@@ -2233,6 +2392,11 @@ var MarbleRender = (function () {
         }
 
         // ─── 프레임 ───
+        function quakeShake(t) {   // 진행 중인 지진 fx 마다 감쇠하는 흔들림(t 파생 — 결정론, 2탭 동일)
+            var sx = 0, sy = 0;
+            fxList.forEach(function (f) { if (f.type !== 'quake' || !visible(f.y, 400)) return; var k = (t - f.t0) / f.dur; if (k < 0 || k >= 1) return; var a = QUAKE_SHAKE_PX * (1 - k); sx += Math.sin(t / 23) * a; sy += Math.cos(t / 17) * a * 0.7; });   // 지진 구역이 화면에 있을 때만 — 멀리서 나는 지진에 카메라가 흔들리면 이유를 모른다
+            return { x: sx, y: sy };
+        }
         R.render = function (tPlay, dt) {
             if (!data) return;
             dt = dt || 0.016;
@@ -2248,6 +2412,7 @@ var MarbleRender = (function () {
             ctx.imageSmoothingEnabled = (view.scale * cam.zoom) % 1 !== 0;
             // 줌: 화면 중심 기준 확대 + 가로 초점 이동 (세로는 toScreenY 가 cam.y 로 처리)
             ctx.save();
+            var shk = quakeShake(t); ctx.translate(shk.x, shk.y);   // 지진 — 세계만 흔들린다(HUD 는 바깥)
             ctx.translate(view.w / 2, view.h / 2); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -view.h / 2);
             drawBackground(t);
             drawPieces(t);
@@ -2268,20 +2433,49 @@ var MarbleRender = (function () {
 
         // 대기 화면 — 출발대 프리뷰. preview = 서버 marble:stateUpdated.preview { track, balls, frame } (준비한 사람의 동물이 출발대에 서 있음).
         // 카운트다운 전 구간(IDLE_T)을 한 프레임 그린다 — 재생 루프 없음. preview 가 없으면 하늘만.
+        // 대기 화면이 이미 돌고 있을 때(방 상태 갱신 — 누가 동물·스킨을 바꾸거나 준비를 눌렀을 때) 통째로 다시 만들지 않고 바뀐 사람 것만 갈아 끼운다.
+        // 사람(주인 이름) 기준으로 같은 사람의 공 객체는 그대로 두고 동물·스킨·야식·준비(dim)·id 만 바꾼다 — 서성임 시계·위상·반응·몸싸움 주기가 이어진다.
+        // 새로 온 사람은 새 공, 나간 사람은 뺀다. 트랙(다음 판 맵)은 교체하되 카메라·시계는 건드리지 않는다(사용자 2026-09-24: 한 명이 바꾸면 전원이 처음부터 다시 시작했다)
+        function updateIdle(payload, me) {
+            myName = me || '';
+            var prev = {}, nextReacts = {};
+            balls.forEach(function (b) { prev[b.owner] = b; });
+            balls = payload.balls.map(function (nb) {
+                var b = prev[nb.owner];
+                if (b) {
+                    if (reacts[b.id]) nextReacts[nb.id] = reacts[b.id];
+                    b.id = nb.id; b.creature = nb.creature; b.skin = nb.skin || null; b.skinName = nb.skinName || null; b.balloon = nb.balloon || null; b.colorIdx = nb.colorIdx; b.num = nb.num; b.dim = !!nb.dim;
+                } else b = makeBall(nb);
+                b.spawnAt = -Infinity; b.landed = true;
+                return b;
+            });
+            reacts = nextReacts;
+            byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
+            balls.forEach(preloadSheets);
+            applyTrack(payload);
+            hudInfo = { remaining: balls.length, rows: [] };
+            idleOrder = idleOrderOf();
+        }
+        function idleOrderOf() {   // 몸싸움 짝은 준비한(dim 아님) 놈들만, 출발대 x 순
+            return balls.filter(function (b) { return !b.dim; }).sort(function (a, c) { return a.y - c.y || a.x - c.x; }).map(function (b) { return b.id; });
+        }
         R.drawIdle = function (preview, me) {
-            R.stop();
             if (manual.on) setManual(false);   // 경주 → 대기로 올 때는 자동으로
             if (preview && preview.track) {
-                R.setTimeline({ track: preview.track, balls: preview.balls, frames: [preview.frame], sampleMs: 100, events: [], finishOrder: [], durationMs: 0, slow: null }, me);
+                var payload = { idle: true, track: preview.track, balls: preview.balls, frames: [preview.frame], sampleMs: 100, events: [], finishOrder: [], durationMs: 0, slow: null };
+                if (phase === 'idle' && rafId && data && data.idle) { updateIdle(payload, me); return; }   // 이미 도는 중 — 바뀐 것만
+                R.stop();
+                R.setTimeline(payload, me);
                 phase = 'idle'; updateCamButton();
-                // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다. 몸싸움 짝은 준비한(dim 아님) 놈들만, 출발대 x 순
-                idleOrder = balls.filter(function (b) { return !b.dim; }).sort(function (a, c) { return a.y - c.y || a.x - c.x; }).map(function (b) { return b.id; });
+                // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다
+                idleOrder = idleOrderOf();
                 idleStart = performance.now(); idleClock = 0;
                 var loop = function () { idleClock = performance.now() - idleStart; R.render(IDLE_T, 0.016); rafId = requestAnimationFrame(loop); };
                 R.render(IDLE_T, 0);
                 rafId = requestAnimationFrame(loop);
                 return;
             }
+            R.stop();
             phase = 'idle'; data = null; updateCamButton();
             R.resize();
             ctx.save(); ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);

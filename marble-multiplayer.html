@@ -42,7 +42,7 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=3">
-    <link rel="stylesheet" href="/css/marble.css?v=26">
+    <link rel="stylesheet" href="/css/marble.css?v=27">
     <link rel="stylesheet" href="/css/marble-gacha.css?v=18">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -242,6 +242,14 @@
                         <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')" aria-label="많이"><span class="paw-stack"><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span></span></button>
                     </div>
                 </div>
+                <!-- 맵 — 랜덤(판마다 장애물 조합이 바뀜) / 고정(늘 같은 맵). 서버 mb.randomTrack -->
+                <div class="marble-host-settings">
+                    <label>맵</label>
+                    <div class="marble-crowd-group" role="group" aria-label="맵">
+                        <button type="button" class="marble-crowd-btn marble-map-btn" data-random="1" onclick="setMarbleRandomTrack(true)">랜덤 맵</button>
+                        <button type="button" class="marble-crowd-btn marble-map-btn" data-random="0" onclick="setMarbleRandomTrack(false)">고정 맵</button>
+                    </div>
+                </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
@@ -308,8 +316,8 @@
                 </div>
             </div>
 
-            <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus">게임 대기 중...</div>
+            <!-- 게임 상태 표시 — 예외 안내(경주 중 재입장·중단 사유)만. 평소엔 접혀 있다(js/marble.js setGameStatus) -->
+            <div class="game-status waiting" id="gameStatus" hidden></div>
 
             <!-- 동물 선택 (대기 중) -->
             <section id="marblePickSection">
@@ -493,8 +501,8 @@
     <script src="/js/shared/shop-shared.js?v=6"></script>
     <script src="/js/marble-shop.js?v=12"></script>
     <script src="/js/marble-gacha.js?v=42"></script>
-    <script src="/js/marble-render.js?v=72"></script>
-    <script src="/js/marble.js?v=44"></script>
+    <script src="/js/marble-render.js?v=86"></script>
+    <script src="/js/marble.js?v=47"></script>
 
     <script>
         // ============================================
