@@ -56,7 +56,8 @@ function setupRoutes(app) {
                 res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
                 res.setHeader('Pragma', 'no-cache');
                 res.setHeader('Expires', '0');
-            } else if (filePath.includes(path.sep + 'assets' + path.sep + 'marble' + path.sep)) {
+            } else if (filePath.includes(path.sep + 'assets' + path.sep + 'marble' + path.sep)
+                || filePath.includes(path.sep + 'assets' + path.sep + 'horse-race' + path.sep + 'vehicles' + path.sep)) {
                 res.setHeader('Cache-Control', 'public, max-age=' + MARBLE_ASSET_MAX_AGE_S);
             }
         }

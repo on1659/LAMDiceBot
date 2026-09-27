@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 
 // 모듈 임포트
 const { initPool } = require('./db/pool');
@@ -44,6 +45,10 @@ const limiter = rateLimit({
 });
 console.log('ℹ️  Rate Limiting 설정 완료:', RATE_WINDOW_MS, 'ms 윈도우,', RATE_MAX, '회/분');
 app.use(limiter);
+
+// 응답 gzip 압축 — 정적 서빙·라우트보다 먼저. 기본 필터(compressible)가 webp/png/mp3 등 이미 압축된 형식은 건너뛴다.
+// socket.io 요청(/socket.io/)은 socket.io 가 http 서버 단에서 먼저 가로채므로 express 를 거치지 않는다.
+app.use(compression());
 
 // JSON 파싱 미들웨어
 app.use(express.json());

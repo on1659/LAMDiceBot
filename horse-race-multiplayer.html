@@ -60,6 +60,19 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
+        /* 탈것 선택 헤더 오른쪽 묶음 — [자동선택][최신 그림|예전 그림] */
+        .horse-selection-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        /* 예전 그림 스위치 — 모양은 자동선택(.auto-select-toggle)과 같다. 옛 그림을 받는 동안만 흐리게.
+           relative: 숨긴 체크박스(position:absolute)를 라벨 안에 가둬 누를 때 포커스 스크롤이 튀지 않게 */
+        .vehicle-art-toggle { position: relative; }
+        .vehicle-art-toggle.is-loading { opacity: 0.6; cursor: wait; }
+
         /* ═══ 예약 시작 ═══
            css/horse-race.css는 타 게임과 공용이라 이 페이지 전용 규칙은 여기에 둔다.
            배지는 #raceTrackWrapper 안에 있어 전체화면·PiP로 트랙이 옮겨가도 함께 따라간다
@@ -260,12 +273,19 @@
             <div class="horse-selection-section" id="horseSelectionSection">
                 <div class="horse-selection-header">
                     <div class="users-title" style="margin: 0;"><i class="ui ui-checker"></i> 탈것 선택</div>
-                    <button type="button" class="hshop-open-btn" onclick="HorseShop.openShop()" title="내 탈것 꾸미기" style="display:none;"><i class="ui ui-cart"></i> 꾸미기 상점</button>
-                    <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
-                        <input type="checkbox" id="autoSelectHorseToggle">
-                        <span class="auto-select-toggle-slider"></span>
-                        <span class="auto-select-toggle-label">자동선택</span>
-                    </label>
+                    <div class="horse-selection-header-right">
+                        <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
+                            <input type="checkbox" id="autoSelectHorseToggle">
+                            <span class="auto-select-toggle-slider"></span>
+                            <span class="auto-select-toggle-label">자동선택</span>
+                        </label>
+                        <!-- 탈것 그림 예전 ↔ 최신 스위치 (켜짐 = 예전 SVG) — 이 브라우저에만 저장, 시각 전용. 바인딩은 js/horse-race.js -->
+                        <label class="auto-select-toggle vehicle-art-toggle" title="탈것을 예전 그림으로 봅니다">
+                            <input type="checkbox" id="vehicleLegacyArtToggle">
+                            <span class="auto-select-toggle-slider"></span>
+                            <span class="auto-select-toggle-label">예전 그림</span>
+                        </label>
+                    </div>
                 </div>
                 <div id="horseSelectionGrid" class="horse-selection-grid">
                     <!-- 탈것 선택 버튼들이 여기에 동적으로 생성됨 -->

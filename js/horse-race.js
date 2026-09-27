@@ -798,6 +798,134 @@ function toggleRaceFullscreen() {
     window.addEventListener('pagehide', function () { raceFsExit(); });
 })();
 
+// ═══ 탈것 그림 예전 ↔ 최신 스위치 (탈것 선택 헤더, 자동선택 옆) ═══
+// 탈것 그림을 옛 SVG ↔ 새 도트로 바꾼다(js/horse-race-sprites.js setVehicleLegacyMode). 시각 전용, 이 브라우저에만 저장.
+// 바꿀 때 한 장면을 보여준다: 지금 그림이 달리기 두 컷으로 오른쪽으로 뛰어나가고, 새 그림이 왼쪽에서 쫓아 들어와 멈춘다.
+// 선택 카드(칸 밖은 잘라 냄)와 경주장 탈것 모두. 움직임은 element.animate — 페이지 CSS 가 없는 PiP 창에서도 동작.
+// 걸음새 개인차는 탈것 id 해시로 정한다(시각 전용이지만 클라 Math.random 은 쓰지 않는 규칙).
+function vehicleArtHash(str) {
+    var h = 0;
+    for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+    return Math.abs(h);
+}
+
+function buildVehicleArtRunner(frames, gait) {
+    var stride = VEHICLE_ART_STRIDE_MS * (gait.strideMul || 1);
+    var runner = document.createElement('div');
+    runner.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+    var f1 = document.createElement('div');
+    var f2 = document.createElement('div');
+    f1.style.cssText = f2.style.cssText = 'position:absolute;inset:0;';
+    runner.appendChild(f1);
+    runner.appendChild(f2);
+    var flip = { duration: stride, iterations: Infinity, easing: 'steps(2, jump-none)' };
+    f1.animate([{ opacity: 1 }, { opacity: 0 }], flip);
+    f2.animate([{ opacity: 0 }, { opacity: 1 }], flip);
+    f1.innerHTML = frames.frame1 || '';
+    f2.innerHTML = frames.frame2 || frames.frame1 || '';
+    return runner;
+}
+
+// target: { id, host(위치 기준), real(가릴 실제 그림), clip(잘라 낼 칸|null), oldRun, newRun, exitPx, enterPx, redraw }
+// 반환 = 장면이 끝나는 시각(ms)
+function playVehicleArtSwap(target, order) {
+    var host = target.host;
+    if (!host || typeof host.animate !== 'function' || !target.oldRun || !target.newRun) { target.redraw(); return 0; }
+    var gait = Object.assign({}, VEHICLE_ART_GAIT.default, VEHICLE_ART_GAIT[target.id] || {});
+    var run = VEHICLE_ART_RUN_MS / gait.speed;
+    var start = order * VEHICLE_ART_STAGGER_MS + (vehicleArtHash(target.id) % 5) * VEHICLE_ART_JITTER_MS;
+    var prevOverflow = target.clip ? target.clip.style.overflow : '';
+    if (target.clip) target.clip.style.overflow = 'hidden';
+    target.redraw();
+    target.real.style.visibility = 'hidden';
+
+    var leaving = buildVehicleArtRunner(target.oldRun, gait);
+    host.appendChild(leaving);
+    leaving.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(' + target.exitPx + 'px)' }],
+        { duration: run, delay: start, easing: 'ease-in', fill: 'both' }).onfinish = function () { leaving.remove(); };
+
+    var arriving = buildVehicleArtRunner(target.newRun, gait);
+    host.appendChild(arriving);
+    arriving.animate([{ transform: 'translateX(-' + target.enterPx + 'px)' }, { transform: 'translateX(0)' }],
+        { duration: run * VEHICLE_ART_ENTER_RATIO, delay: start + VEHICLE_ART_CHASE_DELAY_MS, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'both' })
+        .onfinish = function () {
+            arriving.remove();
+            target.real.style.visibility = '';
+            if (target.clip) target.clip.style.overflow = prevOverflow;
+        };
+    return start + VEHICLE_ART_CHASE_DELAY_MS + run * VEHICLE_ART_ENTER_RATIO;
+}
+
+// 모드를 바꾸기 전에 호출 — 지금 그림의 달리기 두 컷과, 바꾼 뒤 다시 그릴 방법을 모아 둔다
+function collectVehicleArtTargets() {
+    var targets = [];
+    raceDoc().querySelectorAll('.horse[data-vehicle-id]').forEach(function (horse) {
+        var sprite = horse.querySelector('.vehicle-sprite');
+        var layer = sprite && getVehicleSpriteActiveLayer(sprite);
+        if (!layer || layer === sprite) return;
+        var id = horse.dataset.vehicleId;
+        var variant = horse.dataset.vehicleVariant || 'base';
+        targets.push({
+            id: id, host: sprite, real: layer, clip: null,
+            oldRun: resolveVehicleStateData(id, 'run', variant),
+            exitPx: VEHICLE_ART_TRACK_RUN_PX, enterPx: VEHICLE_ART_TRACK_RUN_PX,
+            newRunFn: function () { return resolveVehicleStateData(id, 'run', variant); },
+            redraw: function () { setVehicleState(horse, id, horse.dataset.vehicleState || 'idle'); }
+        });
+    });
+    document.querySelectorAll('#horseSelectionGrid .vehicle-display[data-vehicle-id]').forEach(function (display) {
+        var wrap = display.firstElementChild;
+        var frames = wrap && wrap.children;
+        if (!frames || frames.length < 2) return;
+        var id = display.dataset.vehicleId;
+        var card = display.closest('.horse-selection-button');
+        var cardRect = card ? card.getBoundingClientRect() : null;
+        var rect = display.getBoundingClientRect();
+        var svgs = getVehicleSVG(id);
+        targets.push({
+            id: id, host: display, real: wrap, clip: card,
+            oldRun: svgs.run || svgs,
+            exitPx: cardRect ? Math.ceil(cardRect.right - rect.left) + 4 : VEHICLE_ART_TRACK_RUN_PX,
+            enterPx: cardRect ? Math.ceil(rect.right - cardRect.left) + 4 : VEHICLE_ART_TRACK_RUN_PX,
+            newRunFn: function () { var n = getVehicleSVG(id); return n.run || n; },
+            redraw: function () {
+                var n = getVehicleSVG(id);
+                var idle = n.idle || n.run || n;
+                frames[0].innerHTML = idle.frame1 || n.frame1;
+                frames[1].innerHTML = idle.frame2 || idle.frame1 || n.frame1;
+            }
+        });
+    });
+    return targets;
+}
+
+(function () {
+    var checkbox = document.getElementById('vehicleLegacyArtToggle');
+    if (!checkbox || typeof setVehicleLegacyMode !== 'function') return;
+    var label = checkbox.closest('label');
+    function apply(on, animate) {
+        var targets = animate ? collectVehicleArtTargets() : [];
+        checkbox.disabled = true;
+        if (label) label.classList.add('is-loading');
+        setVehicleLegacyMode(on).catch(function () { /* 옛 그림 로드 실패 — 최신 그림 유지 */ }).then(function () {
+            if (label) label.classList.remove('is-loading');
+            checkbox.checked = isVehicleLegacyMode();
+            var sceneMs = 0;
+            targets.forEach(function (t, i) {
+                t.newRun = t.newRunFn();
+                sceneMs = Math.max(sceneMs, playVehicleArtSwap(t, i));
+            });
+            // 장면이 끝날 때까지 스위치를 잠근다 — 도중에 또 바꾸면 달리는 캐릭터가 겹친다
+            setTimeout(function () { checkbox.disabled = false; }, sceneMs);
+            if (!animate && !isRaceActive && document.querySelector('#horseSelectionSection.active')) renderHorseSelection();
+        });
+    }
+    checkbox.addEventListener('change', function () {
+        if (checkbox.checked !== isVehicleLegacyMode()) apply(checkbox.checked, true);
+    });
+    if (getSavedVehicleLegacyMode()) { checkbox.checked = true; apply(true, false); }
+})();
+
 
 // 경마 사운드 볼륨 관리 (ControlBar 위임)
 function getHorseSoundEnabled() {
@@ -1256,11 +1384,7 @@ function initAutoSelectHorseToggle() {
     const checkbox = document.getElementById('autoSelectHorseToggle');
     if (!wrap || !checkbox) return;
 
-    // 꾸미기 상점 진입 버튼은 로컬 환경(localhost)에서만 노출 — 실서버에서는 숨김 (HTML 기본값 display:none 유지)
-    const shopBtn = document.querySelector('.hshop-open-btn');
-    if (shopBtn && isLocalhost) shopBtn.style.display = 'inline-flex';
-
-    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김 (상점 버튼은 위에서 로컬 한정 노출)
+    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김
     // early-return이 아래 getUserPrefs 로드를 건너뛰므로 무료방에선 autoSelectHorseEnabled=false 유지
     // → tryAutoSelectHorse의 자동 픽도 발동하지 않음 (서버방에서 켠 pref가 무료방에서 새는 것 차단)
     let userAuth = null;
@@ -1741,7 +1865,7 @@ function renderHorseSelection() {
         if (idleData && idleData.frame1) {
             const uid = `idle_${horseIndex}`;
             // 4프레임: frame1(원위치) → frame2(살짝위) → frame1(원위치) → frame2(살짝아래)
-            vehicleDisplay = `<div class="vehicle-display" style="width: 60px; height: 45px; margin: 0 auto; position: relative;">
+            vehicleDisplay = `<div class="vehicle-display" data-vehicle-id="${vehicleId}" style="width: 60px; height: 45px; margin: 0 auto; position: relative;">
                 <div id="${uid}_wrap" style="position:absolute;inset:0;transition:transform 0.3s ease-in-out;">
                     <div id="${uid}_f1" style="position:absolute;inset:0;">${idleData.frame1}</div>
                     <div id="${uid}_f2" style="position:absolute;inset:0;opacity:0;">${idleData.frame2 || idleData.frame1}</div>
@@ -2398,6 +2522,7 @@ var PIXELS_PER_METER = 10;
 // 탈것별 시각적 너비는 ALL_VEHICLES[].visualWidth 참조 (JSON에서 로드)
 
 function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, trackOptions) {
+    if (typeof preloadVehicleSprites === 'function' && selectedVehicleTypes) preloadVehicleSprites(selectedVehicleTypes);
     // idle 애니메이션 정리
     if (window._idleAnimInterval) { clearInterval(window._idleAnimInterval); window._idleAnimInterval = null; }
 
@@ -5020,6 +5145,34 @@ function createConfetti() {
 }
 
 const VEHICLE_VARIANT_TRANSITION_MS = 360;
+// 탈것 그림 예전↔최신 전환 장면 — 지금 캐릭터가 달리기 동작으로 오른쪽으로 뛰어나가고,
+// 다른 그림의 같은 캐릭터가 왼쪽에서 뒤쫓아 뛰어 들어와 제자리에 멈춘다. 캐릭터마다 속도·걸음(VEHICLE_ART_GAIT)이 다르다.
+// 위아래 흔들림은 넣지 않는다(사용자 요청).
+const VEHICLE_ART_RUN_MS = 1100;          // 기본 속도로 칸을 가로지르는 시간 (걸음새 speed 로 나눈다)
+const VEHICLE_ART_ENTER_RATIO = 1.15;     // 들어오는 쪽은 감속해서 멈추니 조금 더 길게
+const VEHICLE_ART_CHASE_DELAY_MS = 420;   // 옛 캐릭터 출발 뒤 새 캐릭터가 쫓아 들어오기까지
+const VEHICLE_ART_STAGGER_MS = 110;       // 카드마다 출발을 어긋나게 (순서 × 이 값)
+const VEHICLE_ART_JITTER_MS = 45;         // 탈것 id 로 정하는 추가 어긋남 단위 (0~4배)
+const VEHICLE_ART_STRIDE_MS = 260;        // 달리기 두 컷 한 바퀴
+const VEHICLE_ART_TRACK_RUN_PX = 90;      // 경주장 탈것이 뛰어나가는 거리 (선택 카드는 카드 끝까지)
+const VEHICLE_ART_GAIT = {
+    default: { speed: 1 },
+    turtle: { speed: 0.6, strideMul: 1.6 },
+    crab: { speed: 0.8 },
+    rabbit: { speed: 1.2, strideMul: 1.3 },
+    horse: { speed: 1.15 },
+    dinosaur: { speed: 0.9 },
+    knight: { speed: 0.85 },
+    ninja: { speed: 1.35, strideMul: 0.7 },
+    bird: { speed: 1.05, strideMul: 1.4 },
+    eagle: { speed: 1.2, strideMul: 1.4 },
+    rocket: { speed: 1.5, strideMul: 0.6 },
+    helicopter: { speed: 1, strideMul: 1.6 },
+    car: { speed: 1.3, strideMul: 0.7 },
+    scooter: { speed: 1.1 },
+    bicycle: { speed: 1.05 },
+    boat: { speed: 0.95, strideMul: 1.5 }
+};
 
 function createVehicleSpriteLayer(frame1Markup, frame2Markup, className = 'vehicle-active-layer') {
     const layer = document.createElement('div');
@@ -5157,6 +5310,7 @@ function animateVehicleVariantSwap(horseElement, vehicleId, variant, state = 'ru
     const outgoingFrame2 = frame2 ? frame2.innerHTML : '';
 
     horseElement.dataset.vehicleVariant = variant;
+    horseElement.dataset.vehicleState = state;
     writeVehicleSpriteState(sprite, stateData);
 
     if (outgoingFrame1 || outgoingFrame2) {
@@ -5188,6 +5342,7 @@ function setVehicleState(horseElement, vehicleId, state) {
 
     const variant = horseElement.dataset.vehicleVariant || 'base';
     const stateData = resolveVehicleStateData(vehicleId, state, variant);
+    horseElement.dataset.vehicleState = state; // '예전 그림 보기' 토글이 이 상태로 다시 그린다
     writeVehicleSpriteState(sprite, stateData);
 }
 

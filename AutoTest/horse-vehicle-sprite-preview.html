@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>경마 탈것 신·구 그림 비교</title>
+    <!-- 경마 탈것 15종의 옛 SVG(js/horse-race-sprites-legacy.js)와 새 도트(js/horse-race-sprites.js)를 상태별로 나란히 본다.
+         게임과 같은 함수로 그리므로 여기서 보이는 게 경주 화면과 같다. 개발용 도구 — 서버 코드와 무관. -->
+    <link rel="stylesheet" href="/css/theme.css">
+    <style>
+        :root {
+            --pv-bg: #1a1a1a;
+            --pv-fg: #e5e5e5;
+            --pv-muted: #8b8b8b;
+            --pv-card: #242424;
+            --pv-border: #333;
+            --pv-old: #ffb84d;
+            --pv-new: #4ade80;
+            --pv-cell: #6fa35a;
+            --pv-scale: 2;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 16px; background: var(--pv-bg); color: var(--pv-fg); font-family: -apple-system, "Segoe UI", sans-serif; font-size: 13px; }
+        h1 { font-size: 18px; margin: 0 0 4px; }
+        .sub { color: var(--pv-muted); margin: 0 0 12px; }
+        .controls { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; padding: 10px 12px; margin-bottom: 14px; background: var(--pv-card); border: 1px solid var(--pv-border); border-radius: 8px; }
+        .controls label { display: inline-flex; gap: 6px; align-items: center; }
+        .controls select { background: var(--pv-bg); color: var(--pv-fg); border: 1px solid var(--pv-border); border-radius: 4px; padding: 3px 6px; }
+        .card { background: var(--pv-card); border: 1px solid var(--pv-border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+        .card h2 { font-size: 15px; margin: 0 0 8px; }
+        .scroll { overflow-x: auto; }
+        table { border-collapse: separate; border-spacing: 4px; }
+        th { color: var(--pv-muted); font-weight: normal; font-size: 11px; text-align: center; white-space: nowrap; }
+        th.row { text-align: right; padding-right: 6px; }
+        th.row.old { color: var(--pv-old); }
+        th.row.new { color: var(--pv-new); }
+        td { padding: 0; vertical-align: bottom; }
+        .cell { position: relative; width: calc(60px * var(--pv-scale)); height: calc(45px * var(--pv-scale)); background: var(--pv-cell); background-size: auto 100%; background-position: center; border-radius: 4px; overflow: hidden; }
+        .cell .f { position: absolute; inset: 0; }
+        .cell .f svg { display: block; width: 100%; height: 100%; overflow: visible; }
+        .cell .fallback { position: absolute; left: 3px; top: 2px; font-size: 10px; color: var(--pv-fg); background: rgba(0, 0, 0, 0.55); padding: 0 3px; border-radius: 3px; }
+        .cell.empty { background: transparent; border: 1px dashed var(--pv-border); }
+        body.animate .cell .f1 { animation: pvF1 var(--spd, 0.3s) steps(1) infinite; }
+        body.animate .cell .f2 { animation: pvF2 var(--spd, 0.3s) steps(1) infinite; }
+        body:not(.animate) .cell .f2 { opacity: 0; }
+        body.frame2 .cell .f1 { opacity: 0; }
+        body.frame2 .cell .f2 { opacity: 1; }
+        @keyframes pvF1 { 0% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes pvF2 { 0% { opacity: 0; } 50% { opacity: 1; } }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .controls { gap: 8px 12px; }
+        }
+    </style>
+</head>
+<body class="animate">
+    <h1>경마 탈것 신·구 그림 비교</h1>
+    <p class="sub">위 줄 <b style="color: var(--pv-old)">구</b> = 옛 SVG, 아래 줄 <b style="color: var(--pv-new)">신</b> = 새 도트. 게임과 같은 함수로 그린다. "(run)" 은 그 상태 그림이 없어 게임이 run 으로 대신하는 칸.</p>
+
+    <div class="controls">
+        <label>탈것 <select id="pvVehicle"><option value="">전부</option></select></label>
+        <label>변형 <select id="pvVariant">
+            <option value="both">기본형 + 진화형</option>
+            <option value="base">기본형</option>
+            <option value="power">진화형</option>
+        </select></label>
+        <label>크기 <select id="pvScale">
+            <option value="1">1배 (게임 크기)</option>
+            <option value="2" selected>2배</option>
+            <option value="3">3배</option>
+        </select></label>
+        <label>배경 <select id="pvBg">
+            <option value="grass">잔디색</option>
+            <option value="lane">그 탈것 레인 배경</option>
+            <option value="white">흰색</option>
+            <option value="dark">어두운색</option>
+        </select></label>
+        <label>프레임 <select id="pvAnim">
+            <option value="animate">번갈아 재생</option>
+            <option value="frame1">1컷 고정</option>
+            <option value="frame2">2컷 고정</option>
+        </select></label>
+    </div>
+
+    <div id="pvList"></div>
+
+    <script src="/js/horse-race-sprites.js"></script>
+    <script src="/js/horse-race-sprites-legacy.js"></script>
+    <script src="/js/horse-race-lose.js"></script>
+    <script>
+    (function () {
+        var VEHICLES = [
+            ['horse', '말'], ['rabbit', '토끼'], ['turtle', '거북이'], ['bird', '새'], ['boat', '보트'],
+            ['bicycle', '자전거'], ['rocket', '로켓'], ['car', '자동차'], ['eagle', '독수리'], ['scooter', '킥보드'],
+            ['helicopter', '헬리콥터'], ['knight', '기사'], ['dinosaur', '공룡'], ['ninja', '닌자'], ['crab', '게']
+        ];
+        var STATES = ['idle', 'run', 'rest', 'finish', 'victory', 'dead', 'fallen', 'lose'];
+        // 게임 CSS(.horse.idle/.racing/.rest)의 프레임 속도와 맞춘다
+        var SPEED = { idle: '0.6s', run: '0.15s', rest: '1.5s', finish: '0.4s', victory: '0.4s', dead: '1s', fallen: '0.6s', lose: '0.8s' };
+        var LEGACY = window.HorseLegacySprites;
+
+        var sel = VEHICLES.map(function (v) { return '<option value="' + v[0] + '">' + v[1] + '</option>'; }).join('');
+        document.getElementById('pvVehicle').insertAdjacentHTML('beforeend', sel);
+
+        function frameHTML(markup) {
+            return markup ? '<div class="f">' + markup + '</div>' : '';
+        }
+
+        function cellHTML(resource, state, isNew, vehicleId) {
+            if (state === 'lose') {
+                var src = '/assets/horse-race/sprites/lose/' + vehicleId + (isNew ? '-lose.webp?v=' + VEHICLE_LOSE_VER : '-lose.svg');
+                var atlas = 'background-image:url(\'' + src + '\');background-repeat:no-repeat;background-size:200% 100%;';
+                return '<div class="cell" style="--spd:' + SPEED.lose + '">' +
+                    '<div class="f f1" style="' + atlas + 'background-position:0 0"></div>' +
+                    '<div class="f f2" style="' + atlas + 'background-position:100% 0"></div></div>';
+            }
+            var data = resource[state];
+            var fallback = '';
+            if (!data || !data.frame1) {
+                data = resource.run; // 게임의 resolveVehicleStateData 와 같은 대체
+                fallback = '<span class="fallback">(run)</span>';
+            }
+            if (!data) return '<div class="cell empty"></div>';
+            return '<div class="cell" style="--spd:' + SPEED[state] + '">' +
+                '<div class="f f1">' + data.frame1 + '</div>' +
+                '<div class="f f2">' + (data.frame2 || data.frame1) + '</div>' + fallback + '</div>';
+        }
+
+        function rowHTML(label, cls, resource, isNew, vehicleId) {
+            return '<tr><th class="row ' + cls + '">' + label + '</th>' +
+                STATES.map(function (st) { return '<td>' + cellHTML(resource, st, isNew, vehicleId) + '</td>'; }).join('') + '</tr>';
+        }
+
+        function render() {
+            var only = document.getElementById('pvVehicle').value;
+            var variant = document.getElementById('pvVariant').value;
+            var bg = document.getElementById('pvBg').value;
+            var html = '';
+            VEHICLES.forEach(function (v) {
+                var id = v[0];
+                if (only && only !== id) return;
+                var rows = '';
+                if (variant !== 'power') {
+                    rows += rowHTML('구 기본형', 'old', LEGACY.getVehicleBaseSVG(id), false, id);
+                    rows += rowHTML('신 기본형', 'new', getVehicleBaseSVG(id), true, id);
+                }
+                if (variant !== 'base') {
+                    rows += rowHTML('구 진화형', 'old', LEGACY.getVehiclePowerSVG(id), false, id);
+                    rows += rowHTML('신 진화형', 'new', getVehiclePowerSVG(id), true, id);
+                }
+                var laneBg = bg === 'lane' ? ' style="--lane:url(\'/assets/backgrounds/' + id + '.webp\')"' : '';
+                html += '<section class="card" data-bg="' + bg + '"' + laneBg + '><h2>' + v[1] + ' <span style="color:var(--pv-muted);font-weight:normal">' + id + '</span></h2>' +
+                    '<div class="scroll"><table><tr><th></th>' + STATES.map(function (st) { return '<th>' + st + '</th>'; }).join('') + '</tr>' + rows + '</table></div></section>';
+            });
+            var list = document.getElementById('pvList');
+            list.innerHTML = html;
+            list.querySelectorAll('.card').forEach(function (card) {
+                var cellBg = { grass: 'var(--pv-cell)', white: '#ffffff', dark: '#111111' }[card.dataset.bg];
+                card.querySelectorAll('.cell:not(.empty)').forEach(function (c) {
+                    if (card.dataset.bg === 'lane') { c.style.backgroundImage = card.style.getPropertyValue('--lane'); c.style.backgroundColor = 'var(--pv-cell)'; }
+                    else c.style.background = cellBg;
+                });
+            });
+        }
+
+        function applyScale() {
+            document.documentElement.style.setProperty('--pv-scale', document.getElementById('pvScale').value);
+        }
+
+        function applyAnim() {
+            var mode = document.getElementById('pvAnim').value;
+            document.body.classList.toggle('animate', mode === 'animate');
+            document.body.classList.toggle('frame2', mode === 'frame2');
+        }
+
+        ['pvVehicle', 'pvVariant', 'pvBg'].forEach(function (id) { document.getElementById(id).addEventListener('change', render); });
+        document.getElementById('pvScale').addEventListener('change', applyScale);
+        document.getElementById('pvAnim').addEventListener('change', applyAnim);
+        applyScale();
+        applyAnim();
+        render();
+    })();
+    </script>
+</body>
+</html>

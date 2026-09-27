@@ -15,6 +15,7 @@ express.static 은 `max-age=0` 이라 재방문도 매번 재검증 요청이 �
 | 데구리 시트 전부 (`assets/marble/**`, ramp.png 제외) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −20% 추가 |
 | 알파 없는 큰 배경 (RGB, 1000px 이상) | WebP 손실 `q 92` | 85~95% |
 | 가로로 타일링하는 불투명 스트립 (경마 레인 `assets/backgrounds/{탈것}`) | `pngquant --quality 90-98 --nofs` → `cwebp -lossless -z 9` (**.webp**) | 70% |
+| 경마 탈것 프레임 (`assets/horse-race/vehicles/{id}/*`, 꼴찌 `sprites/lose/*`) | `pngquant --quality 80-98 --nofs` → `cwebp -lossless -z 9` (**.webp**) — near-lossless·손실 q90 보다 작고 4x 확대에서도 차이 없음 | 50% |
 | 부드러운 반투명 글로우 아틀라스 (경마 오라 `aura-atlas`) | WebP 손실 + 무손실 알파 `cwebp -q 85 -alpha_q 100 -alpha_filter best -m 6 -sharp_yuv` (**.webp**) | 83% |
 | 이미 팔레트 PNG (`file` 이 `8-bit colormap`) | 손댈 것 없음 | — |
 | OG 이미지 | JPEG 그대로 | — |
@@ -82,6 +83,7 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 | `assets/cosmetics/aura-atlas.webp` | 완료 — PNG 830KB → 140KB (손실 q85 + 무손실 알파), PNG 삭제. 경마 페이지 로드마다 `horse-shop.js` 가 선로드하는 파일이라, 경마 한 판 이미지 합계(오라 + 아이콘 아틀라스 + 레인)가 1.24MB → 0.48MB. JS·CSS 4곳 URL 이 문자열까지 같아야 한 번만 받는다. max-age=0 이라 `?v=` 없음 |
 | `assets/backgrounds/{탈것}.webp` 15장 | 완료 — PNG 346KB → 103KB (팔레트 90-98 `--nofs` → 무손실), PNG 삭제. 이음새 원본과 동일. 한 판(4~6레인, 탈것 겹침 없음) 약 92~138KB → 28~41KB |
 | `assets/backgrounds/` 테마 PNG | `forest/space/road/beach/sky/ocean.png` 1.45MB 는 런타임 참조 없음(삭제 후보, 단 `/addvehicle` 템플릿이 테마 PNG 를 씀). `expressway.png` 는 `getVehicleBackground` 폴백 필드에만 있고 그 필드를 읽는 코드가 없어 요청되지 않음 |
+| `assets/horse-race/vehicles/**` 200장 + `sprites/lose/*.webp` 15장 | 완료 (2026-09-27 P차 GPT 도트) — 992KB + 120KB. 페이지당: 선택 화면 105KB(15종 idle/run 2컷), 경주 시작 선로드 = 참가 탈것 기본형 전부 + 진화형 run 만(6상태 탈것 54KB, 2상태 19KB). 7일 캐시(`routes/api.js`) + `VEHICLE_SPRITE_VER`. 옛 꼴찌 SVG 삭제 |
 | `assets/og/*.jpg` | 완료 (25~40KB) |
 
 새 시트를 `/spritemake-pickup` 으로 받으면 그 시트도 이 절차를 거친다. 데구리 시트는 `AutoTest/spritemake/pickup-skin.py` 가 pngquant→WebP 를 자동으로 한다(리컬러 `recolor-creature.py` 도 .webp 입출력).

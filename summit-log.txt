@@ -1,4 +1,54 @@
 ========================================
+📋 Summit Log - 2026-09-28 (경마 탈것 15종 SVG → GPT 도트 스프라이트 + '예전 그림' 스위치 + gzip)
+========================================
+
+## 배경
+- 경마 탈것 15종이 js/horse-race-sprites.js 에 손으로 쓴 인라인 SVG(5,017줄, 392KB — 서버 gzip 이 없어 매 페이지 그대로 전송)였다. 사용자 요청으로 데구리 도트 톤 GPT 그림으로 전면 교체(P차). goal docs/goal/applied/horse-vehicle-raster-sprites.md, 의뢰서 docs/spritemake-request/2026-09-27-horse-vehicles-p.md
+- 그림 = SpriteMake 배치 output/horse-vehicles-p-2026-09-27 (Codex gpt-5.6-terra + 내장 image_gen, 이미지 모델 미검증), 4세션 병렬 — 말 시트를 화풍 기준으로 나머지 14종에 첨부. 편집·정규화·설치는 Claude Python(분업 규칙)
+- 트랙 소품 getTrackObjectSVG 13종은 호출처 0(죽은 코드)이라 제외·보존. 레인 배경은 범위 밖(사용자)
+
+## 변경 파일
+- assets/horse-race/vehicles/{id}/{base|power}-{state}-{1|2}.webp 200장 (120×90 = 표시 60×45 의 2x) — 신규
+- assets/horse-race/sprites/lose/{id}-lose.webp 15장 (240×90 2칸) — 신규, 옛 .svg 는 예전 그림 스위치용으로 유지
+- js/horse-race-sprites.js: 5,017줄 → 약 630줄. 인라인 SVG·BASE/POWER_VEHICLE_VARIANT_OVERRIDES·getVehiclePowerOverlayMarkup(옛 도형 따라 그린 진화 장식선) 삭제. VEHICLE_SPRITE_STATES 표(full 5종 idle/run/rest/finish/victory/dead, short 10종 run/rest) + buildVehicleSpriteFrame = `<svg viewBox="0 0 60 45" width="60" height="45"><image href="…webp?v=1" width="100%" height="100%"/></svg>` 한 겹. 넘어짐(buildVehicleFallenFrame)·진화 후광/왕관(buildPoweredVehicleSVG)·상점 도색(CSS filter)은 그대로. preloadVehicleSprites(참가 탈것 기본형 전부 + 진화형 run). 예전 그림 모드(setVehicleLegacyMode·isVehicleLegacyMode·getSavedVehicleLegacyMode, localStorage horseVehicleLegacySprites)
+- js/horse-race-sprites-legacy.js: 옛 SVG 원본(acebfe2 기준)을 IIFE 로 가두고 window.HorseLegacySprites 로 3함수만 노출 — 스위치를 켤 때만 동적 로드 — 신규
+- js/horse-race-lose.js: src .webp?v=1, 예전 모드면 .svg
+- js/horse-race.js: startRaceAnimation 첫 줄 preloadVehicleSprites. setVehicleState·animateVehicleVariantSwap 이 dataset.vehicleState 기록. 예전 그림 스위치 바인딩 + 전환 장면(collectVehicleArtTargets·playVehicleArtSwap·buildVehicleArtRunner, 상수 VEHICLE_ART_*·VEHICLE_ART_GAIT). 선택 카드 .vehicle-display 에 data-vehicle-id. 꾸미기 상점 버튼 노출 코드 삭제
+- horse-race-multiplayer.html: 탈것 선택 헤더 = [자동선택][예전 그림] 스위치(.horse-selection-header-right), 꾸미기 상점 버튼(localhost 전용이던 것) 삭제, 스위치 CSS(position:relative — 숨긴 체크박스 포커스 스크롤 방지)
+- server.js·package.json·package-lock.json: compression 미들웨어(limiter 뒤, 정적·라우트 앞). webp/png/mp3 는 기본 필터가 건너뜀, socket.io 는 http 단에서 먼저 처리돼 무관
+- routes/api.js: assets/horse-race/vehicles/ 에 marble 과 같은 장기 캐시(MARBLE_ASSET_MAX_AGE_S)
+- AutoTest/horse-vehicle-sprite-preview.html: 15종 × 구/신 × 기본형/진화형 × 8상태 비교(크기·배경·프레임 고정) — 신규
+- docs/GameGuide/04-ops/image-assets.md: 탈것 프레임 압축 규칙·용량
+
+## 상세 변경 내역
+
+### [정규화 — SpriteMake tools/claude_pack_p.py·claude_install_p.sh]
+- 가장자리 flood 배경 제거(흰 몸통 보존), 반투명 가장자리 despill(빨간 테 11%→3%), 8-연결 컴포넌트 중심 배정, 시트당 배율 1개 = 옛 run1 bbox **면적** 맞추기(기하평균 — bbox 안에 맞추기는 가늘고 긴 옛 로켓 60×20 때문에 쪼그라듦), 탈락(비석+유령) 칸은 상한 계산 제외, 위치 = 옛 기본형 같은 상태·프레임 bbox 바닥·가로 중심. bird·eagle ×1.15, knight power 탈락 두 컷 통일(--copy dead-1:dead-2)
+- 압축 pngquant 80-98 --nofs → 무손실 WebP (near-lossless·손실 q90 보다 작고 4x 확대에서 차이 없음)
+- 채택: horse base 01·power 02 / rocket base 02 / car base 02 / turtle power 02 / 나머지 01
+
+### [계약 — 왜 <svg><image> 한 겹인가]
+- 아틀라스 + 오프셋 금지: buildPoweredVehicleSVG 가 overflow="visible" 을 붙여 아틀라스 전체가 비침. 중첩 <svg> 금지: 넘어짐 빌더의 안쪽 추출 정규식이 첫 </svg> 에서 끊김. <image width="100%"> 라 width="60" 전역 치환 호출부(getVehicleSVGForResult·getSmallVehicleSVG)도 수정 불필요
+
+### [예전 그림 스위치 — 전환 장면]
+- 사용자 요청 흐름: 트랙 좌상단 버튼 → 자동선택 옆 알약 → 자동선택 같은 스위치. 페이드 → 캐릭터만 뛰어나가기 → 쫓아 들어오기 → 바통 터치(너무 느림) → 쫓아 들어오기(최종)
+- 장면(최종): 지금 캐릭터가 run 두 컷으로 오른쪽 밖으로 뛰어나가고, 420ms 뒤 다른 그림이 왼쪽에서 쫓아 들어와 감속해 멈춘다. 바통 터치(뒤에 멈춰 섰다 교대)는 '너무 늦게 사라진다'는 사용자 피드백으로 되돌림. 걸음새 표(거북 느림 등), 출발 어긋남 = 순서×110 + id 해시(클라 Math.random 금지 규칙), 위아래 흔들림 없음(사용자). 선택 카드는 카드 overflow 로 잘라 냄, 장면 끝까지 스위치 잠금. element.animate 라 PiP 에서도 동작
+- 함정: WAAPI fill:'forwards' 애니메이션은 cancel 안 하면 opacity 0 이 남는다 / steps(1, jump-none) 은 무효 값 / 전체 easing 을 걸면 키프레임 offset 시간이 뒤틀림 → 구간별 easing / 페이지 공통 button{width:100%} → 새 버튼은 width:auto
+
+### [용량]
+- 스프라이트 JS 392KB → 약 30KB(+gzip). 선택 화면 그림 105KB(7일 캐시), 경주 선로드 6상태 탈것 54KB·2상태 19KB. 에셋 합계 992KB + 꼴찌 120KB. js/horse-race.js gzip 426KB → 108KB
+
+### [검증]
+- 전후 모든 탈것·변형 상태 키 동일(diff 0), 코드가 가리키는 프레임 파일 누락 0, node -c
+- qa-horse-render-vs-server-test(방 2개) PASS + 스크린샷 복제 테스트 PC·모바일 375 PASS(화면 순서 == 서버 순위), 에셋 404 0, 스위치 켜기/끄기·장면 종료 후 잔상 0·스위치 해제 확인
+- gzip: horse-race.js·html·css Content-Encoding gzip, webp/png/mp3 미압축, socket.io 폴링·웹소켓 정상
+
+### [사고]
+- gzip 검증 에이전트가 테스트 서버 종료에 pkill -f 'node server.js' 를 써 사용자 로컬 5173 서버까지 종료 → 사용자가 재기동. 다음부터 PID 로 종료
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-27 (데구리 N차·O차 — 움직이는 장애물·뽑기 연출을 GPT 그림으로 교체, main 805ed9b 배포)
 ========================================
 
