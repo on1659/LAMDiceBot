@@ -821,15 +821,12 @@ function buildVehicleArtRunner(frames, gait) {
     var flip = { duration: stride, iterations: Infinity, easing: 'steps(2, jump-none)' };
     f1.animate([{ opacity: 1 }, { opacity: 0 }], flip);
     f2.animate([{ opacity: 0 }, { opacity: 1 }], flip);
-    runner.setFrames = function (data) {
-        f1.innerHTML = data.frame1 || '';
-        f2.innerHTML = data.frame2 || data.frame1 || '';
-    };
-    runner.setFrames(frames);
+    f1.innerHTML = frames.frame1 || '';
+    f2.innerHTML = frames.frame2 || frames.frame1 || '';
     return runner;
 }
 
-// target: { id, host(위치 기준), real(가릴 실제 그림), clip(잘라 낼 칸|null), oldStand, oldRun, newRun, exitPx, enterPx, redraw }
+// target: { id, host(위치 기준), real(가릴 실제 그림), clip(잘라 낼 칸|null), oldRun, newRun, exitPx, enterPx, redraw }
 // 반환 = 장면이 끝나는 시각(ms)
 function playVehicleArtSwap(target, order) {
     var host = target.host;
@@ -837,39 +834,26 @@ function playVehicleArtSwap(target, order) {
     var gait = Object.assign({}, VEHICLE_ART_GAIT.default, VEHICLE_ART_GAIT[target.id] || {});
     var run = VEHICLE_ART_RUN_MS / gait.speed;
     var start = order * VEHICLE_ART_STAGGER_MS + (vehicleArtHash(target.id) % 5) * VEHICLE_ART_JITTER_MS;
-    var gap = VEHICLE_ART_HANDOFF_GAP_PX;
-    var arriveAt = start + run;                                  // 새 캐릭터가 옛 캐릭터 뒤에 도착
-    var leaveAt = arriveAt + VEHICLE_ART_HANDOFF_PAUSE_MS;       // 바통 터치 후 옛 캐릭터 출발
     var prevOverflow = target.clip ? target.clip.style.overflow : '';
     if (target.clip) target.clip.style.overflow = 'hidden';
     target.redraw();
     target.real.style.visibility = 'hidden';
 
-    // 새 캐릭터: 왼쪽 밖 → 옛 캐릭터 뒤(-gap)에서 멈춤 → 옛 캐릭터가 떠나면 한 걸음 나와 제자리(0)
+    var leaving = buildVehicleArtRunner(target.oldRun, gait);
+    host.appendChild(leaving);
+    leaving.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(' + target.exitPx + 'px)' }],
+        { duration: run, delay: start, easing: 'ease-in', fill: 'both' }).onfinish = function () { leaving.remove(); };
+
     var arriving = buildVehicleArtRunner(target.newRun, gait);
     host.appendChild(arriving);
-    var total = leaveAt + VEHICLE_ART_STEP_IN_MS - start;
-    arriving.animate([
-        { transform: 'translateX(-' + target.enterPx + 'px)', offset: 0, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' }, // 뛰어와 감속
-        { transform: 'translateX(-' + gap + 'px)', offset: run / total },                                           // 뒤에 서서 멈칫
-        { transform: 'translateX(-' + gap + 'px)', offset: (leaveAt - start) / total, easing: 'ease-out' },           // 한 걸음 나옴
-        { transform: 'translateX(0)', offset: 1 }
-    ], { duration: total, delay: start, fill: 'both' });
-
-    // 옛 캐릭터: 서 있다가(현재 그림) 바통 터치 후 달리기 두 컷으로 오른쪽 밖으로 — 새 캐릭터보다 앞(위)에 그린다
-    var leaving = buildVehicleArtRunner(target.oldStand || target.oldRun, gait);
-    host.appendChild(leaving);
-    setTimeout(function () { leaving.setFrames(target.oldRun); }, leaveAt);
-    leaving.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(' + target.exitPx + 'px)' }],
-        { duration: run, delay: leaveAt, easing: 'ease-in', fill: 'both' }).onfinish = function () { leaving.remove(); };
-
-    var endAt = Math.max(leaveAt + run, leaveAt + VEHICLE_ART_STEP_IN_MS);
-    setTimeout(function () {
-        arriving.remove();
-        target.real.style.visibility = '';
-        if (target.clip) target.clip.style.overflow = prevOverflow;
-    }, leaveAt + VEHICLE_ART_STEP_IN_MS);
-    return endAt;
+    arriving.animate([{ transform: 'translateX(-' + target.enterPx + 'px)' }, { transform: 'translateX(0)' }],
+        { duration: run * VEHICLE_ART_ENTER_RATIO, delay: start + VEHICLE_ART_CHASE_DELAY_MS, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'both' })
+        .onfinish = function () {
+            arriving.remove();
+            target.real.style.visibility = '';
+            if (target.clip) target.clip.style.overflow = prevOverflow;
+        };
+    return start + VEHICLE_ART_CHASE_DELAY_MS + run * VEHICLE_ART_ENTER_RATIO;
 }
 
 // 모드를 바꾸기 전에 호출 — 지금 그림의 달리기 두 컷과, 바꾼 뒤 다시 그릴 방법을 모아 둔다
@@ -883,7 +867,6 @@ function collectVehicleArtTargets() {
         var variant = horse.dataset.vehicleVariant || 'base';
         targets.push({
             id: id, host: sprite, real: layer, clip: null,
-            oldStand: resolveVehicleStateData(id, horse.dataset.vehicleState || 'idle', variant),
             oldRun: resolveVehicleStateData(id, 'run', variant),
             exitPx: VEHICLE_ART_TRACK_RUN_PX, enterPx: VEHICLE_ART_TRACK_RUN_PX,
             newRunFn: function () { return resolveVehicleStateData(id, 'run', variant); },
@@ -901,7 +884,6 @@ function collectVehicleArtTargets() {
         var svgs = getVehicleSVG(id);
         targets.push({
             id: id, host: display, real: wrap, clip: card,
-            oldStand: svgs.idle || svgs.run || svgs,
             oldRun: svgs.run || svgs,
             exitPx: cardRect ? Math.ceil(cardRect.right - rect.left) + 4 : VEHICLE_ART_TRACK_RUN_PX,
             enterPx: cardRect ? Math.ceil(rect.right - cardRect.left) + 4 : VEHICLE_ART_TRACK_RUN_PX,
@@ -5163,13 +5145,12 @@ function createConfetti() {
 }
 
 const VEHICLE_VARIANT_TRANSITION_MS = 360;
-// 탈것 그림 예전↔최신 전환 장면 = 바통 터치 — 새 그림 캐릭터가 왼쪽에서 뛰어와 옛 캐릭터 바로 뒤에 멈추고,
-// 잠깐 멈칫한 뒤 옛 캐릭터가 달리기 동작으로 오른쪽으로 떠나며 새 캐릭터가 한 걸음 나와 자리를 잇는다.
-// 캐릭터마다 속도·걸음(VEHICLE_ART_GAIT)이 다르다. 위아래 흔들림은 넣지 않는다(사용자 요청).
+// 탈것 그림 예전↔최신 전환 장면 — 지금 캐릭터가 달리기 동작으로 오른쪽으로 뛰어나가고,
+// 다른 그림의 같은 캐릭터가 왼쪽에서 뒤쫓아 뛰어 들어와 제자리에 멈춘다. 캐릭터마다 속도·걸음(VEHICLE_ART_GAIT)이 다르다.
+// 위아래 흔들림은 넣지 않는다(사용자 요청).
 const VEHICLE_ART_RUN_MS = 1100;          // 기본 속도로 칸을 가로지르는 시간 (걸음새 speed 로 나눈다)
-const VEHICLE_ART_HANDOFF_GAP_PX = 38;    // 새 캐릭터가 멈춰 서는 자리 — 옛 캐릭터 뒤(왼쪽)로 이만큼
-const VEHICLE_ART_HANDOFF_PAUSE_MS = 280; // 둘이 나란히 선 채 멈칫하는 시간(바통 터치)
-const VEHICLE_ART_STEP_IN_MS = 420;       // 옛 캐릭터가 떠날 때 새 캐릭터가 한 걸음 나와 자리를 잡는 시간
+const VEHICLE_ART_ENTER_RATIO = 1.15;     // 들어오는 쪽은 감속해서 멈추니 조금 더 길게
+const VEHICLE_ART_CHASE_DELAY_MS = 420;   // 옛 캐릭터 출발 뒤 새 캐릭터가 쫓아 들어오기까지
 const VEHICLE_ART_STAGGER_MS = 110;       // 카드마다 출발을 어긋나게 (순서 × 이 값)
 const VEHICLE_ART_JITTER_MS = 45;         // 탈것 id 로 정하는 추가 어긋남 단위 (0~4배)
 const VEHICLE_ART_STRIDE_MS = 260;        // 달리기 두 컷 한 바퀴
