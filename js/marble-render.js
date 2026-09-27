@@ -114,6 +114,7 @@ var MarbleRender = (function () {
     var SCUFFLE_DIZZY_MS = 500;      // 착지 기절 — socket/marble-sim.js SCUFFLE_DIZZY_MS 와 동일
     var LAND_REST_MS = 800;          // 착지 뒤 제자리에서 숨 고르기(전원) — socket/marble-sim.js LAND_REST_MS 와 동일. 기절한 놈은 이 뒤에 SCUFFLE_DIZZY_MS 더
     var DIZZY_SWAP_MS = 150;         // 어지러움 A/B·별 궤도 프레임 교대
+    var QUAKE_WARN_MS = 700;         // 지진 예고(quake-warn) — 흔들리기 이만큼 전부터 깜빡(구역에 구르는 동물이 있을 때만 — 서버도 그때만 흔든다)
     var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
     var DAM_FRAMES = 5;              // beaver-dam.png 프레임 수 (2400×256, 셀 480×256): 온전/금 살짝/금 많이/금+물/터짐
 
@@ -126,7 +127,7 @@ var MarbleRender = (function () {
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     // 에셋 URL 버전 — 서버(routes/api.js)가 assets/marble/** 를 7일 캐시하므로, 같은 이름으로 파일을 교체하면 여기를 올려야 모두가 새 그림을 받는다(2026-09-22)
-    var ASSET_VER = '?v=1';
+    var ASSET_VER = '?v=2';   // v2(2026-09-26): N차 — trampoline 같은 이름 교체
     function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
@@ -146,7 +147,10 @@ var MarbleRender = (function () {
             'warp-pipe': A + 'pieces/warp-pipe.webp',   // 4차(finale-d) gravestone·gap-mark 는 미도착 — 코드 도형으로 그린다. 시트가 오면 여기 다시 등록(2026-09-22 404 헛요청 제거)
             'spring-plank': A + 'pieces/spring-plank.webp',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
             'eagle': A + 'pieces/eagle.webp',   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
-            'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp'   // 5차
+            'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp',   // 5차
+            // N차(2026-09-26, 의뢰서 docs/spritemake-request/2026-09-26-marble-moving-gimmicks-n.md) — 움직이는 장애물
+            'pendulum-log': A + 'pieces/pendulum-log.webp', 'pendulum-pivot': A + 'pieces/pendulum-pivot.webp', 'piston-head': A + 'pieces/piston-head.webp', 'piston-shaft': A + 'pieces/piston-shaft.webp',
+            'trampoline-post': A + 'pieces/trampoline-post.webp', 'wind-vane': A + 'pieces/wind-vane.webp'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 손실 WebP — sky q92 44K, meadow q85 160K (PNG 1.2~1.3MB)
@@ -158,7 +162,8 @@ var MarbleRender = (function () {
             'dust-puff': A + 'fx/dust-puff.webp', 'impact-star': A + 'fx/impact-star.webp', 'mud-splash': A + 'fx/mud-splash.webp', 'curl-poof': A + 'fx/curl-poof.webp',
             'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
             'eagle-shadow': A + 'fx/eagle-shadow.webp', 'mole-alert': A + 'fx/mole-alert.webp', 'dam-burst-v2': A + 'fx/dam-burst-v2.webp', 'geyser': A + 'fx/geyser.webp',   // 5차
-            'dizzy-swirl': A + 'fx/dizzy-swirl.webp'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
+            'dizzy-swirl': A + 'fx/dizzy-swirl.webp',   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
+            'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp'   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
         },
         ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=3') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
@@ -1211,17 +1216,22 @@ var MarbleRender = (function () {
                 var pw = 2 * Math.PI / pd.period, th = (pd.amp * Math.PI / 180) * Math.sin(pw * (Math.max(0, t) + pd.phase));
                 var bx = pd.x + pd.len * Math.sin(th), by = pd.y + pd.len * Math.cos(th);
                 ctx.save(); ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(pd.x, toScreenY(pd.y)); ctx.lineTo(bx, toScreenY(by)); ctx.stroke(); ctx.restore();
-                if (!drawSprite('pieces', 'pendulum-pivot', pd.x, pd.y + 12, 128, 96)) { ctx.fillStyle = '#3b2412'; ctx.fillRect(pd.x - 10, toScreenY(pd.y) - 6, 20, 10); }
-                if (!drawSprite('pieces', 'pendulum-log', bx, by, 192, 192) && !drawSprite('pieces', 'log-bumper', bx, by, 96, 96, { scale: pd.r * 2 / (96 * SRC_SCALE) })) { ctx.fillStyle = '#a06a35'; ctx.beginPath(); ctx.arc(bx, toScreenY(by), pd.r, 0, Math.PI * 2); ctx.fill(); }
+                if (!drawSprite('pieces', 'pendulum-pivot', pd.x, pd.y, 128, 96)) { ctx.fillStyle = '#3b2412'; ctx.fillRect(pd.x - 10, toScreenY(pd.y) - 6, 20, 10); }   // 도르래 바퀴 중심 = 칸 가운데 = 축점
+                var plog = img('pieces', 'pendulum-log');   // 192×240, 나이테 원 중심 (96,144) — 원 중심을 추에 두고 쇠고리가 축을 향하게 돌린다
+                if (plog) { ctx.save(); ctx.translate(bx, toScreenY(by)); ctx.rotate(-th); ctx.drawImage(plog, -24, -36, 48, 60); ctx.restore(); }
+                else if (!drawSprite('pieces', 'log-bumper', bx, by, 96, 96, { scale: pd.r * 2 / (96 * SRC_SCALE) })) { ctx.fillStyle = '#a06a35'; ctx.beginPath(); ctx.arc(bx, toScreenY(by), pd.r, 0, Math.PI * 2); ctx.fill(); }
             });
             (pieces.piston || []).forEach(function (ps) {   // 밀대 — 계약: piston-head 24×64(앞면이 벽 반대쪽 끝), piston-shaft 32×24 타일. 폴백: 코드 판자
                 if (!visible(ps.y, 60)) return;
                 var pc = ((Math.max(0, t) + ps.phase) % ps.period + ps.period) % ps.period, pe = pc < ps.out ? ps.ext * Math.sin(Math.PI * pc / ps.out) : 0;
                 var fx = ps.x + ps.dir * pe, psy = toScreenY(ps.y), sx0 = Math.min(ps.x, fx), sw = Math.abs(fx - ps.x);
                 ctx.save();
-                if (sw > 0) { ctx.fillStyle = '#8a5a2b'; ctx.fillRect(sx0, psy - 8, sw, 16); ctx.fillStyle = '#6b4320'; for (var sd = 0; sd < sw; sd += 16) ctx.fillRect(sx0 + sd, psy - 8, 2, 16); }   // 축(벽→머리) 판자
-                var hx = ps.dir > 0 ? fx - ps.head : fx;
-                if (!drawSprite('pieces', 'piston-head', fx - ps.dir * ps.head / 2, ps.y, 96, 256)) { ctx.fillStyle = '#4a2f16'; ctx.fillRect(hx, psy - ps.h / 2, ps.head, ps.h); ctx.fillStyle = '#c9a26a'; ctx.beginPath(); ctx.arc(hx + ps.head / 2, psy - ps.h / 4, 3, 0, Math.PI * 2); ctx.arc(hx + ps.head / 2, psy + ps.h / 4, 3, 0, Math.PI * 2); ctx.fill(); }
+                var pshaft = img('pieces', 'piston-shaft');   // 자루 128×96 타일(표시 32×24), 벽→머리
+                if (sw > 0 && pshaft) { for (var sd = 0; sd < sw; sd += 32) { var sdw = Math.min(32, sw - sd); ctx.drawImage(pshaft, 0, 0, sdw * 4, 96, sx0 + sd, psy - 12, sdw, 24); } }
+                else if (sw > 0) { ctx.fillStyle = '#8a5a2b'; ctx.fillRect(sx0, psy - 8, sw, 16); ctx.fillStyle = '#6b4320'; for (var sd2 = 0; sd2 < sw; sd2 += 16) ctx.fillRect(sx0 + sd2, psy - 8, 2, 16); }   // 축(벽→머리) 판자
+                var hx = ps.dir > 0 ? fx - ps.head : fx, phead = img('pieces', 'piston-head');   // 머리 96×256(표시 24×64) — 그림은 오른쪽 면이 앞면, 왼쪽 벽(dir −1)에서 나오면 뒤집는다
+                if (phead) { ctx.save(); ctx.translate(fx - ps.dir * ps.head / 2, psy); if (ps.dir < 0) ctx.scale(-1, 1); ctx.drawImage(phead, -12, -32, 24, 64); ctx.restore(); }
+                else { ctx.fillStyle = '#4a2f16'; ctx.fillRect(hx, psy - ps.h / 2, ps.head, ps.h); ctx.fillStyle = '#c9a26a'; ctx.beginPath(); ctx.arc(hx + ps.head / 2, psy - ps.h / 4, 3, 0, Math.PI * 2); ctx.arc(hx + ps.head / 2, psy + ps.h / 4, 3, 0, Math.PI * 2); ctx.fill(); }
                 ctx.restore();
             });
             (pieces.trampoline || []).forEach(function (tr) {   // 트램펄린 — 계약: trampoline 32×12 타일 3프레임(평상·눌림·튕김, 아랫단 = 물리 선). 지금은 파이썬 리컬러 천, 없으면 파란 띠
@@ -1229,15 +1239,31 @@ var MarbleRender = (function () {
                 var tk = (t - (tr.hitAt != null ? tr.hitAt : -1e9)) / TRAMP_FX_MS, tfr = tk < 0 || tk >= 1 ? 0 : (tk < 0.5 ? 1 : 2);
                 var tlen = Math.hypot(tr.x2 - tr.x1, tr.y2 - tr.y1), tang = Math.atan2(tr.y2 - tr.y1, tr.x2 - tr.x1), tim = img('pieces', 'trampoline');
                 ctx.save(); ctx.translate(tr.x1, toScreenY(tr.y1)); ctx.rotate(tang);
-                if (tim) { for (var td = 0; td < tlen; td += 32) { var tw = Math.min(32, tlen - td); ctx.drawImage(tim, tfr * 128, 0, 128 * tw / 32, 48, td, -12, tw, 12); } }
+                // 천은 평상 프레임 무늬를 8px 조각으로 깔고, 눌림(아래 5)·튕김(위 3)은 띠 전체를 한 곡선(sin)으로 휜다 — 칸마다 휜 프레임을 이으면 물결로 보인다
+                if (tim) { var tsag = tfr === 1 ? 5 : tfr === 2 ? -3 : 0; for (var td = 0; td < tlen; td += 8) { var tw = Math.min(8, tlen - td); ctx.drawImage(tim, (td % 32) * 4, 0, tw * 4, 48, td, -12 + tsag * Math.sin(Math.PI * (td + tw / 2) / tlen), tw, 12); } }
                 else { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(0, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), tlen, 8); ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
                 ctx.restore();
+                var tpost = img('pieces', 'trampoline-post');   // 양 끝 기둥 64×96(표시 16×24, 하단 정렬) — 고정쇠가 천 쪽을 보게 오른쪽 끝은 뒤집는다
+                if (tpost) [[tr.x1, tr.y1, 1], [tr.x2, tr.y2, -1]].forEach(function (pp) { ctx.save(); ctx.translate(pp[0], toScreenY(pp[1]) + 10); ctx.scale(pp[2], 1); ctx.drawImage(tpost, -8, -24, 16, 24); ctx.restore(); });
             });
             (pieces.gust || []).forEach(function (g) {   // 돌풍 — 계약: fx gust-band 64×32 타일 4프레임(구간 전폭), wind-vane 32×48. 폴백: wind fx 줄 24개 + 라벨
                 var gz = g.zone; if (!visible(gz.y + gz.h / 2, gz.h / 2 + 40)) return;
-                var gt = Math.max(0, t), gc = ((gt + g.phase) % g.period + g.period) % g.period; if (gc >= g.on) return;
-                var gdir = g.dirs[Math.floor((gt + g.phase) / g.period) % g.dirs.length], gwind = img('fx', 'wind');
-                for (var gi = 0; gi < 24; gi++) {
+                var gt = Math.max(0, t), gc = ((gt + g.phase) % g.period + g.period) % g.period, gk = Math.floor((gt + g.phase) / g.period);
+                var gvane = img('pieces', 'wind-vane');   // 풍향계 128×192 ×4(표시 32×48, 하단 정렬, 화살 = 오른쪽) — 부는 동안 돌고, 쉬는 동안엔 다음 바람 방향을 미리 가리킨다
+                if (gvane) { var vdir = g.dirs[(gc < g.on ? gk : gk + 1) % g.dirs.length], vfr = gc < g.on ? Math.floor(gt / 90) % 4 : 0; ctx.save(); ctx.translate(gz.x + gz.w - 30, toScreenY(gz.y + 60)); if (vdir < 0) ctx.scale(-1, 1); ctx.drawImage(gvane, vfr * 128, 0, 128, 192, -16, -48, 32, 48); ctx.restore(); }
+                if (gc >= g.on) return;
+                var gdir = g.dirs[gk % g.dirs.length], gwind = img('fx', 'wind'), gband = img('fx', 'gust-band');
+                if (gband) {   // 돌풍 띠 256×128 ×4(표시 64×32) — 구간 안에 줄지어 깔고 바람 방향으로 흘려 보낸다. 켜질 때·꺼질 때 옅게
+                    var ga = 0.85 * Math.min(1, gc / 150, (g.on - gc) / 200), gfrm = Math.floor(gt / 120) % 4;
+                    ctx.save(); ctx.beginPath(); ctx.rect(gz.x, toScreenY(gz.y), gz.w, gz.h); ctx.clip(); ctx.globalAlpha = Math.max(0, ga);
+                    for (var gr = 0; gr * 140 + 70 < gz.h; gr++) {   // 줄 간격 140·칸 간격 112 — 빽빽하면 벽지처럼 보인다
+                        var gry = gz.y + 70 + gr * 140; if (!visible(gry, 30)) continue;
+                        var gshift = ((gt * 0.3 + gr * 56) % 112) * gdir;
+                        for (var gxx = gz.x - 112; gxx < gz.x + gz.w + 112; gxx += 112) { ctx.save(); ctx.translate(gxx + gshift + 32, toScreenY(gry)); if (gdir < 0) ctx.scale(-1, 1); ctx.drawImage(gband, gfrm * 256, 0, 256, 128, -32, -16, 64, 32); ctx.restore(); }
+                    }
+                    ctx.restore();
+                }
+                else for (var gi = 0; gi < 24; gi++) {
                     var gph = ((gt / 700 + hash01(gi + 101)) % 1), gx = gz.x + (gdir > 0 ? gph : 1 - gph) * gz.w, gy = gz.y + hash01(gi + 53) * gz.h, gfr = Math.floor(gt / 110 + gi) % 4;
                     if (!visible(gy, 20)) continue;
                     ctx.save(); ctx.translate(gx, toScreenY(gy)); if (gdir < 0) ctx.scale(-1, 1); ctx.globalAlpha = 0.85 * Math.sin(gph * Math.PI);
@@ -1245,6 +1271,12 @@ var MarbleRender = (function () {
                     ctx.restore();
                 }
                 if (gc < 500) label(gdir > 0 ? '돌풍! →' : '← 돌풍!', gz.x + gz.w / 2, gz.y + 40, '#fff', 18);
+            });
+            (pieces.quake || []).forEach(function (q) {   // 지진 예고 — 64×64 ×2 깜빡(표시 32×32), 구역 위쪽 가운데
+                var qz = q.zone; if (t < 0 || !visible(qz.y + 36, 40)) return;
+                var qc = ((t + q.phase) % q.period + q.period) % q.period; if (q.period - qc > QUAKE_WARN_MS) return;
+                if (!balls.some(function (b) { return b.state === 'roll' && b.x >= qz.x && b.x <= qz.x + qz.w && b.y >= qz.y && b.y <= qz.y + qz.h; })) return;
+                drawSprite('fx', 'quake-warn', qz.x + qz.w / 2, qz.y + 36, 64, 64, { sx: (Math.floor(t / 150) % 2) * 64, sw: 64, scale: 2 });
             });
             (pieces.shutter || []).forEach(function (sh) {   // 셔터 문 — last-gate 타일(32px 칸)을 문 폭만큼, 닫힘 0 → 열림 3 프레임(서버 lidCover 와 같은 식). 물리 선(y1)이 문 아랫단
                 if (!visible(sh.y1, 60)) return;

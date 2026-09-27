@@ -41,7 +41,7 @@ body.mgacha-open { overflow: hidden; }
 /* 뽑기 아이콘 — 우리 뽑기 기계 그림(유리구+몸통) 34×64. 🎰 이모지 대신(방 화면 뽑기 버튼) */
 .mgacha-icon {
     display: inline-block; width: 0.72em; height: 1.35em; margin-right: 4px; vertical-align: -0.3em; flex-shrink: 0;
-    background: url("/assets/marble/gacha/icon-gacha.webp?v=1") center / contain no-repeat;
+    background: url("/assets/marble/gacha/icon-gacha.webp?v=2") center / contain no-repeat;
 }
 /* 잔고 — ✕ 바로 아래 무대 오른쪽 위에 얹음(모달 크기 불변): 코인 아이콘 + 숫자(남은 시간은 ? 말풍선에서) */
 .mgacha-coin {
