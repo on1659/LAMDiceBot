@@ -1,4 +1,42 @@
 ========================================
+📋 Summit Log - 2026-09-27 (데구리 N차·O차 — 움직이는 장애물·뽑기 연출을 GPT 그림으로 교체, main 805ed9b 배포)
+========================================
+
+## 배경
+- 2026-09-24~25 GPT 이미지 토큰이 없어 움직이는 장애물 5종은 기존 그림 재활용·코드 도형, 뽑기 일부(빛살·반짝이·컵·뚜껑·공·빈 유리구·황동 관)는 Claude 편집본으로 들어가 있었다. 09-26 토큰이 다시 생겨 SpriteMake 로 의뢰(생성 = unverified Codex direct generation, 에셋별 attempt-01 1회) → 편집·인수는 LAMDiceBot 세션(분업 규칙: 그리기 GPT·편집 Claude).
+- 커밋 dd03fb0(feature/marble-run) → main 병합 805ed9b(worktree 에서, 공유 작업트리 안 건드림).
+
+## 변경 파일
+- assets/marble/pieces/: pendulum-log(192×240, 나이테 원 중심 (96,144))·pendulum-pivot(도르래 중심 = 칸 가운데)·piston-head(96×256, 오른쪽 면이 앞면)·piston-shaft(128×96 타일, 좌우 이음 섞기)·trampoline(교체, 384×48 3칸)·trampoline-post·wind-vane(128×192 ×4) — 신규
+- assets/marble/fx/: gust-band(256×128 ×4)·ground-crack(512×256)·quake-warn(64×64 ×2) — 신규
+- assets/marble/gacha/: machine(gacha-machine 교체·globe-empty·globe-balls·rail-front 재오림·chute-front 신규), capsule(3등급 닫힘·open 256×240 ×6·cup·lid 교체, lidflip 신규), fx(rays 3·sparkle 교체, gacha-coin 96×96 ×8 신규), icon-gacha 재생성, gacha-anchors.json
+- js/marble-render.js: ASSETS 에 N차 이름 등록, ASSET_VER ?v=2(trampoline 같은 이름 교체). 진자 = 로그를 -th 회전(쇠고리가 축을 봄)+도르래, 밀대 = 자루 32px 타일·머리(dir<0 좌우 반전), 트램펄린 = 평상 무늬 8px 조각 + 눌림(+5)·튕김(−3)을 띠 전체 sin 곡선으로(칸마다 휜 프레임을 이으면 물결), 양 끝 기둥(오른쪽 반전), 돌풍 = gust-band 줄 140·칸 112 간격으로 흘림(구역 clip, 켜짐·꺼짐 알파) + 풍향계(부는 중 회전, 쉬는 동안 다음 방향), 지진 예고 = 흔들리기 QUAKE_WARN_MS 700 전부터 깜빡(구역에 구르는 공 있을 때만 — 서버도 그때만 흔듦). 캐시 v87
+- js/marble-gacha.js: ASSET_VER 13→14. 코인 = 스트립 프레임(3/4 바퀴 → 옆 칸으로 슬롯 진입, 없으면 옛 아이콘 가로 누르기), 관 앞 층(chuteFront)을 유리구 공 뒤가 아니라 앞에 그림, 경첩 뚜껑이 −90° 넘으면 lidflip 을 flipPivot 기준 deg+180 으로. 캐시 v44
+- css/marble-gacha.css: 아이콘 ?v=2 / marble-multiplayer.html: 캐시버스터(marble-gacha.css v19·js v44·render v87)
+- assets/marble/marble-run.manifest.json: movingGimmicksN·gachaRedrawO 섹션(md5)
+- docs/spritemake-request: 2026-09-26-marble-moving-gimmicks-n.md·2026-09-26-marble-gacha-redraw-o.md(실행본)·2026-09-26-marble-gacha-o.md(다른 세션 초안, 대체됨 표기) / docs/goal/marble-deguri-backport-2.md(다른 세션, 역반영 2차 — 미구현)
+
+## 상세 변경 내역
+
+### [N차 인수 — tools/claude_pack_n.py]
+- 칸 나누기 = 알파 열 투영, 트램펄린은 이어진 띠 3등분. 진자 쇠고리가 192 칸 위로 잘려 240 으로 늘림, 밀대 자루는 너무 가늘고 길어 한 토막 + seamless 섞기, 밀대 머리는 물리 폭 24 에 맞춰 가로 88 로 늘림. 뽑기 코인만 하드 알파(뽑기 세계 규칙)
+- 대포(cannon)·cannon-smoke 는 장애물 삭제로 취소
+
+### [O차 인수 — tools/claude_pack_o.py]
+- 기계 변형판을 옛 기계 실루엣에 IoU 탐색으로 맞춤(k 0.477·(4,2), IoU 0.979) → 코인 슬롯·손잡이·배출구·레일·램프 앵커 그대로. 빈 유리구·레일 앞판은 옛 마스크로 새 기계에서 다시 오림. 관 입구가 유리구 바닥 위로 솟아 공이 덮으므로 관(입구 타원 + 몸통 직사각형 마스크)을 앞 층으로 분리, chute.hole (179,368)·holeRx 24
+- 캡슐: 레어 8칸(흔들림·금 없음)·에픽/전설 9칸. 등급별 배율 = 닫힘 지름 144. 튀는 뚜껑이 192 칸 위로 넘쳐 열기 칸 256×240·바닥 220 으로(anchors capsule.open cellH/center/ground/itemAnchor). 3등급 닫힘 알파는 레어 기준으로 통일(굴러갈 때 등급을 바꿔 끼워도 모양이 안 튐). 새 컵·뚜껑은 안이 보이는 3/4 뷰라 경첩 (25,100)·발 위치 y 146/148 재측정
+- 삭제 없음: "열기 6칸은 안 씀"은 잘못 — 칸 0~4 는 열리는 0.92초에 재생, 5칸만 경첩 컵·뚜껑이 대신 그림
+
+### [검증]
+- marble-determinism-test ALL PASS, node -c, qa-marble-gacha-test ALL PASS(잔고 부족 검사는 내부 코인 200만이라 SKIP)
+- playwright 로 HEAD 에셋·js 를 route 로 바꿔 끼워 같은 시각 이전/이후 캡처(랜덤 맵 6장면·전설 뽑기 7장면) 사용자 확인
+
+### [확인만, 이번에 넣지 않음]
+- main 에 안 들어간 옛 브랜치: feature/horse-drama-d1(5 커밋 — 자유 별명·계정 이름 분리, 경마 따라붙기·조기 정산·경계 낮잠), feature/ladder-v2-restore(11), feature/horse-race-director(1), feature/spin-arena-rework(1). 사용자 확인 전 병합 안 함
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-26 (데구리 랜덤 맵 + 방장 랜덤/고정 맵 선택 + 수동 카메라 3초 자동 복귀)
 ========================================
 
