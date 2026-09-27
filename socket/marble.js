@@ -1,6 +1,6 @@
 // 데구리(marble) 게임 소켓 핸들러
 // spin-arena.js 패턴: 결과는 서버에서만 결정(시드 결정론 시뮬 socket/marble-sim.js), 클라는 타임라인 재생만.
-const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, DEV_GAMES_ENABLED } = require('../config');
+const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, DEV_GAMES_ENABLED, IS_LOCAL_DEV } = require('../config');
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const sim = require('./marble-sim');
@@ -13,7 +13,7 @@ const RESULT_HOLD_MS = 1500;      // 재생 끝(durationMs = 마지막 골인 + 
 const ROULETTE_ANIM_MS = 5500;    // 당첨 순위 투표 룰렛 애니메이션 길이 (경마 socket/horse.js 와 동일)
 const ROULETTE_HOLD_MS = 3000;    // 룰렛 결과 감상 시간
 const FALLBACK_HOLD_MS = 3000;    // 투표 없음 — 사유 카드만 보여주는 시간
-const MARBLE_MIN_PLAYERS = 2;
+const MARBLE_MIN_PLAYERS = IS_LOCAL_DEV ? 1 : 2;   // 로컬 개발 서버(DATABASE_URL 없음/localhost)에선 혼자서도 출발 — 테스트 서버·실서버는 2명(사용자 2026-09-25)
 const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
 const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
@@ -262,6 +262,9 @@ function awardRaceCoins(io, gameState, mb) {
 
 // 시작 실행 — 배치 + 시뮬 사전계산 + reveal. socket 을 참조하지 않는다(수동 시작과 예약 발화가 같은 경로).
 // ctx 는 { rooms, updateRoomsList } 만 보장된다(예약 발화 경로).
+// 다음 판 트랙 배치 시드 — 대기 화면 미리보기(idlePreview)와 경주(startMarble)가 같은 맵을 쓴다(서버 전용, 클라엔 pieces 만 간다). resetMarble 이 0 으로 되돌린다
+function ensureTrackSeed(mb) { if (!mb.trackSeed) mb.trackSeed = Math.floor(Math.random() * 2147483647); return mb.trackSeed; }   // 서버 RNG 허용(시드 생성)
+
 async function startMarble(room, gameState, io, ctx) {
     // 수동 시작이 예약을 앞질렀으면 예약을 풀고 방 전체에 알린다 (예약 발화 경로는 fire() 가 이미 비우고 들어온다)
     if (gameState.scheduledStartAt) {
@@ -308,7 +311,7 @@ async function startMarble(room, gameState, io, ctx) {
     let balls, result;
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
-        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
+        const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
         result = await sim.simulate(balls, seed, track);
         attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
     } catch (e) {
@@ -426,6 +429,7 @@ function resetMarble(mb) {
     mb.timeline = null;
     mb.result = null;
     mb.seed = 0;
+    mb.trackSeed = 0;   // 다음 판은 새 맵(대기 화면에서 다시 뽑는다)
     mb.isActive = false;
     mb.rankVotes = {};
     mb.target = 'last';
@@ -448,7 +452,7 @@ module.exports = (socket, io, ctx) => {
         const players = Math.max(1, readyCount);
         const perPlayer = {};
         Object.keys(sim.constants.CROWD_PRESETS).forEach(c => { perPlayer[c] = sim.crowdBallsPerPlayer(c, players); });
-        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, votes: { ...mb.rankVotes }, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, players), crowdInfo: { players, perPlayer }, preview: idlePreview(gameState) };
+        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, randomTrack: mb.randomTrack !== false, minPlayers: MARBLE_MIN_PLAYERS, votes: { ...mb.rankVotes }, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, players), crowdInfo: { players, perPlayer }, preview: idlePreview(gameState) };
     }
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
@@ -460,7 +464,7 @@ module.exports = (socket, io, ctx) => {
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
-            track: sim.buildTrack(Math.max(1, balls.length), null, mb.crowd),
+            track: sim.buildTrack(Math.max(1, balls.length), sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false }),   // 다음 판 맵 그대로
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), ...cosmeticFields(mb, b.owner, b.creature) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };
@@ -625,6 +629,21 @@ module.exports = (socket, io, ctx) => {
         const crowd = data && data.crowd;
         if (!Object.prototype.hasOwnProperty.call(sim.constants.CROWD_PRESETS, crowd)) return;
         mb.crowd = crowd;
+        emitState(room, gameState);
+    });
+
+    // 랜덤 맵 켜기/끄기 (호스트, idle) — 끄면 고정 맵(트랙 A 순서). 대기 화면 미리보기도 바로 바뀐다
+    socket.on('marble:setRandomTrack', (data) => {
+        if (!rateOk()) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) { socket.emit('marble:error', '방장만 바꿀 수 있습니다.'); return; }
+        const mb = gameState.marble;
+        if (mb.phase === 'playing') { socket.emit('marble:error', '경주 중에는 바꿀 수 없습니다.'); return; }
+        if (!data || typeof data.on !== 'boolean') return;
+        mb.randomTrack = data.on;
         emitState(room, gameState);
     });
 

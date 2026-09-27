@@ -14,7 +14,7 @@
     'use strict';
 
     var BASE = '/assets/marble/gacha/';
-    var ASSET_VER = '?v=12';   // anchors json·그림이 바뀌면 반드시 올린다(2026-09-24: 벽 윤곽 추가 후 안 올려서 옛 캐시로 뽑기가 멈춘 사고)
+    var ASSET_VER = '?v=15';   // anchors json·그림이 바뀌면 반드시 올린다(2026-09-24: 벽 윤곽 추가 후 안 올려서 옛 캐시로 뽑기가 멈춘 사고)
     var PRICE = 60, REFUND = 30;   // 표시용 — 서버 socket/marble.js GACHA_PRICE / GACHA_REFUND 와 같은 값
     var ODDS_TEXT = '레어 60% · 에픽 30% · 전설 10% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';
     var STAY_COIN = 10;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
@@ -48,6 +48,9 @@
     // 공은 유리구 바닥의 황동 관(anchors machine.chute, 배출구 바로 위)으로 쏙 들어가고, 잠시 뒤 배출구에서 캡슐로 나온다
     //   (곡선으로 몸통 앞을 지나가게 했더니 앞에 떠 보여 이상하다는 피드백 — 관으로 대체)
     var PICK_DUR = 480, PICK_HILITE_MS = 350, PICK_TO_ROLL_MS = 220;
+    // 빨려 듦 곡선(사용자 2026-09-26: 관 뒤로 가 보임·닿기 전에 사라짐): 앞 70% 에 관 입구에 도착(크기 ≈0.55 유지), 뒤 30% 는 입구 안으로 가라앉는다
+    //   — 관 앞 레이어(gacha-chute-front = 앞 테두리 반 + 몸통)가 아래쪽을 가려 "들어가는" 그림이 된다. 0 으로 줄이지 않는다
+    var PICK_ARRIVE = 0.7, PICK_SINK_PX = 26;
     // 열리기 전 두근두근(사용자 2026-09-24: 열릴 때 감흥이 없다) — 떠오른 공이 점점 세게 흔들리고 폴짝, 진동선·빛 맥박·화면 떨림.
     // 등급이 높을수록 길고 세다. 뚜껑이 튀는 순간(열기 4칸) 하얀 섬광 + 화면 쿵.
     // 등급별 연출(사용자 2026-09-24: 고등급일수록 화려하게, 레어는 수수하게) — 한 표에서 전부 읽는다
@@ -91,10 +94,11 @@
     function loadAll() {
         if (_loading) return _loading;
         var files = { machine: 'machine/gacha-machine', globeEmpty: 'machine/gacha-globe-empty', globeBalls: 'machine/gacha-globe-balls', lamp: 'machine/gacha-machine-lamp',
-            crank: 'machine/gacha-crank', railFront: 'machine/gacha-machine-rail-front', sparkle: 'fx/gacha-sparkle' };
+            crank: 'machine/gacha-crank', railFront: 'machine/gacha-machine-rail-front', sparkle: 'fx/gacha-sparkle', coin: 'fx/gacha-coin',
+            chuteFront: 'machine/gacha-chute-front' };   // O차(2026-09-26): 관의 앞쪽 테두리 반 + 몸통만(입구 속·뒤쪽 테두리는 빈 유리 그림에) — 공 앞에 그려 뽑힌 공이 입구 안에 보이다 앞벽에 가려지며 들어간다(사용자 2026-09-26: 공이 관 뒤로 가 보임)   // coin = 96×96 ×8 한 바퀴(0 앞·2 옆·4 뒤·6 옆, N차 2026-09-26)
         TIERS.forEach(function (t) {
             files['cap-' + t] = 'capsule/capsule-' + t; files['open-' + t] = 'capsule/capsule-' + t + '-open'; files['rays-' + t] = 'fx/gacha-rays-' + t;
-            files['cup-' + t] = 'capsule/capsule-' + t + '-cup'; files['lid-' + t] = 'capsule/capsule-' + t + '-lid';
+            files['cup-' + t] = 'capsule/capsule-' + t + '-cup'; files['lid-' + t] = 'capsule/capsule-' + t + '-lid'; files['lidflip-' + t] = 'capsule/capsule-' + t + '-lidflip';
         });
         var waits = Object.keys(files).map(function (k) {
             var im = loadImage(k, BASE + files[k] + '.webp' + ASSET_VER);
@@ -182,9 +186,11 @@
             }
             for (i = 0; i < n; i++) {
                 if (i === pick) {   // 출구로 빨려 들어간다(물리에서 빠짐)
-                    var pu = clamp01((ms - pickMs) / PICK_DUR), e = pu * pu;
-                    x[i] = pickX + (ex - pickX) * e; y[i] = pickY + (ey - pickY) * e; rot[i] += 0.25;
-                    sc[i] = pu < 1 ? 1 : 0;   // 크기·가라앉기는 drawPicked 가 그린다
+                    var pu = clamp01((ms - pickMs) / PICK_DUR);
+                    if (pu < PICK_ARRIVE) { var au = pu / PICK_ARRIVE, e = au * au * (3 - 2 * au); x[i] = pickX + (ex - pickX) * e; y[i] = pickY + (ey - pickY) * e; }   // 입구까지(부드럽게 가속·감속)
+                    else { x[i] = ex; y[i] = ey + PICK_SINK_PX * (pu - PICK_ARRIVE) / (1 - PICK_ARRIVE); }   // 입구 안으로 가라앉음(관 앞벽 뒤로)
+                    rot[i] += 0.25;
+                    sc[i] = pu < 1 ? 1 : 0;   // 크기는 drawPicked(ringScale)가 그린다
                     continue;
                 }
                 vy[i] += GRAV * dt;
@@ -251,6 +257,7 @@
             c.save(); c.translate(p.x, p.y); if (p.rot) c.rotate(p.rot); if (sc !== 1) c.scale(sc, sc);
             c.drawImage(sh, p.c * cell, 0, cell, cell, -half, -half, cell, cell); c.restore();
         }
+        if (ready(_img.chuteFront)) c.drawImage(_img.chuteFront, 0, 0);   // 관은 공 앞 — 옆 공이 관을 덮지 않고, 뽑힌 공은 입구 속으로 사라진다
         if (air > 0) drawWind(c, sim.jet, air, tc);   // 공 앞 바람(갈매기·줄기·시동 돌풍)
         return true;
     }
@@ -307,7 +314,7 @@
         var tier = _anim.res.tier, col = TIER_GLOW[tier] || TIER_GLOW.rare, half = cell / 2;
         var pickMs = _anim.globe.pickMs;
         var hu = clamp01((t - (pickMs - PICK_HILITE_MS)) / PICK_HILITE_MS), pu = clamp01((t - pickMs) / PICK_DUR);
-        var ring = t < pickMs ? hu : (pu < 0.85 ? 1 : (1 - pu) / 0.15);   // 빨려 드는 내내 유지 — 뭐가 내려가는지 눈으로 따라가게(사용자 2026-09-24)
+        var ring = t < pickMs ? hu : (pu < PICK_ARRIVE ? 1 : 1 - clamp01((pu - PICK_ARRIVE) / 0.15));   // 입구에 닿을 때까지 유지 — 뭐가 내려가는지 눈으로 따라가게(사용자 2026-09-24), 가라앉으며 꺼짐
         if (ring > 0) {   // 빛 테두리(점점 뚜렷, 빨려 들면 사라짐)
             c.save(); c.globalAlpha = ring * (0.8 + 0.2 * Math.sin(t / 45));
             var rr = half * sc * ringScale(pu);
@@ -317,8 +324,8 @@
         var morph = clamp01((pu - 0.15) / 0.35);   // 15~50% 구간에 공 → 캡슐
         var ch = _anchors.machine.chute;
         if (ch && pu > 0) drawSuction(c, ch.hole[0], ch.hole[1], t, pu);
-        // 빨려 들어감(사용자 2026-09-24): 입구로 끌려가며 점점 빨리 작아지고(1→0), 막바지엔 입구 쪽으로 길쭉해지며 빙글 돈다
-        var shrink = ringScale(pu), stretch = pu * pu;
+        // 빨려 들어감: 입구로 끌려가며 작아지고(1→0.55), 입구 쪽으로 길쭉해지며 빙글 돌다, 입구에 닿으면 늘어남을 풀고 가라앉는다
+        var shrink = ringScale(pu), stretch = pu < PICK_ARRIVE ? Math.pow(pu / PICK_ARRIVE, 2) : 1 - (pu - PICK_ARRIVE) / (1 - PICK_ARRIVE);
         var ang = ch ? Math.atan2(ch.hole[1] - p.y, ch.hole[0] - p.x) : Math.PI / 2;
         c.save();
         c.translate(p.x, p.y);
@@ -333,8 +340,8 @@
         }
         c.restore();
     }
-    // 빨려 드는 크기 — 입구에 닿을 때까지 절반 가까이 유지(작은 점이 되어 다른 공 사이에 묻히지 않게), 마지막 15% 에 사라짐
-    function ringScale(pu) { return pu < 0.85 ? 1 - 0.5 * Math.pow(pu / 0.85, 2) : 0.5 * (1 - (pu - 0.85) / 0.15); }
+    // 빨려 드는 크기 — 입구에 닿을 때 0.55(작은 점이 되어 다른 공 사이에 묻히지 않게), 가라앉는 동안 0.4 까지만(사라지는 건 관 앞벽이 가려서)
+    function ringScale(pu) { return pu < PICK_ARRIVE ? 1 - 0.45 * Math.pow(pu / PICK_ARRIVE, 2) : 0.55 - 0.15 * (pu - PICK_ARRIVE) / (1 - PICK_ARRIVE); }
     // 흡입선 — 입구 둘레에서 짧은 흰 선들이 안쪽으로 모여든다(빨아들이는 느낌)
     var SUCTION_LINES = 7;
     function drawSuction(c, hx, hy, t, pu) {
@@ -385,8 +392,10 @@
         var dt = Math.max(0, t - TL.open5), rest = h.restDeg, start = LID_START_DEG;
         var deg = rest + (start - rest) * Math.exp(-dt / LID_SWING_MS) * Math.cos(2 * Math.PI * dt / LID_SWING_PERIOD) + LID_SWAY_DEG * Math.sin(dt / LID_SWAY_MS) * clamp01(dt / 600);
         c.drawImage(cup, ox, oy, h.cell * K, h.cell * K);
-        c.save(); c.translate(ox + h.pivot[0] * K, oy + h.pivot[1] * K); c.rotate(deg * Math.PI / 180); c.scale(K, K);   // 뚜껑은 컵 앞(사용자 2026-09-24)
-        c.drawImage(lid, -h.pivot[0], -h.pivot[1]); c.restore();
+        var flip = _img['lidflip-' + tier], flipped = deg < -90 && h.flipPivot && ready(flip);   // -90° 를 넘으면 안쪽이 보이는 뒤집힌 뚜껑 그림으로(O차 2026-09-26)
+        c.save(); c.translate(ox + h.pivot[0] * K, oy + h.pivot[1] * K); c.rotate((flipped ? deg + 180 : deg) * Math.PI / 180); c.scale(K, K);   // 뚜껑은 컵 앞(사용자 2026-09-24)
+        if (flipped) c.drawImage(flip, -h.flipPivot[0], -h.flipPivot[1]); else c.drawImage(lid, -h.pivot[0], -h.pivot[1]);
+        c.restore();
         return true;
     }
     function itemAnchorStage(tier) {
@@ -578,25 +587,28 @@
     // ── 코인 넣기(사용자 2026-09-24) ─────────────────────
     // 무대 오른쪽 아래 밖(COIN_FROM)에서 올라와 오른쪽으로 부푼 곡선을 타고 투입구 높이에서 왼쪽으로 꺾여 들어온다(사용자 스케치: 파란 선).
     // 날아오는 동안 빙글 뒤집히다 모로(세로) 서서 슬롯에 맞춰지고, 슬롯 안으로 밀려 들어가며 짧아지고 어두워진다
-    // → 쨍그랑(기계 흔들림은 drawScene) + 투입구 반짝. 코인 그림 = 공용 아틀라스 coin(UIIcons.draw)
+    // → 쨍그랑(기계 흔들림은 drawScene) + 투입구 반짝. 코인 그림 = 회전 스트립 fx/gacha-coin(8칸 = 45°씩), 없으면 공용 아틀라스 coin 을 가로로 눌러 그린다
     function coinSlotStage() { var s = _anchors.machine.coinSlot; return toStage(s ? s.center : [297, 467]); }   // 옛 캐시 json 이면 실측값
     function drawCoin(c, t) {
         var to = coinSlotStage(), from = COIN_FROM;
         if (t < COIN_IN1) {
-            var size = COIN_SIZE * MACHINE_K, x = to.x, y = to.y, sx = 0.14, sy = 1, alpha = 1, big = 1;
+            var size = COIN_SIZE * MACHINE_K, x = to.x, y = to.y, sx = 0.14, sy = 1, alpha = 1, big = 1, frame = 6;
             if (t < COIN_FLY1) {
                 var u = clamp01(t / COIN_FLY1), e = easeInOut(u);
                 var mx = STAGE_W + 6, my = to.y + 16;   // 제어점 = 무대 오른쪽 가장자리, 슬롯보다 조금 아래 → 위로 솟았다가 오른쪽에서 거의 수평으로 들어온다
                 x = (1 - e) * (1 - e) * from.x + 2 * (1 - e) * e * mx + e * e * to.x;
                 y = (1 - e) * (1 - e) * from.y + 2 * (1 - e) * e * my + e * e * to.y;
                 big = 2.2 - 1.2 * e;                                             // 날 땐 크게(가까이), 슬롯에 닿으며 제 크기로
-                sx = Math.max(0.14, Math.abs(Math.cos(u * Math.PI * 1.5)));      // 한 바퀴 반 뒤집혀 끝에 모로 선다
+                sx = Math.max(0.14, Math.abs(Math.cos(u * Math.PI * 1.5)));      // 3/4 바퀴 뒤집혀 끝에 모로 선다(스트립은 같은 각도의 칸)
+                frame = Math.round(u * 6) % 8;                                   // 0 앞 → 2 옆 → 4 뒤 → 6 옆(270°)
             } else {
                 var v = clamp01((t - COIN_FLY1) / (COIN_IN1 - COIN_FLY1));       // 슬롯 안으로: 짧아지고 어두워진다
                 sy = 1 - 0.95 * v; alpha = 1 - 0.8 * v; x = to.x + 2 * v;
             }
-            c.save(); c.globalAlpha = alpha; c.translate(x, y); c.scale(sx * big, sy * big);
-            if (!(window.UIIcons && UIIcons.draw(c, 'coin', 0, 0, size))) { c.fillStyle = '#f4c542'; c.beginPath(); c.arc(0, 0, size * 0.4, 0, Math.PI * 2); c.fill(); }   // 아틀라스가 아직이면 노란 동그라미
+            var coinStrip = _img.coin;
+            c.save(); c.globalAlpha = alpha; c.translate(x, y);
+            if (ready(coinStrip)) { var cd = size * 0.96; c.scale(big, sy * big); c.drawImage(coinStrip, frame * 96, 0, 96, 96, -cd / 2, -cd / 2, cd, cd); }   // 칸 지름 80/96 → 보이는 지름 ≈ size×0.8(아틀라스 coin 과 같게)
+            else { c.scale(sx * big, sy * big); if (!(window.UIIcons && UIIcons.draw(c, 'coin', 0, 0, size))) { c.fillStyle = '#f4c542'; c.beginPath(); c.arc(0, 0, size * 0.4, 0, Math.PI * 2); c.fill(); } }   // 아틀라스가 아직이면 노란 동그라미
             c.restore();
         }
         var spk = _img.sparkle, gt = t - (COIN_IN1 - 40);   // 투입구 반짝 — 들어간 직후

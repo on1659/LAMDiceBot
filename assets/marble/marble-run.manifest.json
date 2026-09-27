@@ -4075,5 +4075,57 @@
         "bytes": 10688
       }
     }
+  },
+  "movingGimmicksN": {
+    "batch": "marble-run-moving-gimmicks-n-2026-09-26",
+    "status": "picked-up",
+    "request": "docs/spritemake-request/2026-09-26-marble-moving-gimmicks-n.md",
+    "note": "생성 = unverified Codex direct generation(gpt-image-2 로 확인 안 됨), 에셋별 attempt-01 1회. 편집(정규화·칸/앵커·타일 이음·webp)은 LAMDiceBot 세션 tools/claude_pack_n.py. pendulum-log 는 192×240(나이테 원 중심 (96,144), 쇠고리 위), pendulum-pivot 은 도르래 중심 = 칸 가운데, piston-head 는 가로를 88 로 늘림(물리 폭 24), piston-shaft 는 긴 기둥 한 토막 + 좌우 이음 섞기, trampoline 은 이어진 띠 3등분(렌더러가 평상 무늬 + 곡선 휨으로 씀), gacha-coin 은 하드 알파. 2026-09-26",
+    "files": {
+      "pieces/pendulum-log.webp": "bf0d9fbeb888cf2582e04ae3fb72864f",
+      "pieces/pendulum-pivot.webp": "d902b903b3ee11f355cc72a687917e3a",
+      "pieces/piston-head.webp": "0ece51b04ca301e0c4087b8c9c344e82",
+      "pieces/piston-shaft.webp": "0febfc6f0ddc54468f49bfc088dabb42",
+      "pieces/trampoline.webp": "e53b3e1432493332aba5e8731a92888c",
+      "pieces/trampoline-post.webp": "a94b4506830afb83eef71e9e0ae49151",
+      "pieces/wind-vane.webp": "050bdce0990853d01709816c1306c8a4",
+      "fx/gust-band.webp": "a6cc2cf3a32d930d5dd61e7b3f9c1c25",
+      "fx/ground-crack.webp": "0f3f52207e39986d76d663d66060c571",
+      "fx/quake-warn.webp": "6ca1eb8564837d3bee9e1d4b80034572",
+      "gacha/fx/gacha-coin.webp": "d516a2e8b5870ab0b1676e3cb9a9981b"
+    }
+  },
+  "gachaRedrawO": {
+    "batch": "marble-gacha-redraw-o-2026-09-26",
+    "status": "picked-up",
+    "request": "docs/spritemake-request/2026-09-26-marble-gacha-redraw-o.md",
+    "note": "Claude 편집본 → GPT 그림(unverified Codex direct generation, 에셋별 attempt-01). 편집 tools/claude_pack_o.py: 캡슐 세트 3장을 닫힘/열기 6칸(칸 256x240, 바닥 220)/컵/뚜껑/뒤집힌 뚜껑(lidflip, 새 파일)으로, 3등급 닫힘 알파는 레어 기준 통일; 기계 변형판은 옛 기계 실루엣에 k 0.477·(4,2)(IoU 0.979)로 맞춰 gacha-machine 교체 + 빈 유리구·레일 앞판을 옛 마스크로 다시 오림 + 관 앞 층(gacha-chute-front, 새 파일); 아이콘 = 새 기계 + 공 더미 축소. 안 쓰는 그림 없음(열기 칸 0~4 는 재생 중). 2026-09-26",
+    "files": {
+      "gacha/capsule/capsule-epic-cup.webp": "60ee9df605b396a48b3156d31b563102",
+      "gacha/capsule/capsule-epic-lid.webp": "006a71b70eacac73c0c77cf09026dc94",
+      "gacha/capsule/capsule-epic-lidflip.webp": "a8b73da800d9c72f2aa22058f5266091",
+      "gacha/capsule/capsule-epic-open.webp": "d32034d549e3fcd42beeeec4004fa321",
+      "gacha/capsule/capsule-epic.webp": "af04d15e517ada22265858153247cba4",
+      "gacha/capsule/capsule-legend-cup.webp": "78b64ec2c474b483b14270a67b2d4445",
+      "gacha/capsule/capsule-legend-lid.webp": "a2c2f38c57985560b225d31a83c36078",
+      "gacha/capsule/capsule-legend-lidflip.webp": "73aaf03a3b16466ba14ec838b4c0ba73",
+      "gacha/capsule/capsule-legend-open.webp": "c16b237f0bc68416b417549f56924f5e",
+      "gacha/capsule/capsule-legend.webp": "9cb454f374788ca29bbdab67195a4300",
+      "gacha/capsule/capsule-rare-cup.webp": "559e9c3b344e6335683723384a8a6b8c",
+      "gacha/capsule/capsule-rare-lid.webp": "c6d15c5233f1fa07cde136f3dd8906e2",
+      "gacha/capsule/capsule-rare-lidflip.webp": "85ae804751a8b16564ea7257d3401451",
+      "gacha/capsule/capsule-rare-open.webp": "e500fc56838403e992f1073ad00e507b",
+      "gacha/capsule/capsule-rare.webp": "9ef93d8680db2e9e497a8ec8f83ff9f0",
+      "gacha/fx/gacha-rays-epic.webp": "57befa3a0d9a04f21e18f83ce7be9433",
+      "gacha/fx/gacha-rays-legend.webp": "8d93222789136a53983fc64714c98df5",
+      "gacha/fx/gacha-rays-rare.webp": "33f7904eb0c178cfa16538868625d32d",
+      "gacha/fx/gacha-sparkle.webp": "82d894c9f0d5b914549e1eb4fde5f587",
+      "gacha/icon-gacha.webp": "06395323a22c54454a6081321fb23464",
+      "gacha/machine/gacha-chute-front.webp": "b0f6e510f085c8d160c3eea1674a91bd",
+      "gacha/machine/gacha-globe-balls.webp": "17966981664f2afcf5cbc3c50d6b9db9",
+      "gacha/machine/gacha-globe-empty.webp": "559d668ddcb417917de0db7802001f15",
+      "gacha/machine/gacha-machine-rail-front.webp": "4b46d4165588cf0cf4cc5695d6cdff80",
+      "gacha/machine/gacha-machine.webp": "46a248f80ef4cc1fbb123a010c1bf9d6"
+    }
   }
 }

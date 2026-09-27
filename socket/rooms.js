@@ -172,7 +172,7 @@ module.exports = (socket, io, ctx) => {
                 // 보안: marble.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
                 marble: gameState.marble
-                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, crowd: gameState.marble.crowd, round: gameState.marble.round, history: gameState.marble.history }
+                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, crowd: gameState.marble.crowd, randomTrack: gameState.marble.randomTrack !== false, round: gameState.marble.round, history: gameState.marble.history }
                     : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,

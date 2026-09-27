@@ -321,6 +321,7 @@
 }
 .marble-host-settings label {
     flex: 0 0 auto;
+    min-width: 3.2em;   /* 동물수·맵 두 줄의 버튼 시작선을 맞춘다 */
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);

@@ -24,9 +24,19 @@
         <label>t <input type="range" id="seek" min="-4000" max="60000" value="0" step="40" oninput="seekTo(this.value)"> <span id="tlabel">0.00s</span></label>
         <label>속도 <input type="number" id="rate" value="1" step="0.25" min="0.25" max="4" style="width:60px"></label>
         <label>내 이름 <input type="text" id="me" value="플레이어1" style="width:100px" onchange="reload()"></label>
-        <label>src <input type="text" id="src" value="/game-lab/marble-timeline.json" style="width:240px" onchange="reload()"></label>
+        <label>배치 <select onchange="document.getElementById('src').value = this.value; reload()">
+            <option value="/game-lab/marble-timeline-all.json" selected>전부 다(20개)</option>
+            <option value="/game-lab/marble-timeline.json">최근 덤프(시드 랜덤)</option>
+            <option value="/game-lab/marble-timeline-moving.json">움직이는 장애물 6개</option>
+            <option value="/game-lab/marble-timeline-movingm.json">움직이는 장애물 6개 · 좌우반전</option>
+            <option value="/game-lab/marble-timeline-climb.json">등반 벨트만</option>
+            <option value="/game-lab/marble-timeline-new.json">재조합 모듈 7개</option>
+            <option value="/game-lab/marble-timeline-newm.json">재조합 모듈 7개 · 좌우반전</option>
+            <option value="/game-lab/marble-timeline-old.json">트랙 A 7개</option>
+        </select></label>
+        <label>src <input type="text" id="src" value="/game-lab/marble-timeline-all.json" style="width:240px" onchange="reload()"></label>
     </div>
-    <div class="hint">타임라인 생성: <code>node AutoTest/marble-sim-dump.js [players] [ballsPerPlayer] [seed]</code> → game-lab/marble-timeline.json. 이 페이지는 렌더러(js/marble-render.js)만 검증한다 — 소켓/방 없음.</div>
+    <div class="hint">카메라: 캔버스 끌기 = 이동, ctrl+휠 = 확대, <b>미니맵 누르거나 끌기 = 그 자리로</b>, 순위표 줄 = 그 동물 따라가기, 더블클릭 = 자동으로. 타임라인 생성: <code>node AutoTest/marble-sim-dump.js [players] [ballsPerPlayer] [seed] [out] [crowd] [layout]</code> → game-lab/marble-timeline*.json (layout = new | newm | old | all | 이름,이름!,…). 이 페이지는 렌더러(js/marble-render.js)만 검증한다 — 소켓/방 없음.</div>
     <div id="box"><canvas id="cv" width="800" height="600"></canvas></div>
     <script src="/js/marble-render.js"></script>
     <script>
@@ -36,6 +46,7 @@
             fetch(document.getElementById('src').value + '?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
                 data = d;
                 R.setTimeline(d, document.getElementById('me').value);
+                R.setPhase('play');   // 렌더러는 경주 중에만 카메라 입력(끌기·ctrl+휠·순위표·미니맵 누르기)을 받는다 — 이 페이지는 R.play() 를 안 거치므로 직접
                 document.getElementById('seek').max = d.durationMs;
                 R.render(t, 0.016);
                 console.log('timeline loaded', { balls: d.balls.length, durationMs: d.durationMs, sampleMs: d.sampleMs, selected: d.result.selected });
