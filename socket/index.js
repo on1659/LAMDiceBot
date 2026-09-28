@@ -89,8 +89,8 @@ function setupSocketHandlers(io, rooms) {
     };
 
     // 예약 시작 스위퍼 — 연결당이 아니라 프로세스당 하나.
-    // 타이머 경로에는 소켓이 없으므로 ctx도 소켓과 무관한 것만 넘긴다.
-    startScheduler(io, rooms, { rooms, updateRoomsList });
+    // 타이머 경로에는 소켓이 없으므로 ctx도 소켓과 무관한 것만 넘긴다. triggerAutoOrder 도 넘겨야 예약 시작한 판이 끝날 때 주문받기가 자동으로 켜진다.
+    startScheduler(io, rooms, { rooms, updateRoomsList, triggerAutoOrder: (gameState, room) => registerSharedHandlers.triggerAutoOrder(io, gameState, room) });
 
     io.on('connection', (socket) => {
         console.log('새 사용자 연결:', socket.id);

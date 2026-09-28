@@ -1,4 +1,27 @@
 ========================================
+📋 Summit Log - 2026-09-29 (예약 시작한 판이 끝나도 주문받기 자동 시작이 안 되던 버그)
+========================================
+
+## 제보
+- 데구리에서 게임이 끝났는데 주문받기가 자동으로 시작되지 않음 — 그 판은 「예약」으로 시작한 판(사용자 확인)
+
+## 원인
+- 게임 종료 처리는 ctx.triggerAutoOrder(gameState, room) 로 주문을 켠다. 이 함수는 socket/shared.js setupSharedHandlers 안(소켓 연결마다)에서만 ctx 에 붙었다.
+- 예약 시각에 서버가 대신 시작하는 경로(socket/scheduled-start.js fire → mod.start)는 socket/index.js 가 넘기는 스케줄러 ctx { rooms, updateRoomsList } 를 받는다 → triggerAutoOrder 가 없어 marble.js:406 / roulette.js:120 / horse.js:1269 의 `if (ctx.triggerAutoOrder)` 검사에서 조용히 건너뜀(에러·로그 없음).
+- 영향: 예약 시작으로 끝난 데구리·룰렛·경마 판 전부. 방장이 직접 시작한 판은 정상.
+
+## 변경 파일
+- socket/shared.js: triggerAutoOrder 를 소켓과 무관한 모듈 함수 triggerAutoOrder(io, gameState, room) 로 빼고 module.exports.triggerAutoOrder 로 공개. 소켓 ctx 에는 기존 모양 그대로 (gameState, room) => triggerAutoOrder(io, gameState, room) 을 붙인다(호출부 변경 없음)
+- socket/index.js: 예약 스케줄러 ctx 에 triggerAutoOrder 추가
+
+## 검증
+- worktree 서버(PORT 5177, SCHEDULE_MIN_LEAD_MS=1000)에서 소켓 E2E: 데구리 방 → 다음 분 예약 → 발화 +44s reveal → +100s gameEnd → orderStarted 수신 PASS
+- 수동 시작(marble:start) 판도 종료 후 orderStarted PASS(소켓 ctx 경로 회귀 없음)
+- node -c server.js·socket/shared.js·socket/index.js
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-28 (경마 발 안 움직이던 동작 전수 점검·재의뢰)
 ========================================
 
