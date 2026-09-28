@@ -2,7 +2,7 @@
 // 각 차량의 패배 자세 (당첨 등수 = 벌칙자) 스프라이트 (120x45 atlas, 2 frames horizontal)
 // 의뢰서: docs/spritemake-request/2026-05-05-horse-lose-poses.md
 
-const VEHICLE_LOSE_VER = 1;
+const VEHICLE_LOSE_VER = 2;
 
 const VEHICLE_LOSE_STATES = (function () {
     const ids = [

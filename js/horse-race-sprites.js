@@ -3,7 +3,7 @@
 // 프레임 마크업은 <svg> 한 겹 안의 <image> 하나다 — 호출부가 여는 태그의 width/height 를 고치고(썸네일),
 // 넘어짐·진화 빌더가 안쪽 마크업을 감싼다. 중첩 <svg> 금지(넘어짐 빌더의 안쪽 추출이 첫 </svg> 에서 끊긴다).
 // <image> 는 width/height="100%" — 전역 치환(width="60")에 걸리지 않고 여는 태그 크기를 따라간다.
-const VEHICLE_SPRITE_VER = 1;
+const VEHICLE_SPRITE_VER = 3; // 2: 2컷 겹침 맞춤(떨림 제거), 3: 약한 9종 달리기 두 컷 재의뢰
 const VEHICLE_SPRITE_BASE_PATH = '/assets/horse-race/vehicles';
 const VEHICLE_SPRITE_FULL_STATES = ['idle', 'run', 'rest', 'finish', 'victory', 'dead'];
 const VEHICLE_SPRITE_SHORT_STATES = ['run', 'rest'];
