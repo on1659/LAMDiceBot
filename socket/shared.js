@@ -25,24 +25,26 @@ function resolveDefaultOrder(gameState, userName) {
     return def.menuText || '';
 }
 
+// 게임 종료 시 자동 주문 트리거 (최초 1회만) — 소켓과 무관: 소켓 ctx 와 예약 시작 스케줄러 ctx(socket/index.js) 둘 다 이걸 부른다.
+// 예전엔 소켓 핸들러 안에만 있어서 예약 시작으로 끝난 판은 주문이 자동으로 안 켜졌다(2026-09-29 데구리 제보)
+function triggerAutoOrder(io, gameState, room) {
+    if (gameState.orderAutoTriggered || gameState.isOrderActive) return;
+    gameState.orderAutoTriggered = true;
+    gameState.isOrderActive = true;
+    gameState.userOrders = {};
+    gameState.users.forEach(u => {
+        gameState.userOrders[u.name] = resolveDefaultOrder(gameState, u.name);
+    });
+    // 자동 채움 주문은 통계에 기록하지 않음 (사용자 직접 저장만 기록)
+    io.to(room.roomId).emit('orderStarted');
+    io.to(room.roomId).emit('updateOrders', gameState.userOrders);
+}
+
 module.exports = function setupSharedHandlers(socket, io, ctx) {
     const { checkRateLimit, getCurrentRoom, getCurrentRoomGameState } = ctx;
     const pool = getPool();
 
-    // 게임 종료 시 자동 주문 트리거 (최초 1회만)
-    function triggerAutoOrder(gameState, room) {
-        if (gameState.orderAutoTriggered || gameState.isOrderActive) return;
-        gameState.orderAutoTriggered = true;
-        gameState.isOrderActive = true;
-        gameState.userOrders = {};
-        gameState.users.forEach(u => {
-            gameState.userOrders[u.name] = resolveDefaultOrder(gameState, u.name);
-        });
-        // 자동 채움 주문은 통계에 기록하지 않음 (사용자 직접 저장만 기록)
-        io.to(room.roomId).emit('orderStarted');
-        io.to(room.roomId).emit('updateOrders', gameState.userOrders);
-    }
-    ctx.triggerAutoOrder = triggerAutoOrder;
+    ctx.triggerAutoOrder = (gameState, room) => triggerAutoOrder(io, gameState, room);
 
     // 사다리타기 빌드 동기화 — 준비 변동 시 현재 빌드 상태를 재브로드캐스트(빌드 정합성 유지).
     // pick-elimination: 빌드(top 선택/막대기)는 ready 무관 → 준비 취소가 선택/막대기를 삭제하지 않는다.
@@ -658,3 +660,4 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         }
     });
 };
+module.exports.triggerAutoOrder = triggerAutoOrder;
