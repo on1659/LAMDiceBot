@@ -5145,6 +5145,7 @@ function createConfetti() {
 }
 
 const VEHICLE_VARIANT_TRANSITION_MS = 360;
+const VEHICLE_FALLEN_TUMBLE_MS = 520; // 넘어짐 1컷(고꾸라지는 중)을 보여 주는 시간 — 그 뒤 2컷(엎어짐)에서 멈춤
 // 탈것 그림 예전↔최신 전환 장면 — 지금 캐릭터가 달리기 동작으로 오른쪽으로 뛰어나가고,
 // 다른 그림의 같은 캐릭터가 왼쪽에서 뒤쫓아 뛰어 들어와 제자리에 멈춘다. 캐릭터마다 속도·걸음(VEHICLE_ART_GAIT)이 다르다.
 // 위아래 흔들림은 넣지 않는다(사용자 요청).
@@ -5344,6 +5345,28 @@ function setVehicleState(horseElement, vehicleId, state) {
     const stateData = resolveVehicleStateData(vehicleId, state, variant);
     horseElement.dataset.vehicleState = state; // '예전 그림 보기' 토글이 이 상태로 다시 그린다
     writeVehicleSpriteState(sprite, stateData);
+    setVehicleFallenSequence(horseElement, state === 'fallen');
+}
+
+// 넘어짐은 두 컷 반복이 아니라 순서: 1컷(고꾸라짐)을 VEHICLE_FALLEN_TUMBLE_MS 보여 준 뒤 2컷(엎어짐)에서 멈춘다.
+// 경주 중 .horse.racing 의 0.15초 반복 애니메이션을 프레임 inline 으로 끈다(PiP 에도 페이지 CSS 없이 동작). on=false 면 원상복구.
+function setVehicleFallenSequence(horseElement, on) {
+    const sprite = horseElement && horseElement.querySelector('.vehicle-sprite');
+    if (!sprite) return;
+    clearTimeout(sprite._fallenSeqTimer);
+    const { frame1, frame2 } = getVehicleSpriteFrameElements(sprite);
+    [frame1, frame2].forEach(f => {
+        if (!f) return;
+        f.style.animation = on ? 'none' : '';
+        f.style.opacity = '';
+    });
+    if (!on || !frame1 || !frame2) return;
+    frame1.style.opacity = '1';
+    frame2.style.opacity = '0';
+    sprite._fallenSeqTimer = setTimeout(() => {
+        frame1.style.opacity = '0';
+        frame2.style.opacity = '1';
+    }, VEHICLE_FALLEN_TUMBLE_MS);
 }
 
 

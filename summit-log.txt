@@ -18,6 +18,29 @@
 - worktree 서버(PORT 5177, SCHEDULE_MIN_LEAD_MS=1000)에서 소켓 E2E: 데구리 방 → 다음 분 예약 → 발화 +44s reveal → +100s gameEnd → orderStarted 수신 PASS
 - 수동 시작(marble:start) 판도 종료 후 orderStarted PASS(소켓 ctx 경로 회귀 없음)
 - node -c server.js·socket/shared.js·socket/index.js
+📋 Summit Log - 2026-09-29 (경마 탈것 상태별 행동 — 15종 7상태·넘어짐 그림·꼴찌 재의뢰)
+========================================
+
+## 원칙 (사용자 2026-09-29)
+- "옛 모션 배치를 똑같이 맞추는 게 아니라 해당 모션에 맞는 행동을 하는 게 중요" — 토끼 승리=골인(그림 없어 run 대체), 꼴찌=쉬기 색만 바꾼 것, 게 꼴찌≈쉬기, 넘어짐이 짧고 덜덜 떨림.
+- 상태 계약(의뢰서·검사 기준): 대기=서서 준비·숨쉬기 / 쉬기=졸기 zZ / 골인=웃으며 손 흔드는 감속, 반짝이 X / 승리=웅크림→점프+반짝이 / 탈락=비석+유령 / 넘어짐=1컷 고꾸라짐→2컷 엎어짐+별 / 꼴찌=눈 뜨고 울먹+먹구름, 눈 감기·zZ 금지, 원래 색.
+
+## 그림 (SpriteMake 배치 P, Codex 4세션 + 보정 2장)
+- short 10종: 대기·골인·승리·탈락·넘어짐·꼴찌 새로(기본형·진화형) — 이제 15종 전부 7상태(idle·run·rest·finish·victory·dead·fallen)
+- full 5종: 넘어짐·꼴찌 새로, 말·닌자·게 골인(승리와 구분), 말 진화형 승리(점프+반짝이), 게 탈락(비석+유령)
+- 채택: 전부 attempt-01, scooter 기본형만 02. 토끼·거북 진화형과 게 탈락은 2컷 비석 누락/유령 겹침 → 1컷에서 유령만 올린 2컷(--dead-from-1)
+- tools/claude_pack_states.py(신규): 시트 첫 칸 ref(달리기)로 배율, 제자리 동작은 IoU 겹침, 점프·넘어짐은 칸 안 상대 위치 유지, 넘어짐 폭 ≤48(FALL_VISIBLE_MAX_X). tools/claude_fix_dead.py: 탈락 2컷을 아래 30%(비석) 기준으로 맞춤. tools/claude_check_rules.py: R1~R10 규칙 검사
+
+## 코드
+- js/horse-race-sprites.js: VEHICLE_SPRITE_STATES 15종 모두 7상태(fallen 은 그린 그림 → ensureVehicleFallenState 회전 생성 안 씀). VEHICLE_SPRITE_VER 5
+- js/horse-race.js: setVehicleFallenSequence — fallen 은 반복(0.15초 교대)이 아니라 1컷 VEHICLE_FALLEN_TUMBLE_MS(520) 뒤 2컷 정지(frame inline animation:none, PiP 안전). setVehicleState 가 호출
+- js/horse-race-fall-motion.js: FALL_DURATION_SCALE 1.6(넘어지는 전환 길게), 전환 시 dataset.vehicleState 기록(기존 누락 — 넘어진 채 스위치 누르면 엉뚱한 상태로 다시 그려질 뻔) + 순서 재생 호출
+- js/horse-race-lose.js: VEHICLE_LOSE_VER 3
+
+## 검증
+- 규칙 검사: 누락·캔버스·크기·넘어짐 폭·탈락 비석 위반 0. 남은 R5 6건 = 의도된 움직임(토끼 깡충·닌자 앉았다 엎드림·헬기 로터), R9 = 새·헬기(날개·로터), R10 idle≈run 3건 = 자전거·새·헬기처럼 실루엣이 원래 같은 탈것, R3 = 칸 가장자리 닿음(잘림 아님)
+- 경주 중 넘어짐 관찰: t100 1컷(반복 꺼짐) → t800 2컷 정지(말), 풀리면 달리기 복귀. qa-horse 경주 PASS(새·옛 그림 모드)
+- 용량: 프레임 420장 2.1MB + 꼴찌 120KB, 선택 화면 103KB, 경주 선로드 탈것당 57~63KB
 
 ========================================
 

@@ -100,3 +100,4 @@ goal: `docs/goal/horse-vehicle-raster-sprites.md`
   - 채택: horse base 01·power 02 / rocket base 02 / car base 02 / turtle power 02 / 나머지 전부 01. knight power 탈락 두 컷은 장면이 달라 dead-2 로 통일(`--copy dead-1:dead-2`).
   - 정규화 도구 `output/horse-vehicles-p-2026-09-27/tools/claude_pack_p.py`: 가장자리 flood 배경 제거, 반투명 가장자리 despill(빨간 테 11%→3%), 8-연결 컴포넌트 중심 배정, 시트당 배율 1개 = 옛 run1 면적 맞추기(기하평균), 탈락 비석 칸은 상한 계산에서 제외, 위치 = 옛 기본형 같은 상태·프레임 bbox 바닥·가로 중심. bird·eagle 은 동그란 체형이라 ×1.15.
   - 설치 `tools/claude_install_p.sh` (pngquant 80-98 → 무손실 WebP).
+- 2026-09-29 상태별 행동 재의뢰(사용자 원칙: 옛 배치 복제 X, 상태에 맞는 행동). 계약 = summit-log 2026-09-29 항목. short 10종 대기·골인·승리·탈락·넘어짐·꼴찌 신규, full 5종 넘어짐·꼴찌(+말·닌자·게 골인, 말 진화 승리, 게 탈락). 도구 claude_pack_states.py·claude_fix_dead.py·claude_check_rules.py.
