@@ -83,7 +83,7 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 | `assets/cosmetics/aura-atlas.webp` | 완료 — PNG 830KB → 140KB (손실 q85 + 무손실 알파), PNG 삭제. 경마 페이지 로드마다 `horse-shop.js` 가 선로드하는 파일이라, 경마 한 판 이미지 합계(오라 + 아이콘 아틀라스 + 레인)가 1.24MB → 0.48MB. JS·CSS 4곳 URL 이 문자열까지 같아야 한 번만 받는다. max-age=0 이라 `?v=` 없음 |
 | `assets/backgrounds/{탈것}.webp` 15장 | 완료 — PNG 346KB → 103KB (팔레트 90-98 `--nofs` → 무손실), PNG 삭제. 이음새 원본과 동일. 한 판(4~6레인, 탈것 겹침 없음) 약 92~138KB → 28~41KB |
 | `assets/backgrounds/` 테마 PNG | `forest/space/road/beach/sky/ocean.png` 1.45MB 는 런타임 참조 없음(삭제 후보, 단 `/addvehicle` 템플릿이 테마 PNG 를 씀). `expressway.png` 는 `getVehicleBackground` 폴백 필드에만 있고 그 필드를 읽는 코드가 없어 요청되지 않음 |
-| `assets/horse-race/vehicles/**` 200장 + `sprites/lose/*.webp` 15장 | 완료 (2026-09-27 P차 GPT 도트) — 992KB + 120KB. 페이지당: 선택 화면 105KB(15종 idle/run 2컷), 경주 시작 선로드 = 참가 탈것 기본형 전부 + 진화형 run 만(6상태 탈것 54KB, 2상태 19KB). 7일 캐시(`routes/api.js`) + `VEHICLE_SPRITE_VER`. 옛 꼴찌 SVG 삭제 |
+| `assets/horse-race/vehicles/**` 420장 + `sprites/lose/*.webp` 15장 | 완료 (2026-09-27 P차 GPT 도트, 09-29 15종 7상태) — 2.1MB + 120KB. 페이지당: 선택 화면 103KB(15종 idle 2컷), 경주 시작 선로드 = 참가 탈것 기본형 7상태 + 진화형 run(탈것당 57~63KB). 7일 캐시(`routes/api.js`) + `VEHICLE_SPRITE_VER`. 옛 꼴찌 SVG 삭제 |
 | `assets/og/*.jpg` | 완료 (25~40KB) |
 
 새 시트를 `/spritemake-pickup` 으로 받으면 그 시트도 이 절차를 거친다. 데구리 시트는 `AutoTest/spritemake/pickup-skin.py` 가 pngquant→WebP 를 자동으로 한다(리컬러 `recolor-creature.py` 도 .webp 입출력).

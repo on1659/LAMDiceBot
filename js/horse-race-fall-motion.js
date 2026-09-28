@@ -17,6 +17,8 @@
 const FALL_PREVIEW_SWAP_MS = 420;
 const FALL_TRAVEL_DISTANCE_PX = 24;
 const FALL_OVERSHOOT_DISTANCE_PX = 28;
+// 넘어지는 전환을 프로필 fallMs 보다 길게 — 고꾸라지는 그림(fallen 1컷)이 읽히도록 (2026-09-28 사용자: 진짜 넘어지는 느낌)
+const FALL_DURATION_SCALE = 1.6;
 
 // fallen SVG 내 시각 내용 끝 위치 (60px 프레임 기준, x축 48 지점까지 먼지+회전된 탈것)
 const FALL_VISIBLE_MAX_X = 48;
@@ -542,7 +544,7 @@ function animateVehicleFallState(horseElement, vehicleId, targetState) {
     if (!targetData) return;
 
     const profile = getFallMotionProfile(vehicleId);
-    const duration = targetState === 'fallen' ? profile.fallMs : profile.recoverMs;
+    const duration = targetState === 'fallen' ? profile.fallMs * FALL_DURATION_SCALE : profile.recoverMs;
 
     clearFallTransitionNodes(sprite);
 
@@ -553,6 +555,9 @@ function animateVehicleFallState(horseElement, vehicleId, targetState) {
     if (typeof writeVehicleSpriteState === 'function') {
         writeVehicleSpriteState(sprite, targetData);
     }
+    // fallen = 1컷(고꾸라짐) → 2컷(엎어짐) 한 번 재생 후 정지, run 복귀 시 해제 (horse-race.js)
+    horseElement.dataset.vehicleState = targetState; // setVehicleState 를 거치지 않으니 여기서 기록('예전 그림' 스위치가 이 상태로 다시 그린다)
+    if (typeof setVehicleFallenSequence === 'function') setVehicleFallenSequence(horseElement, targetState === 'fallen');
 
     // outgoing 레이어 생성 (이전 상태 스냅샷)
     let outgoingLayer = null;
