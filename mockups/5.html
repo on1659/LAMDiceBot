@@ -731,21 +731,23 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
     { id: 's4', name: '헬스장 5시',     owner: '민수', members: 12, online: 4, open: 1, priv: false, state: 'pending' }
   ];
   var STATE_LABEL = { joined: '가입됨', open: '참여 가능', code: '참여코드', pending: '승인 대기' };
+  function esc(x) { return String(x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function bt(cls, label, attrs) { return '<button type="button" class="' + cls + ' sm"' + (attrs || '') + '>' + label + '</button>'; }
   function byId(id) { return servers.filter(function (x) { return x.id === id; })[0]; }
   function renderServers() {
-    var el = $('#servers'); if (!el) return;
+    var els = $$('#servers, [data-server-list]'); if (!els.length) return;
     var q = ($('#srvSearch') && $('#srvSearch').value.trim()) || '';
     var list = servers.filter(function (s) { return !q || s.name.indexOf(q) >= 0; });
+    var html;
     if (UI.receipt) {
-      el.innerHTML = list.map(function (s) {
+      html = list.map(function (s) {
         var act = s.state === 'joined' ? bt('btn', '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt('btn ghost', '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt('btn ghost', '참여코드', ' data-code="' + s.id + '"') : '<span class="st live">승인 대기 중</span>';
         return '<li class="room"><div class="t">' + (s.priv ? '<img class="ic px" src="/mockups/assets/ic-lock.png" alt="">' : '<img class="ic px" src="/mockups/assets/ic-people.png" alt="">') + s.name + '<span class="st ' + (s.state === 'pending' ? 'live' : 'wait') + '">' + STATE_LABEL[s.state] + '</span></div>' +
           '<div class="sub"><span>방장 ' + s.owner + '</span><span class="num">멤버 ' + s.members + '</span><span class="num">온라인 ' + s.online + '</span><span class="num">열린 방 ' + s.open + '</span></div>' +
           '<div class="act">' + act + '</div></li>';
       }).join('');
     } else {
-      el.innerHTML = list.map(function (s) {
+      html = list.map(function (s) {
         var pills = '<span class="pill ' + (s.state === 'pending' ? 'live' : 'wait') + '"><i class="dot"></i>' + STATE_LABEL[s.state] + '</span>' + (s.priv ? '<span class="chip"><img class="ic px" src="/mockups/assets/ic-lock.png" alt="" style="width:14px;height:14px">비공개</span>' : '');
         var act = s.state === 'joined' ? bt(UI.P, '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt(UI.P, '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt(UI.S, '참여코드 입력', ' data-code="' + s.id + '"') : bt(UI.G, '승인 대기 중', ' disabled');
         return '<li class="room"><div class="thumb"><span class="mark">' + s.name.charAt(0) + '</span></div>' +
@@ -754,7 +756,35 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
           '<div class="act">' + act + '</div></li>';
       }).join('');
     }
+    els.forEach(function (el) { el.innerHTML = html; });
     var c = $('#srvCount'); if (c) c.textContent = servers.length;
+  }
+  // 로그인하면 홈 히어로 바로 아래에 서버 고르기가 뜬다 (지금 실서버처럼 로그인 = 서버 목록이 첫 화면)
+  function homeServerBlock() {
+    if (UI.receipt) return '<hr class="dash"><div class="k">우리 팀 서버에서 놀기 (기록·랭킹이 남아요)</div>' +
+      '<div class="rl"><span>지난번 · LAMDice :)</span><span class="dots"></span><span class="r pen">온라인 2/3 · 열린 방 1</span></div>' +
+      '<button type="button" class="btn" data-enter="s1">LAMDice :) 서버로 계속</button>' +
+      '<ul class="rooms" data-server-list style="margin-top:8px"></ul>' +
+      '<div class="act" style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn ghost sm" data-open-panel="manage">내 서버 관리</button><button type="button" class="btn sm" data-open-panel="create">새 서버 만들기</button></div>';
+    return '<div class="wrap"><div class="sec-head"><h2>우리 팀 서버에서 놀기</h2><p>기록과 랭킹이 남아요 · 위의 자유 방은 안 남아요</p></div>' +
+      '<div class="card invite cont"><div class="txt2"><div class="eyebrow" style="margin-bottom:2px">지난번에 놀던 서버</div><b style="font-size:18px">LAMDice :)</b><div style="font-size:13px;opacity:.75">멤버 3 · 온라인 2 · 열린 방 1</div></div><button type="button" class="' + UI.P + '" data-enter="s1">이 서버로 계속</button></div>' +
+      '<div class="tools"><div class="right" style="margin-inline-start:0">' + bt(UI.G, '내 서버 관리', ' data-open-panel="manage"') + bt(UI.P, '새 서버 만들기', ' data-open-panel="create"') + '</div></div>' +
+      '<ul class="rooms" data-server-list></ul></div>';
+  }
+  function syncHomeServers(v) {
+    var slot = $('#homeServerSlot');
+    if (!slot) {
+      slot = document.createElement(UI.receipt ? 'div' : 'section'); slot.id = 'homeServerSlot'; if (!UI.receipt) slot.className = 'sec';
+      var anchor = UI.receipt ? $('#screen-home #ticket') : $('#screen-home .hero');
+      if (!anchor) return; anchor.parentNode.insertBefore(slot, anchor.nextSibling);
+    }
+    slot.hidden = !v; if (v) slot.innerHTML = homeServerBlock();
+    var team = $('#team'); if (team) team.hidden = v;
+    var fine = $('#screen-home #ticket .fine') || $('#screen-home .startcard .fine') || $('#screen-home .hint');
+    if (fine) {
+      if (!fine.dataset.orig) fine.dataset.orig = fine.innerHTML;
+      fine.innerHTML = v ? fine.dataset.orig + ' · 이 방은 자유 방이라 기록이 안 남아요' : fine.dataset.orig + ' · 팀 기록을 남기려면 <a href="#" data-open-panel="login">서버로 놀기 (로그인)</a>';
+    }
   }
   if ($('#srvSearch')) $('#srvSearch').addEventListener('input', renderServers);
 
@@ -776,11 +806,12 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
     var me = $('#srvMe'); if (me) { me.hidden = !v; if (v) { me.querySelector('b').textContent = myName; var av = me.querySelector('.av'); if (av) av.textContent = myName.charAt(0); } }
     $$('.top .actions').forEach(function (acts) {
       if (!acts.dataset.orig) acts.dataset.orig = acts.innerHTML;
-      acts.innerHTML = v ? '<span class="who">' + myName + '</span>' + bt(UI.G, '로그아웃', ' data-logout') : acts.dataset.orig;
+      acts.innerHTML = v ? '<span class="who">' + esc(myName) + '</span>' + bt(UI.G, '로그아웃', ' data-logout') : acts.dataset.orig;
     });
     bindTop();
     $$('#mockBar [data-login]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.login === 'in') === v)); });
     if (!v && lobbyMode === 'server') setLobbyMode('free');
+    syncHomeServers(v);
     renderServers();
   }
   function openPanel(name) {
@@ -813,11 +844,11 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
     }
     $$('#mockBar [data-lobby]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.lobby === m)); });
   }
-  function enterServer(id) { var s = byId(id); if (!s) return; curServer = s; if (!loggedIn) setLogin(true); setLobbyMode('server'); setScreen('lobby'); toast(s.name + ' 서버로 들어왔어요'); }
-  $$('[data-open-panel]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); openPanel(b.dataset.openPanel); }); });
+  function enterServer(id) { var s = byId(id); if (!s) return; curServer = s; if (!loggedIn) setLogin(true); setLobbyMode('server'); setScreen('lobby'); toast(esc(s.name) + ' 서버로 들어왔어요'); }
   document.addEventListener('click', function (e) {
     var t;
-    if ((t = e.target.closest('[data-enter]'))) { enterServer(t.dataset.enter); }
+    if ((t = e.target.closest('[data-open-panel]'))) { e.preventDefault(); openPanel(t.dataset.openPanel); }
+    else if ((t = e.target.closest('[data-enter]'))) { enterServer(t.dataset.enter); }
     else if ((t = e.target.closest('[data-apply]'))) { var s = byId(t.dataset.apply); if (s) { s.state = 'pending'; renderServers(); toast('가입 신청했어요. 방장이 승인하면 들어갈 수 있어요'); } }
     else if ((t = e.target.closest('[data-code]'))) { codeTarget = t.dataset.code; var s2 = byId(codeTarget); var cn = $('#codeServerName'); if (cn) cn.textContent = s2 ? s2.name : ''; openPanel('code'); }
     else if ((t = e.target.closest('[data-approve]'))) { var row = t.closest('.mem'); row.querySelector('small').textContent = '멤버 · 방금 승인'; row.querySelector('.dot').classList.remove('off'); row.querySelector('.acts').innerHTML = bt(UI.G, '강퇴'); toast('승인했어요'); }
@@ -826,9 +857,9 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
     else if ((t = e.target.closest('[data-screen-go]'))) { e.preventDefault(); setScreen(t.dataset.screenGo); }
     else if ((t = e.target.closest('[data-close-panel]'))) { closePanel(); }
   });
-  if ($('#doLogin')) $('#doLogin').onclick = function () { var n = $('#loginName').value.trim() || '라온', pin = $('#loginPin').value.trim(); if (!/^\d{4,6}$/.test(pin)) { toast('암호코드는 4~6자리 숫자예요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast(n + '님, 로그인했어요'); };
+  if ($('#doLogin')) $('#doLogin').onclick = function () { var n = $('#loginName').value.trim() || '라온', pin = $('#loginPin').value.trim(); if (!/^\d{4,6}$/.test(pin)) { toast('암호코드는 4~6자리 숫자예요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast(esc(n) + '님, 로그인했어요'); };
   if ($('#doRegister')) $('#doRegister').onclick = function () { var n = $('#regName').value.trim() || '라온', p1 = $('#regPin').value.trim(), p2 = $('#regPin2').value.trim(); if (!/^\d{4,6}$/.test(p1)) { toast('암호코드는 4~6자리 숫자예요'); return; } if (p1 !== p2) { toast('암호코드 확인이 달라요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast('가입했어요. 이제 서버를 고르세요'); };
-  if ($('#doCreate')) $('#doCreate').onclick = function () { var n = $('#csName').value.trim(); if (n.length < 2) { toast('서버 이름은 2자 이상이에요'); return; } var code = $('#csCode').value.trim(); servers.unshift({ id: 's' + Date.now(), name: n, owner: myName, members: 1, online: 1, open: 0, priv: !!code, state: 'joined', mine: true }); closePanel(); renderServers(); toast('서버를 만들었어요' + (code ? '. 참여코드를 친구에게 알려주세요' : '. 공개 서버라 가입 신청이 오면 승인해 주세요')); };
+  if ($('#doCreate')) $('#doCreate').onclick = function () { var n = $('#csName').value.trim(); if (n.length < 2) { toast('서버 이름은 2자 이상이에요'); return; } var code = $('#csCode').value.trim(); servers.unshift({ id: 's' + Date.now(), name: esc(n), owner: esc(myName), members: 1, online: 1, open: 0, priv: !!code, state: 'joined', mine: true }); closePanel(); renderServers(); toast('서버를 만들었어요' + (code ? '. 참여코드를 친구에게 알려주세요' : '. 공개 서버라 가입 신청이 오면 승인해 주세요')); };
   if ($('#doCode')) $('#doCode').onclick = function () { var v = $('#codeInput').value.trim(); if (v.length < 4) { toast('참여코드는 4자 이상이에요'); return; } var s = byId(codeTarget); if (s) { s.state = 'joined'; renderServers(); } closePanel(); toast('가입됐어요. 이제 들어갈 수 있어요'); };
   // 홈의 '서버 만들기' / '이미 계정이 있어요' 를 실제 흐름에 연결
   (function () {
