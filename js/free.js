@@ -35,7 +35,7 @@
         horse:    '경마',
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
-        marble:   '데구리'
+        deguri:   '데구리'
     };
 
     // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})
@@ -46,7 +46,7 @@
         bridge:   'bridge',
         ladder:   'ladder',
         'spin-arena': 'swords',
-        marble:   'paw'
+        deguri:   'paw'
     };
 
     // 게임별 로딩 화면 그라데이션 (theme.css 색상 기준)
@@ -57,7 +57,7 @@
         bridge:   'linear-gradient(135deg, #42edff 0%, #1ec8da 100%)',  // 시안
         ladder:   'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',  // 호박/주황
         'spin-arena': 'linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%)', // 보라/시안
-        marble:   'linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%)'  // 초원 초록 (css/marble.css --marble-gradient)
+        deguri:   'linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%)'  // 초원 초록 (css/marble.css --marble-gradient)
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -68,7 +68,7 @@
         'bridge':     '/bridge-cross',
         'ladder':     '/ladder',
         'spin-arena': '/spin-arena',
-        'marble':     '/marble'
+        'marble':     '/deguri'   // gameType 은 marble, 공개 경로는 /deguri(2026-09-29)
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
@@ -161,7 +161,7 @@
         'bridge-cross': 'bridge',
         'ladder': 'ladder',
         'spin-arena': 'spin-arena',
-        'marble': 'marble'
+        'deguri': 'deguri'
     };
     var gameFromPath      = null;
     var shortcodeFromPath = null;

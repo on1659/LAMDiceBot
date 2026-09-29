@@ -29,7 +29,7 @@ const GAME_LABELS = {
     ladder:       '사다리타기',
     'spin-arena': '회전 칼날',
     pirate:       '해적 룰렛',
-    marble:       '데구리'
+    deguri:       '데구리'
 };
 
 // free.html 캐시 — mtime이 바뀌면 다시 읽는다 (dev에서 편집 즉시 반영).
