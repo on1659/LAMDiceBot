@@ -15,7 +15,13 @@
     {"id": "marble_skin_hamster_cookie", "name": "쿠키 햄스터", "displayName": "쿠키 햄스터", "rarity": "epic", "emoji": "🍪", "price": 100, "creature": "hamster", "skin": "cookie", "desc": "크림색 털에 초코칩 얼룩이 박힌 햄스터. 공이 되면 쿠키! 햄스터를 고르면 적용돼요."},
     {"id": "marble_skin_raccoon_ninja", "name": "닌자 너구리", "displayName": "닌자 너구리", "rarity": "legend", "emoji": "🥷", "price": 150, "creature": "raccoon", "skin": "ninja", "desc": "이마에 빨간 닌자 머리띠를 두른 너구리. 표정은 여전히 심드렁. 너구리를 고르면 적용돼요."},
     {"id": "marble_skin_hedgehog_knight", "name": "기사 고슴도치", "displayName": "기사 고슴도치", "rarity": "legend", "emoji": "🛡️", "price": 150, "creature": "hedgehog", "skin": "knight", "desc": "작은 은색 투구와 가슴 갑옷을 갖춘 고슴도치. 가시는 투구 위로 삐죽. 고슴도치를 고르면 적용돼요."},
-    {"id": "marble_skin_rabbit_tophat", "name": "신사 토끼", "displayName": "신사 토끼", "rarity": "legend", "emoji": "🎩", "price": 150, "creature": "rabbit", "skin": "tophat", "desc": "작은 검정 실크햇과 빨간 나비넥타이를 맨 토끼. 토끼를 고르면 적용돼요."}
+    {"id": "marble_skin_rabbit_tophat", "name": "신사 토끼", "displayName": "신사 토끼", "rarity": "legend", "emoji": "🎩", "price": 150, "creature": "rabbit", "skin": "tophat", "desc": "작은 검정 실크햇과 빨간 나비넥타이를 맨 토끼. 토끼를 고르면 적용돼요."},
+    {"id": "marble_skin_raccoon_swimcap", "name": "수영모 너구리", "displayName": "수영모 너구리", "rarity": "rare", "emoji": "🥽", "price": 50, "creature": "raccoon", "skin": "swimcap", "desc": "파란 수영모를 쓰고 물안경을 이마에 올린 너구리. 표정은 여전히 심드렁. 너구리를 고르면 적용돼요."},
+    {"id": "marble_skin_raccoon_tube", "name": "튜브 너구리", "displayName": "튜브 너구리", "rarity": "epic", "emoji": "🦆", "price": 100, "creature": "raccoon", "skin": "tube", "desc": "줄무늬 수영복에 노란 오리 튜브를 끼운 너구리. 공이 되면 튜브를 두른 공! 너구리를 고르면 적용돼요."},
+    {"id": "marble_skin_raccoon_aloha", "name": "알로하 너구리", "displayName": "알로하 너구리", "rarity": "legend", "emoji": "🌺", "price": 150, "creature": "raccoon", "skin": "aloha", "desc": "꽃무늬 하와이안 수영바지에 꽃목걸이, 머리 위엔 선글라스. 휴가 나온 너구리. 너구리를 고르면 적용돼요."},
+    {"id": "marble_skin_panda_trunks", "name": "수영바지 판다", "displayName": "수영바지 판다", "rarity": "rare", "emoji": "🩳", "price": 50, "creature": "panda", "skin": "trunks", "desc": "파랑·흰 줄무늬 수영바지를 입은 판다. 공이 되면 줄무늬 공! 판다를 고르면 적용돼요."},
+    {"id": "marble_skin_panda_snorkel", "name": "스노클 판다", "displayName": "스노클 판다", "rarity": "epic", "emoji": "🤿", "price": 100, "creature": "panda", "skin": "snorkel", "desc": "스노클 마스크를 쓰고 노란 수영바지를 입은 판다. 주황 대롱이 쏙. 판다를 고르면 적용돼요."},
+    {"id": "marble_skin_panda_lifeguard", "name": "구조대 판다", "displayName": "구조대 판다", "rarity": "legend", "emoji": "🛟", "price": 150, "creature": "panda", "skin": "lifeguard", "desc": "빨간 수영바지에 호루라기, 빨강·흰 구조 튜브를 멘 구조대원 판다. 판다를 고르면 적용돼요."}
   ],
   "marble_balloon": [
     {"id": "marble_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},

@@ -127,7 +127,7 @@ var MarbleRender = (function () {
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/marble/';
     // 에셋 URL 버전 — 서버(routes/api.js)가 assets/marble/** 를 7일 캐시하므로, 같은 이름으로 파일을 교체하면 여기를 올려야 모두가 새 그림을 받는다(2026-09-22)
-    var ASSET_VER = '?v=2';   // v2(2026-09-26): N차 — trampoline 같은 이름 교체
+    var ASSET_VER = '?v=3';   // v2(2026-09-26): N차 — trampoline 같은 이름 교체. v3(2026-09-29): 너구리 5시트 공 칸 원형화
     function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/marble.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
