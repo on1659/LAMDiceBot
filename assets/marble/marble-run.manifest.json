@@ -2449,8 +2449,9 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/raccoon.png",
-        "md5": "0cfc7e0325f6f6d11cee97edfc8c7c0a",
-        "qaStatus": "PASS"
+        "md5": "41d299ec9f9379298d5e4980ca174da6",
+        "qaStatus": "PASS",
+        "ballRounded": "2026-09-29: 공 칸(r1c3·r2c0·r2c2·r2c3) 몸통을 세로로 늘려 원형(링 반지름 60 소스 px 안쪽을 채움) — 타원(120×106)이라 구를 때 링 안에 초록 틈이 남던 것. 원본 스크립트 roundball.py(세션 스크래치), pngquant --nofs"
       },
       "raccoon-sleep": {
         "image": "creatures/raccoon-sleep.png",
@@ -3544,8 +3545,9 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/raccoon-ninja.png",
-        "md5": "b11bc9230e895d27aa9cdbd765022131",
-        "qaStatus": "PASS"
+        "md5": "af00a27a98f195703b4b86f94483fccd",
+        "qaStatus": "PASS",
+        "ballRounded": "2026-09-29: 공 칸(r1c3·r2c0·r2c2·r2c3) 몸통을 세로로 늘려 원형(링 반지름 60 소스 px 안쪽을 채움) — 타원(120×106)이라 구를 때 링 안에 초록 틈이 남던 것. 원본 스크립트 roundball.py(세션 스크래치), pngquant --nofs"
       },
       "raccoon-ninja-sleep": {
         "image": "creatures/raccoon-ninja-sleep.png",
@@ -4126,6 +4128,603 @@
       "gacha/machine/gacha-globe-empty.webp": "559d668ddcb417917de0db7802001f15",
       "gacha/machine/gacha-machine-rail-front.webp": "4b46d4165588cf0cf4cc5695d6cdff80",
       "gacha/machine/gacha-machine.webp": "46a248f80ef4cc1fbb123a010c1bf9d6"
+    }
+  },
+  "skinRaccoonSwimcap": {
+    "batch": "marble-run-skin-raccoon-swimcap-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "수영모 너구리(marble_skin_raccoon_swimcap, rare). Codex exec 생성만, 리팩·판정 Claude. 채택 main 3·sleep 3·scuffle 2; verify: r2c2 진흙 점이 y-run 2개 — 의도된 위성",
+    "assets": {
+      "raccoon-swimcap": {
+        "image": "creatures/raccoon-swimcap.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/raccoon-swimcap.webp",
+        "md5": "4c7ed05149cfe0ddc87636cdf6b644e4",
+        "qaStatus": "PASS",
+        "ballRounded": "2026-09-29: 공 칸(r1c3·r2c0·r2c2·r2c3) 몸통을 세로로 늘려 원형(링 반지름 60 소스 px 안쪽을 채움) — 타원(120×106)이라 구를 때 링 안에 초록 틈이 남던 것. 원본 스크립트 roundball.py(세션 스크래치), pngquant --nofs"
+      },
+      "raccoon-swimcap-sleep": {
+        "image": "creatures/raccoon-swimcap-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-swimcap-sleep.webp",
+        "md5": "1ae7f3ad6d1da72db04e4468e8b682c3",
+        "qaStatus": "PASS"
+      },
+      "raccoon-swimcap-scuffle": {
+        "image": "creatures/raccoon-swimcap-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-swimcap-scuffle.webp",
+        "md5": "97f4c3ae6d50e9e832a695d70578d373",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRaccoonTube": {
+    "batch": "marble-run-skin-raccoon-tube-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "튜브 너구리(marble_skin_raccoon_tube, epic). 채택 main 1(투명 배경)·sleep 3·scuffle 2; verify ALL_OK",
+    "assets": {
+      "raccoon-tube": {
+        "image": "creatures/raccoon-tube.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/raccoon-tube.webp",
+        "md5": "9500af719b4ed8641facc26c4ee03bf3",
+        "qaStatus": "PASS",
+        "ballRounded": "2026-09-29: 공 칸(r1c3·r2c0·r2c2·r2c3) 몸통을 세로로 늘려 원형(링 반지름 60 소스 px 안쪽을 채움) — 타원(120×106)이라 구를 때 링 안에 초록 틈이 남던 것. 원본 스크립트 roundball.py(세션 스크래치), pngquant --nofs"
+      },
+      "raccoon-tube-sleep": {
+        "image": "creatures/raccoon-tube-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-tube-sleep.webp",
+        "md5": "5e0b0a9a5a736591def666fb378e3e96",
+        "qaStatus": "PASS"
+      },
+      "raccoon-tube-scuffle": {
+        "image": "creatures/raccoon-tube-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-tube-scuffle.webp",
+        "md5": "24b1fc05f842f2409af5f0d4cbf401ec",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRaccoonAloha": {
+    "batch": "marble-run-skin-raccoon-aloha-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "알로하 너구리(marble_skin_raccoon_aloha, legend). 채택 main 1·sleep 1·scuffle 2; 배치 QA halo 14/3px 는 꽃목걸이 분홍 꽃 오탐(자홍 배경 검출용 게이트), verify ALL_OK",
+    "assets": {
+      "raccoon-aloha": {
+        "image": "creatures/raccoon-aloha.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/raccoon-aloha.webp",
+        "md5": "651aadbadeece057032d03fdff889924",
+        "qaStatus": "PASS",
+        "ballRounded": "2026-09-29: 공 칸(r1c3·r2c0·r2c2·r2c3) 몸통을 세로로 늘려 원형(링 반지름 60 소스 px 안쪽을 채움) — 타원(120×106)이라 구를 때 링 안에 초록 틈이 남던 것. 원본 스크립트 roundball.py(세션 스크래치), pngquant --nofs"
+      },
+      "raccoon-aloha-sleep": {
+        "image": "creatures/raccoon-aloha-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-aloha-sleep.webp",
+        "md5": "26c4ea2c40a9fa0863b6ce0ce9e667f0",
+        "qaStatus": "PASS"
+      },
+      "raccoon-aloha-scuffle": {
+        "image": "creatures/raccoon-aloha-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/raccoon-aloha-scuffle.webp",
+        "md5": "94be037dc0003af877e87f285af64e62",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaTrunks": {
+    "batch": "marble-run-skin-panda-trunks-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "수영바지 판다(marble_skin_panda_trunks, rare). 채택 main 1·sleep 3·scuffle 2; r0c2 '!' 위성·r4c0 충격선은 기본 판다와 같은 예외",
+    "assets": {
+      "panda-trunks": {
+        "image": "creatures/panda-trunks.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/panda-trunks.webp",
+        "md5": "4a1f232ade86b7937fbde4c64a148e48",
+        "qaStatus": "PASS"
+      },
+      "panda-trunks-sleep": {
+        "image": "creatures/panda-trunks-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-trunks-sleep.webp",
+        "md5": "b4ccd67275818edf19cce29187dadd38",
+        "qaStatus": "PASS"
+      },
+      "panda-trunks-scuffle": {
+        "image": "creatures/panda-trunks-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-trunks-scuffle.webp",
+        "md5": "caffcc4e024a61894a2d5118da24e6c5",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaSnorkel": {
+    "batch": "marble-run-skin-panda-snorkel-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "스노클 판다(marble_skin_panda_snorkel, epic). 채택 main 1·sleep 2·scuffle 2; r4c0 충격선이 몸 외곽선에 붙어 칸을 넘쳐 row4 안전 축소(0.568→0.544) 적용",
+    "assets": {
+      "panda-snorkel": {
+        "image": "creatures/panda-snorkel.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/panda-snorkel.webp",
+        "md5": "d40822fa5f7310cc13f905b669f4c38e",
+        "qaStatus": "PASS"
+      },
+      "panda-snorkel-sleep": {
+        "image": "creatures/panda-snorkel-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-snorkel-sleep.webp",
+        "md5": "304e422abf0f1a81cf2a91d1706fd341",
+        "qaStatus": "PASS"
+      },
+      "panda-snorkel-scuffle": {
+        "image": "creatures/panda-snorkel-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-snorkel-scuffle.webp",
+        "md5": "1afe9b9c8890651ad689ce01f22f2a2d",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaLifeguard": {
+    "batch": "marble-run-skin-panda-lifeguard-2026-09-29",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md",
+    "note": "구조대 판다(marble_skin_panda_lifeguard, legend). 채택 main 1·sleep 1·scuffle 2; 기본 판다와 같은 위성 예외",
+    "assets": {
+      "panda-lifeguard": {
+        "image": "creatures/panda-lifeguard.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/panda-lifeguard.webp",
+        "md5": "479d9c076b3d45c0e19db10d581d5a61",
+        "qaStatus": "PASS"
+      },
+      "panda-lifeguard-sleep": {
+        "image": "creatures/panda-lifeguard-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-lifeguard-sleep.webp",
+        "md5": "33a27c006f4cade8b8bfc38f5a658336",
+        "qaStatus": "PASS"
+      },
+      "panda-lifeguard-scuffle": {
+        "image": "creatures/panda-lifeguard-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-lifeguard-scuffle.webp",
+        "md5": "220f39627d98a751985f646fccf2083d",
+        "qaStatus": "PASS"
+      }
     }
   }
 }
