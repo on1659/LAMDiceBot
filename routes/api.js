@@ -122,6 +122,19 @@ function setupRoutes(app) {
     app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
     app.get('/free/marble/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/marble\//, '/free/deguri/')));
 
+    // 디자인 목업 (외부 리뷰용, 유저 동선과 무관) — /main 허브, /1 /2 … 각 목업. 파일은 mockups/ 정적 폴더.
+    const MOCKUP_DIR = path.join(__dirname, '..', 'mockups');
+    app.get('/main', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.sendFile(path.join(MOCKUP_DIR, 'index.html'));
+    });
+    app.get('/:mockupNo(\\d{1,2})', (req, res, next) => {
+        const file = path.join(MOCKUP_DIR, req.params.mockupNo + '.html');
+        if (!fs.existsSync(file)) return next();
+        res.setHeader('Cache-Control', 'no-cache');
+        res.sendFile(file);
+    });
+
     const freeHtmlPath = path.join(__dirname, '..', 'free.html');
 
     // 방 링크(자유 방·서버 방 공통) — free.html의 OG 메타를 방 정보로 교체해 내려준다.

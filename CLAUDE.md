@@ -88,3 +88,9 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
   가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
 - 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수
+
+## Design System
+
+UI·화면 결정 전에 항상 `DESIGN.md`를 읽는다. 서체·색·간격·모서리·움직임의 기준값이 거기 있다.
+사용자 승인 없이 벗어나지 않는다. QA·리뷰에서는 DESIGN.md와 다른 코드를 지적한다.
+홈 리뉴얼 목업 5종은 `mockups/`(테스트 서버 `/main`, `/1`~`/5`)에서 비교 중이다.
