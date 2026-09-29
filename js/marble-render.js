@@ -840,7 +840,8 @@ var MarbleRender = (function () {
             // 줌아웃(zoom<1)이면 화면이 논리 뷰보다 넓다 — 덮어야 할 범위를 줌으로 늘린다
             var padX = (view.w / cam.zoom - view.w) / 2 + ts, padY = (view.h / cam.zoom - view.h) / 2 + ts;
             // 줌 시 가로 초점이 움직여도 빈 곳이 없도록 트랙 폭 밖으로 한 타일씩 더 깐다
-            var y0 = toScreenY(Math.floor((cam.y - padY) / ts) * ts - ts);
+            // 첫 줄은 화면 위 끝(월드 cam.y - view.h/2/zoom)보다 위에서 — padY 로 잡으면 폰 세로(view.h 1120)에서 위쪽 띠가 비어 하늘이 비친다
+            var y0 = toScreenY(Math.floor((cam.y - view.h / 2 / cam.zoom) / ts) * ts - ts);
             ctx.save(); ctx.beginPath(); ctx.rect(-padX, Math.max(-padY, topY), view.w + padX * 2, view.h + padY * 2); ctx.clip();
             if (tile) {
                 for (var y = y0; y < view.h + padY; y += ts) for (var x = -padX; x < view.w + padX; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지
@@ -2441,7 +2442,7 @@ var MarbleRender = (function () {
             updateHud();
             ctx.save();
             ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
-            ctx.imageSmoothingEnabled = (view.scale * cam.zoom) % 1 !== 0;
+            ctx.imageSmoothingEnabled = true;   // 그림은 전부 4배 원본을 줄여 그린다(SRC_SCALE) — 정수 배율(PC 줌 1)에서 끄면 최근접 축소로 잔디 타일이 스크롤마다 지글거린다
             // 줌: 화면 중심 기준 확대 + 가로 초점 이동 (세로는 toScreenY 가 cam.y 로 처리)
             ctx.save();
             var shk = quakeShake(t); ctx.translate(shk.x, shk.y);   // 지진 — 세계만 흔들린다(HUD 는 바깥)
