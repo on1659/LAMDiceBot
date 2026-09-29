@@ -300,6 +300,24 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
   .veh, .mb, .pill .dot { animation: none !important; }
   .btn, .grow .sq { transition: none; }
 }
+
+/* ── 서버 고르기 추가분 ── */
+.search { display: flex; gap: 8px; flex: 1; min-width: 220px; }
+.search input { flex: 1; min-width: 0; }
+.cont { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.cont .txt2 { flex: 1; min-width: 200px; }
+.room .thumb .mark { font-family: var(--display, inherit); font-size: 22px; font-weight: 800; }
+.mems { display: grid; }
+.mem { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line, #ddd); font-size: 14px; }
+.mem:last-child { border-bottom: 0; }
+.mem .dot { width: 8px; height: 8px; border-radius: 50%; background: #22A05B; flex: none; }
+.mem .dot.off { background: var(--ink-3, #999); }
+.mem .who { flex: 1; }
+.mem .who small { color: var(--ink-3, #999); margin-left: 6px; font-size: 12px; }
+.mem .acts { display: flex; gap: 6px; }
+.top .actions .who { font-weight: 700; font-size: 14px; }
+#screen-lobby .eyebrow a, #screen-lobby .meta a { color: inherit; }
+.fine { font-size: 13px; color: var(--ink-3); }
 .mnav { color: inherit; text-decoration: underline; text-underline-offset: 3px; margin: 0 4px; font: inherit; opacity: .85; }
 </style>
 
@@ -492,6 +510,65 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
   </div>
 </main>
 
+
+<!-- ═══════════ 서버 고르기 (로그인 뒤) ═══════════ -->
+<main id="screen-server" class="lobby" hidden>
+  <div class="wrap">
+    <div class="lobby-head">
+      <div>
+        <p class="eyebrow">우리 팀 서버 · 기록이 쌓이는 방</p>
+        <h1>서버 고르기 <span class="count num" id="srvCount">4</span></h1>
+      </div>
+      <div class="me" id="srvMe" hidden><span class="av">라</span><span><b>라온</b>으로 로그인</span><button type="button" class="btn sm" data-logout>로그아웃</button></div>
+    </div>
+
+    <div id="srvLoggedOut" hidden>
+      <div class="card invite" style="max-width:600px">
+        <h3>서버는 로그인이 필요해요</h3>
+        <p>이름과 숫자 암호코드만 있으면 돼요. 이메일 없음. 서버에 들어가면 우리 팀끼리 기록과 랭킹이 쌓여요.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <button type="button" class="btn blue sm" data-open-panel="login">로그인</button>
+          <button type="button" class="btn soft sm" data-open-panel="register">회원가입</button>
+          <button type="button" class="btn sm" data-screen-go="home">가입 없이 자유로 놀기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="srvLoggedIn">
+      <div class="card invite cont">
+        <div class="txt2"><div class="eyebrow" style="margin-bottom:2px">지난번에 놀던 서버</div><b style="font-size:18px">LAMDice :)</b><div style="font-size:13px;opacity:.75">멤버 3 · 온라인 2 · 열린 방 1</div></div>
+        <button type="button" class="btn blue" data-enter="s1">이 서버로 계속</button>
+      </div>
+      <div class="tools">
+        <div class="search"><input class="txt" id="srvSearch" placeholder="서버 이름 검색" autocomplete="off"><button type="button" class="btn sm">검색</button></div>
+        <div class="right">
+          <button type="button" class="btn sm" data-open-panel="manage">내 서버 관리</button>
+          <button type="button" class="btn blue sm" data-open-panel="create">새 서버 만들기</button>
+        </div>
+      </div>
+      <div class="lobby-grid">
+        <div>
+          <ul class="rooms" id="servers"></ul>
+        </div>
+        <aside class="side">
+          <div class="card">
+            <h3>서버가 뭐예요?</h3>
+            <div class="rl"><span>우리 팀만의 방</span><span class="dots"></span><span class="r">기록·랭킹</span></div>
+            <div class="rl"><span>참여코드를 걸면</span><span class="dots"></span><span class="r">아는 사람만</span></div>
+            <div class="rl"><span>공개 서버는</span><span class="dots"></span><span class="r">방장이 승인</span></div>
+          </div>
+          <div class="card">
+            <h3>내 서버</h3>
+            <div class="rl"><span>LAMDice :)</span><span class="dots"></span><span class="r hot">승인 대기 1명</span></div>
+            <button type="button" class="btn soft sm" style="margin-top:10px" data-open-panel="manage">멤버 관리</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <div class="lobby-cta"><button type="button" class="btn blue big" data-open-panel="create">새 서버 만들기</button></div>
+  </div>
+</main>
+
 <div class="ad-slot">AD · 광고 자리 (본문 아래, 콘텐츠와 분리)</div>
 
 <footer>
@@ -521,6 +598,58 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
     <div class="field"><label for="sheetName">내 이름</label><input class="txt" id="sheetName" maxlength="8" value="라온"></div>
     <div class="switch"><span>비공개 방<small>링크를 아는 사람만 들어와요</small></span><button type="button" class="tog" role="switch" aria-checked="false" aria-label="비공개 방"></button></div>
     <button type="button" class="btn blue big" id="btnCreate"><img class="ic px" src="/mockups/assets/ic-link.png" alt="">방 만들고 링크 받기</button>
+  </div>
+</div>
+
+
+<!-- 서버 관련 시트: 로그인 / 회원가입 / 새 서버 / 참여코드 / 내 서버 관리 -->
+<div class="sheet" id="sheet2" hidden>
+  <div class="sheet-panel" data-panel="login" role="dialog" aria-modal="true" hidden>
+    <h2>로그인 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field"><label for="loginName">이름</label><input class="txt" id="loginName" maxlength="20" placeholder="가입할 때 쓴 이름" value="라온"></div>
+    <div class="field"><label for="loginPin">암호코드 (4~6자리 숫자)</label><input class="txt" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="숫자만" value="1234"></div>
+    <button type="button" class="btn blue big" id="doLogin">로그인</button>
+    <p class="fine" style="text-align:center;font-size:13px">처음이에요? <a href="#" data-open-panel="register">회원가입</a> · 서버 방 링크로 들어왔다면 로그인 뒤 그 방으로 바로 가요</p>
+  </div>
+  <div class="sheet-panel" data-panel="register" role="dialog" aria-modal="true" hidden>
+    <h2>회원가입 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <p style="font-size:14px;opacity:.8">이메일 없이 이름과 숫자 암호코드만 정해요. 30초면 끝.</p>
+    <div class="field"><label for="regName">이름 (다른 사람에게 보여요)</label><input class="txt" id="regName" maxlength="20" placeholder="2~20자" value="라온"></div>
+    <div class="field"><label for="regPin">암호코드 (4~6자리 숫자)</label><input class="txt" id="regPin" type="password" inputmode="numeric" maxlength="6" placeholder="숫자만" value="1234"></div>
+    <div class="field"><label for="regPin2">암호코드 확인</label><input class="txt" id="regPin2" type="password" inputmode="numeric" maxlength="6" placeholder="한 번 더" value="1234"></div>
+    <button type="button" class="btn blue big" id="doRegister">가입하고 서버 고르기</button>
+    <p class="fine" style="text-align:center;font-size:13px">이미 계정이 있어요? <a href="#" data-open-panel="login">로그인</a></p>
+  </div>
+  <div class="sheet-panel" data-panel="create" role="dialog" aria-modal="true" hidden>
+    <h2>새 서버 만들기 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field"><label for="csName">서버 이름 (2~20자)</label><input class="txt" id="csName" maxlength="20" placeholder="예: 개발2팀 점심조" value="마케팅팀 커피조"></div>
+    <div class="field"><label for="csDesc">설명 (선택, 100자)</label><input class="txt" id="csDesc" maxlength="100" placeholder="어떤 서버인지 한 줄" value="매일 3시 커피 내기"></div>
+    <div class="field"><label for="csCode">참여코드 (비워두면 공개 서버)</label><input class="txt" id="csCode" maxlength="20" placeholder="4~20자, 영문·숫자" value=""></div>
+    <p class="fine" style="font-size:13px;opacity:.8">공개 서버는 누구나 가입 신청할 수 있고 방장이 승인해요. 참여코드를 걸면 코드를 아는 사람만 바로 들어와요.</p>
+    <button type="button" class="btn blue big" id="doCreate">서버 만들기</button>
+  </div>
+  <div class="sheet-panel" data-panel="code" role="dialog" aria-modal="true" hidden>
+    <h2>참여코드 입력 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <p style="font-size:14px;opacity:.8"><b id="codeServerName">디자인팀 야식회</b> 서버는 참여코드가 있어요. 방장에게 받은 코드를 넣어 주세요.</p>
+    <div class="field"><label for="codeInput">참여코드</label><input class="txt" id="codeInput" type="password" maxlength="20" placeholder="4~20자" value="cafe2026"></div>
+    <button type="button" class="btn blue big" id="doCode">입장</button>
+  </div>
+  <div class="sheet-panel" data-panel="manage" role="dialog" aria-modal="true" hidden>
+    <h2>내 서버 관리 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field">
+      <label>LAMDice :) · 비공개 · 멤버 3 · 승인 대기 1</label>
+      <div class="mems">
+        <div class="mem"><i class="dot"></i><span class="who">라온<small>방장 · 나</small></span><span class="acts"></span></div>
+        <div class="mem"><i class="dot"></i><span class="who">민수<small>멤버 · 온라인</small></span><span class="acts"><button type="button" class="btn sm">강퇴</button></span></div>
+        <div class="mem"><i class="dot off"></i><span class="who">지우<small>멤버 · 오프라인</small></span><span class="acts"><button type="button" class="btn sm">강퇴</button></span></div>
+        <div class="mem"><i class="dot off"></i><span class="who">하루<small>승인 대기</small></span><span class="acts"><button type="button" class="btn blue sm" data-approve>승인</button><button type="button" class="btn sm" data-reject>거절</button></span></div>
+      </div>
+    </div>
+    <div class="field"><label>참여코드</label><div class="search"><input class="txt" value="lam-2026" readonly><button type="button" class="btn soft sm" data-copy="lam-2026">복사</button></div></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+      <button type="button" class="btn sm" data-close-panel>닫기</button>
+      <button type="button" class="btn sm" style="color:#C8281A" data-danger>서버 삭제</button>
+    </div>
   </div>
 </div>
 
@@ -591,6 +720,135 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
   function toast(msg) { var old = $('.toast'); if (old) old.remove(); var t = document.createElement('div'); t.className = 'toast'; t.innerHTML = '<img class="ic px" src="/mockups/assets/ic-check.png" alt="">' + msg; document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.remove(); }, 2600); }
   $('#btnMakeServer').addEventListener('click', function () { toast('회원가입 → 서버 만들기 화면으로 이어져요 (목업)'); });
   setStake('커피'); renderRooms();
+
+  // ── 서버 고르기 · 로그인 · 서버 로비 (목업 추가분) ──
+  var UI = {"P": "btn blue", "S": "btn soft", "G": "btn", "receipt": false};
+  var loggedIn = false, lobbyMode = 'free', myName = '라온', codeTarget = null, curServer = null;
+  var servers = [
+    { id: 's1', name: 'LAMDice :)',     owner: 'LAM',  members: 3,  online: 2, open: 1, priv: true,  state: 'joined', mine: true },
+    { id: 's2', name: '개발2팀 점심조', owner: '서연', members: 8,  online: 5, open: 2, priv: false, state: 'open' },
+    { id: 's3', name: '디자인팀 야식회', owner: '하루', members: 5,  online: 1, open: 0, priv: true,  state: 'code' },
+    { id: 's4', name: '헬스장 5시',     owner: '민수', members: 12, online: 4, open: 1, priv: false, state: 'pending' }
+  ];
+  var STATE_LABEL = { joined: '가입됨', open: '참여 가능', code: '참여코드', pending: '승인 대기' };
+  function bt(cls, label, attrs) { return '<button type="button" class="' + cls + ' sm"' + (attrs || '') + '>' + label + '</button>'; }
+  function byId(id) { return servers.filter(function (x) { return x.id === id; })[0]; }
+  function renderServers() {
+    var el = $('#servers'); if (!el) return;
+    var q = ($('#srvSearch') && $('#srvSearch').value.trim()) || '';
+    var list = servers.filter(function (s) { return !q || s.name.indexOf(q) >= 0; });
+    if (UI.receipt) {
+      el.innerHTML = list.map(function (s) {
+        var act = s.state === 'joined' ? bt('btn', '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt('btn ghost', '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt('btn ghost', '참여코드', ' data-code="' + s.id + '"') : '<span class="st live">승인 대기 중</span>';
+        return '<li class="room"><div class="t">' + (s.priv ? '<img class="ic px" src="/mockups/assets/ic-lock.png" alt="">' : '<img class="ic px" src="/mockups/assets/ic-people.png" alt="">') + s.name + '<span class="st ' + (s.state === 'pending' ? 'live' : 'wait') + '">' + STATE_LABEL[s.state] + '</span></div>' +
+          '<div class="sub"><span>방장 ' + s.owner + '</span><span class="num">멤버 ' + s.members + '</span><span class="num">온라인 ' + s.online + '</span><span class="num">열린 방 ' + s.open + '</span></div>' +
+          '<div class="act">' + act + '</div></li>';
+      }).join('');
+    } else {
+      el.innerHTML = list.map(function (s) {
+        var pills = '<span class="pill ' + (s.state === 'pending' ? 'live' : 'wait') + '"><i class="dot"></i>' + STATE_LABEL[s.state] + '</span>' + (s.priv ? '<span class="chip"><img class="ic px" src="/mockups/assets/ic-lock.png" alt="" style="width:14px;height:14px">비공개</span>' : '');
+        var act = s.state === 'joined' ? bt(UI.P, '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt(UI.P, '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt(UI.S, '참여코드 입력', ' data-code="' + s.id + '"') : bt(UI.G, '승인 대기 중', ' disabled');
+        return '<li class="room"><div class="thumb"><span class="mark">' + s.name.charAt(0) + '</span></div>' +
+          '<div><div class="title">' + s.name + ' ' + pills + '</div>' +
+          '<div class="sub"><span>방장 <b>' + s.owner + '</b></span><span class="num">멤버 <b>' + s.members + '</b></span><span class="num">온라인 <b>' + s.online + '</b></span><span class="num">열린 방 <b>' + s.open + '</b></span></div></div>' +
+          '<div class="act">' + act + '</div></li>';
+      }).join('');
+    }
+    var c = $('#srvCount'); if (c) c.textContent = servers.length;
+  }
+  if ($('#srvSearch')) $('#srvSearch').addEventListener('input', renderServers);
+
+  function setScreen(s) {
+    ['home', 'server', 'lobby'].forEach(function (k) { var el = $('#screen-' + k); if (el) el.hidden = k !== s; });
+    $$('#mockBar [data-screen]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.screen === s)); });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function bindTop() {
+    $$('.top .actions').forEach(function (acts) { $$('button', acts).forEach(function (b) {
+      if (b.hasAttribute('data-logout')) b.onclick = function () { setLogin(false); toast('로그아웃했어요'); };
+      else if (/회원가입/.test(b.textContent)) b.onclick = function () { openPanel('register'); };
+      else if (/로그인/.test(b.textContent)) b.onclick = function () { openPanel('login'); };
+    }); });
+  }
+  function setLogin(v, name) {
+    loggedIn = v; if (name) myName = name;
+    var lo = $('#srvLoggedOut'), li = $('#srvLoggedIn'); if (lo) lo.hidden = v; if (li) li.hidden = !v;
+    var me = $('#srvMe'); if (me) { me.hidden = !v; if (v) { me.querySelector('b').textContent = myName; var av = me.querySelector('.av'); if (av) av.textContent = myName.charAt(0); } }
+    $$('.top .actions').forEach(function (acts) {
+      if (!acts.dataset.orig) acts.dataset.orig = acts.innerHTML;
+      acts.innerHTML = v ? '<span class="who">' + myName + '</span>' + bt(UI.G, '로그아웃', ' data-logout') : acts.dataset.orig;
+    });
+    bindTop();
+    $$('#mockBar [data-login]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.login === 'in') === v)); });
+    if (!v && lobbyMode === 'server') setLobbyMode('free');
+    renderServers();
+  }
+  function openPanel(name) {
+    var host = $('#sheet2'); if (!host) return;
+    $$('.sheet-panel', host).forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+    host.hidden = false;
+    var f = host.querySelector('.sheet-panel:not([hidden]) input:not([readonly])'); if (f) setTimeout(function () { f.focus(); }, 50);
+  }
+  function closePanel() { var host = $('#sheet2'); if (host) host.hidden = true; }
+  if ($('#sheet2')) $('#sheet2').addEventListener('click', function (e) { if (e.target === e.currentTarget) closePanel(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+  function memberLines(s) {
+    var names = ['라온', '민수', '지우', '하루', '서연', '준호', '유나', '도윤', '하은', '시우', '지아', '민재'].slice(0, s.members);
+    return names.map(function (n, i) { return '<div class="mem"><i class="dot' + (i < s.online ? '' : ' off') + '"></i><span class="who">' + n + (i === 0 ? '<small>방장</small>' : '') + '</span></div>'; }).join('');
+  }
+  function setLobbyMode(m) {
+    lobbyMode = m; if (m === 'server' && !curServer) curServer = servers[0];
+    var eb = $('#screen-lobby .eyebrow') || $('#screen-lobby .meta');
+    if (eb) eb.innerHTML = m === 'server'
+      ? '<a href="#" data-screen-go="server">← 서버 목록</a> · <b>' + curServer.name + '</b> 서버 · 멤버 ' + curServer.members + ' · 온라인 ' + curServer.online
+      : '자유 방 · 링크로 들어온 친구는 여기서 만나요';
+    var slot = $('#lobbySrvSlot');
+    if (!slot) { slot = document.createElement('div'); slot.id = 'lobbySrvSlot'; var side = $('#screen-lobby .side'); if (side) side.insertBefore(slot, side.firstChild); else return; }
+    slot.hidden = m !== 'server';
+    if (m === 'server') {
+      slot.innerHTML = UI.receipt
+        ? '<div class="k">서버 멤버 · 온라인 ' + curServer.online + '/' + curServer.members + '</div><div class="mems">' + memberLines(curServer) + '</div><hr class="dash"><div class="k">서버 랭킹 · 이번 달 많이 쏜 사람</div><div class="rl"><span>민수</span><span class="dots"></span><span class="r">5번</span></div><div class="rl"><span>하루</span><span class="dots"></span><span class="r">3번</span></div><div class="rl"><span>라온</span><span class="dots"></span><span class="r">1번</span></div><hr class="dash">'
+        : '<div class="card"><h3>서버 멤버 <span class="num" style="font-size:14px;opacity:.7">온라인 ' + curServer.online + '/' + curServer.members + '</span></h3><div class="mems">' + memberLines(curServer) + '</div></div>' +
+          '<div class="card"><h3>서버 랭킹 · 이번 달</h3><div class="rl"><span>민수</span><span class="dots"></span><span class="r">5번 쏨</span></div><div class="rl"><span>하루</span><span class="dots"></span><span class="r">3번</span></div><div class="rl"><span>라온</span><span class="dots"></span><span class="r">1번</span></div></div>';
+    }
+    $$('#mockBar [data-lobby]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.lobby === m)); });
+  }
+  function enterServer(id) { var s = byId(id); if (!s) return; curServer = s; if (!loggedIn) setLogin(true); setLobbyMode('server'); setScreen('lobby'); toast(s.name + ' 서버로 들어왔어요'); }
+  $$('[data-open-panel]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); openPanel(b.dataset.openPanel); }); });
+  document.addEventListener('click', function (e) {
+    var t;
+    if ((t = e.target.closest('[data-enter]'))) { enterServer(t.dataset.enter); }
+    else if ((t = e.target.closest('[data-apply]'))) { var s = byId(t.dataset.apply); if (s) { s.state = 'pending'; renderServers(); toast('가입 신청했어요. 방장이 승인하면 들어갈 수 있어요'); } }
+    else if ((t = e.target.closest('[data-code]'))) { codeTarget = t.dataset.code; var s2 = byId(codeTarget); var cn = $('#codeServerName'); if (cn) cn.textContent = s2 ? s2.name : ''; openPanel('code'); }
+    else if ((t = e.target.closest('[data-approve]'))) { var row = t.closest('.mem'); row.querySelector('small').textContent = '멤버 · 방금 승인'; row.querySelector('.dot').classList.remove('off'); row.querySelector('.acts').innerHTML = bt(UI.G, '강퇴'); toast('승인했어요'); }
+    else if ((t = e.target.closest('[data-reject]'))) { t.closest('.mem').remove(); toast('거절했어요'); }
+    else if ((t = e.target.closest('[data-danger]'))) { toast('서버 삭제는 한 번 더 확인하는 화면이 떠요 (목업)'); }
+    else if ((t = e.target.closest('[data-screen-go]'))) { e.preventDefault(); setScreen(t.dataset.screenGo); }
+    else if ((t = e.target.closest('[data-close-panel]'))) { closePanel(); }
+  });
+  if ($('#doLogin')) $('#doLogin').onclick = function () { var n = $('#loginName').value.trim() || '라온', pin = $('#loginPin').value.trim(); if (!/^\d{4,6}$/.test(pin)) { toast('암호코드는 4~6자리 숫자예요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast(n + '님, 로그인했어요'); };
+  if ($('#doRegister')) $('#doRegister').onclick = function () { var n = $('#regName').value.trim() || '라온', p1 = $('#regPin').value.trim(), p2 = $('#regPin2').value.trim(); if (!/^\d{4,6}$/.test(p1)) { toast('암호코드는 4~6자리 숫자예요'); return; } if (p1 !== p2) { toast('암호코드 확인이 달라요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast('가입했어요. 이제 서버를 고르세요'); };
+  if ($('#doCreate')) $('#doCreate').onclick = function () { var n = $('#csName').value.trim(); if (n.length < 2) { toast('서버 이름은 2자 이상이에요'); return; } var code = $('#csCode').value.trim(); servers.unshift({ id: 's' + Date.now(), name: n, owner: myName, members: 1, online: 1, open: 0, priv: !!code, state: 'joined', mine: true }); closePanel(); renderServers(); toast('서버를 만들었어요' + (code ? '. 참여코드를 친구에게 알려주세요' : '. 공개 서버라 가입 신청이 오면 승인해 주세요')); };
+  if ($('#doCode')) $('#doCode').onclick = function () { var v = $('#codeInput').value.trim(); if (v.length < 4) { toast('참여코드는 4자 이상이에요'); return; } var s = byId(codeTarget); if (s) { s.state = 'joined'; renderServers(); } closePanel(); toast('가입됐어요. 이제 들어갈 수 있어요'); };
+  // 홈의 '서버 만들기' / '이미 계정이 있어요' 를 실제 흐름에 연결
+  (function () {
+    var old = $('#btnMakeServer'); if (old) { var nb = old.cloneNode(true); old.parentNode.replaceChild(nb, old); nb.addEventListener('click', function () { openPanel(loggedIn ? 'create' : 'register'); }); }
+    var have = $$('.team .cta button').filter(function (b) { return /계정/.test(b.textContent); })[0]; if (have) have.addEventListener('click', function () { openPanel('login'); });
+  })();
+  // 목업 바: 서버 고르기 화면 + 로그인/로비 상태 전환
+  (function () {
+    var bar = $('#mockBar'); if (!bar) return;
+    var seg = bar.querySelector('.seg');
+    var b = document.createElement('button'); b.type = 'button'; b.dataset.screen = 'server'; b.setAttribute('aria-pressed', 'false'); b.textContent = '서버 고르기';
+    seg.insertBefore(b, seg.children[1]); b.addEventListener('click', function () { setScreen('server'); });
+    var seg2 = document.createElement('span'); seg2.className = 'seg'; seg2.setAttribute('role', 'group'); seg2.innerHTML = '<button type="button" data-login="out" aria-pressed="true">로그아웃 상태</button><button type="button" data-login="in" aria-pressed="false">로그인 상태</button>';
+    var seg3 = document.createElement('span'); seg3.className = 'seg'; seg3.setAttribute('role', 'group'); seg3.innerHTML = '<button type="button" data-lobby="free" aria-pressed="true">자유 로비</button><button type="button" data-lobby="server" aria-pressed="false">서버 로비</button>';
+    var note = bar.querySelector('.note'); bar.insertBefore(seg2, note); bar.insertBefore(seg3, note);
+    $$('[data-login]', seg2).forEach(function (x) { x.addEventListener('click', function () { setLogin(x.dataset.login === 'in'); }); });
+    $$('[data-lobby]', seg3).forEach(function (x) { x.addEventListener('click', function () { if (x.dataset.lobby === 'server' && !loggedIn) setLogin(true); setLobbyMode(x.dataset.lobby); setScreen('lobby'); }); });
+  })();
+  bindTop(); renderServers(); setLogin(false); setLobbyMode('free');
+
 })();
 </script>
 
