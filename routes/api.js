@@ -25,7 +25,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'marble'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType marble)의 링크 슬러그
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -111,13 +111,16 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'spin-arena-multiplayer.html'));
     });
 
-    // 데구리 (marble)
-    app.get('/marble', (req, res) => {
+    // 데구리 — gameType 은 marble 그대로, 공개 경로·링크 슬러그만 deguri(사용자 2026-09-29: 직링크에 marble 이 보인다)
+    app.get('/deguri', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'marble-multiplayer.html'));
     });
+    // 옛 데구리 링크(/marble, /marble/:code, /free/marble/:code) → deguri 로 301. /free/:game 일반 라우트보다 먼저 걸어야 슬러그 검사에 안 걸린다
+    app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
+    app.get('/free/marble/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/marble\//, '/free/deguri/')));
 
     const freeHtmlPath = path.join(__dirname, '..', 'free.html');
 
@@ -171,7 +174,7 @@ function setupRoutes(app) {
         '/horse-race':   'horse',
         '/ladder':       'ladder',
         '/spin-arena':   'spin-arena',
-        '/marble':       'marble'
+        '/deguri':       'deguri'
     };
     Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
@@ -313,7 +316,7 @@ function setupRoutes(app) {
 
     app.get('/marble-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(301, `/marble${query}`);
+        return res.redirect(301, `/deguri${query}`);
     });
 
     // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)

@@ -1,4 +1,32 @@
 ========================================
+📋 Summit Log - 2026-09-29 (데구리 공개 경로·직링크 슬러그 marble → deguri)
+========================================
+
+## 변경 파일
+- routes/api.js: 페이지 라우트 `/marble` → `/deguri`(marble-multiplayer.html 서빙), 옛 `/marble`·`/marble/:code`·`/free/marble/:code` 는 301(req.originalUrl 치환 — 쿼리 유지). `/free/:game/:shortcode` 일반 라우트보다 먼저 등록(FREE_GAME_SLUGS 검사에 안 걸리게). FREE_GAME_SLUGS·SERVER_ROOM_DIRECT_PATHS 의 슬러그 'marble' → 'deguri', legacy `/marble-multiplayer.html` 리다이렉트 대상 `/deguri`
+- utils/og-meta.js: GAME_LABELS 키 marble → deguri(링크 미리보기 라벨은 슬러그 키)
+- js/free.js: GAME_LABELS·GAME_ICON·GAME_GRADIENT(슬러그 키) deguri, GAME_PATH_TO_SLUG 'deguri', GAME_PATH_BY_TYPE(gameType 키 'marble') 값 '/deguri'
+- js/shared/free-invite.js: GAME_PATH_TO_SLUG '/deguri' → 'deguri', SLUG_TO_GAME_PATH 'deguri' → '/deguri'(주소창 교체·초대 링크 텍스트)
+- dice-game-multiplayer.html: 로비 → 데구리 이동 href 3개 `/deguri?createRoom|joinRoom=true`
+- docs/GameGuide/NEW-GAME.md: routes 체크리스트 ④⑤ 행에 "공개 슬러그 ≠ gameType 가능(데구리)" 메모 + 슬러그 변경 세트 목록
+
+## 상세 변경 내역
+
+### [경로/슬러그]
+- 사용자 2026-09-29: "데구리 다이렉트링크 보니 marble 이네 deguri 로 바꿔". 유저에게 보이는 URL 슬러그만 바꾸고 내부 gameType 'marble'(gameState.marble·파일 이름·DB 통계·소켓 이벤트)은 그대로 — gameType 까지 바꾸면 통계·저장 키가 갈라진다
+- 옛 링크 호환: 방은 인메모리라 오래 살지 않지만 이미 보낸 링크·북마크를 위해 301 유지
+- 발견(안 고침): `/marble-multiplayer.html` 301 라우트는 정적 파일 미들웨어(app.use(staticFiles))가 먼저 잡아 200 으로 그대로 서빙된다(전부터 그랬음, AutoTest 들이 이 URL 을 쓴다)
+- js/free.js·free-invite.js 는 html 에 ?v= 캐시버스터가 원래 없어 추가하지 않음
+
+## 검증
+- node --check 4개 JS 통과
+- curl(5175): /deguri 200 · /marble → /deguri · /marble?createRoom=true → 쿼리 유지 · /marble/AB12 → /deguri/AB12 · /free/marble/AB12 → /free/deguri/AB12 · /free/deguri/AB12·/deguri/AB12 200
+- puppeteer: 옛 경로 /marble?createRoom=true 로 진입 → 방 생성 → 주소창 /free/deguri/5GPVH, 그 링크 재진입 200, 콘솔 오류 0
+- AutoTest qa-free-link-preview-test(주사위·경마 링크 미리보기) — 아래 서밋 직전 실행 결과 참조
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-29 (예약 시작한 판이 끝나도 주문받기 자동 시작이 안 되던 버그)
 ========================================
 
