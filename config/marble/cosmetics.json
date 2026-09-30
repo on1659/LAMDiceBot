@@ -22,7 +22,8 @@
     {"id": "marble_skin_panda_trunks", "name": "수영바지 판다", "displayName": "수영바지 판다", "rarity": "rare", "emoji": "🩳", "price": 50, "creature": "panda", "skin": "trunks", "desc": "파랑·흰 줄무늬 수영바지를 입은 판다. 공이 되면 줄무늬 공! 판다를 고르면 적용돼요."},
     {"id": "marble_skin_panda_snorkel", "name": "스노클 판다", "displayName": "스노클 판다", "rarity": "epic", "emoji": "🤿", "price": 100, "creature": "panda", "skin": "snorkel", "desc": "스노클 마스크를 쓰고 노란 수영바지를 입은 판다. 주황 대롱이 쏙. 판다를 고르면 적용돼요."},
     {"id": "marble_skin_panda_lifeguard", "name": "구조대 판다", "displayName": "구조대 판다", "rarity": "legend", "emoji": "🛟", "price": 150, "creature": "panda", "skin": "lifeguard", "desc": "빨간 수영바지에 호루라기, 빨강·흰 구조 튜브를 멘 구조대원 판다. 판다를 고르면 적용돼요."},
-    {"id": "marble_skin_ribbonpig_red", "name": "레드 돼지", "displayName": "레드 돼지", "rarity": "rare", "emoji": "🌶️", "price": 50, "creature": "ribbonpig", "skin": "red", "desc": "온몸이 새빨간 돼지. 볼터치는 그대로 분홍! 공이 되면 빨간 공. 돼지를 고르면 적용돼요."},
+    {"id": "marble_skin_ribbonpig_red", "name": "레드 돼지", "displayName": "레드 돼지", "rarity": "rare", "emoji": "🌶️", "price": 50, "creature": "ribbonpig", "skin": "red", "desc": "꼬리 끝과 머리 위에 불꽃이 활활 타는 새빨간 돼지. 공이 되면 불꽃 공! 돼지를 고르면 적용돼요."},
+    {"id": "marble_skin_ribbonpig_gold", "name": "황금 돼지", "displayName": "황금 돼지", "rarity": "epic", "emoji": "🪙", "price": 100, "creature": "ribbonpig", "skin": "gold", "desc": "반짝반짝 빛나는 황금 돼지. 목에 빨간 복매듭과 엽전을 달았어요. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_iron", "name": "강철 돼지", "displayName": "강철 돼지", "rarity": "epic", "emoji": "🔩", "price": 100, "creature": "ribbonpig", "skin": "iron", "desc": "뾰족한 쇠뿔이 달린 강철 투구와 갑옷을 두른 돼지. 공이 되면 쇠공! 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_zhu", "name": "저팔계 돼지", "displayName": "저팔계 돼지", "rarity": "legend", "emoji": "📿", "price": 150, "creature": "ribbonpig", "skin": "zhu", "desc": "승복에 염주, 등에는 쇠스랑을 멘 저팔계로 변신한 돼지. 돼지를 고르면 적용돼요."}
   ],

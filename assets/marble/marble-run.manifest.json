@@ -4727,105 +4727,6 @@
       }
     }
   },
-  "skinRibbonpigIron": {
-    "batch": "marble-run-skin-ribbonpig-iron-2026-09-30",
-    "status": "all-3-picked-up",
-    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
-    "note": "강철 돼지(marble_skin_ribbonpig_iron, epic). Codex 생성 1회(몸싸움만 2회), 이름·디자인은 메이플스토리 아이언 호그 느낌을 말로만 설명(원화 입력 안 함); verify ALL_OK, ball-round ROUND_OK",
-    "assets": {
-      "ribbonpig-iron": {
-        "image": "creatures/ribbonpig-iron.png",
-        "canvas": [
-          640,
-          800
-        ],
-        "grid": [
-          4,
-          5
-        ],
-        "cell": [
-          160,
-          160
-        ],
-        "anchor": [
-          80,
-          150
-        ],
-        "sourcePlaneY": 150,
-        "ballCenter": [
-          80,
-          80
-        ],
-        "ballDiameter": 112,
-        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
-        "targetGamePath": "assets/marble/creatures/ribbonpig-iron.webp",
-        "md5": "9951463860c779b4ae90b5cd8061acee",
-        "qaStatus": "PASS"
-      },
-      "ribbonpig-iron-sleep": {
-        "image": "creatures/ribbonpig-iron-sleep.png",
-        "canvas": [
-          640,
-          160
-        ],
-        "grid": [
-          4,
-          1
-        ],
-        "cell": [
-          160,
-          160
-        ],
-        "anchor": [
-          80,
-          150
-        ],
-        "sourcePlaneY": 150,
-        "frames": [
-          "lying",
-          "breathing",
-          "waking",
-          "sit-up"
-        ],
-        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-sleep.webp",
-        "md5": "7a52a7163243e8ab00f8043e7a2a825f",
-        "qaStatus": "PASS"
-      },
-      "ribbonpig-iron-scuffle": {
-        "image": "creatures/ribbonpig-iron-scuffle.png",
-        "canvas": [
-          640,
-          320
-        ],
-        "grid": [
-          4,
-          2
-        ],
-        "cell": [
-          160,
-          160
-        ],
-        "anchor": [
-          80,
-          150
-        ],
-        "sourcePlaneY": 150,
-        "frames": [
-          "push-lean",
-          "push-step",
-          "push-heave",
-          "push-recoil",
-          "startle-jump",
-          "falling",
-          "dizzy-sit-a",
-          "dizzy-sit-b"
-        ],
-        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-scuffle.webp",
-        "md5": "fc85b2ac25eb31356f69e31ea2b8efb3",
-        "qaStatus": "PASS"
-      }
-    }
-  },
   "skinRibbonpigZhu": {
     "batch": "marble-run-skin-ribbonpig-zhu-2026-09-30",
     "status": "all-3-picked-up",
@@ -4921,6 +4822,303 @@
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-zhu-scuffle.webp",
         "md5": "f4307b7ec832b7c493c3aa72331e85b4",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigIron": {
+    "batch": "marble-run-skin-ribbonpig-iron-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "강철 돼지(marble_skin_ribbonpig_iron, epic). main 1차 그대로, sleep·scuffle 은 v2(main 완성본을 두 번째 입력으로 넣어 갑옷 통일 — 1차는 아르마딜로 판·어깨 견갑으로 제각각이라 사용자 지적); verify ALL_OK, ball-round OK",
+    "assets": {
+      "ribbonpig-iron": {
+        "image": "creatures/ribbonpig-iron.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron.webp",
+        "md5": "9951463860c779b4ae90b5cd8061acee",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-iron-sleep": {
+        "image": "creatures/ribbonpig-iron-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-sleep.webp",
+        "md5": "f000f9816d233e829199b73f3cd99c75",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-iron-scuffle": {
+        "image": "creatures/ribbonpig-iron-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-scuffle.webp",
+        "md5": "37d7b78ce5799c16f5dd847540c17d36",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigRed": {
+    "batch": "marble-run-skin-ribbonpig-red-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "레드 돼지(marble_skin_ribbonpig_red, rare). 리컬러(ribbonpig.red)를 --ref 로 넣고 꼬리·머리 불꽃을 덧그림(색만 빨간 건 밋밋하다는 사용자 피드백). 공 칸 ball-round.py fix --recenter(몸통 원 지름 99→112, 중심 80,80 — 불꽃은 링 밖). ballGeometry 불합격(불꽃 포함 132×126)은 의도된 예외라 --allow-fail; scuffle r0c3 halo 1px(알파 11 분홍 가장자리) 제거",
+    "assets": {
+      "ribbonpig-red": {
+        "image": "creatures/ribbonpig-red.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-red.webp",
+        "md5": "3834e38636d76522f89cfbff5c831b37",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-red-sleep": {
+        "image": "creatures/ribbonpig-red-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-red-sleep.webp",
+        "md5": "262c37ae7538b22e513122346bd5253d",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-red-scuffle": {
+        "image": "creatures/ribbonpig-red-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-red-scuffle.webp",
+        "md5": "e64b4dbebaf4cc2bf083ef7ceacea56e",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigGold": {
+    "batch": "marble-run-skin-ribbonpig-gold-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "황금 돼지(marble_skin_ribbonpig_gold, epic). Codex 1회씩, main 을 두 번째 입력으로 sleep·scuffle 통일(새 브리프 첫 적용). 배치 QA PASS, ball-round OK(반지름 49); verify 는 scuffle r0c3 1px 떨어진 열만",
+    "assets": {
+      "ribbonpig-gold": {
+        "image": "creatures/ribbonpig-gold.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-gold.webp",
+        "md5": "241491f768246821718d15377f533df9",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-gold-sleep": {
+        "image": "creatures/ribbonpig-gold-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-gold-sleep.webp",
+        "md5": "a0e2d20eb9245d795a1b39962e59a240",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-gold-scuffle": {
+        "image": "creatures/ribbonpig-gold-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-gold-scuffle.webp",
+        "md5": "d7b3d071454151117eb634cd114aac51",
         "qaStatus": "PASS"
       }
     }
