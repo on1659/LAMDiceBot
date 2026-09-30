@@ -5124,10 +5124,10 @@
     }
   },
   "skinRibbonpigAngry": {
-    "batch": "marble-run-skin-ribbonpig-angry-2026-09-30",
+    "batch": "marble-run-skin-ribbonpig-angry-2026-09-30-face",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
-    "note": "앵그리 아이언(marble_skin_ribbonpig_angry, legend). 사용자 '강철 돼지가 너무 귀엽다' → 강철 돼지는 두고 사나운 버전을 별도 스킨으로. 생성은 배치 marble-run-skin-ribbonpig-iron-2026-09-30-fierce(--ref=ribbonpig-iron, 찌푸린 눈·볼터치 제거·엄니·어두운 쇳빛)에서 1회씩, 이 배치로 옮겨 리팩. 공 칸 ball-round.py fix(반지름 45→46, 진흙·어지러움 공 101·103→116)",
+    "note": "앵그리 아이언(marble_skin_ribbonpig_angry, legend) 얼굴 드러난 판. 사용자 '강철 때문에 돼지가 아니라 큰 무언가 같다' → 투구를 머리 위·뒤만 덮는 가시 모자로, 분홍 돼지 코·귀·찌푸린 눈·엄니가 크게 보이게(--ref=ribbonpig-angry 1차판). 공 칸 ball-round fix(120x108→120x116, 최소 반지름 45 — 귀와 가시 사이 오목, 링 안은 참). 첫 판은 배치 marble-run-skin-ribbonpig-angry-2026-09-30",
     "assets": {
       "ribbonpig-angry": {
         "image": "creatures/ribbonpig-angry.png",
@@ -5155,7 +5155,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/ribbonpig-angry.webp",
-        "md5": "b5d5102009f96ac2b4f8ff1c5672ee05",
+        "md5": "98fb5dc5a3be8b8d4713a0e72724f2b6",
         "qaStatus": "PASS"
       },
       "ribbonpig-angry-sleep": {
@@ -5184,7 +5184,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-angry-sleep.webp",
-        "md5": "a3c488001819a67a40350a561dd84bd5",
+        "md5": "9aa6fa2339c843860142364e32a0b2cb",
         "qaStatus": "PASS"
       },
       "ribbonpig-angry-scuffle": {
@@ -5217,7 +5217,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-angry-scuffle.webp",
-        "md5": "d54f948978392dbf16ab25b496635079",
+        "md5": "141a9afce55b3d062507f8856099654a",
         "qaStatus": "PASS"
       }
     }
