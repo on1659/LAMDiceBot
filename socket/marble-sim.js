@@ -102,10 +102,10 @@ const VAR_BOWL_R = 240, VAR_BOWL_SEGS = 14, VAR_BOWL_GAP_DEG = 11;   // 그릇 �
 const VAR_H = 1000 + 360;         // 구간 높이 (워프 방 WARP_H 만큼 늘어남 — 아래 const 는 이 위에 못 쓰므로 숫자로)
 // 스프링 널빤지(끊긴 경사로 끝 60px, 사용자 요청 2026-09-21 2차): 장전돼 있으면 밟는 놈을 그 자리에서 위·뒤(경사로 시작 쪽)로 쏜다.
 //    한 번 쏘면 SPRING_COOLDOWN_MS 동안 꺼짐(클라가 3·2·1 표시) → 다시 장전. 꺼진 동안은 그냥 경사로 끝 판.
-const SPRING_LEN = 60;
+const SPRING_LEN = 24;             // 스프링 널빤지 길이 — 60 은 너무 컸다, 40% 로(사용자 2026-09-30). 그림(js/marble-render.js)은 조각의 len 에 맞춰 그린다
 const SPRING_VX = 300, SPRING_VY = 640;   // 발사 속도(뒤·위) — 640 은 ≈290px 올라간다(경사로 낙차 160 보다 위)
 const SPRING_COOLDOWN_MS = 3000;
-const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위에 확실히 올라온 뒤) — 스치기만 한 놈은 안 쏨
+const SPRING_ARM_DELAY_MS = 48;   // 밟은 뒤 이만큼 있다 발사(판 위에 확실히 올라온 뒤) — 스치기만 한 놈은 안 쏨. 판을 40% 로 줄이며 같은 비율로(120 그대로면 발사가 18% 줄었다: 공당 0.93 → 0.76, 48 이면 0.99)
 // 독수리(사용자 요청 ⑤): 결승 구멍밭에서 뚜껑을 기다리는 공·통로를 걷는 동물 중 시드로 한 마리를 채서 풍차 옆에 떨어뜨린다(다시 굴러 내려와야 함).
 //    마지막 한 마리도 채 간다. 한 판 여러 번(같은 놈은 한 번만) — 낙하 지점이 시소 옆(손해 ≈10s)이라 감당됨. 남은 놈이 EAGLE_FINAL_ALIVE 이하인
 //    꼴찌 결정전에선 쉬는 시간을 짧게 해 바쁘게 움직이고, 통로에서 달리는 놈(walk)을 뚜껑 앞에서 기다리는 놈보다 3배 우선(사용자 2026-09-21 2차).
@@ -361,7 +361,7 @@ function varietySection(top, rng, ctx) {
             p.push({ kind: 'zzhole', x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, w: VAR_GAP_W, angle: Math.atan2(y2 - y1, x2 - x1) });   // 클라 연출(틈 표시)
             from = k + gw / 2;
         });
-        const ux = (x2 - x1) / L, uy = (y2 - y1) / L, hx = x2 - ux * SPRING_LEN, hy = y2 - uy * SPRING_LEN;   // 경첩 = 끝에서 60 앞
+        const ux = (x2 - x1) / L, uy = (y2 - y1) / L, hx = x2 - ux * SPRING_LEN, hy = y2 - uy * SPRING_LEN;   // 경첩 = 끝에서 SPRING_LEN 앞
         wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, hx, hy);
         p.push({ kind: 'spring', x: hx, y: hy, len: SPRING_LEN, angle: Math.atan2(uy, ux), cooldown: SPRING_COOLDOWN_MS });
     }
