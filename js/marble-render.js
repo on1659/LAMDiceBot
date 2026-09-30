@@ -936,7 +936,7 @@ var MarbleRender = (function () {
                 ctx.save(); ctx.translate(sp.x, toScreenY(sp.y));
                 if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(0,32). 경사로 각도로만 회전 — 휨은 프레임
                     if (leftward) { ctx.rotate(sp.angle + Math.PI); ctx.scale(-1, 1); } else ctx.rotate(sp.angle);
-                    var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
+                    var cw = sp.len, ch = 64 * SRC_SCALE * sp.len / (240 * SRC_SCALE);   // 판 길이(sp.len)에 맞춰 그린다 — 셀 240×64 가 길이 60 짜리 그림. 서버 SPRING_LEN 24(40%, 사용자 2026-09-30)면 24×6.4
                     ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);
                 } else {
                     if (leftward) { ctx.rotate(sp.angle + Math.PI - bendA); ctx.scale(-1, 1); } else ctx.rotate(sp.angle + bendA);
