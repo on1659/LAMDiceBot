@@ -228,6 +228,7 @@ const SECTION_H = { stakes: 480, beehive: 350, sun: 400, dam: 670, windmill: 780
     pendulums: 560, pistons: 600, trampolines: 560, gust: 560, quake: 480 };   // 움직이는 장애물 5(docs/goal/marble-moving-gimmicks.md) — 대포는 "뭔지 모르겠다"(사용자 2026-09-25)라 뺌
 const GIMMICK_NAMES = ['shutter', 'pendulums', 'pistons', 'trampolines', 'gust', 'quake'];   // 판마다 최소 GIMMICK_MIN 개 — 재조합 모듈만 뽑히면 "새 장애물" 느낌이 없다(사용자 2026-09-24)
 const GIMMICK_MIN = 2;
+const SECTION_WEIGHT = { climb: 2 };   // 셔플 가중치(없으면 1) — 클수록 앞쪽에 놓여 자주 뽑힌다. 등반 컵을 좀 더 자주(사용자 2026-09-30)
 const MIDDLE_H_MIN = 4300, MIDDLE_H_MAX = 5300;   // 가운데 모듈 높이 예산 — 트랙 A 가운데 4800. 셔플한 풀에서 합이 MIN 이 될 때까지 MAX 를 안 넘는 것만 담는다(보통 5~9개)
 const TRACK_A_COUNT = 7;              // MIDDLE_SECTIONS 앞 7개 = 트랙 A(rng 없을 때 그 순서 그대로)
 const wallFn = p => (x1, y1, x2, y2) => p.push({ kind: 'wall', x1, y1, x2, y2 });
@@ -612,8 +613,8 @@ function buildTrack(ballCount, rng, crowd, opts) {
     let order;
     if (fixed) order = MIDDLE_SECTIONS.slice(0, TRACK_A_COUNT).map((_, i) => i);
     else {   // 풀 전체 셔플 → 높이 예산 안에서 그리디로 담는다(합이 MIN 될 때까지, MAX 넘는 놈은 건너뜀)
-        const pool = MIDDLE_SECTIONS.map((_, i) => i);
-        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }   // Fisher–Yates
+        const key = MIDDLE_SECTIONS.map(m => Math.pow(rng(), 1 / (SECTION_WEIGHT[m[0]] || 1)));   // 가중 셔플 — 모듈마다 rng 한 번, 키 큰 순(가중치 1 이면 그냥 균등 셔플)
+        const pool = MIDDLE_SECTIONS.map((_, i) => i).sort((a, b) => key[b] - key[a]);
         const gim = pool.filter(i => GIMMICK_NAMES.includes(MIDDLE_SECTIONS[i][0])).slice(0, GIMMICK_MIN);   // 기믹 최소 개수 — 셔플 순서의 앞 둘을 맨 앞으로(예산엔 그대로 포함)
         order = []; let sum = 0;
         for (const si of gim.concat(pool.filter(i => !gim.includes(i)))) { const h = SECTION_H[MIDDLE_SECTIONS[si][0]]; if (sum >= MIDDLE_H_MIN) break; if (sum + h > MIDDLE_H_MAX) continue; order.push(si); sum += h; }
