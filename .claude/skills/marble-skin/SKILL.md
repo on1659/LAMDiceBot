@@ -19,7 +19,7 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 | 시트 이름 | `{creature}-{skin}` (+ `-sleep`, `-scuffle`) → `assets/marble/creatures/*.webp` |
 | 카탈로그 id | `marble_skin_{creature}_{skin}` (`config/marble/cosmetics.json` 의 `marble_skin` 배열 끝에) |
 | 등급·가격 | rare 50 · epic 100 · legend 150 (카탈로그 `rarity` 는 `rare`/`epic`/`legend`) |
-| 방식 | 색만 바뀌면 **리컬러**(레어 기본, 토큰 0). 의상·변신이면 **GPT 생성** |
+| 방식 | 색만 바뀌면 **리컬러**(토큰 0) — 단, 색만 바꾼 건 밋밋하다는 피드백(2026-09-30 레드 돼지)이라 레어도 리컬러 + 작은 특징(`--ref` 덧그리기)을 먼저 제안. 의상·변신이면 **GPT 생성** |
 | 분업 | GPT 는 그림 생성만. 자르기·리팩·보정·판정은 Claude |
 | 기존 스킨 | 카탈로그를 먼저 읽어 같은 동물의 기존 스킨과 겹치지 않게 |
 
@@ -44,12 +44,15 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 1. **토큰 확인**: 메모리 feedback_no_gpt_image_tokens.md — 토큰 없다고 한 뒤 다시 들어왔다는 말이 없으면 사용자에게 확인.
 2. **스캐폴드** (스킨마다):
    ```bash
-   /opt/homebrew/bin/python3 AutoTest/spritemake/scaffold-skin-batch.py <creature> <skin> "<costume EN>" "<ball note EN>" [YYYY-MM-DD]
+   /opt/homebrew/bin/python3 AutoTest/spritemake/scaffold-skin-batch.py <creature> <skin> "<costume EN>" "<ball note EN>" [YYYY-MM-DD] [--ref=<기존 시트>]
    ```
+   - 브리프는 **main 을 먼저 고르고, sleep·scuffle 은 그 main 을 두 번째 입력 그림으로** 넣어 의상을 똑같이 그리게 한다(강철 돼지: 따로 그렸더니 세 시트 갑옷이 제각각).
+   - `--ref=<시트>`: 기존 스킨 위에 덧그리기(예: 리컬러 `ribbonpig-red` 에 불꽃 추가). 같은 시트 이름을 교체하게 되면 7단계 주의.
    - 템플릿이 없는 동물이면 스크립트의 `TEMPLATE`(그 동물의 기존 **생성** 스킨 배치 — `ls /Users/radar/Work/SpriteMake/output | grep marble-run-skin-<creature>`)와 `ROWS`(칸 순서 문장 — 그 배치의 prompts/ 참고)를 추가한다. 없으면 기본 동물 배치(`marble-run-creatures-*`)의 도구를 쓰되 칸 규칙(r3c0 공 여부)을 확인.
 3. **Codex 병렬 실행** — 스캐폴드가 출력한 `run:` 명령을 스킨마다 `( ... ) &` 로 묶고 `wait`, **run_in_background + 샌드박스 해제**. 시트 3장에 10~40분. 완료 알림을 기다린다(폴링 금지).
 4. **원본 직접 판정** — Codex 의 선택·불합격 사유를 믿지 말 것. 투명 배경은 좋은 것(Codex 가 "검은 배경"으로 오판), 배경 톤 편차도 무관(리팩 Δ60 flood).
    - attempt 전부를 한 장에 붙여(PIL, 투명은 회색 바탕) 보고 고른다: 칸 수·순서, 오른쪽 향함, 모든 칸 의상, 공 칸이 공인지·둥근지, 진흙·별 위성, 이웃 칸 번짐, 테두리 번짐(어두운 halo).
+   - **시트 간 의상 일관성**: main 첫 줄 · sleep · scuffle 첫 줄을 한 장에 세로로 붙여 같은 옷인지 본다(모양·부품·색). 다르면 그 시트만 main 완성본을 두 번째 입력으로 다시 그린다(강철 돼지 v2 브리프 형식: 배치의 `CODEX-BRIEF-v2.md`).
    - 고른 것으로 `source/SOURCES.json` 을 다시 쓴다(Codex 것은 `SOURCES.codex.json` 으로 보관).
 5. **리팩·QA** (배치 폴더에서):
    ```bash
@@ -69,6 +72,8 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
    ```
    - verify FAIL 중 **기본 동물 시트에도 똑같이 있는 것**(돼지 r3c2 136, 판다 r0c2 '!' 마크, 위성 y-run)은 허용 — 기본 시트도 같은 스크립트로 돌려 비교.
    - `ROUND_FAIL` 이면: `ball-round.py fix <candidate> <candidate>` → **배치 qa 재실행**(md5 갱신 + 부스러기 검사) → final 로 다시 복사 → check 재확인.
+     - 공 위·왼쪽에 소품(불꽃·모자 장식)이 튀어나와 몸통이 작고 치우친 경우엔 `fix ... --recenter`(소품 없는 오른쪽·아래 가장자리에 원을 맞춰 몸통 지름 112·중심 80,80, 소품은 링 밖). 이때 배치 QA `ballGeometry` 불합격은 의도된 예외 → 인수 때 `--allow-fail=<sheet>-main`.
+     - 한두 픽셀짜리 halo(알파 한 자릿수 가장자리)는 그 픽셀만 지우고 qa 재실행.
 7. **인수**:
    ```bash
    /opt/homebrew/bin/python3 AutoTest/spritemake/pickup-skin.py <batch> <sheet> skin<Creature><Skin> "<note: 채택 attempt·예외·보정>" docs/spritemake-request/applied/<date>-marble-skin-<topic>.md
@@ -118,3 +123,5 @@ for k in "" -sleep -scuffle; do dwebp -quiet assets/marble/creatures/<sheet>$k.w
 - 너구리 공은 타원(120×106)이라 구를 때 링 안에 틈 → `ball-round.py` (세로 늘림). 저팔계는 모자까지 112 로 맞춰져 공이 작음 → 같은 도구가 균등 확대.
 - 보정 뒤 4px 부스러기가 남으면 배치 QA 불합격 — 보정 후엔 반드시 배치 qa 재실행.
 - 리컬러가 진흙 얼룩까지 물들임 → 진흙 색 보호 규칙.
+- 시트 3장을 따로 그리면 의상이 제각각(강철 돼지: 투구 두건 / 아르마딜로 판 / 어깨 견갑) → main 을 두 번째 입력으로.
+- 레어라도 "색만 바뀐 것"은 밋밋하다는 피드백(레드 돼지) → 리컬러 위에 작은 특징(불꽃 꼬리 등)을 `--ref` 로 덧그리는 걸 기본 제안으로.

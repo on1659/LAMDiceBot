@@ -4,6 +4,9 @@
 usage:
   /opt/homebrew/bin/python3 AutoTest/spritemake/ball-round.py check <sheet.webp|png> ...   # 회전 공 칸(r2c0·r2c2·r2c3)의 몸통 크기·링 채움(반지름 54 안 불투명 비율)
   /opt/homebrew/bin/python3 AutoTest/spritemake/ball-round.py fix <src.png> <dst.png>      # 타원이면 세로로 늘려 원형(≈폭×min(폭,116)), 작으면 큰 쪽이 120 이 되게 균등 확대, r1c3=r2c0 복제, 위성은 칸 안에서 같이 이동
+  ... fix <src.png> <dst.png> --recenter
+      # 소품(머리 장식·꼬리 불꽃 등)이 공 위·왼쪽으로 튀어나와 리팩이 소품까지 112 로 맞춘 경우(레드 돼지 불꽃):
+      #   소품 없는 오른쪽·아래 가장자리에 원을 맞춰 몸통 원을 찾고 지름 112·중심 (80,80) 이 되게 칸 전체를 균등 확대·이동. 소품은 링 밖으로 나가도 둔다
 
 기준: r2c0 을 72방향으로 재서 가장 움푹한 반지름 ≥ 46, 반지름 52 미만 방향 ≤ 20 (아래 RADIUS_MIN/LOW_MAX).
 찌그러짐(r2c1)·r3c0 은 회전하지 않아서 건드리지 않는다. fix 뒤에는 pickup-skin.py(--nofs 양자화)·verify-creature.py 로 다시 검증."""
@@ -99,13 +102,61 @@ def roundify(cell):
     return out, (w, h, tw, th)
 
 
-def fix(src, dst):
+BALL_D = 112              # 공 몸통 지름(계약 공 높이)
+
+
+def fit_circle(pts):
+    """최소제곱 원 맞춤(Kasa): x²+y²+Dx+Ey+F=0"""
+    n = len(pts); sx = sum(p[0] for p in pts); sy = sum(p[1] for p in pts)
+    sxx = sum(p[0] ** 2 for p in pts); syy = sum(p[1] ** 2 for p in pts); sxy = sum(p[0] * p[1] for p in pts)
+    z = [p[0] ** 2 + p[1] ** 2 for p in pts]; sz = sum(z)
+    szx = sum(zz * p[0] for zz, p in zip(z, pts)); szy = sum(zz * p[1] for zz, p in zip(z, pts))
+    A = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, n]]; B = [-szx, -szy, -sz]
+    def det(m): return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+    dA = det(A); sol = []
+    for i in range(3):
+        m = [row[:] for row in A]
+        for k in range(3): m[k][i] = B[k]
+        sol.append(det(m) / dA)
+    D, E, F = sol; cx, cy = -D / 2, -E / 2
+    return cx, cy, math.sqrt(cx * cx + cy * cy - F)
+
+
+def recenter(cell):
+    """소품이 위(머리 장식)·왼쪽(꼬리 장식)에 붙은 공: 소품이 없는 오른쪽 위~아래~왼쪽 아래 가장자리(-70°~150°, 화면 좌표)에 원을 맞춰
+    몸통 원을 찾고, 지름 BALL_D·중심 (80,80) 이 되게 칸 전체를 균등 확대·이동한다(2026-09-30 레드 돼지 불꽃 — 색으로는 불꽃 테두리가 몸과 같아 못 가른다)"""
+    a = cell.getchannel('A').load(); body = set(components(a)[0])
+    edge = [(x, y) for (x, y) in body if any((x + dx, y + dy) not in body for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+    xs = [p[0] for p in body]; ys = [p[1] for p in body]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    for _ in range(3):   # 각도 범위를 맞춘 중심 기준으로 다시 골라 재맞춤
+        arc = [p for p in edge if -70 <= math.degrees(math.atan2(p[1] - cy, p[0] - cx)) <= 150]
+        cx, cy, rad = fit_circle(arc)
+    d = 2 * rad; s = BALL_D / d
+    big = cell.convert('RGBa').resize((round(160 * s), round(160 * s)), Image.LANCZOS).convert('RGBA')
+    out = Image.new('RGBA', (160, 160), (0, 0, 0, 0))
+    out.paste(big, (round(80 - cx * s), round(80 - cy * s)))   # 빈 칸에 그대로(마스크로 붙이면 알파가 제곱된다), 칸 밖은 잘림
+    opx = out.load()
+    for y in range(160):
+        for x in range(160):
+            if 0 < opx[x, y][3] < 8: opx[x, y] = (0, 0, 0, 0)
+    for pts in components(out.getchannel('A').load()):
+        if len(pts) <= 4:
+            for (x, y) in pts: opx[x, y] = (0, 0, 0, 0)
+    return out, (round(d, 1), round(s, 3))
+
+
+def fix(src, dst, recenter_on=False):
     im = Image.open(src).convert('RGBA')
     cells = list(CELLS)
     x0, y0, x1, y1 = body_box(im.crop((0, 480, 160, 640)))
     if abs((y0 + y1) / 2 - 80) < 6: cells.append((3, 0))   # r3c0 가 온전한 공인 동물(판다·돼지) — 펴기 첫 칸도 같은 크기로
     for (r, c) in cells:
-        new, info = roundify(im.crop((c * 160, r * 160, c * 160 + 160, r * 160 + 160)))
+        cell = im.crop((c * 160, r * 160, c * 160 + 160, r * 160 + 160))
+        if recenter_on:
+            new, (d, s) = recenter(cell)
+            im.paste(new, (c * 160, r * 160)); print(f'  r{r}c{c}: body diameter {d} -> {BALL_D} (x{s}), centred (80,80)'); continue
+        new, info = roundify(cell)
         im.paste(new, (c * 160, r * 160))
         print(f'  r{r}c{c}: body {info[0]}x{info[1]} -> {info[2]}x{info[3]}')
     im.paste(im.crop((0, 320, 160, 480)), (480, 160))   # r1c3 = r2c0 (계약: 픽셀 동일)
@@ -115,5 +166,6 @@ def fix(src, dst):
 if __name__ == '__main__':
     if len(sys.argv) < 3: sys.exit(__doc__)
     if sys.argv[1] == 'check': check(sys.argv[2:])
-    elif sys.argv[1] == 'fix': fix(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == 'fix':
+        fix(sys.argv[2], sys.argv[3], '--recenter' in sys.argv[4:])
     else: sys.exit(__doc__)
