@@ -4,10 +4,13 @@
 GPT(Codex exec)용 프롬프트 3장 + CODEX-BRIEF.md(생성만, 편집 금지)를 쓴다. 참조 그림은 게임 에셋 webp 를 PNG 로 풀어 ref/ 에.
 
 usage:
-  /opt/homebrew/bin/python3 AutoTest/spritemake/scaffold-skin-batch.py <creature> <skin> "<costume>" "<ball note>" [date]
+  /opt/homebrew/bin/python3 AutoTest/spritemake/scaffold-skin-batch.py <creature> <skin> "<costume>" "<ball note>" [date] [--ref=<sheet>]
     costume  : 영문 — 기본 동물에 더해지는 의상/변신 설명 (모든 칸에서 보여야 함)
     ball note: 영문 — 공 칸에서 의상이 어떻게 보이는지 (공은 원형 유지, 돌출 ≤120)
+    --ref    : 편집 원본 시트(기본 = <creature>). 이미 있는 스킨 위에 덧그릴 때(예 ribbonpig-red) — 게임 에셋에 있어야 함
   예) ... ribbonpig iron "a steel-grey riveted iron helmet-hood ..." "In ball cells the ball is plated in grey iron ..."
+브리프는 main 을 먼저 그리고, sleep·scuffle 은 채택한 main 을 두 번째 입력 그림으로 넣어 의상을 똑같이 맞추게 한다
+(2026-09-30 강철 돼지: 세 시트를 따로 그려 갑옷이 투구 두건 / 아르마딜로 판 / 어깨 견갑으로 제각각이었다).
 
 새 동물을 쓰려면 TEMPLATE(그 동물의 기존 생성 스킨 배치)와 ROWS(시트별 칸 순서 문장)를 추가한다.
 실행은 CODEX-BRIEF.md 첫 줄 주석 참고. 이후: 원본 직접 판정 → source/SOURCES.json → tools/creatures_skin_png.js repack·qa
@@ -65,15 +68,19 @@ ROWS = {
 GRID = {'main': (4, 5), 'sleep': (4, 1), 'scuffle': (4, 2)}
 
 
-def prompt(sheet, creature, kind, costume, ballnote):
+def prompt(sheet, creature, base, kind, costume, ballnote):
     cols, rows = GRID[kind]
-    ref = creature + ('' if kind == 'main' else '-' + kind) + '.png'
+    ref = base + ('' if kind == 'main' else '-' + kind) + '.png'
+    match = '' if kind == 'main' else (
+        f"\nSECOND INPUT IMAGE: the `{sheet}` MAIN attempt you chose (source/{sheet}-main-attempt-NN-unverified.png). "
+        "The costume in this sheet must be the SAME DESIGN as in that main sheet — same pieces, shapes, colors, patterns and proportions on the body. "
+        "Do not reinvent or restyle the costume; only the pose changes.\n")
     return f"""# {sheet} {kind}
 
-EDIT the reference sprite sheet `ref/{ref}` (use it as the input image of the image tool) into the shop skin `{sheet}`.
+EDIT the reference sprite sheet `ref/{ref}` (use it as the FIRST input image of the image tool) into the shop skin `{sheet}`.
 Preserve EXACTLY the base's chibi pixel-art style, chunky dark outline, palette, lighting, face, expressions, body proportions and each cell's pose. Same {cols} columns x {rows} rows layout, one pose per cell, in the same order as the reference.
 The change: {costume}
-The costume must be visible in EVERY cell. {ballnote if kind == 'main' else ''}
+The costume must be visible in EVERY cell. {ballnote if kind == 'main' else ''}{match}
 All cells face RIGHT in side profile (as the base; main r4c2 faceplant may be seen from above). Do not add water, splashes, scenery, text or a second character. Keep the personality of the base.
 
 Frame order:
@@ -85,9 +92,11 @@ Exact equal cells: {cols} columns x {rows} rows, each complete frame fully insid
 
 
 def main():
-    if len(sys.argv) < 5: sys.exit(__doc__)
-    creature, skin, costume, ballnote = sys.argv[1:5]
-    date = sys.argv[5] if len(sys.argv) > 5 else datetime.date.today().isoformat()
+    opts = [a for a in sys.argv[1:] if a.startswith('--')]; args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    if len(args) < 4: sys.exit(__doc__)
+    creature, skin, costume, ballnote = args[:4]
+    date = args[4] if len(args) > 4 else datetime.date.today().isoformat()
+    base = next((o.split('=', 1)[1] for o in opts if o.startswith('--ref=')), creature)
     if creature not in TEMPLATE: sys.exit(f'no template for {creature} — add TEMPLATE/ROWS entries')
     sheet = f'{creature}-{skin}'
     tbatch, tname, tjs = TEMPLATE[creature]
@@ -95,7 +104,7 @@ def main():
     if dst.exists(): sys.exit(f'exists: {dst}')
     for d in ('source', 'generated', 'qa', 'contracts', 'tools', 'prompts', 'ref', 'final/creatures'): (dst / d).mkdir(parents=True)
     for k in ('', '-sleep', '-scuffle'):
-        Image.open(CREATURES / f'{creature}{k}.webp').convert('RGBA').save(dst / 'ref' / f'{creature}{k}.png')
+        Image.open(CREATURES / f'{base}{k}.webp').convert('RGBA').save(dst / 'ref' / f'{base}{k}.png')
     # 템플릿 이름이 기본 동물 이름과 같으면(돼지 base 배치) 'ribbonpig-main' 같은 자산 id 만 바꿔야 한다 — 긴 것부터 치환
     def rename(text):
         for suf in ('-main', '-sleep', '-scuffle', '.png', '.contract'):
@@ -109,15 +118,18 @@ def main():
     js = js.replace('const appliedScale=s;', "const appliedScale=reference.includes(r+','+c)?s:Math.min(s,156/extent.width,148/extent.height);")
     (dst / 'tools' / 'creatures_skin_png.js').write_text(js)
     for kind in ('main', 'sleep', 'scuffle'):
-        (dst / 'prompts' / f'{sheet}-{kind}.md').write_text(prompt(sheet, creature, kind, costume, ballnote))
+        (dst / 'prompts' / f'{sheet}-{kind}.md').write_text(prompt(sheet, creature, base, kind, costume, ballnote))
     (dst / 'CODEX-BRIEF.md').write_text(f"""You are generating raw sprite sheets for SpriteMake batch `{dst.name}` (cwd = {dst}).
 Your job is ONLY to DRAW with the built-in image generation tool. Do NOT write any scripts, do NOT crop/repack/resize/edit pixels, do NOT touch any other folder.
 
-For each of the three prompts in `prompts/` ({sheet}-main.md, {sheet}-sleep.md, {sheet}-scuffle.md):
-1. Generate the sheet with the image tool, passing the reference image named in the prompt (`ref/...png`) as the input image to edit, and the prompt text.
+Do the three prompts in `prompts/` IN THIS ORDER: {sheet}-main.md first, then {sheet}-sleep.md and {sheet}-scuffle.md.
+Finish and choose the main sheet before starting the others: sleep and scuffle must pass the chosen main sheet as a SECOND input image so the costume is identical across all three sheets.
+For each prompt:
+1. Generate the sheet with the image tool, passing the reference image named in the prompt (`ref/...png`) as the first input image to edit (plus the chosen main sheet as the second input for sleep/scuffle), and the prompt text.
 2. Save the raw result as `source/{sheet}-<kind>-attempt-01-unverified.png` (kind = main / sleep / scuffle).
 3. Look at it. A TRANSPARENT background is GOOD (it may look black in some viewers) and slight backdrop tone variation is fine — never retry for the background.
-   Regenerate (attempt-02, max 2 per sheet) ONLY for hard failures: wrong number of rows/columns, a cell missing or with two poses, frames bleeding across cells, characters facing LEFT, costume missing in several cells, text/labels/grid lines drawn.
+   Regenerate (attempt-02, max 2 per sheet) ONLY for hard failures: wrong number of rows/columns, a cell missing or with two poses, frames bleeding across cells, characters facing LEFT, costume missing in several cells, text/labels/grid lines drawn,
+   or (sleep/scuffle) a costume visibly different from the main sheet's.
 4. Write `source/SOURCES.json` mapping exactly these keys to the chosen attempt paths:
    {{"{sheet}-main": "source/...", "{sheet}-sleep": "source/...", "{sheet}-scuffle": "source/..."}}
 5. Write `REPORT.md`: per sheet, attempts made, which chosen, one line of observations per attempt.
