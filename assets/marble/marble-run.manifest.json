@@ -4726,5 +4726,203 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRibbonpigIron": {
+    "batch": "marble-run-skin-ribbonpig-iron-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "강철 돼지(marble_skin_ribbonpig_iron, epic). Codex 생성 1회(몸싸움만 2회), 이름·디자인은 메이플스토리 아이언 호그 느낌을 말로만 설명(원화 입력 안 함); verify ALL_OK, ball-round ROUND_OK",
+    "assets": {
+      "ribbonpig-iron": {
+        "image": "creatures/ribbonpig-iron.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron.webp",
+        "md5": "9951463860c779b4ae90b5cd8061acee",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-iron-sleep": {
+        "image": "creatures/ribbonpig-iron-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-sleep.webp",
+        "md5": "7a52a7163243e8ab00f8043e7a2a825f",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-iron-scuffle": {
+        "image": "creatures/ribbonpig-iron-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-iron-scuffle.webp",
+        "md5": "fc85b2ac25eb31356f69e31ea2b8efb3",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigZhu": {
+    "batch": "marble-run-skin-ribbonpig-zhu-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "저팔계 돼지(marble_skin_ribbonpig_zhu, legend). Codex 생성 1회(몸싸움만 2회), 쇠스랑 폭 때문에 main 서기 기준 폭 148(기본 134) — 서 있는 몸 123×104 = 기본 돼지와 같게; 몸싸움 r1c1 안전 축소 0.402→0.381; 공 칸 ball-round.py fix 로 111×112→119×120(승모까지 112 로 맞춰져 몸통이 작았음), 보정 뒤 배치 QA 재실행 PASS",
+    "assets": {
+      "ribbonpig-zhu": {
+        "image": "creatures/ribbonpig-zhu.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-zhu.webp",
+        "md5": "8d00cb7be2554e146f667895a7e9ea2f",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-zhu-sleep": {
+        "image": "creatures/ribbonpig-zhu-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-zhu-sleep.webp",
+        "md5": "8d06b22bac8c3774edd708852f8718e2",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-zhu-scuffle": {
+        "image": "creatures/ribbonpig-zhu-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-zhu-scuffle.webp",
+        "md5": "f4307b7ec832b7c493c3aa72331e85b4",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
