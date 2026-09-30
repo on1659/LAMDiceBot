@@ -5122,5 +5122,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRibbonpigAngry": {
+    "batch": "marble-run-skin-ribbonpig-angry-2026-09-30",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md",
+    "note": "앵그리 아이언(marble_skin_ribbonpig_angry, legend). 사용자 '강철 돼지가 너무 귀엽다' → 강철 돼지는 두고 사나운 버전을 별도 스킨으로. 생성은 배치 marble-run-skin-ribbonpig-iron-2026-09-30-fierce(--ref=ribbonpig-iron, 찌푸린 눈·볼터치 제거·엄니·어두운 쇳빛)에서 1회씩, 이 배치로 옮겨 리팩. 공 칸 ball-round.py fix(반지름 45→46, 진흙·어지러움 공 101·103→116)",
+    "assets": {
+      "ribbonpig-angry": {
+        "image": "creatures/ribbonpig-angry.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/ribbonpig-angry.webp",
+        "md5": "b5d5102009f96ac2b4f8ff1c5672ee05",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-angry-sleep": {
+        "image": "creatures/ribbonpig-angry-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-angry-sleep.webp",
+        "md5": "a3c488001819a67a40350a561dd84bd5",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-angry-scuffle": {
+        "image": "creatures/ribbonpig-angry-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/ribbonpig-angry-scuffle.webp",
+        "md5": "d54f948978392dbf16ab25b496635079",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

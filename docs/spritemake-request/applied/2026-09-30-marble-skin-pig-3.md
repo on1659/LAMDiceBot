@@ -21,3 +21,4 @@
   2. **레드 돼지가 색만 빨감** → 리컬러 시트를 `--ref` 로 넣고 꼬리 끝 불꽃 + 머리 불꽃 털을 덧그림(배치 marble-run-skin-ribbonpig-red). 공은 리팩이 불꽃까지 112 로 맞춰 몸통이 작고 치우침 → `ball-round.py fix --recenter`(오른쪽·아래 가장자리 원 맞춤, 몸통 지름 99→112 중심 80,80, 불꽃은 링 밖). ballGeometry 불합격은 의도된 예외(--allow-fail), 몸싸움 halo 1px(알파 11) 제거.
   3. **황금 돼지(epic 100) 추가**: 광택 금 + 흰 반짝이 + 빨간 복매듭·엽전, 새 브리프로 시트 1회씩·옷 일관. 배치 QA PASS.
   - 같은 이름 교체(강철·레드) → 옛 webp·manifest 섹션 제거 후 재인수, ASSET_VER v4.
+- 2026-09-30 **앵그리 아이언(ribbonpig-angry, legend 150)** 추가: 사용자 "강철 돼지가 너무 귀엽다" → 강철 돼지는 그대로 두고 사나운 버전을 별도 스킨으로(사용자 선택, 이름 "앙그리아이안"은 "앵그리 아이언"으로 표기). 강철 돼지 시트를 `--ref` 로 넣어 찌푸린 눈·볼터치 제거·멧돼지 엄니·긁힌 어두운 쇳빛·더 날카로운 뿔. 생성 배치 `marble-run-skin-ribbonpig-iron-2026-09-30-fierce` → `marble-run-skin-ribbonpig-angry-2026-09-30` 로 옮겨 리팩. 공 ball-round fix(반지름 45→46). 배치 QA·verify·round 전부 PASS.
