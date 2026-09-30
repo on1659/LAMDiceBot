@@ -135,7 +135,10 @@ def recenter(cell):
     d = 2 * rad; s = BALL_D / d
     big = cell.convert('RGBa').resize((round(160 * s), round(160 * s)), Image.LANCZOS).convert('RGBA')
     out = Image.new('RGBA', (160, 160), (0, 0, 0, 0))
-    out.paste(big, (round(80 - cx * s), round(80 - cy * s)))   # 빈 칸에 그대로(마스크로 붙이면 알파가 제곱된다), 칸 밖은 잘림
+    ox, oy = round(80 - cx * s), round(80 - cy * s)
+    out.paste(big, (ox, oy))   # 빈 칸에 그대로(마스크로 붙이면 알파가 제곱된다), 칸 밖은 잘림
+    ba = big.getchannel('A').load(); lost = sum(1 for y in range(big.height) for x in range(big.width) if ba[x, y] >= 8 and not (0 <= x + ox < 160 and 0 <= y + oy < 160))
+    if lost: print(f'  WARNING: recenter clipped {lost} opaque px outside the cell (꼬리·소품 잘림) — 이 칸은 --recenter 대신 기본 fix 를 쓸 것')
     opx = out.load()
     for y in range(160):
         for x in range(160):
