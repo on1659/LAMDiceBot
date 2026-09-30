@@ -367,6 +367,15 @@ footer .fine { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid var
 .top .actions .who { font-weight: 700; font-size: 14px; }
 #screen-lobby .eyebrow a, #screen-lobby .meta a { color: inherit; }
 
+/* 로그인 상태의 홈: 서버 고르기가 맨 위, 소개는 접힘 */
+#homeServerSlot { padding-block: 26px 10px; }
+#screen-home.is-member .hero .wrap, #screen-home.is-member .screen-grid { grid-template-columns: 1fr; }
+#screen-home.is-member .screen-grid { padding-bottom: 30px; }
+#screen-home.is-member .hero { padding-block: 6px 10px; }
+#screen-home.is-member .hero .wrap { padding-block: 14px 18px; }
+#screen-home.is-member .hero h1 { font-size: clamp(22px, 3vw, 30px); margin-block: 4px 10px; }
+#screen-home.is-member .ticket, #screen-home.is-member .startcard, #screen-home.is-member .start { max-width: 640px; margin-top: 8px; }
+
 input.txt { height: 48px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: 500 16px var(--body); width: 100%; }
 input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent); }
 .rl { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
@@ -917,29 +926,37 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
   }
   // 로그인하면 홈 히어로 바로 아래에 서버 고르기가 뜬다 (지금 실서버처럼 로그인 = 서버 목록이 첫 화면)
   function homeServerBlock() {
-    if (UI.receipt) return '<hr class="dash"><div class="k">우리 팀 서버에서 놀기 (기록·랭킹이 남아요)</div>' +
+    if (UI.receipt) return '<div class="k">' + esc(myName) + '님, 어디서 놀까요? · 서버는 기록·랭킹이 남아요</div>' +
       '<div class="rl"><span>지난번 · LAMDice :)</span><span class="dots"></span><span class="r pen">온라인 2/3 · 열린 방 1</span></div>' +
       '<button type="button" class="btn" data-enter="s1">LAMDice :) 서버로 계속</button>' +
       '<ul class="rooms" data-server-list style="margin-top:8px"></ul>' +
-      '<div class="act" style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn ghost sm" data-open-panel="manage">내 서버 관리</button><button type="button" class="btn sm" data-open-panel="create">새 서버 만들기</button></div>';
-    return '<div class="wrap"><div class="sec-head"><h2>우리 팀 서버에서 놀기</h2><p>기록과 랭킹이 남아요 · 위의 자유 방은 안 남아요</p></div>' +
+      '<div class="act" style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn ghost sm" data-open-panel="manage">내 서버 관리</button><button type="button" class="btn sm" data-open-panel="create">새 서버 만들기</button></div>' +
+      '<hr class="dash"><div class="k">또는 자유 방으로 (기록 안 남음)</div>';
+    return '<div class="wrap"><div class="lobby-head" style="margin-bottom:14px"><div><p class="eyebrow">' + esc(myName) + '님, 어디서 놀까요? · 서버는 기록과 랭킹이 남아요</p><h1>서버 고르기 <span class="count num">' + servers.length + '</span></h1></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' + bt(UI.G, '내 서버 관리', ' data-open-panel="manage"') + bt(UI.P, '새 서버 만들기', ' data-open-panel="create"') + '</div></div>' +
       '<div class="card invite cont"><div class="txt2"><div class="eyebrow" style="margin-bottom:2px">지난번에 놀던 서버</div><b style="font-size:18px">LAMDice :)</b><div style="font-size:13px;opacity:.75">멤버 3 · 온라인 2 · 열린 방 1</div></div><button type="button" class="' + UI.P + '" data-enter="s1">이 서버로 계속</button></div>' +
-      '<div class="tools"><div class="right" style="margin-inline-start:0">' + bt(UI.G, '내 서버 관리', ' data-open-panel="manage"') + bt(UI.P, '새 서버 만들기', ' data-open-panel="create"') + '</div></div>' +
       '<ul class="rooms" data-server-list></ul></div>';
   }
+  // 로그인 = 소개가 필요 없는 단골. 서버 고르기를 맨 위로 올리고 소개(문구·그림)는 접는다. 자유 방 티켓만 그 아래에 남긴다.
+  var INTRO_SEL = '#screen-home .hero .lede, #screen-home .hero .stamp, #screen-home .hero .led, #screen-home .startline, #screen-home .runway, #screen-home .tile, #screen-home .cabinet > .lanes, #screen-home .hint';
   function syncHomeServers(v) {
+    var home = $('#screen-home'); if (!home) return;
     var slot = $('#homeServerSlot');
     if (!slot) {
-      slot = document.createElement(UI.receipt ? 'div' : 'section'); slot.id = 'homeServerSlot'; if (!UI.receipt) slot.className = 'sec';
+      slot = document.createElement(UI.receipt ? 'div' : 'section'); slot.id = 'homeServerSlot';
       var anchor = UI.receipt ? $('#screen-home #ticket') : $('#screen-home .hero');
-      if (!anchor) return; anchor.parentNode.insertBefore(slot, anchor.nextSibling);
+      if (!anchor) return; anchor.parentNode.insertBefore(slot, anchor);   // 히어로(소개)보다 앞
     }
     slot.hidden = !v; if (v) slot.innerHTML = homeServerBlock();
+    home.classList.toggle('is-member', v);
+    $$(INTRO_SEL).forEach(function (el) { el.hidden = v; });
     var team = $('#team'); if (team) team.hidden = v;
-    var fine = $('#screen-home #ticket .fine') || $('#screen-home .startcard .fine') || $('#screen-home .hint');
+    var eb = $('#screen-home .hero .eyebrow');
+    if (eb) { if (!eb.dataset.orig) eb.dataset.orig = eb.innerHTML; eb.innerHTML = v ? '또는 자유 방으로 · 기록은 안 남아요' : eb.dataset.orig; }
+    var fine = $('#screen-home #ticket .fine') || $('#screen-home .startcard .fine');
     if (fine) {
       if (!fine.dataset.orig) fine.dataset.orig = fine.innerHTML;
-      fine.innerHTML = v ? fine.dataset.orig + ' · 이 방은 자유 방이라 기록이 안 남아요' : fine.dataset.orig + ' · 팀 기록을 남기려면 <a href="#" data-open-panel="login">서버로 놀기 (로그인)</a>';
+      fine.innerHTML = v ? '친구는 링크만 열면 바로 참가 · 가입 안 한 친구와 놀 때' : fine.dataset.orig + ' · 팀 기록을 남기려면 <a href="#" data-open-panel="login">서버로 놀기 (로그인)</a>';
     }
   }
   if ($('#srvSearch')) $('#srvSearch').addEventListener('input', renderServers);
