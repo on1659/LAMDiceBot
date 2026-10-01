@@ -898,6 +898,12 @@ input, select, textarea {
   margin: 0;
   padding: 0;
 }
+/* 다크 스킨의 빈 광고 칸 — 페이지가 color-scheme: dark 면 브라우저가 투명한 광고 iframe 뒤에 흰 바탕을 깔아
+   광고가 없는 칸이 흰 상자로 보인다. 채워지지 않은 칸(불러오는 중·unfilled)만 light 로 되돌려 라이트처럼 투명한 빈 띠로 둔다.
+   채워진 광고는 건드리지 않는다 — 배경이 투명한 광고까지 투명해지면 어두운 바탕에 어두운 글자가 된다 */
+.ad-container ins.adsbygoogle:not([data-ad-status="filled"]) {
+  color-scheme: light;
+}
 /* Mobile: reduce ad container reserved height */
 @media (max-width: 480px) {
   .ad-container {
