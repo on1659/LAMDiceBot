@@ -1,4 +1,33 @@
 ========================================
+📋 Summit Log - 2026-10-01 (데구리 돼지 스킨 「빨간 마후라」 추가 + 레드 돼지 이름 → 고추장불고기)
+========================================
+
+## 변경 파일
+- assets/marble/creatures/ribbonpig-pilot{,-sleep,-scuffle}.webp(신규): 두 발로 서는 신사 돼지 시트 3장
+- config/marble/cosmetics.json: marble_skin_ribbonpig_pilot(legend 150, 🕶️, "빨간 마후라") 추가 / marble_skin_ribbonpig_red 의 name·displayName "레드 돼지" → "고추장불고기"(id·시트 그대로 — 이미 산 사람 영향 없음)
+- assets/marble/marble-run.manifest.json: skinRibbonpigPilot 섹션(배치·md5·노트)
+- docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md: 진행 기록
+
+## 상세 변경 내역
+
+### [빨간 마후라 — ribbonpig-pilot]
+- 사용자 요청: 「붉은 돼지」(1992) 느낌, 원작에 가깝게, 이족보행, 전설. 저작권 위험을 알린 뒤 사용자가 원작 쪽을 선택 — 원작 스크린샷은 GPT 에 넣지 않고 말로만 설명(크림 중절모·둥근 검은 선글라스·콧수염·크림 정장·빨간 넥타이), 상점 이름은 영화 제목·캐릭터 이름을 피해 사용자가 "빨간 마후라"로 결정(중절모 돼지 → 레드피그 → 빨간 마후라). 그림은 넥타이 그대로, 이름만
+- 미리보기(서기+공 2칸, 배치 marble-run-skin-ribbonpig-pilot-preview-2026-09-30 attempt-02)로 먼저 확인받고, 그 그림을 디자인 원본(두 번째 입력)으로 메인 20칸을 두 발 포즈로 새로 생성(배치 marble-run-skin-ribbonpig-pilot-2026-09-30) — 기본 돼지 시트는 칸 배치·그림체·공 칸만 참고
+- 채택 main 1(2는 펴기 첫 칸 공이 뒤통수) · sleep 2(마지막 칸 앉음) · scuffle 2(1은 화들짝 칸 아래 바닥 그림자 덩어리)
+- 서기 111×130(두 발이라 높이 기준), 이름표 높이는 standHeight 가 시트 첫 줄을 재서 자동
+- 남은 흠: 머리 왼쪽 뒤 작은 곱슬(두 번째 꼬리처럼 보임)을 GPT 가 2회 모두 못 없앰 — 게임 크기에선 머리칼 정도
+
+### [이름 변경]
+- 레드 돼지(불꽃 판) → 고추장불고기(사용자). 같은 날 두 번째 레드 계열 스킨이 생겨 이름이 겹치지 않게
+
+## 검증
+- 배치 repack·qa PASS(main·sleep·scuffle), verify-creature ALL_OK(게임 webp 재검증 포함), ball-round ROUND_OK(최소 반지름 46)
+- node AutoTest/qa-marble-skin-shop-test.js 5174 ALL PASS(스킨 27종)
+- game-lab/marble-preview.html 출발대에서 두 발 서기·이름표 위치·시트 3장 200 로드 확인
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-30 (데구리 등반 컵 등장률 높임 — 가중 셔플)
 ========================================
 
