@@ -97,7 +97,6 @@ function createRoomGameState() {
             timeline: null,         // server-only: 토너먼트 브래킷 { slots, bracket:{ poolOrder, rounds[{roundIdx,durationMs,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }, geom, sampleMs, durationMs } (재진입 마스킹 대상 — bracket은 timeline에만, reveal 1회 외 비노출)
             result: null,           // server-only: { selected, rankings, successionList } (selected = finalLoser = 당첨)
             seed: 0,                // server-only
-            trackSeed: 0,                // server-only: 다음 판 트랙 배치 시드(대기 화면 미리보기 = 경주 맵, socket/marble.js ensureTrackSeed). 리셋 때 0
             round: 0,
             history: [],
             isActive: false,
@@ -134,6 +133,9 @@ function createRoomGameState() {
             timeline: null,         // server-only: 시뮬 타임라인 { track, sampleMs, frames, events, finishOrder, simEndMs } (재진입 마스킹 대상 — reveal 1회 외 비노출)
             result: null,           // server-only: { selected, rankings, successionList } (selected = target 순위 주인 = 당첨)
             seed: 0,                // server-only
+            trackSeed: 0,           // server-only: 다음 판 트랙 배치 시드(대기 화면 미리보기 = 경주 맵, socket/marble.js ensureTrackSeed). 리셋 때 0
+            trackDeck: [],          // server-only: 가운데 모듈 덱(남은 이름 줄, socket/marble-sim.js drawOrder) — 판을 넘어 이어 쓴다, 리셋해도 유지
+            trackOrder: null,       // server-only: 이번 판 가운데 모듈 순서(시드 뽑을 때 덱에서 꺼냄). 다음에 뽑을 때는 "지난 판"으로 쓰인다
             round: 0,
             history: [],
             isActive: false,

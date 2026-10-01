@@ -228,8 +228,7 @@ const SECTION_H = { stakes: 480, beehive: 350, sun: 400, dam: 670, windmill: 780
     pendulums: 560, pistons: 600, trampolines: 560, gust: 560, quake: 480 };   // 움직이는 장애물 5(docs/goal/marble-moving-gimmicks.md) — 대포는 "뭔지 모르겠다"(사용자 2026-09-25)라 뺌
 const GIMMICK_NAMES = ['shutter', 'pendulums', 'pistons', 'trampolines', 'gust', 'quake'];   // 판마다 최소 GIMMICK_MIN 개 — 재조합 모듈만 뽑히면 "새 장애물" 느낌이 없다(사용자 2026-09-24)
 const GIMMICK_MIN = 2;
-const SECTION_WEIGHT = { climb: 2 };   // 셔플 가중치(없으면 1) — 클수록 앞쪽에 놓여 자주 뽑힌다. 등반 컵을 좀 더 자주(사용자 2026-09-30)
-const MIDDLE_H_MIN = 4300, MIDDLE_H_MAX = 5300;   // 가운데 모듈 높이 예산 — 트랙 A 가운데 4800. 셔플한 풀에서 합이 MIN 이 될 때까지 MAX 를 안 넘는 것만 담는다(보통 5~9개)
+const MIDDLE_H_MIN = 4300, MIDDLE_H_MAX = 5300;   // 가운데 모듈 높이 예산 — 트랙 A 가운데 4800. 덱(drawOrder)에서 합이 MIN 이 될 때까지 MAX 를 안 넘는 것만 꺼낸다(보통 5~9개)
 const TRACK_A_COUNT = 7;              // MIDDLE_SECTIONS 앞 7개 = 트랙 A(rng 없을 때 그 순서 그대로)
 const wallFn = p => (x1, y1, x2, y2) => p.push({ kind: 'wall', x1, y1, x2, y2 });
 const decorFn = (p, top) => (kind, x, y) => p.push({ kind: 'decor', decor: kind, x, y: top + y });   // 장식(클라 전용, 물리 없음)
@@ -604,6 +603,7 @@ const MIDDLE_SECTIONS = [['stakes', stakesSection], ['beehive', beehiveSection],
     ['pendulums', pendulumsSection], ['pistons', pistonsSection], ['trampolines', trampolinesSection], ['gust', gustSection], ['quake', quakeSection]];
 
 // opts.fixed = 방장이 랜덤 맵을 끔 — 가운데는 트랙 A 순서·무반전, 모듈 안 랜덤(댐 틈 등)·독수리 수만 rng 로
+// opts.order = 가운데 모듈 이름 순서(drawOrder 결과) — 방마다 덱을 이어 쓰려고 socket/marble.js 가 미리 꺼내 넘긴다
 function buildTrack(ballCount, rng, crowd, opts) {
     const canonical = !rng;
     const fixed = canonical || !!(opts && opts.fixed);
@@ -612,17 +612,32 @@ function buildTrack(ballCount, rng, crowd, opts) {
     const eagles = drawEagles(rng, crowd);
     let order;
     if (fixed) order = MIDDLE_SECTIONS.slice(0, TRACK_A_COUNT).map((_, i) => i);
-    else {   // 풀 전체 셔플 → 높이 예산 안에서 그리디로 담는다(합이 MIN 될 때까지, MAX 넘는 놈은 건너뜀)
-        const key = MIDDLE_SECTIONS.map(m => Math.pow(rng(), 1 / (SECTION_WEIGHT[m[0]] || 1)));   // 가중 셔플 — 모듈마다 rng 한 번, 키 큰 순(가중치 1 이면 그냥 균등 셔플)
-        const pool = MIDDLE_SECTIONS.map((_, i) => i).sort((a, b) => key[b] - key[a]);
-        const gim = pool.filter(i => GIMMICK_NAMES.includes(MIDDLE_SECTIONS[i][0])).slice(0, GIMMICK_MIN);   // 기믹 최소 개수 — 셔플 순서의 앞 둘을 맨 앞으로(예산엔 그대로 포함)
-        order = []; let sum = 0;
-        for (const si of gim.concat(pool.filter(i => !gim.includes(i)))) { const h = SECTION_H[MIDDLE_SECTIONS[si][0]]; if (sum >= MIDDLE_H_MIN) break; if (sum + h > MIDDLE_H_MAX) continue; order.push(si); sum += h; }
-    }
+    else order = ((opts && opts.order) || drawOrder(null, rng).order).map(name => MIDDLE_SECTIONS.findIndex(m => m[0] === name));   // 방은 덱에서 미리 꺼낸 순서(opts.order)를 준다. 없으면(도구·테스트) 새 덱 한 벌에서
     const mirror = order.map(() => !fixed && rng() < 0.5);
     const subRng = order.map(() => canonical ? (() => 0.75) : mulberry32(Math.floor(rng() * 0x7fffffff)));
 
     return assembleTrack(ballCount, order, mirror, subRng, eagles);
+}
+// 한 판의 가운데 모듈을 덱에서 꺼낸다 → { order: 모듈 이름들(쌓는 순서), deck: 남은 덱 }. 덱 = 섞어 둔 모듈 이름 줄, 방마다 이어 쓴다(socket/marble.js).
+//   판마다 따로 셔플하면 평균은 고르지만 몇 판만 보면 몰린다(같은 게 연달아 나오고 어떤 건 몇 판째 안 나옴, 사용자 2026-10-01).
+//   덱은 한 벌(19개, 약 2.5판)을 다 쓴 뒤에야 다시 섞으므로 그 안에 전부 한 번씩 나온다. prev = 지난 판 order(새 벌을 이을 때 뒤로 보낸다)
+function drawOrder(deck, rng, prev) {
+    deck = (deck || []).slice();
+    const order = [];
+    let sum = 0;
+    const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+    const recent = n => order.includes(n) || (prev || []).includes(n);
+    const refill = () => { deck = deck.concat(shuffle(MIDDLE_SECTIONS.map(m => m[0])).sort((a, b) => recent(a) - recent(b))); };   // 방금 나온 모듈은 새 벌의 뒤쪽으로(벌 경계에서 연달아 나오는 걸 줄인다)
+    const take = i => { const n = deck.splice(i, 1)[0]; order.push(n); sum += SECTION_H[n]; };
+    while (order.length < GIMMICK_MIN) {   // 기믹 최소 개수 먼저 — 덱에 없으면 다음 벌을 당겨 온다
+        const i = deck.findIndex(n => GIMMICK_NAMES.includes(n) && !order.includes(n));
+        if (i < 0) refill(); else take(i);
+    }
+    for (let i = 0, refilled = false; sum < MIDDLE_H_MIN;) {   // 덱 앞에서부터 높이 예산 안에서 — 안 맞는 놈은 덱에 남아 다음 판 맨 앞
+        if (i >= deck.length) { if (refilled) break; refill(); refilled = true; continue; }
+        if (order.includes(deck[i]) || sum + SECTION_H[deck[i]] > MIDDLE_H_MAX) i++; else take(i);
+    }
+    return { order: shuffle(order), deck };   // 쌓는 순서는 다시 섞는다 — 기믹이 늘 맨 앞 두 칸이면 시작이 판마다 비슷해 보인다
 }
 // 독수리 수 — 마릿수 단계별 가중치로 한 번 뽑는다(마스터 rng 의 첫 소비)
 function drawEagles(rng, crowd) {
@@ -1422,7 +1437,7 @@ function effectiveBallsPerPlayer(n, players) {
 }
 
 module.exports = {
-    buildTrack, buildTrackFrom, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
+    buildTrack, buildTrackFrom, drawOrder, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
     SECTION_NAMES: MIDDLE_SECTIONS.map(m => m[0]), TRACK_A_COUNT,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT, CROWD_PRESETS, CROWD_DEFAULT,
