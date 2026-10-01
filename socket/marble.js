@@ -263,7 +263,15 @@ function awardRaceCoins(io, gameState, mb) {
 // 시작 실행 — 배치 + 시뮬 사전계산 + reveal. socket 을 참조하지 않는다(수동 시작과 예약 발화가 같은 경로).
 // ctx 는 { rooms, updateRoomsList } 만 보장된다(예약 발화 경로).
 // 다음 판 트랙 배치 시드 — 대기 화면 미리보기(idlePreview)와 경주(startMarble)가 같은 맵을 쓴다(서버 전용, 클라엔 pieces 만 간다). resetMarble 이 0 으로 되돌린다
-function ensureTrackSeed(mb) { if (!mb.trackSeed) mb.trackSeed = Math.floor(Math.random() * 2147483647); return mb.trackSeed; }   // 서버 RNG 허용(시드 생성)
+// 시드를 새로 뽑을 때 가운데 모듈도 방의 덱(mb.trackDeck)에서 한 판 분량 꺼내 둔다(mb.trackOrder) — 덱은 판을 넘어 이어지고, trackOrder 는 다음에 뽑을 때 "지난 판"으로 쓰인다
+function ensureTrackSeed(mb) {
+    if (!mb.trackSeed) {
+        mb.trackSeed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
+        const d = sim.drawOrder(mb.trackDeck, sim.mulberry32(mb.trackSeed), mb.trackOrder);
+        mb.trackOrder = d.order; mb.trackDeck = d.deck;
+    }
+    return mb.trackSeed;
+}
 
 async function startMarble(room, gameState, io, ctx) {
     // 수동 시작이 예약을 앞질렀으면 예약을 풀고 방 전체에 알린다 (예약 발화 경로는 fire() 가 이미 비우고 들어온다)
@@ -311,7 +319,7 @@ async function startMarble(room, gameState, io, ctx) {
     let balls, result;
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
-        const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
+        const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
         result = await sim.simulate(balls, seed, track);
         attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
     } catch (e) {
@@ -464,7 +472,7 @@ module.exports = (socket, io, ctx) => {
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
-            track: sim.buildTrack(Math.max(1, balls.length), sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false }),   // 다음 판 맵 그대로
+            track: sim.buildTrack(Math.max(1, balls.length), sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder }),   // 다음 판 맵 그대로
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), ...cosmeticFields(mb, b.owner, b.creature) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };

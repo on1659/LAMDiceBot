@@ -5,6 +5,7 @@
 //  4) 랜덤 배치(시드 있는 buildTrack): 같은 시드 → 같은 트랙·타임라인, 다른 시드 → 다른 모듈 순서
 //  5) rng 없는 buildTrack = 트랙 A 고정본(marble-track-a.canonical.json)과 구조 동일 — 벽은 모듈 경계에서 토막나므로 덮음으로 비교
 //     고정본은 꼬리 변경(골 600·판자벽 650·맨 오른쪽 문 9s, 2026-09-25) 뒤 다시 캡처한 것
+//  6) 모듈 덱(drawOrder): 방 20개 × 20판 — 한 맵 안 중복 없음, 어떤 모듈도 6판 넘게 안 빠짐, 같은 덱·시드 → 같은 결과, buildTrack 이 opts.order 를 그대로 쌓음
 // 사용: node AutoTest/marble-determinism-test.js
 const assert = require('assert');
 const fs = require('fs');
@@ -120,6 +121,27 @@ function setup(players, nReq, seed) {
         assert.strictEqual(meta(now), meta(base), '메타·bounds');
         console.log(`[canonical] 트랙 A 고정본과 구조 동일 (조각 ${now.pieces.length}, 벽 ${wa.length}→${wb.length})`);
     } catch (e) { fails++; console.log(`[canonical] FAIL: ${e.message}`); }
+
+    // 6) 모듈 덱: 판을 넘어 이어 쓰는 덱에서 꺼낸다 — 몰림 없이 전부 돌아가며 나와야 한다
+    try {
+        const DECK_MAX_GAP = 6;
+        let maxGap = 0, rounds = 0;
+        for (let room = 0; room < 20; room++) {
+            let deck = [], prev = null; const last = {};
+            for (let k = 0; k < 20; k++, rounds++) {
+                const seed = 1000 + room * 100 + k;
+                const d = sim.drawOrder(deck, sim.mulberry32(seed), prev);
+                assert.strictEqual(JSON.stringify(d), JSON.stringify(sim.drawOrder(deck, sim.mulberry32(seed), prev)), '같은 덱·시드 → 같은 결과');
+                assert.strictEqual(new Set(d.order).size, d.order.length, `한 맵 안 중복 (${d.order.join('>')})`);
+                sim.SECTION_NAMES.forEach(n => { if (d.order.includes(n)) last[n] = k; maxGap = Math.max(maxGap, k - (last[n] === undefined ? -1 : last[n])); });
+                deck = d.deck; prev = d.order;
+            }
+        }
+        assert.ok(maxGap <= DECK_MAX_GAP, `어떤 모듈이 ${maxGap}판째 안 나옴`);
+        const d = sim.drawOrder([], sim.mulberry32(5));
+        assert.strictEqual(sim.buildTrack(18, sim.mulberry32(5), 'normal', { order: d.order }).layout.order.join('>'), d.order.join('>'), 'opts.order 그대로');
+        console.log(`[deck] ${rounds}판 — 중복 0, 최장 미등장 ${maxGap}판 OK`);
+    } catch (e) { fails++; console.log(`[deck] FAIL: ${e.message}`); }
 
     console.log(`\n${fails === 0 ? '✅ ALL PASS' : '❌ ' + fails + ' FAIL'} (${Date.now() - t0}ms)`);
     process.exit(fails ? 1 : 0);
