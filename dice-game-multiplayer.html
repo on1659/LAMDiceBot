@@ -26,13 +26,8 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
-      })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -53,6 +48,35 @@
             margin: 0;
             padding: 0;
             position: relative;
+        }
+
+        [data-theme="dark"] body {
+            background: var(--dark-ground-dice);
+        }
+
+        /* 이 페이지 전용 색 토큰 (공용 토큰은 css/theme.css) — 라이트 값은 기존 색 그대로 */
+        :root {
+            --dice-ink-strong: var(--dice-600);       /* 강조 보라 글자 (내 이름·서버명·룰 제목) */
+            --dice-ink-on-yellow: #ffffff;            /* 노랑 바탕 위 글자 */
+            --dice-alert-danger: var(--red-300);      /* 오류 알림 테두리·확인 버튼 */
+            --dice-debug-surface: #212529;            /* 디버그 로그 버튼 — 스킨과 무관하게 어두운 바탕 */
+            --dice-winner-sheen: rgba(255, 255, 255, 0.3); /* 당첨 기록 카드를 훑는 빛 */
+            /* 채팅 반응 칩 — 이 페이지가 처음 그리는 칩. 반응이 갱신되면 chat-shared.js 가 --chat-react-* 로 다시 그리므로 다크 값을 거기에 맞춘다 */
+            --dice-react-bg: var(--text-secondary);
+            --dice-react-mine-bg: var(--text-primary);
+            --dice-react-hover-bg: var(--gray-900);
+            --dice-react-hover-line: var(--text-primary);
+        }
+
+        [data-theme="dark"] {
+            --dice-ink-strong: var(--dice-700);
+            --dice-ink-on-yellow: var(--text-on-light);
+            --dice-alert-danger: var(--red-500);
+            --dice-winner-sheen: rgba(255, 255, 255, 0.08); /* 어두운 카드 위에선 0.3 이 글자를 가린다 */
+            --dice-react-bg: var(--gray-300);
+            --dice-react-mine-bg: var(--purple-300);
+            --dice-react-hover-bg: #000;
+            --dice-react-hover-line: var(--gray-400);
         }
 
         .container {
@@ -184,7 +208,7 @@
             margin-bottom: 8px;
             padding: 8px 12px;
             background: rgba(0, 0, 0, 0.85);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             font-size: 12px;
             white-space: nowrap;
             border-radius: 6px;
@@ -229,7 +253,7 @@
         .my-room-badge {
             display: inline-block;
             background: var(--host-badge-bg);
-            color: var(--text-primary);
+            color: var(--text-on-light);
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 12px;
@@ -616,12 +640,12 @@
         #serverInfoBar #serverInfoName {
             font-size: 15px;
             font-weight: 700;
-            color: var(--dice-600);
+            color: var(--dice-ink-strong);
         }
 
         #serverInfoBar #serverInfoUserName {
             font-weight: 600;
-            color: var(--dice-600);
+            color: var(--dice-ink-strong);
         }
 
         #serverInfoBar #serverMembersBtn {
@@ -629,7 +653,7 @@
             padding: 8px 14px;
             font-size: 13px;
             background: var(--dice-500);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             border: none;
             border-radius: 10px;
             cursor: pointer;
@@ -644,7 +668,7 @@
 
         .create-room-button-section button {
             background: var(--dice-gradient);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             border: none;
             border-radius: 8px;
             padding: 12px 24px;
@@ -795,7 +819,7 @@
 
         button {
             background: var(--dice-gradient);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             border: none;
             padding: 12px 30px;
             border-radius: 8px;
@@ -847,12 +871,12 @@
 
         .connection-status.connected {
             background: var(--btn-ready);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
 
         .connection-status.disconnected {
             background: var(--btn-danger);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
 
         .connection-sound-row {
@@ -1130,7 +1154,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             font-weight: 600;
             font-size: 14px;
         }
@@ -1216,7 +1240,7 @@
 
         .user-tag.host {
             background: var(--dice-500);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
 
         /* 주문받기 섹션 스타일 */
@@ -1354,7 +1378,7 @@
         .menu-tag {
             display: inline-block;
             background: var(--dice-500);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             padding: 4px 10px;
             border-radius: 15px;
             font-size: 14px;
@@ -1650,7 +1674,7 @@
 
         .sort-button.active {
             background: var(--dice-500);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
 
         .history-list {
@@ -1769,7 +1793,7 @@
             background: linear-gradient(
                 45deg,
                 transparent 30%,
-                rgba(255, 255, 255, 0.3) 50%,
+                var(--dice-winner-sheen) 50%,
                 transparent 70%
             );
             background-size: 200% 200%;
@@ -1801,7 +1825,7 @@
             display: inline-flex;
             align-items: center;
             background: var(--red-400);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
@@ -1813,7 +1837,7 @@
             display: inline-flex;
             align-items: center;
             background: var(--btn-ready);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
@@ -1864,7 +1888,7 @@
         .dice-settings-title {
             font-size: 16px;
             font-weight: 600;
-            color: var(--purple-600);
+            color: var(--dice-ink-strong);
             margin-bottom: 10px;
         }
 
@@ -1901,6 +1925,11 @@
 
         .order-button:hover {
             box-shadow: 0 5px 15px rgba(var(--yellow-500-rgb),0.4);
+        }
+
+        /* 다크: 노랑 버튼 위 흰 글자는 안 읽힘 → 어두운 글자 (주문리스트 보기 버튼은 보라 바탕이라 제외) */
+        [data-theme="dark"] .host-controls .order-button {
+            color: var(--text-on-light);
         }
 
         .clear-data-button {
@@ -1944,6 +1973,7 @@
                 <a href="/pages/dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
                 <a href="/pages/probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
                 <a href="/pages/about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
+                <span data-theme-switcher style="margin-left: 20px;"></span>
             </div>
         </nav>
     </header>
@@ -2058,7 +2088,7 @@
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked />
                         <span class="gt-emoji"><i class="ui ui-horse"></i></span>
                         <span class="gt-name">경마</span>
-                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="bridgeLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
@@ -2072,8 +2102,8 @@
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
-                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
-                        <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
+                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
@@ -2092,7 +2122,7 @@
                         <input type="radio" name="gameType" value="marble" id="marbleRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
                 </div>
                 <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
@@ -2291,7 +2321,7 @@
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
                             <span><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--bg-white); border: none; border-radius: 4px;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
                             <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
@@ -2412,8 +2442,8 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
             <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
             <div style="display: flex; gap: 5px;">
-                <button onclick="clearDebugLog()" style="background: var(--text-primary); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
-                <button onclick="toggleDebugLog()" style="background: var(--text-primary); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+                <button onclick="clearDebugLog()" style="background: var(--dice-debug-surface); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: var(--dice-debug-surface); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
             </div>
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
@@ -3608,15 +3638,17 @@
             
             // 타입에 따른 색상 설정
             let bgColor, borderColor, icon;
+            let buttonInk = 'var(--text-on-accent)'; // 확인 버튼 글자 — 버튼 바탕(borderColor) 위
             switch(type) {
                 case 'error':
                     bgColor = 'var(--status-danger-bg)';
-                    borderColor = 'var(--red-300)';
+                    borderColor = 'var(--dice-alert-danger)';
                     icon = UIIcons.tag('warn');
                     break;
                 case 'warning':
                     bgColor = 'var(--panel-attention)';
                     borderColor = 'var(--yellow-400)';
+                    buttonInk = 'var(--dice-ink-on-yellow)';
                     icon = UIIcons.tag('warn');
                     break;
                 case 'success':
@@ -3683,7 +3715,7 @@
             confirmButton.style.cssText = `
                 padding: 10px 30px;
                 background: ${borderColor};
-                color: var(--bg-white);
+                color: ${buttonInk};
                 border: none;
                 border-radius: 8px;
                 font-size: 16px;
@@ -3748,15 +3780,17 @@
                 
                 // 타입에 따른 색상 설정
                 let bgColor, borderColor, icon;
+                let buttonInk = 'var(--text-on-accent)'; // 확인 버튼 글자 — 버튼 바탕(borderColor) 위
                 switch(type) {
                     case 'error':
                         bgColor = 'var(--status-danger-bg)';
-                        borderColor = 'var(--red-300)';
+                        borderColor = 'var(--dice-alert-danger)';
                         icon = UIIcons.tag('warn');
                         break;
                     case 'warning':
                         bgColor = 'var(--panel-attention)';
                         borderColor = 'var(--yellow-400)';
+                        buttonInk = 'var(--dice-ink-on-yellow)';
                         icon = UIIcons.tag('warn');
                         break;
                     case 'success':
@@ -3862,7 +3896,7 @@
                 confirmButton.style.cssText = `
                     padding: 10px 25px;
                     background: ${borderColor};
-                    color: var(--bg-white);
+                    color: ${buttonInk};
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -3991,7 +4025,7 @@
                 hostButton.style.cssText = `
                     padding: 12px 25px;
                     background: var(--dice-gradient);
-                    color: var(--bg-white);
+                    color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -4022,7 +4056,7 @@
                 kickButton.style.cssText = `
                     padding: 12px 25px;
                     background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
-                    color: var(--bg-white);
+                    color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -7563,7 +7597,7 @@
                         }
                         
                         const titleDiv = document.createElement('div');
-                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                         titleDiv.replaceChildren(UIIcons.el('party'), ' 주사위 다 굴렸습니다!');
                         messageDiv.appendChild(titleDiv);
                         
@@ -7754,14 +7788,14 @@
                     return; // 여기서 종료하여 아래 코드 실행 방지
                 } else if (titleLine) {
                     const titleDiv = document.createElement('div');
-                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                     titleDiv.replaceChildren(UIIcons.el('gamepad'), ' 게임 시작');
                     messageDiv.appendChild(titleDiv);
                 }
                 
                 if (rulesLines.length > 0) {
                     const rulesDiv = document.createElement('div');
-                    rulesDiv.style.cssText = 'font-size: 15px; color: var(--bg-white); background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
+                    rulesDiv.style.cssText = 'font-size: 15px; color: var(--text-on-accent); background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
                     // 모든 룰 줄을 줄바꿈으로 연결
                     rulesDiv.textContent = rulesLines.map(line => line.trim()).join('\n');
                     messageDiv.appendChild(rulesDiv);
@@ -7833,7 +7867,7 @@
                 const isMe = chatMessage.userName === currentUser;
                 renderChatUserName(userNameSpan, chatMessage.userName, !!chatMessage.isHost, chatMessage.deviceType ? getDeviceIcon(chatMessage.deviceType) : '', isMe);
                 if (isMe) {
-                    userNameSpan.style.color = 'var(--dice-600)';
+                    userNameSpan.style.color = 'var(--dice-ink-strong)';
                 }
                 
                 const messageSpan = document.createElement('span');
@@ -7900,9 +7934,9 @@
                             reactionBtn.style.cssText = `
                                 height: 20px;
                                 border-radius: 10px;
-                                background: ${hasReacted ? 'var(--text-primary)' : 'var(--text-secondary)'};
+                                background: ${hasReacted ? 'var(--dice-react-mine-bg)' : 'var(--dice-react-bg)'};
                                 border: none;
-                                color: var(--bg-white) !important;
+                                color: var(--text-on-accent) !important;
                                 font-size: 12px;
                                 cursor: pointer;
                                 display: inline-flex;
@@ -7921,7 +7955,7 @@
                             
                             const countSpan = document.createElement('span');
                             countSpan.textContent = users.length;
-                            countSpan.style.cssText = 'font-size: 12px; color: var(--bg-white) !important; font-weight: 600; line-height: 1; display: inline-block;';
+                            countSpan.style.cssText = 'font-size: 12px; color: var(--text-on-accent) !important; font-weight: 600; line-height: 1; display: inline-block;';
                             
                             reactionBtn.appendChild(emojiSpan);
                             reactionBtn.appendChild(countSpan);
@@ -7952,9 +7986,9 @@
                         width: 16px;
                         height: 16px;
                         border-radius: 50%;
-                        background: var(--gray-900);
-                        border: 1px solid var(--text-primary);
-                        color: var(--bg-white);
+                        background: var(--dice-react-hover-bg);
+                        border: 1px solid var(--dice-react-hover-line);
+                        color: var(--text-on-accent);
                         font-size: 10px;
                         cursor: pointer;
                         display: inline-flex;
@@ -7998,7 +8032,7 @@
                 const isMe = chatMessage.userName === currentUser;
                 renderChatUserName(userNameSpan, chatMessage.userName, !!chatMessage.isHost, chatMessage.deviceType ? getDeviceIcon(chatMessage.deviceType) : '', isMe);
                 if (isMe) {
-                    userNameSpan.style.color = 'var(--dice-600)';
+                    userNameSpan.style.color = 'var(--dice-ink-strong)';
                 }
                 
                 const messageSpan = document.createElement('span');
@@ -8060,9 +8094,9 @@
                             reactionBtn.style.cssText = `
                                 height: 20px;
                                 border-radius: 10px;
-                                background: ${hasReacted ? 'var(--text-primary)' : 'var(--text-secondary)'};
+                                background: ${hasReacted ? 'var(--dice-react-mine-bg)' : 'var(--dice-react-bg)'};
                                 border: none;
-                                color: var(--bg-white) !important;
+                                color: var(--text-on-accent) !important;
                                 font-size: 12px;
                                 cursor: pointer;
                                 display: inline-flex;
@@ -8081,7 +8115,7 @@
                             
                             const countSpan = document.createElement('span');
                             countSpan.textContent = users.length;
-                            countSpan.style.cssText = 'font-size: 12px; color: var(--bg-white) !important; font-weight: 600; line-height: 1; display: inline-block;';
+                            countSpan.style.cssText = 'font-size: 12px; color: var(--text-on-accent) !important; font-weight: 600; line-height: 1; display: inline-block;';
                             
                             reactionBtn.appendChild(emojiSpan);
                             reactionBtn.appendChild(countSpan);
@@ -8112,9 +8146,9 @@
                         width: 16px;
                         height: 16px;
                         border-radius: 50%;
-                        background: var(--gray-900);
-                        border: 1px solid var(--text-primary);
-                        color: var(--bg-white);
+                        background: var(--dice-react-hover-bg);
+                        border: 1px solid var(--dice-react-hover-line);
+                        color: var(--text-on-accent);
                         font-size: 10px;
                         cursor: pointer;
                         display: inline-flex;
@@ -8524,7 +8558,7 @@
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
-    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=4"></script>
     <script>
     var DICE_TUTORIAL_STEPS = [
         {
@@ -8729,7 +8763,7 @@
 
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
-                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%); color: var(--bg-white); font-weight: 600;">예약 취소</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
             </div>
         </div>
     </div>

@@ -11,17 +11,20 @@
        LAMDice 셸 .container는 800px 고정이라 view-max도 그 안(720)에 들어가게 유지(데스크톱 확장 없음). */
     --ladder-view-max: 720px;
 
-    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 텍스트 가독) + 진한 이름색. */
-    --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
-    --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
+    /* 내 채팅 말풍선 — 밝은 amber 바탕 + 진한 이름색. 다크 값은 아래 [data-theme="dark"] 블록
+       (메시지 글자가 스킨을 따라 밝아지므로 바탕도 어두운 틴트로 바꾼다). */
+    --ladder-chat-bg: #fef3c7;     /* 밝은 amber */
+    --ladder-chat-name: #92400e;   /* 진한 amber */
 
-    /* 레인 픽 배지 — 버튼 배경이 모드 불변(--bg-white는 다크 오버라이드 없음 / selected는 amber 그라데이션)이라
-       배지 색도 모드 불변으로 고정한다. --ladder-accent는 다크에서 밝은 노랑이 되어 흰 버튼 위 대비가 무너진다
-       (말풍선과 같은 이유). 남의 픽 = 밝은 칩, 내 픽 = 반전 칩으로 구분. */
+    /* 레인 픽 배지 — 자기 바탕을 가진 칩이라 버튼 면(라이트 흰색 / 다크 어두운 카드 / selected 그라데이션)이
+       무엇이든 읽힌다. 남의 픽 = 밝은 칩(모드 불변), 내 픽 = 반전 칩으로 구분. */
     --ladder-pick-bg: #fef3c7;        /* 밝은 amber, 모드 불변 */
     --ladder-pick-text: #92400e;      /* 진한 amber, 모드 불변 */
-    --ladder-pick-me-bg: #92400e;     /* 내 픽 — 반전 */
+    --ladder-pick-me-bg: #92400e;     /* 내 픽 — 반전 (다크에서는 더 진하게: selected 바탕이 진한 주황이라) */
     --ladder-pick-me-text: #fffbeb;
+
+    /* 보드(늘 밝은 캔버스) 위 큰 글자 — 모드 불변. --ladder-accent 는 다크에서 밝은 노랑이 되어 보드 위에서 안 읽힌다 */
+    --ladder-board-ink: #b45309;
 
     /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
     --horse-500: var(--ladder-500);
@@ -32,6 +35,26 @@
     --horse-100: rgba(var(--ladder-500-rgb), 0.16);
     --horse-200: rgba(var(--ladder-500-rgb), 0.24);
     --horse-700: var(--ladder-600);
+}
+
+/* 다크 스킨(theme.css [data-theme="dark"]) — 사다리 전용 값.
+   theme.css 다크의 --ladder-500/600/accent 는 어두운 면 위 글자·테두리용으로 밝아진다(#fbbf24 …).
+   그 위에는 흰 글자가 안 읽히므로, 흰(밝은) 글자가 올라가는 바탕 — horse-race.css·horse-shop.css 의
+   --horse-500/600(내 이름표·상점 탭·장착 버튼)과 --ladder-gradient(버튼·고른 칸) — 은 진한 주황으로 따로 둔다.
+   :root 뒤에 있어야 위 alias 를 덮는다. */
+[data-theme="dark"] {
+    --horse-500: #b05008;
+    --horse-600: #97450a;
+    --ladder-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
+
+    --ladder-chat-bg: rgba(var(--ladder-500-rgb), 0.16);
+    --ladder-chat-name: var(--ladder-accent);
+    --ladder-pick-me-bg: #422006;
+}
+
+/* 다크: 페이지 바닥 (--ladder-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
+[data-theme="dark"] body {
+    background: var(--dark-ground-ladder);
 }
 
 /* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 (C-1) */
@@ -128,6 +151,11 @@
     line-height: 1.5;
     word-break: keep-all;
 }
+/* 다크: --red-600 은 어두운 면 위에서 대비가 모자라 한 단계 밝은 빨강으로 */
+[data-theme="dark"] .ladder-tournament-banner,
+[data-theme="dark"] .ladder-result-tag.loser {
+    color: var(--red-400);
+}
 
 /* ── 6택1 lane-pick (경마식) ── */
 .ladder-lane-pick {
@@ -171,7 +199,7 @@
 /* 내가 고른 칸 */
 .ladder-lane-btn.selected {
     background: var(--ladder-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     border-color: var(--ladder-600);
     box-shadow: 0 3px 10px rgba(var(--ladder-500-rgb), 0.4);
 }
@@ -306,7 +334,7 @@
     font-family: 'Jua', 'Segoe UI', Tahoma, sans-serif;
     font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 */
     font-weight: 900;
-    color: var(--ladder-accent);
+    color: var(--ladder-board-ink);
     text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(255, 255, 255, 0.9);
     pointer-events: none;
     opacity: 0;

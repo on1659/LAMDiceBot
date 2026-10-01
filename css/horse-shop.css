@@ -50,6 +50,27 @@
     --hshop-inv-chip-bg:     #ece6e0;                       /* 필터 칩 기본 배경 */
     --hshop-inv-chip-active: var(--horse-500, #8B4513);     /* 활성 칩 */
     --hshop-inv-vsw-bg:      rgba(255, 255, 255, 0.12);     /* 스위처 버튼(무대 위 — 밝은 글래스) */
+
+    /* 카드 위 글자로 쓰는 진한 색 — 같은 색이 버튼 바탕·테두리로도 쓰여서 글자용만 따로 뺐다(다크에서 밝아진다) */
+    --hshop-ad-ink:          var(--hshop-ad-dark);          /* 광고코인 가격·안내 */
+    --hshop-gacha-coin-ink:  var(--hshop-gacha-coin-dark);  /* 뽑기로 획득 안내 */
+    --hshop-equipped-ink:    var(--hshop-equipped);         /* 장착 중 버튼 글자 */
+}
+
+/* 다크 스킨 — 상점 겉면(패널·카드·글자·선)만 바꾼다.
+   등급 색·아이템 그림·미리보기 무대·리빌 연출은 그림이라 그대로 */
+[data-theme="dark"] {
+    --hshop-bg:        var(--gray-50);
+    --hshop-card:      var(--gray-100);
+    --hshop-ink:       var(--text-primary);
+    --hshop-ink-soft:  var(--text-tertiary);
+    --hshop-line:      var(--gray-300);
+    --hshop-shadow:    0 2px 8px rgba(0, 0, 0, 0.35);
+    --hshop-equipped-bg:  #1f3320;
+    --hshop-equipped-ink: #9fd58f;
+    --hshop-ad-ink:         #c4a5ff;
+    --hshop-gacha-coin-ink: #f5b041;
+    --hshop-inv-chip-bg:    var(--gray-200);
 }
 
 /* 모달 열림 시 배경(트랙) 스크롤 잠금 — 모바일 하단시트 뒤 페이지 스크롤 방지 */
@@ -402,7 +423,7 @@ body.hshop-open {
 .hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(255,255,255,0.9); }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
-    color: var(--hshop-equipped);
+    color: var(--hshop-equipped-ink);
     border-color: var(--hshop-equipped);
 }
 
@@ -425,7 +446,7 @@ body.hshop-open {
     margin-top: 6px;
     font-size: 12px;
     font-weight: 800;
-    color: var(--horse-600, #a0522d);
+    color: var(--horse-ink, var(--horse-600, #a0522d));
 }
 .hshop-buy {
     margin-top: 7px;
@@ -590,11 +611,11 @@ body.hshop-open {
     margin-top: 9px;
     font-size: 13px;
     font-weight: 800;
-    color: var(--hshop-ad-dark);
+    color: var(--hshop-ad-ink);
 }
 
 /* 광고코인 가격 + 구매 버튼 */
-.hshop-price--ad { color: var(--hshop-ad-dark); }
+.hshop-price--ad { color: var(--hshop-ad-ink); }
 .hshop-buy--ad {
     border-color: var(--hshop-ad);
     background: var(--hshop-ad);
@@ -619,7 +640,7 @@ body.hshop-open {
     border-radius: 10px;
     border: 1.5px dashed var(--hshop-gacha-coin);
     background: rgba(217, 119, 6, 0.10);
-    color: var(--hshop-gacha-coin-dark);
+    color: var(--hshop-gacha-coin-ink);
     font-weight: 800;
     font-size: 12px;
     text-align: center;
@@ -628,7 +649,7 @@ body.hshop-open {
 .hshop-gacha-lock--ad {
     border-color: var(--hshop-gacha-ad);
     background: rgba(124, 58, 237, 0.10);
-    color: var(--hshop-gacha-ad-dark);
+    color: var(--hshop-ad-ink);
 }
 
 /* 가챠 버튼 영역(grid 직전, panel 직속) */
@@ -909,7 +930,7 @@ body.hshop-open {
     gap: 5px;
     border: 1.5px solid var(--horse-500, #8B4513);
     background: var(--bg-white, #fff);
-    color: var(--horse-600, #a0522d);
+    color: var(--horse-ink, var(--horse-600, #a0522d));
     font-weight: 800;
     font-size: 12px;
     padding: 6px 11px;
@@ -1318,7 +1339,7 @@ body.hshop-open {
 .hshop-confirm-price {
     font-size: 14px;
     font-weight: 900;
-    color: var(--horse-600, #a0522d);
+    color: var(--horse-ink, var(--horse-600, #a0522d));
     white-space: nowrap;
 }
 .hshop-confirm-btns {

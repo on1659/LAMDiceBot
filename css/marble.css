@@ -26,6 +26,10 @@
     --marble-gold-soft-ink: #3a2a00;
     --marble-gold-ring: #ffe7a8;
 
+    /* 스킨과 무관하게 고정인 색 — 바탕이 늘 같은 자리(캔버스 위 버튼, 결과 카드의 하늘 머리)에 쓴다. --marble-cream / --red-500 은 다크에서 뒤집힌다 */
+    --marble-hud-cream: #fff8e6;   /* 캔버스 위 어두운 카메라 버튼의 글자·테두리 */
+    --marble-win-ink: #dc3545;     /* 결과 카드 하늘 머리 위 당첨자 이름 */
+
     /* horse-race.css가 사용하는 var(--horse-*)를 marble 색으로 alias (C-4) */
     --horse-500: var(--marble-500);
     --horse-600: var(--marble-600);
@@ -106,6 +110,19 @@
     --marble-gold-soft: #4d3d14;
     --marble-gold-soft-ink: #ffe7a8;
     --marble-gold-ring: #8a6a3a;
+
+    /* 흰(밝은) 글자가 올라가는 바탕 — theme.css 다크의 --marble-500(#5fc47a)은 어두운 면 위 글자·테두리용으로 밝아져 흰 글자가 안 읽힌다.
+       horse-race.css·horse-shop.css 의 --horse-500/600(내 이름표·상점 탭·장착 버튼·타깃 배너)과 --marble-gradient(버튼)는 진한 초록으로 따로 둔다.
+       --horse-700 은 캔버스 위 크림 카드(.rank-vote-section.on-canvas) 안 글자색이라 같이 진하게. :root 뒤에 있어야 위 alias 를 덮는다 */
+    --horse-500: #297d42;
+    --horse-600: #216e3c;
+    --horse-700: var(--horse-600);
+    --marble-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
+}
+
+/* 다크: 페이지 바닥 (--marble-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
+[data-theme="dark"] body {
+    background: var(--dark-ground-marble);
 }
 
 /* ===== 동물 선택 (대기 중) — 나무 테두리 팻말(두꺼운 아래 모서리) 위 크림색 카드 ===== */
@@ -145,6 +162,7 @@
     box-shadow: none;
 }
 .marble-pick-head .marble-shop-btn:hover { background: rgba(0, 0, 0, 0.04); }
+[data-theme="dark"] .marble-pick-head .marble-shop-btn:hover { background: var(--gray-100); }
 .mshop-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; }
 .mshop-icon { width: 56px; height: 56px; image-rendering: pixelated; }
 .mshop-glyph { font-size: 30px; line-height: 1; }
@@ -220,7 +238,7 @@
     padding: 0 6px;
     border-radius: 11px;
     background: var(--marble-accent);
-    color: var(--bg-white);
+    color: var(--horse-warning-btn-text);   /* 금색 바탕 위 글자 — 라이트 흰색, 다크 진한 글자 (horse-race.css) */
     font-size: 12px;
     font-weight: bold;
     line-height: 22px;
@@ -290,6 +308,10 @@
 #rankVoteSection.on-canvas .rank-vote-bar {
     width: 7px;
     height: 20px;
+}
+/* 다크: 캔버스 위 크림 카드는 두 스킨에서 같은 그림 위 연출 — 제목 그라데이션·테두리가 쓰는 --horse-accent 가 다크에서 밝아져(#ffc857) 크림 위에서 흐려지므로 카드 안에서만 진한 금색으로 되돌린다 */
+[data-theme="dark"] #rankVoteSection.on-canvas {
+    --horse-accent: var(--marble-gold-deep);
 }
 #targetRankBanner.on-canvas {
     margin: 0 0 8px;
@@ -363,7 +385,7 @@
 .marble-crowd-btn.selected {
     border-color: var(--marble-500);
     background: var(--marble-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
 }
 .marble-crowd-btn:disabled {
     opacity: 0.6;
@@ -436,7 +458,7 @@
 }
 .marble-after-btn-host {
     background: var(--marble-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
 }
 /* 다시 보기 배지 — 캔버스 하단 가운데, 클릭은 통과 */
 #marbleReplayBadge {
@@ -447,7 +469,7 @@
     padding: 6px 14px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.55);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
     white-space: nowrap;
@@ -503,8 +525,8 @@
 }
 .marble-cam-btn[hidden] { display: none; }
 .marble-cam-btn.is-manual {
-    border-color: var(--marble-cream);
-    color: #fff8e6;
+    border-color: var(--marble-hud-cream);
+    color: var(--marble-hud-cream);
     background: rgba(90, 61, 30, 0.92);
 }
 .marble-cam-btn__icon {
@@ -525,7 +547,7 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -557,7 +579,7 @@
     padding: 5px 12px;
     border-radius: 999px;
     background: var(--red-500);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
     font-weight: 800;
@@ -725,7 +747,7 @@
 }
 .marble-result-selected-name span {
     font-size: 22px;
-    color: var(--red-500);
+    color: var(--marble-win-ink);
 }
 .marble-result-selected-name small {
     font-size: 12px;

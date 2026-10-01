@@ -50,12 +50,12 @@ function _insertDemoPwModal() {
     modal.id = 'ss-demo-pw-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;pointer-events:none;';
     modal.innerHTML =
-        '<div id="ss-demo-pw-box" style="background:white;border-radius:20px;padding:30px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">' +
+        '<div id="ss-demo-pw-box" style="background:var(--bg-white);border-radius:20px;padding:30px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">' +
             '<h3 style="margin:0 0 16px;color:var(--text-primary);"><i class="ui ui-lock"></i> \uC608\uC2DC \uC11C\uBC84</h3>' +
             '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid var(--border-light);border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:var(--bg-primary);" />' +
             '<div style="display:flex;gap:10px;">' +
-                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#eee;color:var(--text-tertiary);">\uCDE8\uC18C</button>' +
-                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--brand-primary);color:white;">\uC785\uC7A5</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--ss-demo-cancel-bg);color:var(--text-tertiary);">\uCDE8\uC18C</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--brand-primary);color:var(--text-on-accent);">\uC785\uC7A5</button>' +
             '</div>' +
         '</div>';
     document.body.appendChild(modal);
@@ -414,6 +414,13 @@ const ServerSelectModule = (function () {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--brand-gradient);
             z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+            --ss-free-bg: #f0f2ff; --ss-free-bg-hover: #e8ebff; --ss-free-text: #4a5acf;
+            --ss-divider-text: #ccc; --ss-manage-hover-bg: #f0f0ff; --ss-empty-text: var(--gray-300); --ss-badge-text: var(--text-muted);
+        }
+        [data-theme="dark"] #serverSelectOverlay {
+            background: var(--dark-ground-dice);
+            --ss-free-bg: var(--purple-50); --ss-free-bg-hover: var(--purple-100); --ss-free-text: var(--purple-700);
+            --ss-divider-text: var(--text-muted); --ss-manage-hover-bg: var(--purple-50); --ss-empty-text: var(--text-muted); --ss-badge-text: var(--text-tertiary);
         }
         @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ssSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -441,7 +448,7 @@ const ServerSelectModule = (function () {
         .ss-login-btn {
             padding: 8px 20px; border: none; border-radius: 16px;
             background: rgba(255,255,255,0.2); cursor: pointer;
-            font-size: 0.85em; color: white; font-weight: 500; transition: background 0.2s;
+            font-size: 0.85em; color: var(--text-on-accent); font-weight: 500; transition: background 0.2s;
             white-space: nowrap;
         }
         .ss-login-btn:hover { background: rgba(255,255,255,0.3); }
@@ -454,7 +461,7 @@ const ServerSelectModule = (function () {
 
         /* ── 컨테이너 ── */
         .ss-container {
-            background: white; border-radius: 24px; padding: 36px 32px; max-width: 440px; width: 90%;
+            background: var(--bg-white); border-radius: 24px; padding: 36px 32px; max-width: 440px; width: 90%;
             max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             animation: ssSlideUp 0.4s ease;
         }
@@ -466,7 +473,7 @@ const ServerSelectModule = (function () {
             position: absolute; top: 0; right: 0;
             width: 28px; height: 28px; border-radius: 50%;
             background: linear-gradient(135deg, var(--link-brand-light), var(--heading-brand));
-            color: white; border: 2px solid rgba(255,255,255,0.6);
+            color: var(--text-on-accent); border: 2px solid rgba(255,255,255,0.6);
             cursor: pointer; font-size: 0.85rem; font-weight: bold;
             box-shadow: 0 2px 8px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
             transition: transform 0.2s, box-shadow 0.2s;
@@ -476,6 +483,8 @@ const ServerSelectModule = (function () {
             transform: scale(1.12);
             box-shadow: 0 4px 14px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
         }
+        /* 다크에서는 그라디언트(--link-brand-light → --heading-brand)가 밝은 연보라가 되므로 글자를 어둡게 */
+        [data-theme="dark"] .ss-tutorial-help-btn { color: var(--text-on-light); }
         .ss-tutorial-help-btn.ss-help-attention {
             animation: ssHelpPulse 2s ease-in-out infinite;
         }
@@ -486,7 +495,7 @@ const ServerSelectModule = (function () {
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {
             width: 100%; padding: 14px 16px; border: 2px solid rgba(102,126,234,0.3); border-radius: 14px;
-            background: #f0f2ff; cursor: pointer; font-size: 1.05em; color: #4a5acf;
+            background: var(--ss-free-bg); cursor: pointer; font-size: 1.05em; color: var(--ss-free-text);
             font-weight: 600; transition: all 0.3s; margin-bottom: 20px; text-align: center;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
             position: relative;
@@ -508,10 +517,10 @@ const ServerSelectModule = (function () {
             55% { offset-distance: 140%; opacity: 0; }
             100% { offset-distance: 140%; opacity: 0; }
         }
-        .ss-free-btn:hover { background: #e8ebff; box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25); }
+        .ss-free-btn:hover { background: var(--ss-free-bg-hover); box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25); }
 
         /* ── 구분선 ── */
-        .ss-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #ccc; font-size: 0.85em; }
+        .ss-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: var(--ss-divider-text); font-size: 0.85em; }
         .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: var(--gray-100); }
 
 
@@ -530,7 +539,7 @@ const ServerSelectModule = (function () {
         .ss-login-prompt-btn {
             width: auto; min-width: 110px;
             padding: 12px 24px; border: none; border-radius: 10px;
-            background: var(--brand-primary); color: white; font-size: 0.95em;
+            background: var(--brand-primary); color: var(--text-on-accent); font-size: 0.95em;
             font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
         .ss-login-prompt-btn:hover { background: #5a6fd6; }
@@ -546,7 +555,7 @@ const ServerSelectModule = (function () {
         .ss-search-wrap input:focus { border-color: var(--brand-primary); outline: none; }
         .ss-search-btn {
             padding: 6px 10px; border: 1px solid var(--border-light); border-radius: 8px;
-            background: #fff; color: var(--text-muted); font-size: 11px;
+            background: var(--bg-white); color: var(--text-muted); font-size: 11px;
             cursor: pointer; transition: all 0.2s; white-space: nowrap;
             flex-shrink: 0; line-height: 1; min-width: 0; max-width: 50px;
         }
@@ -555,43 +564,49 @@ const ServerSelectModule = (function () {
         .ss-server-list { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; margin-bottom: 20px; }
         .ss-server-card {
             display: flex; align-items: center; padding: 14px 16px; border-radius: 14px;
-            border: 2px solid var(--gray-100); cursor: pointer; transition: all 0.2s; background: white;
+            border: 2px solid var(--gray-100); cursor: pointer; transition: all 0.2s; background: var(--bg-white);
         }
         .ss-server-card:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
         .ss-server-icon {
             width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center;
             justify-content: center; font-size: 1.4em; margin-right: 14px; flex-shrink: 0;
         }
+        /* 머리글자 색은 라이트 바탕용 고정 팔레트(인라인) — 다크 카드 위에서는 밝혀서 읽히게 */
+        [data-theme="dark"] .ss-server-icon { filter: brightness(1.4); }
         .ss-server-info { flex: 1; min-width: 0; }
         .ss-server-name { font-weight: 600; color: var(--text-primary); font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ss-server-meta { font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
-        .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: var(--gray-100); color: var(--text-muted); margin-left: 8px; }
+        .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: var(--gray-100); color: var(--ss-badge-text); margin-left: 8px; }
         .ss-server-badge.private { background: var(--yellow-100); color: var(--yellow-900); }
-        .ss-server-badge.pending { background: var(--red-500); color: white; animation: ssPulse 1.5s ease-in-out infinite; }
-        .ss-server-badge.waiting { background: #fd7e14; color: white; }
+        .ss-server-badge.pending { background: var(--red-500); color: var(--text-on-accent); animation: ssPulse 1.5s ease-in-out infinite; }
+        .ss-server-badge.waiting { background: #fd7e14; color: var(--text-on-accent); }
         .ss-card-pending { opacity: 0.7; border-style: dashed; }
 
         .ss-create-btn {
             width: 100%; padding: 14px; border: none; border-radius: 14px;
             background: var(--brand-gradient);
-            color: white; font-size: 1em; font-weight: 600; cursor: pointer;
+            color: var(--text-on-accent); font-size: 1em; font-weight: 600; cursor: pointer;
             transition: all 0.2s; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
         }
         .ss-create-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
 
         .ss-manage-btn {
             width: 100%; padding: 12px; border: 2px solid var(--brand-primary); border-radius: 14px;
-            background: white; color: var(--brand-primary); font-size: 0.95em; font-weight: 600;
+            background: var(--bg-white); color: var(--brand-primary); font-size: 0.95em; font-weight: 600;
             cursor: pointer; transition: all 0.2s; margin-top: 8px;
         }
-        .ss-manage-btn:hover { background: #f0f0ff; }
+        .ss-manage-btn:hover { background: var(--ss-manage-hover-bg); }
 
-        .ss-empty { text-align: center; padding: 30px; color: var(--gray-300); font-size: 0.95em; }
+        .ss-empty { text-align: center; padding: 30px; color: var(--ss-empty-text, var(--gray-300)); font-size: 0.95em; }
         .ss-loading { text-align: center; padding: 30px; color: var(--text-muted); }
         .ss-error { color: var(--red-500); font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
     `;
 
     const MODAL_CSS = `
+        :root { --ss-demo-cancel-bg: #eee; }
+        [data-theme="dark"] { --ss-demo-cancel-bg: var(--gray-100); --ss-empty-text: var(--text-muted); }
+        /* 가입 확인 창의 취소 버튼은 글자색을 따로 주지 않는다 — 다크에서만 고정 (라이트는 호스트 페이지 상속 그대로) */
+        [data-theme="dark"] #ss-confirm-cancel { color: var(--text-primary); }
         .ss-members-modal, .ss-myserver-modal, .ss-error-modal, .ss-joining-overlay, .ss-pw-modal, .ss-name-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
@@ -601,7 +616,7 @@ const ServerSelectModule = (function () {
         .ss-error-modal { z-index: 10003; }
 
         .ss-members-box, .ss-myserver-box {
-            background: white; border-radius: 20px; padding: 28px; width: 400px;
+            background: var(--bg-white); border-radius: 20px; padding: 28px; width: 400px;
             max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             display: flex; flex-direction: column;
         }
@@ -616,11 +631,11 @@ const ServerSelectModule = (function () {
         .ss-member-dot.offline { background: var(--gray-300); }
         .ss-member-name { flex: 1; font-size: 0.95em; color: var(--text-primary); }
         .ss-member-name .host-badge {
-            font-size: 0.75em; background: var(--brand-primary); color: white; padding: 1px 6px;
+            font-size: 0.75em; background: var(--brand-primary); color: var(--text-on-accent); padding: 1px 6px;
             border-radius: 6px; margin-left: 6px;
         }
         .ss-member-name .pending-badge {
-            font-size: 0.75em; background: var(--yellow-500); color: var(--text-primary); padding: 1px 6px;
+            font-size: 0.75em; background: var(--yellow-500); color: var(--text-on-light); padding: 1px 6px;
             border-radius: 6px; margin-left: 6px;
         }
         .ss-member-actions { display: flex; gap: 4px; }
@@ -629,27 +644,27 @@ const ServerSelectModule = (function () {
             cursor: pointer; transition: opacity 0.2s;
         }
         .ss-member-actions button:hover { opacity: 0.8; }
-        .ss-btn-approve { background: var(--green-500); color: white; }
-        .ss-btn-reject { background: var(--red-500); color: white; }
-        .ss-btn-kick { background: var(--red-400); color: white; }
+        .ss-btn-approve { background: var(--green-500); color: var(--text-on-accent); }
+        .ss-btn-reject { background: var(--red-500); color: var(--text-on-accent); }
+        .ss-btn-kick { background: var(--red-400); color: var(--text-on-accent); }
         .ss-members-close, .ss-myserver-close {
             margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
             background: var(--gray-100); color: var(--text-tertiary); font-size: 0.95em; cursor: pointer; width: 100%;
         }
 
         .ss-error-box {
-            background: white; border-radius: 20px; padding: 30px; width: 320px;
+            background: var(--bg-white); border-radius: 20px; padding: 30px; width: 320px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
         }
         .ss-error-box h3 { margin: 0 0 12px 0; color: var(--red-500); }
         .ss-error-box p { color: var(--text-secondary); font-size: 0.95em; margin: 0 0 20px 0; }
         .ss-error-box button {
             padding: 12px 40px; border: none; border-radius: 10px;
-            background: var(--brand-primary); color: white; font-size: 0.95em; cursor: pointer;
+            background: var(--brand-primary); color: var(--text-on-accent); font-size: 0.95em; cursor: pointer;
         }
 
         .ss-pw-box, .ss-name-box {
-            background: white; border-radius: 20px; padding: 30px; width: 340px;
+            background: var(--bg-white); border-radius: 20px; padding: 30px; width: 340px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
         }
         .ss-pw-box h3, .ss-name-box h3 { margin: 0 0 16px 0; color: var(--text-primary); }
@@ -664,7 +679,7 @@ const ServerSelectModule = (function () {
             font-size: 0.95em; cursor: pointer;
         }
         .ss-pw-cancel, .ss-name-cancel { background: var(--gray-100); color: var(--text-tertiary); }
-        .ss-pw-confirm, .ss-name-confirm { background: var(--brand-primary); color: white; }
+        .ss-pw-confirm, .ss-name-confirm { background: var(--brand-primary); color: var(--text-on-accent); }
 
         .ss-spinner {
             width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
@@ -695,8 +710,8 @@ const ServerSelectModule = (function () {
             font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
         }
         .ss-myserver-item-actions button:hover { opacity: 0.8; }
-        .ss-btn-members { background: var(--brand-primary); color: white; position: relative; }
-        .ss-btn-delete { background: var(--red-500); color: white; }
+        .ss-btn-members { background: var(--brand-primary); color: var(--text-on-accent); position: relative; }
+        .ss-btn-delete { background: var(--red-500); color: var(--text-on-accent); }
         .ss-pending-dot {
             display: inline-block; width: 8px; height: 8px; background: var(--red-500);
             border-radius: 50%; margin-left: 4px; vertical-align: middle;
@@ -711,7 +726,7 @@ const ServerSelectModule = (function () {
             align-items: center; justify-content: center;
         }
         .ss-create-box {
-            background: white; border-radius: 20px; padding: 30px; width: 380px;
+            background: var(--bg-white); border-radius: 20px; padding: 30px; width: 380px;
             max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         .ss-create-box h3 { margin: 0 0 20px 0; color: var(--text-primary); text-align: center; }
@@ -747,6 +762,7 @@ const ServerSelectModule = (function () {
                     : `<button class="ss-login-btn" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()"><i class="ui ui-key"></i> 로그인</button>
                        <button class="ss-logout-btn" id="ss-register-top-btn" onclick="ServerSelectModule.showRegisterModal()">회원가입</button>`
                 }
+                <span id="ss-theme-switcher"></span>
             </div>
 
             <div class="ss-container">
@@ -784,7 +800,7 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
-
+        ThemeModule.mount(document.getElementById('ss-theme-switcher'));
 
         requestAnimationFrame(() => requestAnimationFrame(() => {
             document.documentElement.classList.remove('ss-loading');
@@ -1661,7 +1677,7 @@ const ServerSelectModule = (function () {
         });
         const box = document.createElement('div');
         Object.assign(box.style, {
-            background: '#fff', borderRadius: '14px', padding: '24px',
+            background: 'var(--bg-white)', borderRadius: '14px', padding: '24px',
             maxWidth: '320px', width: '85%', textAlign: 'center',
             boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
         });
@@ -1669,8 +1685,8 @@ const ServerSelectModule = (function () {
             <p style="font-size:1.5em;margin:0 0 8px;"><i class="ui ui-warn"></i></p>
             <p style="font-size:0.9em;color:var(--text-primary);margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
             <div style="display:flex;gap:10px;">
-                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
-                <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:var(--brand-gradient);color:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
+                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:var(--bg-white);border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
+                <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:var(--brand-gradient);color:var(--text-on-accent);border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
             </div>
         `;
         overlay.appendChild(box);

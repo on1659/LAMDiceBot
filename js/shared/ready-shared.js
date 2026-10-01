@@ -205,8 +205,8 @@ const ReadyModule = (function () {
             e.preventDefault();
             if (_isHost && !isGameActive()) {
                 e.dataTransfer.dropEffect = 'move';
-                readyUsersList.style.backgroundColor = '#e8f5e9';
-                readyUsersList.style.border = '2px dashed #28a745';
+                readyUsersList.style.backgroundColor = 'var(--green-50)';
+                readyUsersList.style.border = '2px dashed var(--green-500)';
             }
         });
 

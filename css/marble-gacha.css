@@ -14,13 +14,14 @@
     --mgacha-pull-shadow: #b22e27;
     --mgacha-chip-bg: rgba(255, 255, 255, 0.9);
 }
+/* 다크: 패널·글자는 css/marble.css 의 재질 토큰(결과 카드와 같은 어두운 종이)을 따른다. 무대 바탕만 한 톤 가라앉히고, 기계·캡슐 그림과 등급색·뽑기 버튼은 그대로 */
 [data-theme="dark"] {
-    --mgacha-panel: #1f2937;
+    --mgacha-panel: var(--marble-paper);
     --mgacha-stage-top: #2b4a63;
     --mgacha-stage-bottom: #2f5a3a;
-    --mgacha-ink: #f3ede6;
-    --mgacha-sub: #b8aab2;
-    --mgacha-chip-bg: rgba(31, 41, 55, 0.9);
+    --mgacha-ink: var(--marble-ink);
+    --mgacha-sub: var(--marble-muted);
+    --mgacha-chip-bg: rgba(42, 36, 25, 0.9);
 }
 
 .mgacha-overlay {
@@ -94,6 +95,7 @@ body.mgacha-open { overflow: hidden; }
 }
 @keyframes mgachaGain { 0% { color: var(--mgacha-legend); transform: scale(1.2); } 100% { transform: scale(1); } }
 .mgacha-tip-stay { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+[data-theme="dark"] .mgacha-tip-stay { border-top-color: rgba(0, 0, 0, 0.2); }   /* 다크의 말풍선은 밝은 바탕(반전 칩)이라 흰 구분선이 안 보인다 */
 /* horse-race.css 의 button { width: 100% } 를 이긴다 */
 .mgacha-modal .mgacha-close {
     width: 32px; height: 32px; margin: 0; padding: 0; flex: 0 0 auto;
@@ -138,6 +140,7 @@ body.mgacha-open { overflow: hidden; }
 .mgacha-modal .mgacha-pull:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--mgacha-pull-shadow); }
 .mgacha-modal .mgacha-pull:disabled { opacity: 0.55; cursor: default; }
 .mgacha-msg { min-height: 16px; margin-top: 6px; font-size: 12px; text-align: center; color: var(--mgacha-pull); }
+[data-theme="dark"] .mgacha-msg { color: var(--red-300); }   /* 뽑기 버튼 빨강은 어두운 패널 위 글자로는 대비가 모자란다 */
 
 @media (max-width: 400px) {
     .mgacha-overlay { padding: 8px; }

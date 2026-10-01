@@ -108,6 +108,7 @@
                         '<button class="volume-btn" id="volumeBtn" type="button"><i class="ui ui-sound"></i></button>' +
                         '<input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">' +
                     '</div>' +
+                    '<span id="themeSwitcherMount"></span>' +
                 '</div>' +
                 '<button id="leaveBtn" class="control-bar-btn leave-btn"><i class="ui ui-door"></i> 나가기</button>' +
             '</div>';
@@ -124,6 +125,8 @@
         });
         if (leaveBtn && cfg.onLeave) leaveBtn.addEventListener('click', cfg.onLeave);
         if (editBtn && cfg.onEditRoomName) editBtn.addEventListener('click', cfg.onEditRoomName);
+        // 스킨 버튼 — theme-shared.js 를 싣지 않는 페이지(미사용 게임)에서는 건너뜀
+        if (global.ThemeModule) ThemeModule.mount(document.getElementById('themeSwitcherMount'));
     }
 
     // --- Init ---

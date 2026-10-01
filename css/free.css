@@ -26,13 +26,13 @@
     --free-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
 }
 
-/* 향후 다크모드 도입 시 호환 (현재 운영은 강제 light 라 미적용) */
+/* 다크 스킨 — 공용 다크 토큰(css/theme.css)에 맞춘다 */
 [data-theme="dark"] {
-    --free-bg: #1a1a1f;
-    --free-surface: #25252d;
-    --free-text: #f5f5f7;
-    --free-text-muted: #a1a1aa;
-    --free-border: #3f3f46;
+    --free-bg: var(--gray-50);
+    --free-surface: var(--bg-white);
+    --free-text: var(--text-primary);
+    --free-text-muted: var(--text-tertiary);
+    --free-border: var(--border-color);
     --free-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     --free-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
@@ -250,6 +250,9 @@ body {
     min-width: 24px;
     text-align: center;
 }
+
+[data-theme="dark"] .name-toast .name-text b,
+[data-theme="dark"] .name-toast .countdown { color: var(--purple-500); }
 
 .name-toast .toast-link {
     background: transparent;

@@ -60,6 +60,11 @@
         deguri:   'linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%)'  // 초원 초록 (css/marble.css --marble-gradient)
     };
 
+    // 다크 스킨 로딩 화면 바탕 — 들어갈 게임 페이지의 바닥 토큰(css/theme.css --dark-ground-*)과 맞춘다
+    var GAME_DARK_GROUND = {
+        dice: 'dice', roulette: 'roulette', horse: 'horse', ladder: 'ladder', deguri: 'marble'
+    };
+
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
     var GAME_PATH_BY_TYPE = {
         'dice':       '/game',
@@ -736,6 +741,8 @@
                 +   'color: white; font-family: inherit;'
                 +   'animation: fdl-fade-in 0.3s ease-out;'
                 + '}'
+                // 인라인 background(게임별 그라데이션)를 이기려면 !important 가 필요하다
+                + '[data-theme="dark"] #freeDirectLoading { background: var(--fdl-dark-ground) !important; }'
                 + '@keyframes fdl-fade-in { from { opacity: 0; } to { opacity: 1; } }'
                 + '#freeDirectLoading .fdl-emoji {'
                 +   'font-size: 80px; line-height: 1;'
@@ -778,6 +785,7 @@
         el.id = 'freeDirectLoading';
         el.setAttribute('aria-live', 'polite');
         el.style.background = gradient;
+        el.style.setProperty('--fdl-dark-ground', 'var(--dark-ground-' + (GAME_DARK_GROUND[selectedGame] || 'dice') + ')');
         el.innerHTML = ''
             + '<div class="fdl-emoji"><i class="ui ui-hero ui-' + icon + '"></i></div>'
             + '<div class="fdl-title">방으로 입장하는 중</div>'

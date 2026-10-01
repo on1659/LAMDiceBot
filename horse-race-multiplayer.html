@@ -26,13 +26,8 @@
     <meta name="twitter:description" content="친구와 함께하는 실시간 레이스. 1등·꼴등을 맞히는 내기로 관전하세요.">
     <link rel="canonical" href="https://lamdice.com/horse-race">
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
-      })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -88,7 +83,7 @@
             border-radius: 999px;
             border: 1px solid var(--yellow-400);
             background: rgba(0, 0, 0, 0.72);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
             font-family: 'Jua', sans-serif;
             font-size: 13px;
             line-height: 1.4;
@@ -122,7 +117,7 @@
         .schedule-open-btn.is-armed {
             border-color: var(--btn-danger);
             background: var(--btn-danger);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
         /* 기본 button 규칙(width:100%; margin-top:10px)을 걷어내고 한 줄에 나란히 놓는다 */
         .schedule-preset-btn {
@@ -136,7 +131,7 @@
             font-size: 14px;
             font-weight: 600;
             background: var(--horse-gradient);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
         /* 시각 선택 — 시/분을 네이티브 드롭다운으로 고른다(시간 스피너보다 빠르다).
            둘이 폭을 반씩 나눠 갖고, 좁은 화면에서는 [예약] 버튼이 아래 줄로 흘러내린다.
@@ -322,13 +317,13 @@
                     <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
                         게임 시작
                     </button>
-                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
-                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
                 <div id="endGameSection" style="display: none; margin-bottom: 10px;">
                     <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;"><i class="ui ui-checker"></i> 게임 종료</button>
                 </div>
-                <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
+                <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
 
             <!-- 주문받기 섹션 -->
@@ -422,7 +417,7 @@
                          인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->
                     <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;"><i class="ui ui-tv"></i> 작은 창으로</button>
                     <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
-                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--bg-white); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
+                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--text-on-accent); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
                 </div>
                 <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
                      둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
@@ -542,13 +537,13 @@
 
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
-                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600;">예약 취소</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
             </div>
         </div>
     </div>
 
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--horse-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
@@ -611,7 +606,7 @@
 
                 const confirmContent = document.createElement('div');
                 confirmContent.style.cssText = `
-                    background: white; border-radius: 16px; padding: 20px;
+                    background: var(--bg-white); border-radius: 16px; padding: 20px;
                     max-width: 450px; width: calc(100vw - 40px);
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
                     border: 2px solid ${borderColor};
@@ -621,7 +616,7 @@
 
                 const messageDiv = document.createElement('div');
                 messageDiv.style.cssText = `
-                    font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                    font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text);
                     white-space: pre-wrap; word-wrap: break-word;
                     word-break: keep-all; overflow-wrap: break-word;
                     text-align: center; margin-bottom: 25px;
@@ -635,8 +630,8 @@
                 const cancelButton = document.createElement('button');
                 cancelButton.textContent = '취소';
                 cancelButton.style.cssText = `
-                    padding: 10px 25px; background: rgb(243, 244, 246); color: rgb(107, 114, 128);
-                    border: 1px solid rgb(209, 213, 219); border-radius: 8px; font-size: 16px;
+                    padding: 10px 25px; background: var(--horse-dialog-cancel-bg); color: var(--horse-dialog-cancel-text);
+                    border: 1px solid var(--horse-dialog-cancel-border); border-radius: 8px; font-size: 16px;
                     font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
                 `;
                 cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; };
@@ -647,7 +642,7 @@
                 confirmButton.textContent = '확인';
                 confirmButton.style.cssText = `
                     padding: 10px 25px; background: ${borderColor};
-                    color: white; border: none; border-radius: 8px; font-size: 16px;
+                    color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'white'}; border: none; border-radius: 8px; font-size: 16px;
                     font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
                 `;
                 confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
@@ -884,7 +879,7 @@
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
 
-    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=4"></script>
     <script>
     var HORSE_RACE_TUTORIAL_STEPS = [
         {
@@ -996,11 +991,11 @@
                 fakeRecords.forEach(function(r) {
                     var rankHtml = r.rows.map(function(row, i) {
                         var m = medalTags[i] + ' ' + (i + 1) + '등 ' + vehicleThumb(row[0], 16) + ' ' + row[1] + ' — ' + row[2];
-                        var bg = i === 0 ? 'var(--result-gold-light)' : i === 1 ? 'var(--result-silver-light)' : 'var(--result-bronze-light)';
+                        var bg = i === 0 ? 'var(--history-rank1-bg)' : i === 1 ? 'var(--history-rank2-bg)' : 'var(--history-rank3-bg)';
                         return '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:' + bg + ';border-radius:4px;margin-bottom:4px;font-size:12px;">' + m + '</div>';
                     }).join('');
                     var winner = UIIcons.tag('confetti') + ' 당첨: 이더';
-                    var targetBadge = '<span style="margin-left:6px;padding:2px 5px;background:var(--horse-500);color:var(--bg-white);border-radius:4px;font-size:9px;font-weight:bold;white-space:nowrap;">' + UIIcons.tag('target') + r.targetLabel + '</span>';
+                    var targetBadge = '<span style="margin-left:6px;padding:2px 5px;background:var(--horse-500);color:var(--text-on-accent);border-radius:4px;font-size:9px;font-weight:bold;white-space:nowrap;">' + UIIcons.tag('target') + r.targetLabel + '</span>';
                     wrap.innerHTML += '<div style="background:var(--yellow-50);padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--yellow-200);">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;">' +
                             '<div style="font-weight:bold;color:var(--horse-accent);font-size:14px;white-space:nowrap;">' + r.round + '라운드' + targetBadge + '</div>' +
@@ -1010,7 +1005,7 @@
                             '</div>' +
                         '</div>' +
                         '<div style="margin-bottom:8px;">' + rankHtml + '</div>' +
-                        '<div style="font-size:13px;color:var(--horse-600);font-weight:bold;text-align:center;padding:5px;background:var(--yellow-50);border-radius:4px;">' + winner + '</div>' +
+                        '<div style="font-size:13px;color:var(--horse-ink);font-weight:bold;text-align:center;padding:5px;background:var(--yellow-50);border-radius:4px;">' + winner + '</div>' +
                     '</div>';
                 });
                 list.insertBefore(wrap, list.firstChild);

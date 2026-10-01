@@ -261,6 +261,11 @@
   --border-color: var(--gray-300);
   --border-light: var(--gray-200);
 
+  /* 스킨이 바뀌어도 고정인 글자색 — 바탕이 스킨과 무관한 색일 때 쓴다
+     (--bg-white / --text-primary 는 다크에서 뒤집히므로 색 버튼·배지 위 글자에 쓰면 안 됨) */
+  --text-on-accent: #ffffff;  /* 색 버튼·그라디언트·어두운 패널 위 */
+  --text-on-light: #212529;   /* 노랑·금색처럼 늘 밝은 바탕 위 */
+
   /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백
      = 상하 패딩 + 라벨 줄 24px + 광고 높이 + 상단 border 1px. 모바일(320×50) 기준, 넓은 화면은 스티키 섹션 미디어쿼리에서 재정의 */
   --ad-sticky-reserve: 84px;
@@ -314,38 +319,129 @@
 }
 
 /* ============================================
-   다크 테마 (Phase 3 - 선택 사항)
-   다크 모드용 팔레트 재정의
+   다크 스킨 — 팔레트 재정의
+   스킨 결정·선택 버튼: js/shared/theme-shared.js (data-theme 은 <html> 에 붙는다)
+
+   뒤집는 규칙:
+   - 50~300 = 어두운 바탕(연한 틴트 자리), 700~900 = 밝은 글자(진한 글자 자리)
+   - 500 근처 = 다크 카드 위 글자(4.5:1 안팎)와 흰 글자 버튼 바탕(3.3:1 이상, 라이트와 같은 수준)을 겸하는 균형점.
+     더 밝히면 버튼 위 흰 글자가, 더 어둡히면 카드 위 강조 글자가 안 읽힌다
+   - 노랑 500~700 은 그대로 (늘 밝은 바탕 + --text-on-light)
 ============================================ */
 [data-theme="dark"] {
-  /* 회색 반전 */
-  --gray-50: #1a1a1a;
-  --gray-100: #2d2d2d;
-  --gray-200: #3a3a3a;
-  --gray-300: #4a4a4a;
-  --gray-500: #9ca3af;
-  --gray-700: #d1d5db;
-  --gray-900: #f0f0f0;
+  color-scheme: dark;
 
-  /* 보라색: 채도 감소 */
-  --purple-500: #9C7FFF;
-  --purple-600: #8B6FCC;
+  /* 회색: 바탕(50~300) ↔ 글자(400~900) 반전. 50 은 카드보다 한 단계 꺼진 면 */
+  --gray-50:  #1a1b21;
+  --gray-100: #2b2c36;
+  --gray-200: #363845;
+  --gray-300: #474958;
+  --gray-400: #8d90a0;
+  --gray-500: #a3a6b4;
+  --gray-600: #babdc9;
+  --gray-700: #d3d5de;
+  --gray-800: #e3e5ec;
+  --gray-900: #f1f2f6;
 
-  /* 초록색: 채도 감소 */
-  --green-500: #66BB6A;
-  --green-600: #52A556;
+  /* 표면 — 카드/패널 기본면 */
+  --bg-white: #22232b;
+  --panel-primary: #22232b;
+  /* 예약 팝업의 예약 시각 칸 — 라이트는 정의 없이 인라인 기본값 rgba(0,0,0,0.05) 을 쓴다 */
+  --bg-subtle: rgba(255, 255, 255, 0.06);
 
-  /* 빨강색: 채도 감소 */
-  --red-500: #EF5350;
-  --red-600: #E53935;
+  /* 중립 버튼 — 회색 500 이 글자색으로 뒤집혀서 따로 지정 */
+  --btn-neutral: #4a4d5e;
+  --btn-neutral-hover: #585b6e;
+  --btn-neutral-active: #666a7e;
 
-  /* 노란색: 채도 감소 */
-  --yellow-500: #FFD54F;
-  --yellow-600: #FFC107;
+  /* 호스트 배지 — 노랑 바탕 위 글자는 고정 */
+  --host-badge-text: var(--text-on-light);
 
-  /* 게임별: 채도 감소 */
-  --dice-500: #9C7FFF;
-  --roulette-500: #9575cd;
+  /* 보라 */
+  --purple-50:  #25243a;
+  --purple-100: #302d52;
+  --purple-200: #4a4480;
+  --purple-300: #6a62b8;
+  --purple-400: #7c75dc;
+  --purple-500: #837df3;
+  --purple-600: #7a63c4;
+  --purple-700: #c4b8ff;
+  --purple-800: #d6ccff;
+  --purple-900: #e6dfff;
+
+  /* 색 버튼·헤더 그라디언트는 라이트와 같은 값 (흰 글자 대비 유지) */
+  --brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --dice-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+  /* 초록 */
+  --green-50:  #15281b;
+  --green-100: #1c3824;
+  --green-200: #26502f;
+  --green-300: #4a9a5c;
+  --green-400: #55b56c;
+  --green-500: #38a157;
+  --green-600: #318f4d;
+  --green-700: #2a7d43;
+  --green-800: #a7e6b5;
+  --green-900: #c9f2d2;
+
+  /* 빨강 */
+  --red-50:  #2c1a1d;
+  --red-100: #43222a;
+  --red-200: #5b2a34;
+  --red-300: #f28b88;
+  --red-400: #f15c59;
+  --red-500: #f05856;
+  --red-600: #dc4541;
+  --red-700: #c73a36;
+  --red-800: #ffc2c7;
+  --red-900: #ffd9dc;
+
+  /* 노랑: 50~200 은 어두운 틴트, 800~900 은 밝은 글자 */
+  --yellow-50:  #2a2311;
+  --yellow-100: #3a3015;
+  --yellow-200: #54441a;
+  --yellow-800: #ffe08a;
+  --yellow-900: #ffe9a8;
+
+  /* 파랑 */
+  --blue-50:  #152238;
+  --blue-100: #1b2f52;
+  --blue-200: #25437a;
+  --blue-700: #93b8ff;
+  --blue-800: #b9d1ff;
+  --blue-900: #cfe0ff;
+
+  /* 게임별 */
+  --dice-50:  #25243a;
+  --dice-500: #837df3;
+  --dice-600: #7a63c4;
+  --dice-700: #c4b8ff;
+  --roulette-50:  #14261b;
+  --roulette-500: #9179ef;
+  --roulette-600: #6b7ff5;
+  --horse-accent: #d9915b;
+
+  /* 게임별 파스텔 배경 */
+  --dice-accent-bg: #2a2845;
+  --dice-accent-light: #232238;
+  --roulette-accent-bg: #17302b;
+  --roulette-accent-light: #142622;
+  --horse-accent-bg: #33291f;
+  --horse-accent-light: #2a231c;
+
+  /* 링크/제목 */
+  --link-brand: #a78bfa;
+  --link-brand-light: #c4b5fd;
+  --link-brand-border: #4c4380;
+  --heading-brand: #b9a3ff;
+
+  /* 페이지 바닥 — 각 페이지의 [data-theme="dark"] body 규칙이 가져다 쓴다 (게임 색을 깊게 가라앉힌 톤) */
+  --dark-ground-dice: linear-gradient(135deg, #1b1d36 0%, #231a35 100%);
+  --dark-ground-roulette: linear-gradient(135deg, #0e2418 0%, #12301f 50%, #163a27 100%);
+  --dark-ground-horse: linear-gradient(135deg, #2a1b12 0%, #33211a 100%);
+  --dark-ground-ladder: linear-gradient(135deg, #2b2110 0%, #332413 100%);
+  --dark-ground-marble: linear-gradient(135deg, #13271a 0%, #1a3020 100%);
 
   /* 다리건너기: 명도 약간 높임 */
   --bridge-500: #5af2ff;
@@ -378,12 +474,11 @@
   --marble-accent: #ffc857;
 
   /* RGB 채널 변수 (다크 모드) */
-  --dice-500-rgb: 156, 127, 255;
-  --green-500-rgb: 102, 187, 106;
-  --red-500-rgb: 239, 83, 80;
-  --yellow-500-rgb: 255, 213, 79;
-  --roulette-500-rgb: 149, 117, 205;
-  --game-type-horse-rgb: 139, 69, 19;
+  --dice-500-rgb: 131, 125, 243;
+  --green-500-rgb: 56, 161, 87;
+  --red-500-rgb: 240, 88, 86;
+  --roulette-500-rgb: 145, 121, 239;
+  --game-type-horse-rgb: 217, 145, 91;
 }
 
 /* ============================================
@@ -601,6 +696,153 @@ input, select, textarea {
 
 .action-btn.kick:hover {
   background: var(--red-200);
+}
+
+/* ============================================
+   스킨 선택 버튼 + 목록 (js/shared/theme-shared.js)
+   호스트 페이지의 전역 button 규칙(width:100% · margin-top · padding · 그라디언트 · hover 이동 · 모바일 최소 44px)이
+   그대로 뚫고 들어오므로 관련 속성을 전부 명시해 상쇄한다 — lessons C-42
+============================================ */
+:root {
+  /* 목록의 미리보기 칸 — 현재 스킨과 무관하게 각 스킨의 색을 보여준다 */
+  --theme-swatch-light: #ffffff;
+  --theme-swatch-light-ink: #495057;
+  --theme-swatch-dark: #22232b;
+  --theme-swatch-dark-ink: #f1f2f6;
+}
+
+.theme-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-white);
+  color: var(--text-secondary);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.theme-switcher-btn:hover,
+.theme-switcher-btn:active {
+  background: var(--gray-100);
+  color: var(--text-primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.theme-switcher-popover {
+  position: fixed;
+  z-index: 10050; /* 서버 선택 화면·모달 위 */
+  width: 220px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-white);
+  color: var(--text-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+
+.theme-switcher-popover[hidden] {
+  display: none;
+}
+
+.theme-switcher-title {
+  padding: 4px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.theme-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.theme-switcher-option + .theme-switcher-option {
+  margin-top: 2px;
+}
+
+.theme-switcher-option:hover,
+.theme-switcher-option:active {
+  background: var(--gray-100);
+  transform: none;
+  box-shadow: none;
+}
+
+.theme-switcher-option[aria-checked="true"] {
+  background: var(--purple-50);
+}
+
+.theme-switcher-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.theme-switcher-swatch-light {
+  background: var(--theme-swatch-light);
+  color: var(--theme-swatch-light-ink);
+}
+
+.theme-switcher-swatch-dark {
+  background: var(--theme-swatch-dark);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.theme-switcher-desc {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.theme-switcher-check {
+  display: inline-flex;
+  color: var(--purple-500);
+  visibility: hidden;
+}
+
+.theme-switcher-option[aria-checked="true"] .theme-switcher-check {
+  visibility: visible;
 }
 
 /* Mobile Responsive */

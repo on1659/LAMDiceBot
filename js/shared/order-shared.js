@@ -145,7 +145,7 @@ const OrderModule = (function () {
             const orderInput = document.getElementById('myOrderInput');
             if (orderInput) {
                 const originalBg = orderInput.style.backgroundColor;
-                orderInput.style.backgroundColor = '#d4edda';
+                orderInput.style.backgroundColor = 'var(--order-saved-flash, #d4edda)';
                 setTimeout(() => {
                     orderInput.style.backgroundColor = originalBg || '';
                 }, 500);
@@ -542,7 +542,7 @@ const OrderModule = (function () {
 
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
-            background: white; border-radius: 20px; padding: 30px;
+            background: var(--bg-white); border-radius: 20px; padding: 30px;
             max-width: 90vw; max-height: 90vh;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); display: inline-block;
         `;
@@ -550,13 +550,13 @@ const OrderModule = (function () {
         const title = document.createElement('div');
         title.textContent = '=== 현재 주문리스트 ===';
         title.style.cssText = `
-            font-size: 20px; font-weight: bold; color: #667eea;
+            font-size: 20px; font-weight: bold; color: var(--order-title, #667eea);
             margin-bottom: 20px; text-align: center;
         `;
 
         const contentDiv = document.createElement('div');
         contentDiv.style.cssText = `
-            font-size: 16px; line-height: 1.8; color: #333;
+            font-size: 16px; line-height: 1.8; color: var(--order-ink, #333);
             white-space: pre-wrap; word-break: break-word; margin-bottom: 20px;
         `;
         contentDiv.textContent = content;
@@ -741,7 +741,7 @@ const OrderModule = (function () {
 
         const modal = document.createElement('div');
         modal.style.cssText = `
-            background: white; border-radius: 16px; padding: 24px;
+            background: var(--bg-white); border-radius: 16px; padding: 24px;
             max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.25);
         `;
@@ -760,10 +760,10 @@ const OrderModule = (function () {
 
         modal.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div style="font-size:18px; font-weight:700; color:#5568d3;"><i class="ui ui-star"></i> 내 디폴트 주문</div>
-                <button id="defaultModalClose" style="background:none; border:none; font-size:24px; color:#718096; cursor:pointer; width:32px; height:32px; border-radius:50%;">×</button>
+                <div style="font-size:18px; font-weight:700; color:var(--order-accent-ink);"><i class="ui ui-star"></i> 내 디폴트 주문</div>
+                <button id="defaultModalClose" style="background:none; border:none; font-size:24px; color:var(--order-ink-sub); cursor:pointer; width:32px; height:32px; border-radius:50%;">×</button>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#f0f2f8; padding:4px; border-radius:10px; margin-bottom:16px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:var(--order-track-bg); padding:4px; border-radius:10px; margin-bottom:16px;">
                 <button id="defaultModeTabFixed" class="default-mode-tab" data-mode="fixed"><i class="ui ui-target"></i> 고정 메뉴</button>
                 <button id="defaultModeTabRandom" class="default-mode-tab" data-mode="random" disabled title="준비 중인 기능입니다"><i class="ui ui-dice"></i> 매번 랜덤 (준비중)</button>
             </div>
@@ -792,8 +792,8 @@ const OrderModule = (function () {
         const randomBox = document.getElementById('defaultModeRandom');
         if (!fixedTab || !randomTab || !fixedBox || !randomBox) return;
 
-        const activeStyle = 'background:white; color:#5568d3; box-shadow:0 2px 6px rgba(0,0,0,0.08);';
-        const idleStyle = 'background:transparent; color:#718096;';
+        const activeStyle = 'background:var(--order-tab-active-bg); color:var(--order-accent-ink); box-shadow:0 2px 6px rgba(0,0,0,0.08);';
+        const idleStyle = 'background:transparent; color:var(--order-ink-sub);';
         const baseTab = 'border:none; padding:10px 8px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer;';
         fixedTab.style.cssText = baseTab + (mode === 'fixed' ? activeStyle : idleStyle);
         // 매번 랜덤은 준비 중 — 항상 비활성(딤드) 상태로 표시
@@ -813,30 +813,30 @@ const OrderModule = (function () {
         const _preservedInputValue = _prevInput ? _prevInput.value : null;
         const current = document.createElement('div');
         if (hasFixed) {
-            current.style.cssText = 'background:#fff8e1; border:1.5px solid #ffc107; border-radius:10px; padding:14px; margin-bottom:16px;';
+            current.style.cssText = 'background:var(--order-hl-bg); border:1.5px solid #ffc107; border-radius:10px; padding:14px; margin-bottom:16px;';
             const topRow = document.createElement('div');
             topRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:10px;';
             const label = document.createElement('div');
-            label.style.cssText = 'font-size:12px; color:#718096; font-weight:600; white-space:nowrap; flex-shrink:0;';
+            label.style.cssText = 'font-size:12px; color:var(--order-ink-sub); font-weight:600; white-space:nowrap; flex-shrink:0;';
             label.textContent = '현재 디폴트';
             const clearBtn = document.createElement('button');
-            clearBtn.style.cssText = 'background:#fed7d7 !important; color:#c53030 !important; border:none !important; border-radius:6px !important; padding:3px 9px !important; font-size:11px !important; font-weight:600 !important; line-height:1.3 !important; cursor:pointer !important; width:auto !important; min-width:0 !important; max-width:max-content !important; flex:0 0 auto !important; display:inline-block !important;';
+            clearBtn.style.cssText = 'background:var(--order-danger-bg) !important; color:var(--order-danger-ink) !important; border:none !important; border-radius:6px !important; padding:3px 9px !important; font-size:11px !important; font-weight:600 !important; line-height:1.3 !important; cursor:pointer !important; width:auto !important; min-width:0 !important; max-width:max-content !important; flex:0 0 auto !important; display:inline-block !important;';
             clearBtn.textContent = '해제';
             clearBtn.onclick = clearDefaultFromModal;
             topRow.appendChild(label);
             topRow.appendChild(clearBtn);
             const value = document.createElement('div');
-            value.style.cssText = 'font-size:20px; font-weight:700; color:#856404; margin-top:8px; word-break:break-all;';
+            value.style.cssText = 'font-size:20px; font-weight:700; color:var(--order-hl-ink); margin-top:8px; word-break:break-all;';
             value.textContent = _myDefaultOrder;
             current.appendChild(topRow);
             current.appendChild(value);
         } else {
-            current.style.cssText = 'background:#f8f9fb; border:1.5px dashed #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px;';
+            current.style.cssText = 'background:var(--order-soft-bg); border:1.5px dashed var(--order-line); border-radius:10px; padding:14px; margin-bottom:16px;';
             const label = document.createElement('div');
-            label.style.cssText = 'font-size:12px; color:#718096;';
+            label.style.cssText = 'font-size:12px; color:var(--order-ink-sub);';
             label.textContent = '현재 디폴트';
             const value = document.createElement('div');
-            value.style.cssText = 'font-size:16px; color:#718096; font-style:italic; margin-top:2px;';
+            value.style.cssText = 'font-size:16px; color:var(--order-ink-sub); font-style:italic; margin-top:2px;';
             value.textContent = '설정 안 됨';
             current.appendChild(label);
             current.appendChild(value);
@@ -846,7 +846,7 @@ const OrderModule = (function () {
         const poolSection = document.createElement('div');
         poolSection.style.cssText = 'margin-top:20px;';
         const poolTitle = document.createElement('div');
-        poolTitle.style.cssText = 'font-size:13px; font-weight:700; color:#718096; margin-bottom:10px;';
+        poolTitle.style.cssText = 'font-size:13px; font-weight:700; color:var(--order-ink-sub); margin-bottom:10px;';
         poolTitle.textContent = '내가 주문한 메뉴에서 선택';
         const tags = document.createElement('div');
         tags.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
@@ -861,7 +861,7 @@ const OrderModule = (function () {
                 const tag = document.createElement('span');
                 const isCur = hasFixed && menu === _myDefaultOrder;
                 tag.style.cssText = 'border-radius:18px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; '
-                    + (isCur ? 'background:#fff8e1; border:1.5px solid #ffc107; color:#856404;' : 'background:#edf0f7; border:1.5px solid #e2e8f0; color:#2d3748;');
+                    + (isCur ? 'background:var(--order-hl-bg); border:1.5px solid #ffc107; color:var(--order-hl-ink);' : 'background:var(--order-tag-bg); border:1.5px solid var(--order-line); color:var(--order-tag-ink);');
                 tag.textContent = menu;
                 tag.onclick = () => pickDefaultFromPool(menu);
                 tags.appendChild(tag);
@@ -874,7 +874,7 @@ const OrderModule = (function () {
         const customSection = document.createElement('div');
         customSection.style.cssText = 'margin-top:20px;';
         const customTitle = document.createElement('div');
-        customTitle.style.cssText = 'font-size:13px; font-weight:700; color:#718096; margin-bottom:10px;';
+        customTitle.style.cssText = 'font-size:13px; font-weight:700; color:var(--order-ink-sub); margin-bottom:10px;';
         customTitle.textContent = '또는 직접 입력';
         const customRow = document.createElement('div');
         customRow.style.cssText = 'display:grid; grid-template-columns:1fr auto; gap:8px;';
@@ -887,7 +887,7 @@ const OrderModule = (function () {
         customInput.value = (_preservedInputValue !== null && _preservedInputValue !== '')
             ? _preservedInputValue
             : (hasFixed ? _myDefaultOrder : '');
-        customInput.style.cssText = 'padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none;';
+        customInput.style.cssText = 'padding:10px 12px; border:1.5px solid var(--order-line); border-radius:8px; font-size:14px; outline:none;';
         customInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveCustomDefault(); } });
         const saveBtn = document.createElement('button');
         saveBtn.style.cssText = 'background:linear-gradient(135deg,#ffe082 0%,#ffc107 100%); color:#856404; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer;';
@@ -1120,10 +1120,47 @@ const OrderModule = (function () {
         const style = document.createElement('style');
         style.id = 'order-shared-styles';
         style.textContent = `
+            /* 주문 전용 색 토큰 — 라이트 값은 예전에 박혀 있던 값 그대로, 다크만 재정의 */
+            :root {
+                --order-saved-flash: #d4edda;
+                --order-title: #667eea;
+                --order-ink: #333;
+                --order-ink-sub: #718096;
+                --order-accent-ink: #5568d3;
+                --order-track-bg: #f0f2f8;
+                --order-tab-active-bg: white;
+                --order-hl-bg: #fff8e1;
+                --order-hl-ink: #856404;
+                --order-danger-bg: #fed7d7;
+                --order-danger-ink: #c53030;
+                --order-soft-bg: #f8f9fb;
+                --order-line: #e2e8f0;
+                --order-tag-bg: #edf0f7;
+                --order-tag-ink: #2d3748;
+                --order-star-idle: #cbd5e0;
+            }
+            [data-theme="dark"] {
+                --order-saved-flash: var(--green-200);
+                --order-title: var(--purple-500);
+                --order-ink: var(--text-primary);
+                --order-ink-sub: var(--text-tertiary);
+                --order-accent-ink: var(--purple-700);
+                --order-track-bg: var(--gray-50);
+                --order-tab-active-bg: var(--gray-200);
+                --order-hl-bg: var(--yellow-50);
+                --order-hl-ink: var(--yellow-800);
+                --order-danger-bg: var(--red-100);
+                --order-danger-ink: var(--red-800);
+                --order-soft-bg: var(--gray-50);
+                --order-line: var(--border-color);
+                --order-tag-bg: var(--gray-100);
+                --order-tag-ink: var(--text-primary);
+                --order-star-idle: var(--gray-400);
+            }
             .not-rolled-tag {
-                background: #fff3cd;
-                border: 2px solid #ffc107;
-                color: #856404;
+                background: var(--yellow-100);
+                border: 2px solid var(--yellow-500);
+                color: var(--order-hl-ink);
                 padding: 6px 12px;
                 border-radius: 20px;
                 font-size: 14px;
@@ -1131,7 +1168,7 @@ const OrderModule = (function () {
             }
             #defaultStarBtn { background: none !important; border: none !important; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; padding: 0 2px !important; font-size: 16px !important; }
             #defaultStarBtn:focus, #defaultStarBtn:active { background: none !important; outline: none !important; box-shadow: none !important; }
-            #defaultStarBtn { color: #cbd5e0 !important; }
+            #defaultStarBtn { color: var(--order-star-idle) !important; }
             #defaultStarBtn.has-default { color: #ffc107 !important; }
             #defaultStarBtn:hover { opacity: 0.75; }
         `;

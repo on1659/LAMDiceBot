@@ -14,6 +14,7 @@ const TaglineRoller = (function () {
             overflow: hidden; height: 1.3em; position: relative; margin: 0;
             color: #888; font-size: 0.95em;
         }
+        [data-theme="dark"] .ss-tagline { color: var(--text-muted); }
         .ss-tagline span {
             display: inline-block; transition: all 0.7s ease;
             transform-origin: center;

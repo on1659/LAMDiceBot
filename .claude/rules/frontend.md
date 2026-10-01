@@ -19,12 +19,13 @@ paths:
 ## HTML
 - AdSense 스니펫 `<head>`에 포함 확인 (admin.html 제외)
 - API 호출은 `/api/...` 상대 경로만 (도메인 하드코딩 금지)
-- FOUC 방지 스크립트 `<head>`에 포함 확인
+- FOUC 방지 스크립트 `<head>`에 포함 확인 — `/js/shared/theme-shared.js`를 `theme.css`보다 먼저 동기 로드 (스킨 라이트/다크 결정)
 
 ## CSS
 - 새 색상은 반드시 CSS 변수로 정의 (하드코딩 금지)
 - 게임 공통 색상 → `css/theme.css`
 - 게임 전용 색상 → 해당 게임 CSS 파일의 `:root`
+- **다크 스킨 대응**: 새 색 변수는 `[data-theme="dark"]` 값도 같이 정한다. `--bg-white`·`--text-primary`·`--gray-*`는 다크에서 뒤집힌다 — 색 버튼·그라디언트 위 흰 글자는 `--text-on-accent`, 노랑·금색 위 글자는 `--text-on-light`. 게임 그림(캔버스·스프라이트)은 스킨과 무관하게 둔다. UI 변경은 두 스킨 모두에서 확인
 
 ## 공유 JS (js/shared/*-shared.js)
 - 공유 모듈은 `js/shared/` 디렉토리에 위치 (chat, ranking, order, ready, control-bar, countdown, page-history, server-select, tutorial)

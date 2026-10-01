@@ -19,8 +19,8 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- Theme: always light -->
-    <script>document.documentElement.setAttribute('data-theme', 'light');</script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -38,6 +38,7 @@
             background: var(--dice-gradient);
             min-height: 100vh;
         }
+        [data-theme="dark"] body { background: var(--dark-ground-dice); }
 
         /* Header: 배경 그라디언트와 어우러지는 글래스 효과 */
         header {
@@ -243,6 +244,7 @@
                 <a href="/pages/faq.html">FAQ</a>
                 <a href="/pages/about-us.html">소개</a>
                 <a href="/pages/statistics.html">통계</a>
+                <span data-theme-switcher></span>
             </div>
         </nav>
     </header>
@@ -350,7 +352,7 @@
     <script src="/js/shared/page-history-shared.js"></script>
     <script src="/config/client-config.js"></script>
     <script src="/js/tagline-roller.js"></script>
-    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=4"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/shared/server-select-shared.js"></script>
     <script>

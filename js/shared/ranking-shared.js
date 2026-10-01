@@ -165,6 +165,7 @@ const RankingModule = (function () {
             --rk-btn-hover: rgba(255,255,255,0.3);
             --rk-me-line: rgba(255,215,0,0.6); /* --rk-gold 외곽선 */
             --rk-me-bg: rgba(255,215,0,0.07);
+            --rk-select-bg: #212529; /* 시즌 선택 상자 — 스킨과 무관하게 고정 (예전 --gray-900 은 다크에서 밝은 색으로 뒤집힘) */
 
             position: fixed; inset: 0; z-index: 9999;
             background: rgba(0,0,0,0.8); /* 백드롭 — 구 탈것 통계 모달 패리티, 페이지 라이트/다크 무관 고정 */
@@ -563,7 +564,7 @@ const RankingModule = (function () {
             border-bottom: 1px solid var(--rk-surface);
         }
         .rk-season-select {
-            background: var(--gray-900, var(--rk-bg-start));
+            background: var(--rk-select-bg);
             border: 1px solid rgba(255,255,255,0.15);
             color: white; border-radius: 8px;
             padding: 5px 10px; font-size: 0.85em;

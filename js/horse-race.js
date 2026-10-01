@@ -61,14 +61,14 @@ function getTabId() { return sessionStorage.getItem('tabId'); }
 // 내(me) 이름표 라벨 기본 스타일 cssText — 렌더 2곳(renderTrackForSelection/startRaceAnimation)의
 // isMe 분기와 refreshMyNameTags 복원(applyMyDefaultTagStyle)이 모두 이 상수를 공유(같은 파일 내 dedup).
 var ME_NAMETAG_CSS = 'background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));'
-    + 'color: var(--text-primary);'
+    + 'color: var(--text-on-light);'
     + 'padding: 2px 6px;'
     + 'border-radius: 4px;'
     + 'font-size: 11px;'
     + 'line-height: 16px;'
     + 'font-weight: bold;'
     + 'white-space: nowrap;'
-    + 'border: 2px solid var(--bg-white);'
+    + 'border: 2px solid var(--text-on-accent);'
     + 'box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);'
     + 'text-shadow: 0 1px 1px rgba(255,255,255,0.5);';
 
@@ -1607,7 +1607,7 @@ function renderTrackForSelection() {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
                         background: rgba(0,0,0,0.75);
-                        color: var(--bg-white);
+                        color: var(--text-on-accent);
                         padding: 2px 5px;
                         border-radius: 3px;
                         font-size: 10px;
@@ -1707,11 +1707,11 @@ function renderHorseSelection() {
         const activeColor = 'var(--yellow-400)'; // 모든 트랙 버튼 노란색 통일
         const trackLabels = { short: '짧게', medium: '보통', long: '길게' };
         const presets = trackPresetsFromServer;
-        let btnsHtml = '<span style="font-size: 12px; color: var(--gray-300);">트랙:</span>';
+        let btnsHtml = '<span style="font-size: 12px; color: var(--track-chip-label);">트랙:</span>';
         for (const key of ['short', 'medium', 'long']) {
             const isActive = currentTrackLength === key;
             btnsHtml += `<button class="track-length-btn" data-length="${key}"
-                style="padding: 4px 10px; border-radius: 12px; border: 1px solid var(--gray-600); background: ${isActive ? activeColor : 'var(--gray-800)'}; color: ${isActive ? 'var(--gray-900)' : 'var(--gray-300)'}; cursor: pointer; font-size: 11px; font-weight: bold;">
+                style="padding: 4px 10px; border-radius: 12px; border: 1px solid var(--track-chip-border); background: ${isActive ? activeColor : 'var(--track-chip-bg)'}; color: ${isActive ? 'var(--text-on-light)' : 'var(--track-chip-text)'}; cursor: pointer; font-size: 11px; font-weight: bold;">
                 ${trackLabels[key]} (${presets[key]}m)
             </button>`;
         }
@@ -1724,13 +1724,13 @@ function renderHorseSelection() {
 
                 // 즉시 선택 피드백
                 trackLengthContainer.querySelectorAll('.track-length-btn').forEach(b => {
-                    b.style.background = 'var(--gray-800)';
-                    b.style.color = 'var(--gray-300)';
+                    b.style.background = 'var(--track-chip-bg)';
+                    b.style.color = 'var(--track-chip-text)';
                     b.style.boxShadow = 'none';
                 });
                 const activeColor = 'var(--yellow-400)'; // 노란색 통일
                 btn.style.background = activeColor;
-                btn.style.color = 'var(--gray-900)';
+                btn.style.color = 'var(--text-on-light)';
                 btn.style.boxShadow = '0 0 8px ' + activeColor + '80';
                 socket.emit('setTrackLength', { trackLength: btn.dataset.length });
 
@@ -1877,12 +1877,12 @@ function renderHorseSelection() {
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
         const isNew = NEW_VEHICLES.includes(vehicleId);
-        const badges = (isNew ? ' <span style="font-size: 10px; background: var(--green-500); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">NEW</span>' : '') + (isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : '');
+        const badges = (isNew ? ' <span style="font-size: 10px; background: var(--green-500); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">NEW</span>' : '') + (isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : '');
         content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${badges}</div>`;
 
         // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
         if (vehicleId === recommendedVehicleId) {
-            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-700); color: var(--bg-white); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
+            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-700); color: var(--text-on-accent); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
         }
 
         // 내 선택만 표시 (타인 선택은 숨김 - 카운트다운 후 공개)
@@ -2946,7 +2946,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
                         background: rgba(0,0,0,0.75);
-                        color: var(--bg-white);
+                        color: var(--text-on-accent);
                         padding: 2px 5px;
                         border-radius: 3px;
                         font-size: 10px;
@@ -3065,7 +3065,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     const medal = idx === 0 ? UIIcons.tag('medal') : idx === 1 ? UIIcons.tag('silver') : idx === 2 ? UIIcons.tag('bronze') : `${idx + 1}.`;
                     const users = info.bettingUsers.length > 0 ? info.bettingUsers.join(',') : '-';
                     const remainingText = pos.remaining <= 0 ? UIIcons.tag('checker') : `${pos.remainingMeters}m`;
-                    const progressColor = pos.remaining <= 0 ? 'var(--green-400)' : pos.remaining < 30 ? 'var(--yellow-400)' : 'var(--gray-400)';
+                    const progressColor = pos.remaining <= 0 ? 'var(--green-400)' : pos.remaining < 30 ? 'var(--yellow-400)' : 'var(--race-on-dark-muted)';
                     // 탈것 SVG 썸(16px). id 없는 fallback 객체(알 수 없는 탈것)면 dash 아이콘
                     const thumb = info.vehicle.id ? vehicleThumb(info.vehicle.id, 16) : UIIcons.tag('dash');
                     html += `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0; ${idx === 0 ? 'color: var(--yellow-500); font-weight: bold;' : ''}">
@@ -3274,7 +3274,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             cameraModeOverlay.style.cssText = `
                 position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
                 padding: 4px 14px; border-radius: 12px; font-size: 12px;
-                font-family: 'Jua', sans-serif; color: var(--bg-white); pointer-events: none;
+                font-family: 'Jua', sans-serif; color: var(--text-on-accent); pointer-events: none;
                 z-index: 50; transition: opacity 0.5s; opacity: 0;
             `;
             trackContainer.style.position = 'relative';
@@ -5103,7 +5103,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
             opacity: 0;
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
         `;
-        tombstoneWrap.innerHTML = `${UIIcons.tag('tomb')}<span style="display:block;font-size:12px;font-weight:bold;color:var(--gray-700);">${finishRank + 1}등</span>`;
+        tombstoneWrap.innerHTML = `${UIIcons.tag('tomb')}<span style="display:block;font-size:12px;font-weight:bold;color:var(--race-tomb-text);">${finishRank + 1}등</span>`;
         track.appendChild(tombstoneWrap);
     }
     
@@ -5582,7 +5582,7 @@ function showRaceResult(data, isReplay = false) {
                     <span style="font-size: 13px;">${targetIcon}</span>
                     <span style="font-size: 12px; font-weight: bold; color: var(--red-400);">${loserIndex + 1}등</span>
                     <div style="transform: scale(0.55); margin: -8px -4px; filter: grayscale(60%);">${chatLoserSvg}</div>
-                    <span style="font-size: 11px; font-weight: bold; color: var(--gray-100);">${chatLoserVehicle.name}</span>
+                    <span style="font-size: 11px; font-weight: bold; color: var(--race-on-dark);">${chatLoserVehicle.name}</span>
                     <span style="font-size: 11px; color: var(--red-400); margin-left: auto;">${UIIcons.tag('party')} ${loserNames}</span>
                 </div>
             </div>`;
@@ -5603,7 +5603,7 @@ function showRaceResult(data, isReplay = false) {
         let targetRankBadgeHtml = '';
         if (targetRankForResult !== null && targetRankForResult >= 1) {
             targetRankBadgeHtml = `
-                <div style="text-align: center; margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%); color: var(--bg-white); font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
+                <div style="text-align: center; margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%); color: var(--text-on-accent); font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
                     ${UIIcons.tag('target')} ${targetRankForResult}등 찾기
                 </div>
             `;
@@ -5646,10 +5646,10 @@ function showRaceResult(data, isReplay = false) {
                     <div class="result-rank-2" style="background: linear-gradient(135deg, var(--result-silver-light) 0%, var(--result-silver-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-silver-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 18px;">${UIIcons.tag('silver')}</span>
-                            <span style="font-size: 16px; font-weight: bold; color: var(--text-secondary);">${rankNum}등</span>
+                            <span style="font-size: 16px; font-weight: bold; color: var(--result-silver-text);">${rankNum}등</span>
                             <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
-                            <span style="font-size: 14px; font-weight: bold; color: var(--text-secondary);">${vehicle.name}</span>
-                            <span style="font-size: 12px; color: var(--gray-400); margin-left: auto;">${usersHtml}</span>
+                            <span style="font-size: 14px; font-weight: bold; color: var(--result-silver-text);">${vehicle.name}</span>
+                            <span style="font-size: 12px; color: var(--result-silver-subtext); margin-left: auto;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
@@ -5699,14 +5699,14 @@ function showRaceResult(data, isReplay = false) {
             : '<span class="winner-chip empty">베팅한 사람 없음</span>';
         rankingsHtml += `
             <div class="result-target-block" style="background: linear-gradient(135deg, var(--result-loser-dark) 0%, var(--result-loser-dark2) 100%); padding: 14px 16px 16px; border-radius: 12px; margin-top: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.45); border: 2px solid var(--result-loser-border); position: relative; overflow: hidden;">
-                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: var(--result-loser-border); color: var(--bg-white); padding: 2px 12px; border-radius: 0 0 6px 6px; font-size: 10px; font-weight: bold; letter-spacing: 1.5px;">${targetBadge}</div>
+                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: var(--result-loser-border); color: var(--text-on-accent); padding: 2px 12px; border-radius: 0 0 6px 6px; font-size: 10px; font-weight: bold; letter-spacing: 1.5px;">${targetBadge}</div>
                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
                     <span style="font-size: 22px;">${targetIcon}</span>
                     <span style="font-size: 17px; font-weight: bold; color: var(--red-400);">${loserIndex + 1}등</span>
                     <div style="transform: scale(0.85); filter: grayscale(40%);">${getVehicleSVGForResult(loserVehicle.vehicleId || loserVehicle.id, 40)}</div>
-                    <span style="font-size: 15px; font-weight: bold; color: var(--gray-100);">${loserVehicle.name}</span>
+                    <span style="font-size: 15px; font-weight: bold; color: var(--race-on-dark);">${loserVehicle.name}</span>
                 </div>
-                <div style="text-align: center; margin-top: 10px; font-size: 11px; color: var(--gray-100); letter-spacing: 2px; opacity: 0.85;">
+                <div style="text-align: center; margin-top: 10px; font-size: 11px; color: var(--race-on-dark); letter-spacing: 2px; opacity: 0.85;">
                     ${UIIcons.tag('star')} 당 첨 자 ${UIIcons.tag('star')}
                 </div>
                 <div class="winner-chip-row">${winnerChips}</div>
@@ -5862,7 +5862,7 @@ function showQuickRaceOverlay() {
             text-shadow: 0 0 20px rgba(255,215,0,0.6);">
             모두 같은 선택!
         </div>
-        <div style="font-size: 14px; color: var(--gray-300); margin-top: 6px;">
+        <div style="font-size: 14px; color: var(--race-on-dark-soft); margin-top: 6px;">
             빠르게 결과를 확인합니다
         </div>
     `;
@@ -6055,7 +6055,7 @@ function renderHistory() {
                 const bettingUsers = getBettingUsersFromRecord(record, horseIndex);
                 const medals = [UIIcons.tag('medal'), UIIcons.tag('silver'), UIIcons.tag('bronze')];
                 const medal = medals[rank] || '';   // 4등 이하는 옆의 'N등' 텍스트만
-                const bgColors = ['var(--result-gold-light)', 'var(--result-silver-light)', 'var(--result-bronze-light)', 'var(--panel-secondary)', 'var(--panel-secondary)', 'var(--panel-secondary)'];
+                const bgColors = ['var(--history-rank1-bg)', 'var(--history-rank2-bg)', 'var(--history-rank3-bg)', 'var(--panel-secondary)', 'var(--panel-secondary)', 'var(--panel-secondary)'];
                 const bgColor = bgColors[rank] || 'var(--panel-secondary)';
                 
                 rankingsHtml += `
@@ -6097,7 +6097,7 @@ function renderHistory() {
         const historyIdx = horseRaceHistory.length - 1 - idx;
         const recTargetRank = (typeof record.targetRank === 'number') ? record.targetRank : null;
         const recTargetLabel = (recTargetRank !== null && recTargetRank >= 1) ? (recTargetRank + '등') : '꼴등';
-        const targetRankBadge = `<span style="margin-left: 6px; padding: 2px 5px; background: var(--horse-500); color: var(--bg-white); border-radius: 4px; font-size: 9px; font-weight: bold; white-space: nowrap;">${UIIcons.tag('target')}${recTargetLabel}</span>`;
+        const targetRankBadge = `<span style="margin-left: 6px; padding: 2px 5px; background: var(--horse-500); color: var(--text-on-accent); border-radius: 4px; font-size: 9px; font-weight: bold; white-space: nowrap;">${UIIcons.tag('target')}${recTargetLabel}</span>`;
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 6px;">
                 <div style="font-weight: bold; color: var(--horse-accent); font-size: 14px; white-space: nowrap; min-width: 0; flex-shrink: 1;">${record.round || (horseRaceHistory.length - idx)}라운드${targetRankBadge}</div>
@@ -6109,7 +6109,7 @@ function renderHistory() {
             <div style="margin-bottom: 8px;">
                 ${rankingsHtml}
             </div>
-            ${winnersText ? `<div style="font-size: 13px; color: var(--horse-600); font-weight: bold; text-align: center; padding: 5px; background: var(--yellow-50); border-radius: 4px;">${winnersText}</div>` : ''}
+            ${winnersText ? `<div style="font-size: 13px; color: var(--horse-ink); font-weight: bold; text-align: center; padding: 5px; background: var(--yellow-50); border-radius: 4px;">${winnersText}</div>` : ''}
         `;
         item.querySelector('.history-replay-btn').addEventListener('click', function() {
             if (isRaceActive || isReplayActive) {
@@ -6372,8 +6372,8 @@ function initReadyModule() {
             updateStartButton();
         },
         onError: (message) => showCustomAlert(message, 'error'),
-        readyStyle: { background: 'var(--horse-gradient)', color: 'var(--bg-white)' },
-        readyCancelStyle: { background: 'linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%)', color: 'var(--bg-white)' }
+        readyStyle: { background: 'var(--horse-gradient)', color: 'var(--text-on-accent)' },
+        readyCancelStyle: { background: 'linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%)', color: 'var(--text-on-accent)' }
     });
 }
 
@@ -7002,8 +7002,8 @@ socket.on('trackLengthChanged', (data) => {
     document.querySelectorAll('.track-length-btn').forEach(btn => {
         const key = btn.dataset.length;
         const isActive = key === currentTrackLength;
-        btn.style.background = isActive ? activeColor : 'var(--gray-800)';
-        btn.style.color = isActive ? 'var(--gray-900)' : 'var(--gray-300)';
+        btn.style.background = isActive ? activeColor : 'var(--track-chip-bg)';
+        btn.style.color = isActive ? 'var(--text-on-light)' : 'var(--track-chip-text)';
         btn.style.boxShadow = isActive ? `0 0 8px ${activeColor}80` : 'none';
         if (trackPresetsFromServer[key]) {
             const labels = { short: '짧게', medium: '보통', long: '길게' };
@@ -7593,7 +7593,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
 
     const alertContent = document.createElement('div');
     alertContent.style.cssText = `
-        background: white; border-radius: 16px; padding: 20px;
+        background: var(--bg-white); border-radius: 16px; padding: 20px;
         max-width: 450px; width: calc(100vw - 40px);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         border: 2px solid ${borderColor};
@@ -7624,7 +7624,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
 
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
-        font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+        font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text);
         white-space: pre-wrap; word-wrap: break-word;
         word-break: keep-all; overflow-wrap: break-word;
         text-align: center; margin-bottom: 20px;
@@ -7637,7 +7637,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     confirmButton.style.cssText = `
         padding: 10px 30px;
         background: ${borderColor};
-        color: white; border: none; border-radius: 8px;
+        color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'white'}; border: none; border-radius: 8px;
         font-size: 16px; font-weight: 600; cursor: pointer;
         width: 100%; transition: transform 0.1s, box-shadow 0.1s;
     `;
@@ -7664,7 +7664,7 @@ function showConfirmDialog(message, onConfirm) {
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
     
     const modal = document.createElement('div');
-    modal.style.cssText = 'background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+    modal.style.cssText = 'background: var(--bg-white); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
     
     modal.innerHTML = `
         <div style="margin-bottom: 20px; line-height: 1.6; text-align: center;">${message}</div>
