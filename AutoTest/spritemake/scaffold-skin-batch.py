@@ -22,13 +22,17 @@ from PIL import Image
 OUT = Path('/Users/radar/Work/SpriteMake/output')
 GAME = Path(__file__).resolve().parents[2]
 CREATURES = GAME / 'assets' / 'marble' / 'creatures'
-CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex'
+CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex'   # 2026-10-01 앱 업데이트로 Resources/codex → codex-cli/bin/codex
 
 # creature → (템플릿 배치, 템플릿 시트 이름, 리팩 JS). 리팩 JS 는 동물별 칸 규칙(판다·돼지는 r3c0 도 공)이 들어 있어 같은 동물 것을 쓴다
 TEMPLATE = {
     'raccoon': ('marble-run-skin-raccoon-ninja-2026-09-22', 'raccoon-ninja', 'creatures_ninja_png.js'),
     'panda': ('marble-run-skin-panda-red-2026-09-22', 'panda-red', 'creatures_redpanda_png.js'),
     'ribbonpig': ('marble-run-skin-ribbonpig-base-2026-09-22', 'ribbonpig', 'creatures_pigbase_png.js'),
+    'pillbug': ('marble-run-skin-pillbug-rainbow-2026-09-22', 'pillbug-rainbow', 'creatures_rainbow_png.js'),
+    'turtle': ('marble-run-skin-turtle-melon-2026-09-22', 'turtle-melon', 'creatures_melon_png.js'),   # r3c0 도 공
+    # 아르마딜로는 생성 스킨 배치가 없다 — 칸 규칙이 같은 공벌레 것(r3c0 = 공 아님)을 쓴다. 거북이 도구는 r3c0 을 공으로 맞춰 버려서 못 쓴다
+    'armadillo': ('marble-run-skin-pillbug-rainbow-2026-09-22', 'pillbug-rainbow', 'creatures_rainbow_png.js'),
 }
 ROWS = {
     'raccoon': {
@@ -63,6 +67,39 @@ ROWS = {
         'scuffle': ("row0 push: leaning forward / one step while pushing / pushing hard eyes scrunched / recoil after being pushed.\n"
                     "row1: startled jump slightly airborne / falling tucked with splayed hooves (NOT a ball) / seated dizzy A / seated dizzy B.\n"
                     "Copy the base pig-scuffle poses; right-facing side profile."),
+    },
+    'pillbug': {
+        'main': ("row0 idle: c0 antenna flick; c1 front-leg tap; c2 sniff/blink; c3 settle. All side-facing-right as in the base.\n"
+                 "row1 curl: c0 standing; c1 crouching; c2 body rounding; c3 COMPLETE BALL, identical to r2c0.\n"
+                 "row2 ball: c0 plain round ball; c1 landing squash, wider and flatter; c2 round ball with brown mud splotches; c3 round dizzy ball with @@ eyes. Four visibly distinct genuine BALLS, costume visible on each.\n"
+                 "row3 uncurl: c0 curled up with the face showing; c1 half opened; c2 waving A; c3 waving B, matching base poses.\n"
+                 "row4 faceplant: c0 wall impact, squashed face; c1 airborne bounce; c2 sprawled faceplant (overhead view allowed); c3 dazed with circling stars. Same body scale as the standing rows."),
+        'sleep': "c0 sleeping on its side, eyes closed; c1 same pose with the belly slightly inflated; c2 waking, eyes open, antenna raised, no exclamation mark; c3 abruptly sat up. Copy the base pillbug-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward; c1 stepping and pushing; c2 strongest shove with scrunched face; c3 pushed-back recoil.\n"
+                    "row1: c0 startled, eyes wide, antennae up, slightly airborne; c1 falling, curled/crouched with legs spread, NOT a ball; c2 seated dizzy A; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base pillbug-scuffle poses; right-facing side profile."),
+    },
+    'turtle': {
+        'main': ("r0 idle: neutral; forefoot tap; blink; settle with foreleg gesture.\n"
+                 "r1 curl: standing; crouching head; rounding with head hidden; perfectly ROUND BALL.\n"
+                 "r2 ball: round ball identical to r1c3; flattened wide landing-squash ball; round muddy ball; round dizzy ball with spiral eyes. All are complete round balls without protruding head or legs, costume visible on each.\n"
+                 "r3 uncurl: round ball; half-open with the head emerging toward the right; standing waving A; standing waving B.\n"
+                 "r4 faceplant: muzzle pressed against an invisible wall at RIGHT; rebound airborne, head toward RIGHT; sprawled faceplant (top-down allowed); dazed recovery, right-facing, with orbiting stars."),
+        'sleep': "c0 side-lying asleep, eyes closed; c1 same with subtly inflated breathing belly; c2 awake, eyes wide; c3 rises to sit/stand. Every head faces RIGHT. Copy the base turtle-sleep poses exactly.",
+        'scuffle': ("r0 push: leaning forward braced push; stepping push; strongest push with eyes squeezing; recoil from pushing.\n"
+                    "r1: startled, forefeet lifted, slightly airborne; falling curled torso with legs splayed (NOT a ball); seated dizzy spiral eyes A; seated dizzy spiral eyes B. No stars.\n"
+                    "Copy the base turtle-scuffle poses; every head points RIGHT in side profile."),
+    },
+    'armadillo': {
+        'main': ("row0 idle: c0 standing; c1 one step with a front paw; c2 alert, head up with two small surprise ticks above the ears; c3 settle with a happy closed-eye smile.\n"
+                 "row1 curl: c0 standing, head lowered; c1 crouching with the head tucking down; c2 nearly rolled up, face still peeking out at the lower right; c3 COMPLETE BALL, identical to r2c0.\n"
+                 "row2 ball: c0 plain round ball; c1 landing squash, wider and flatter, with small impact ticks at both sides; c2 round ball with brown mud splotches; c3 round dizzy ball with @@ eyes and circling stars. Four visibly distinct genuine BALLS, costume visible on each.\n"
+                 "row3 uncurl: c0 rolled up with the sleepy face showing at the lower right (NOT a plain ball); c1 half opened, face and paws out; c2 standing upright waving A; c3 standing upright waving B, eyes closed happily.\n"
+                 "row4 faceplant: c0 flat on its belly, face squashed, impact ticks at both sides; c1 airborne bounce, tumbling with mouth open; c2 flat on its back, limbs up; c3 flat on its back with circling stars. Same body scale as the standing rows."),
+        'sleep': "c0 lying curled on its belly asleep, eyes closed; c1 same pose, breathing; c2 same pose with one eye opening; c3 sat up on its hind legs, awake. Copy the base armadillo-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward, frowning; c1 pushing with front paws; c2 strongest shove, low and stretched; c3 knocked back onto its rump, eyes shut.\n"
+                    "row1: c0 startled, mouth open, paws up; c1 tumbling in the air on its back, limbs splayed, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base armadillo-scuffle poses; right-facing side profile."),
     },
 }
 GRID = {'main': (4, 5), 'sleep': (4, 1), 'scuffle': (4, 2)}
