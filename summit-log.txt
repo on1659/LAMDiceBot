@@ -1,4 +1,51 @@
 ========================================
+📋 Summit Log - 2026-10-01 (데구리 5090 에디션 — 그래픽카드 야식 + 전설 스킨 3종)
+========================================
+
+## 변경 파일
+- config/marble/cosmetics.json: marble_balloon_gpu(5090 그래픽카드, rare 50) + marble_skin_{pillbug,armadillo,turtle}_gpu(legend 150) 추가
+- assets/marble/accessories/balloon-gpu.webp: 풍선(야식 슬롯) 스프라이트 1장
+- assets/marble/creatures/{pillbug,armadillo,turtle}-gpu{,-sleep,-scuffle}.webp: 스킨 시트 9장
+- assets/marble/marble-run.manifest.json: accessories.balloon-gpu, skinPillbugGpu·skinArmadilloGpu·skinTurtleGpu 섹션
+- AutoTest/spritemake/make-balloons.py: gpu() 추가(기존 7종 webp 는 재생성해도 바이트 동일)
+- AutoTest/spritemake/scaffold-skin-batch.py: TEMPLATE/ROWS 에 pillbug·turtle·armadillo 추가, CODEX 경로 갱신
+- AutoTest/spritemake/recolor-gpu-editions.py: 신규 — 5090 스킨을 색으로 가르는 결정론 변환(화이트·LED)
+- js/marble-render.js: ASSET_VER v5 → v6 (공벌레·아르마딜로 5090 시트 같은 이름 교체)
+- docs/goal/applied/marble-5090-edition.md, docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md: 명세·의뢰서
+
+## 상세 변경 내역
+
+### [배경]
+- 사용자: "5090을 갖고 싶으신 분이 계심, 데구리에서라도 가질 수 있게 풍선이랑 스킨으로" → 동물은 "셋 다 하자, 5090 에디션"
+- 서버·렌더러·상점 코드 변경 없음(둘 다 카탈로그 기반). 그림에는 제조사 로고·글자·숫자를 넣지 않음("5090"은 상점 이름에만)
+
+### [풍선]
+- 기존 야식 7종과 같은 PIL 생성기·같은 스프라이트 계약(96×128, 매듭 48,106). 옆으로 긴 판 + 팬 둘 + 왼쪽 브래킷 + 초록 LED 띠 + 금색 단자
+- 뽑기에서는 다른 야식처럼 rare 로 나온다(socket/marble.js gachaPool 이 야식을 rare 로 고정 — 변경 없음)
+
+### [스킨 3종]
+- GPT(Codex exec) 생성 → 원본 직접 판정 → 리팩·QA → 인수. 세 배치 모두 QA PASS, verify-creature ALL_OK, ball-round ROUND_OK(보정 없음)
+- 거북이 main 은 Codex 가 고른 2번 대신 1번(r4c0 꽈당 칸 머리 방향이 기본 거북이와 같음)
+- 아르마딜로는 생성 스킨 배치가 없어 공벌레 리팩 도구를 템플릿으로 씀(거북이 도구는 r3c0 을 공으로 맞춰서 못 씀)
+- ChatGPT 앱 업데이트로 Codex 실행 파일이 Resources/codex → Resources/codex-cli/bin/codex 로 이동 → 스캐폴드 경로 수정
+
+### [에디션 구분 — 72f17035]
+- 사용자: "굴러갈 때 너무 비슷한데 차별 못 둠?" — 셋 다 검은 공 + 초록 링이라 28px 에서 구분 불가 → "그래픽카드도 흰색 검정색 LED 있으니 3개"
+- 공벌레 = LED(LED 띠·링을 무지개로, 공 칸은 중심 둘레 각도로 색을 돌리고 팬 날개도 켬), 아르마딜로 = 화이트(건메탈 판 → 흰색, LED → 하늘색), 거북이 = 블랙(그대로)
+- 다시 그리지 않고 배치 final PNG(검은 원본)에서 색만 변환 — 알파 100% 동일. pickup-skin.py 와 같은 pngquant --nofs → cwebp 무손실
+- 같은 이름 교체라 ASSET_VER v6, manifest md5 는 변환한 PNG 기준
+- 상점 이름: 공벌레 5090 LED 에디션 / 아르마딜로 5090 화이트 에디션 / 거북이 5090 블랙 에디션
+
+### [검증]
+- node AutoTest/qa-marble-skin-shop-test.js 5174 → ALL PASS (풍선 8종·스킨 시트 존재 포함)
+- game-lab/marble-preview.html 에서 세 스킨 + 풍선 렌더, ?v=6 200, −4000~6000ms 렌더 예외 0건
+
+### [알려진 것]
+- 폰(375px)에서 상점 2열 그리드의 오른쪽 열이 화면 밖으로 잘린다(이번에 발견, 원인 미확인 — 긴 이름일 수 있음). 상점 정리 작업(작은 카드 3열)에서 같이 고칠 예정
+
+========================================
+
+========================================
 📋 Summit Log - 2026-10-01 (데구리 랜덤 맵 모듈 덱 — 방마다 돌려 쓰기)
 ========================================
 
