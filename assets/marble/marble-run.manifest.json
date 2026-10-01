@@ -5347,7 +5347,7 @@
     "batch": "marble-run-skin-pillbug-gpu-2026-10-01",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md",
-    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 1(Codex 선택 그대로). 배치 QA PASS, 보정 없음.",
+    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 1(Codex 선택 그대로). 배치 QA PASS, 보정 없음. · 2026-10-01 LED 에디션: recolor-gpu-editions.py 로 색만 변환(알파 동일). md5 는 변환한 PNG 기준, 검은 원본은 배치 final/.",
     "assets": {
       "pillbug-gpu": {
         "image": "creatures/pillbug-gpu.png",
@@ -5375,7 +5375,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/pillbug-gpu.webp",
-        "md5": "208698c8690828afda41f05f0fc3bd67",
+        "md5": "447c776933a6232e83b907f2992fa060",
         "qaStatus": "PASS"
       },
       "pillbug-gpu-sleep": {
@@ -5404,7 +5404,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/pillbug-gpu-sleep.webp",
-        "md5": "678e186e59bcad592f21ae384c2ead9b",
+        "md5": "e6ae82120bce2f2bfe8ddb23afbd406b",
         "qaStatus": "PASS"
       },
       "pillbug-gpu-scuffle": {
@@ -5437,7 +5437,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/pillbug-gpu-scuffle.webp",
-        "md5": "059b0175cab550caee7f818f34ba8b89",
+        "md5": "76fff70c7aff9174a1489b9f590ef299",
         "qaStatus": "PASS"
       }
     }
@@ -5446,7 +5446,7 @@
     "batch": "marble-run-skin-armadillo-gpu-2026-10-01",
     "status": "all-3-picked-up",
     "request": "docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md",
-    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 2(Codex 선택 그대로). 리팩 도구는 공벌레 스킨 배치 것(아르마딜로 생성 스킨 배치 없음, r3c0 = 공 아님). 배치 QA PASS, 보정 없음.",
+    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 2(Codex 선택 그대로). 리팩 도구는 공벌레 스킨 배치 것(아르마딜로 생성 스킨 배치 없음, r3c0 = 공 아님). 배치 QA PASS, 보정 없음. · 2026-10-01 화이트 에디션: recolor-gpu-editions.py 로 색만 변환(알파 동일). md5 는 변환한 PNG 기준, 검은 원본은 배치 final/.",
     "assets": {
       "armadillo-gpu": {
         "image": "creatures/armadillo-gpu.png",
@@ -5474,7 +5474,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/marble/creatures/armadillo-gpu.webp",
-        "md5": "21e6cc15832c8e03523ab54f28a463d6",
+        "md5": "634cb663f53457b59f8a86277af6b315",
         "qaStatus": "PASS"
       },
       "armadillo-gpu-sleep": {
@@ -5503,7 +5503,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/marble/creatures/armadillo-gpu-sleep.webp",
-        "md5": "cc49b436d62f1ffbe7f82a675e4c5ce9",
+        "md5": "85e357636111f8f7e51ef7a26700aa73",
         "qaStatus": "PASS"
       },
       "armadillo-gpu-scuffle": {
@@ -5536,7 +5536,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/marble/creatures/armadillo-gpu-scuffle.webp",
-        "md5": "1e05c6064e183bd1afe9a19c28d5701a",
+        "md5": "79530e379bdb83b52daa0dbfbd911f7b",
         "qaStatus": "PASS"
       }
     }
