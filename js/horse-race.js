@@ -1879,12 +1879,12 @@ function renderHorseSelection() {
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
         const isNew = NEW_VEHICLES.includes(vehicleId);
-        const badges = (isNew ? ' <span style="font-size: 10px; background: var(--green-500); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">NEW</span>' : '') + (isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : '');
+        const badges = (isNew ? ' <span style="font-size: 10px; background: var(--fill-success); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">NEW</span>' : '') + (isPopular ? ' <span style="font-size: 10px; background: var(--btn-danger-hover); color: var(--text-on-accent); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : '');
         content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${badges}</div>`;
 
         // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
         if (vehicleId === recommendedVehicleId) {
-            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-700); color: var(--text-on-accent); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
+            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--btn-danger-active); color: var(--text-on-accent); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
         }
 
         // 내 선택만 표시 (타인 선택은 숨김 - 카운트다운 후 공개)

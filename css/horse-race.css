@@ -1374,7 +1374,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .start-button {
-    background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
+    background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);
     color: white;
     font-size: 20px;
     padding: 15px 30px;
@@ -1387,7 +1387,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .end-button {
-    background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
+    background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%);
     color: var(--text-on-accent);
     font-weight: 600;
     font-size: 16px;
@@ -2296,7 +2296,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     position: absolute;
     top: -6px;
     right: -6px;
-    background: var(--red-400);
+    background: var(--fill-danger-soft);
     color: var(--text-on-accent);
     font-size: 9px;
     padding: 1px 5px;

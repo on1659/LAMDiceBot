@@ -115,7 +115,7 @@
             white-space: nowrap;
         }
         .schedule-open-btn.is-armed {
-            border-color: var(--btn-danger);
+            border-color: var(--red-500);
             background: var(--btn-danger);
             color: var(--text-on-accent);
         }
@@ -318,7 +318,7 @@
                         게임 시작
                     </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
-                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
                 <div id="endGameSection" style="display: none; margin-bottom: 10px;">
                     <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;"><i class="ui ui-checker"></i> 게임 종료</button>
@@ -537,7 +537,7 @@
 
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
-                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
             </div>
         </div>
     </div>
@@ -1026,7 +1026,7 @@
                 var btn = document.createElement('button');
                 btn.id = 'tutorialFakeEndGame';
                 btn.replaceChildren(UIIcons.el('checker'), ' 게임 종료');
-                btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color:white; border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
+                btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color:white; border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
                 var ref = document.getElementById('endGameSection');
                 if (ref && ref.parentNode) {
                     ref.parentNode.insertBefore(btn, ref);
@@ -1075,7 +1075,7 @@
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
-            'background:linear-gradient(135deg,var(--link-brand),var(--link-brand-light));',
+            'background:var(--fill-help);',
             'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'

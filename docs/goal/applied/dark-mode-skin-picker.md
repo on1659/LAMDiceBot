@@ -112,3 +112,10 @@ User follow-ups, both applied:
   - `localStorage.lamdiceTheme` stores the skin id; first visit still follows the device (`light` or `dark`). `themechange` detail is `{ theme: mode, skin: id }`. The horse PiP window copies `data-skin` too.
   - Adding a skin = one line in `THEMES` (`js/shared/theme-shared.js`) + a `[data-skin]` token block and swatch color in `css/theme.css`.
 
+## Addendum 2 (2026-10-02) — palette tuning after a reference survey
+The user asked whether the dark palette was the best it could be; a survey (8 design systems' official tokens, 24 major services and ~58 game/party sites measured with Playwright) led to three approved changes, all in dark only (light verified identical: 3,911 elements' computed colors compared against the previous commit):
+1. **Darker page ground.** `--dark-ground-*` went from L* ≈ 12 to L* 5–8 (game hue kept), so the card (L* 13.9) separates by 6–9 instead of 2. A generic `[data-theme="dark"] body { background: var(--dark-ground-page); }` in `css/theme.css` fixes info/admin/free pages, where the flipped gray ground was lighter than the card. Game pages keep their own body rule.
+2. **Fill vs accent split.** Palette 500s (`--purple-500`, `--dice-500/--dice-accent`, `--green-500`, `--red-500`, `--red-400`, `--roulette-500`) are now light text/border accents in dark (≈6:1 on the card). White-text fills use new tokens — `--fill-brand`, `--fill-success`, `--fill-success-light`, `--fill-danger`, `--fill-danger-soft`, `--fill-help` — plus explicit dark `--btn-ready/-start/-danger` values (white text ≥ 4.5:1, was 3.3–3.4). In light each fill token aliases the palette value it replaced. Rule going forward: never put a palette 500 in `background` under white text.
+3. **Status tints raised.** `--{purple,green,red,yellow,blue}-50/100/200`, `--dice-50`, `--roulette-50` and the `*-accent-bg/-light` pastels moved to L* 17–22 so they read as tinted panels on the card instead of matching its lightness.
+Not done (optional, taste): lowering the chroma of the midnight/purple/mocha surfaces.
+

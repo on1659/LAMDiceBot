@@ -55,7 +55,7 @@ function _insertDemoPwModal() {
             '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid var(--border-light);border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:var(--bg-primary);" />' +
             '<div style="display:flex;gap:10px;">' +
                 '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--ss-demo-cancel-bg);color:var(--text-tertiary);">\uCDE8\uC18C</button>' +
-                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--brand-primary);color:var(--text-on-accent);">\uC785\uC7A5</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--fill-brand);color:var(--text-on-accent);">\uC785\uC7A5</button>' +
             '</div>' +
         '</div>';
     document.body.appendChild(modal);
@@ -502,7 +502,7 @@ const ServerSelectModule = (function () {
         }
         .ss-free-btn::after {
             content: ''; position: absolute; width: 6px; height: 6px;
-            border-radius: 50%; background: var(--brand-primary);
+            border-radius: 50%; background: var(--fill-brand);
             box-shadow: 0 0 8px 2px rgba(102,126,234,0.6);
             offset-path: inset(-1px round 14px);
             offset-anchor: center;
@@ -539,7 +539,7 @@ const ServerSelectModule = (function () {
         .ss-login-prompt-btn {
             width: auto; min-width: 110px;
             padding: 12px 24px; border: none; border-radius: 10px;
-            background: var(--brand-primary); color: var(--text-on-accent); font-size: 0.95em;
+            background: var(--fill-brand); color: var(--text-on-accent); font-size: 0.95em;
             font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
         .ss-login-prompt-btn:hover { background: #5a6fd6; }
@@ -578,7 +578,7 @@ const ServerSelectModule = (function () {
         .ss-server-meta { font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
         .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: var(--gray-100); color: var(--ss-badge-text); margin-left: 8px; }
         .ss-server-badge.private { background: var(--yellow-100); color: var(--yellow-900); }
-        .ss-server-badge.pending { background: var(--red-500); color: var(--text-on-accent); animation: ssPulse 1.5s ease-in-out infinite; }
+        .ss-server-badge.pending { background: var(--fill-danger); color: var(--text-on-accent); animation: ssPulse 1.5s ease-in-out infinite; }
         .ss-server-badge.waiting { background: #fd7e14; color: var(--text-on-accent); }
         .ss-card-pending { opacity: 0.7; border-style: dashed; }
 
@@ -631,7 +631,7 @@ const ServerSelectModule = (function () {
         .ss-member-dot.offline { background: var(--gray-300); }
         .ss-member-name { flex: 1; font-size: 0.95em; color: var(--text-primary); }
         .ss-member-name .host-badge {
-            font-size: 0.75em; background: var(--brand-primary); color: var(--text-on-accent); padding: 1px 6px;
+            font-size: 0.75em; background: var(--fill-brand); color: var(--text-on-accent); padding: 1px 6px;
             border-radius: 6px; margin-left: 6px;
         }
         .ss-member-name .pending-badge {
@@ -644,9 +644,9 @@ const ServerSelectModule = (function () {
             cursor: pointer; transition: opacity 0.2s;
         }
         .ss-member-actions button:hover { opacity: 0.8; }
-        .ss-btn-approve { background: var(--green-500); color: var(--text-on-accent); }
-        .ss-btn-reject { background: var(--red-500); color: var(--text-on-accent); }
-        .ss-btn-kick { background: var(--red-400); color: var(--text-on-accent); }
+        .ss-btn-approve { background: var(--fill-success); color: var(--text-on-accent); }
+        .ss-btn-reject { background: var(--fill-danger); color: var(--text-on-accent); }
+        .ss-btn-kick { background: var(--fill-danger-soft); color: var(--text-on-accent); }
         .ss-members-close, .ss-myserver-close {
             margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
             background: var(--gray-100); color: var(--text-tertiary); font-size: 0.95em; cursor: pointer; width: 100%;
@@ -660,7 +660,7 @@ const ServerSelectModule = (function () {
         .ss-error-box p { color: var(--text-secondary); font-size: 0.95em; margin: 0 0 20px 0; }
         .ss-error-box button {
             padding: 12px 40px; border: none; border-radius: 10px;
-            background: var(--brand-primary); color: var(--text-on-accent); font-size: 0.95em; cursor: pointer;
+            background: var(--fill-brand); color: var(--text-on-accent); font-size: 0.95em; cursor: pointer;
         }
 
         .ss-pw-box, .ss-name-box {
@@ -679,7 +679,7 @@ const ServerSelectModule = (function () {
             font-size: 0.95em; cursor: pointer;
         }
         .ss-pw-cancel, .ss-name-cancel { background: var(--gray-100); color: var(--text-tertiary); }
-        .ss-pw-confirm, .ss-name-confirm { background: var(--brand-primary); color: var(--text-on-accent); }
+        .ss-pw-confirm, .ss-name-confirm { background: var(--fill-brand); color: var(--text-on-accent); }
 
         .ss-spinner {
             width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
@@ -710,10 +710,10 @@ const ServerSelectModule = (function () {
             font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
         }
         .ss-myserver-item-actions button:hover { opacity: 0.8; }
-        .ss-btn-members { background: var(--brand-primary); color: var(--text-on-accent); position: relative; }
-        .ss-btn-delete { background: var(--red-500); color: var(--text-on-accent); }
+        .ss-btn-members { background: var(--fill-brand); color: var(--text-on-accent); position: relative; }
+        .ss-btn-delete { background: var(--fill-danger); color: var(--text-on-accent); }
         .ss-pending-dot {
-            display: inline-block; width: 8px; height: 8px; background: var(--red-500);
+            display: inline-block; width: 8px; height: 8px; background: var(--fill-danger);
             border-radius: 50%; margin-left: 4px; vertical-align: middle;
             animation: ssPulse 1.5s ease-in-out infinite;
         }
@@ -869,7 +869,7 @@ const ServerSelectModule = (function () {
                 <p style="margin:0 0 10px;color:var(--text-muted);font-size:0.85em;">서버 참여는 로그인이 필요합니다</p>
                 <div class="ss-login-prompt-actions">
                     <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
-                    <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="background:var(--green-500);">회원가입</button>
+                    <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="background:var(--fill-success);">회원가입</button>
                 </div>
             </div>
         `;
@@ -1630,7 +1630,7 @@ const ServerSelectModule = (function () {
         if (btn.querySelector('.ss-members-dot')) return;
         const dot = document.createElement('span');
         dot.className = 'ss-members-dot';
-        dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:var(--red-500);border-radius:50%;margin-left:5px;vertical-align:middle;animation:ssPulse 1.5s ease-in-out infinite;';
+        dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:var(--fill-danger);border-radius:50%;margin-left:5px;vertical-align:middle;animation:ssPulse 1.5s ease-in-out infinite;';
         btn.appendChild(dot);
     }
 

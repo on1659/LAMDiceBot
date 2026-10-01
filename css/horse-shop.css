@@ -1257,11 +1257,11 @@ body.hshop-open {
 .hshop-balance--spend { animation: hshopBalSpend 0.55s ease-out; }
 .hshop-balance--earn  { animation: hshopBalEarn 0.55s ease-out; }
 @keyframes hshopBalSpend {
-    0%   { background: var(--red-500, #ef4444); transform: scale(1.08); }
+    0%   { background: var(--fill-danger, #ef4444); transform: scale(1.08); }
     100% { background: rgba(0, 0, 0, 0.18);     transform: scale(1); }
 }
 @keyframes hshopBalEarn {
-    0%   { background: var(--green-500, #22c55e); transform: scale(1.08); }
+    0%   { background: var(--fill-success, #22c55e); transform: scale(1.08); }
     100% { background: rgba(0, 0, 0, 0.18);       transform: scale(1); }
 }
 
@@ -1390,7 +1390,7 @@ body.hshop-open {
     transform: translate(-50%, 0);
 }
 .hshop-toast--success { background: var(--hshop-equipped, #4a7c3f); }
-.hshop-toast--error   { background: var(--red-500, #ef4444); }
+.hshop-toast--error   { background: var(--fill-danger, #ef4444); }
 
 /* ── 뽑기(가챠) 리빌 오버레이 ── */
 /* 빌드업(캡슐 흔들림) → 버스트(라디얼 라이트 + 파티클) → 리빌(아이템 스케일인 + 샤인). */

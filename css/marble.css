@@ -578,7 +578,7 @@
     right: 52px;
     padding: 5px 12px;
     border-radius: 999px;
-    background: var(--red-500);
+    background: var(--fill-danger);
     color: var(--text-on-accent);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;

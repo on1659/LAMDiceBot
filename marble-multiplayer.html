@@ -89,7 +89,7 @@
             white-space: nowrap;
         }
         .schedule-open-btn.is-armed {
-            border-color: var(--btn-danger);
+            border-color: var(--red-500);
             background: var(--btn-danger);
             color: var(--text-on-accent);
         }
@@ -251,7 +251,7 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
-                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
             </div>
 
@@ -467,7 +467,7 @@
 
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
-                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
             </div>
         </div>
     </div>

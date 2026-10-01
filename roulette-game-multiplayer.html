@@ -55,7 +55,7 @@
         [data-theme="dark"] {
             /* 다크에서 --roulette-500/600 이 글자용으로 밝아져 흰 글자 대비가 떨어지므로(4.8 → 3.0) 바탕은 라이트 값 유지 */
             --roulette-fill: #7c4dff;
-            --roulette-btn-gradient: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            --roulette-btn-gradient: linear-gradient(135deg, #7c4dff 0%, #4f66f5 100%);
             /* 다크 카드(#22232b) 위에서 판이 구분되도록 한 단계 더 꺼진 면 */
             --roulette-commentary-bg: #14151a;
         }
@@ -305,7 +305,7 @@
         }
 
         .roulette-live-commentary.tension {
-            background: linear-gradient(135deg, var(--roulette-commentary-bg) 0%, var(--red-500) 100%);
+            background: linear-gradient(135deg, var(--roulette-commentary-bg) 0%, var(--fill-danger) 100%);
             animation: rouletteCommentaryPulse 0.8s ease-in-out infinite alternate;
         }
 
@@ -436,7 +436,7 @@
         }
 
         .user-tag.host {
-            background: var(--dice-accent);
+            background: var(--fill-brand);
             color: white;
         }
 
@@ -579,7 +579,7 @@
         }
 
         .start-button {
-            background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
+            background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);
             font-size: 20px;
             padding: 15px 30px;
         }
@@ -613,8 +613,8 @@
         }
 
         .schedule-open-button.is-armed {
-            border-color: var(--btn-danger);
-            color: var(--btn-danger);
+            border-color: var(--red-500);
+            color: var(--red-500);
         }
 
         .schedule-preset-row {
@@ -703,7 +703,7 @@
         }
 
         .end-button {
-            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
+            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%);
         }
 
         /* 결과 오버레이 */
@@ -1183,7 +1183,7 @@
                 <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
                     <i class="ui ui-slot"></i> 룰렛 시작 (최소 2명 준비 필요)
                 </button>
-                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">주문받기 시작</button>
+                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);">주문받기 시작</button>
                 <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">주문받기 종료</button>
             </div>
 
@@ -1192,7 +1192,7 @@
                 <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-fill) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -2036,7 +2036,7 @@
                 kickButton.textContent = '제외시키기';
                 kickButton.style.cssText = `
                     padding: 12px 25px;
-                    background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
+                    background: linear-gradient(135deg, var(--fill-danger-soft) 0%, var(--fill-danger-soft) 100%);
                     color: white;
                     border: none;
                     border-radius: 8px;

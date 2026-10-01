@@ -71,7 +71,7 @@
         [data-theme="dark"] {
             --dice-ink-strong: var(--dice-700);
             --dice-ink-on-yellow: var(--text-on-light);
-            --dice-alert-danger: var(--red-500);
+            --dice-alert-danger: var(--fill-danger);
             --dice-winner-sheen: rgba(255, 255, 255, 0.08); /* 어두운 카드 위에선 0.3 이 글자를 가린다 */
             --dice-react-bg: var(--gray-300);
             --dice-react-mine-bg: var(--purple-300);
@@ -652,7 +652,7 @@
             width: auto;
             padding: 8px 14px;
             font-size: 13px;
-            background: var(--dice-500);
+            background: var(--fill-brand);
             color: var(--text-on-accent);
             border: none;
             border-radius: 10px;
@@ -990,8 +990,8 @@
         }
 
         .schedule-open-button.is-armed {
-            border-color: var(--btn-danger);
-            color: var(--btn-danger);
+            border-color: var(--red-500);
+            color: var(--red-500);
         }
 
         .schedule-presets {
@@ -1147,7 +1147,7 @@
         }
 
         .progress-bar {
-            background: linear-gradient(90deg, var(--dice-500) 0%, var(--dice-600) 100%);
+            background: linear-gradient(90deg, var(--fill-brand) 0%, var(--dice-600) 100%);
             height: 100%;
             width: 0%;
             transition: width 0.5s ease;
@@ -1199,7 +1199,7 @@
         }
 
         .empty-not-rolled {
-            color: var(--btn-ready);
+            color: var(--green-500);
             text-align: center;
             padding: 10px;
             font-weight: 600;
@@ -1239,7 +1239,7 @@
         }
 
         .user-tag.host {
-            background: var(--dice-500);
+            background: var(--fill-brand);
             color: var(--text-on-accent);
         }
 
@@ -1377,7 +1377,7 @@
 
         .menu-tag {
             display: inline-block;
-            background: var(--dice-500);
+            background: var(--fill-brand);
             color: var(--text-on-accent);
             padding: 4px 10px;
             border-radius: 15px;
@@ -1673,7 +1673,7 @@
         }
 
         .sort-button.active {
-            background: var(--dice-500);
+            background: var(--fill-brand);
             color: var(--text-on-accent);
         }
 
@@ -1740,7 +1740,7 @@
         .history-item.winner-glow {
             position: relative;
             background: linear-gradient(135deg, var(--panel-attention) 0%, var(--bg-white) 50%, var(--panel-attention) 100%);
-            border-left: 4px solid var(--btn-ready);
+            border-left: 4px solid var(--green-500);
             box-shadow: 0 4px 15px rgba(var(--green-500-rgb),0.2), 0 0 30px rgba(var(--yellow-gold-rgb),0.15);
             animation: winnerPulse 2s ease-in-out infinite;
             transform: scale(1);
@@ -1824,7 +1824,7 @@
         .top-player-badge {
             display: inline-flex;
             align-items: center;
-            background: var(--red-400);
+            background: var(--fill-danger-soft);
             color: var(--text-on-accent);
             padding: 3px 10px;
             border-radius: 12px;
@@ -2016,7 +2016,7 @@
                 </div>
                 <!-- globalUserNameInput은 방 만들기 박스(#freeCreateRoomBox)로 이동. userNameError만 JS 참조용 유지 -->
                 <div style="display: none;">
-                    <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
+                    <div id="userNameError" style="color: var(--red-500); font-size: 12px; margin-top: 5px; display: none;"></div>
                 </div>
 
                 <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
@@ -2088,7 +2088,7 @@
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked />
                         <span class="gt-emoji"><i class="ui ui-horse"></i></span>
                         <span class="gt-name">경마</span>
-                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="bridgeLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
@@ -2102,27 +2102,27 @@
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
-                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                         <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
                         <span class="gt-emoji"><i class="ui ui-swords"></i></span>
                         <span class="gt-name">회전 칼날</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="pirateLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-pirate); --gt-rgb: var(--pirate-500-rgb);">
                         <input type="radio" name="gameType" value="pirate" id="pirateRadio" />
                         <span class="gt-emoji"><i class="ui ui-pirate"></i></span>
                         <span class="gt-name">해적 룰렛</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <!-- 데구리: 베타 테스트로 공개(2026-09-21) — 배지 "베타" -->
                     <label id="marbleLabel" class="game-type-option" style="--gt-color: var(--game-type-marble); --gt-rgb: var(--marble-500-rgb);">
                         <input type="radio" name="gameType" value="marble" id="marbleRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
                 </div>
                 <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
@@ -3349,7 +3349,7 @@
                         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
                         remainingTimeText = `${hours}h ${minutes}m`;
                     } else {
-                        remainingTimeText = `<span style="color: var(--btn-danger); font-weight: bold;">폭파 예정</span>`;
+                        remainingTimeText = `<span style="color: var(--red-500); font-weight: bold;">폭파 예정</span>`;
                     }
                 }
                 
@@ -4055,7 +4055,7 @@
                 kickButton.textContent = '제외시키기';
                 kickButton.style.cssText = `
                     padding: 12px 25px;
-                    background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
+                    background: linear-gradient(135deg, var(--fill-danger-soft) 0%, var(--fill-danger-soft) 100%);
                     color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
@@ -6115,7 +6115,7 @@
             // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             
             document.getElementById('progressSection').style.display = 'block';
-            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--dice-500) 0%, var(--dice-600) 100%)';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--fill-brand) 0%, var(--dice-600) 100%)';
             
             // 게임 시작 시 초기 진행 상황 설정
             if (data.players && data.players.length > 0) {
@@ -8703,7 +8703,7 @@
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
-            'background:linear-gradient(135deg,var(--link-brand),var(--link-brand-light));',
+            'background:var(--fill-help);',
             'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'

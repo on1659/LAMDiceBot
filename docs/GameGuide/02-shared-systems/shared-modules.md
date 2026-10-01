@@ -26,7 +26,7 @@
 - 스킨 결정: 직접 고른 값(`localStorage.lamdiceTheme` = 스킨 id) → 없으면 기기 설정(`prefers-color-scheme` → `light` 또는 `dark`).
 - 버튼: 정적 마크업은 `<span data-theme-switcher></span>`만 두면 DOM 준비 시 자동으로 붙는다. 동적으로 그리는 곳(컨트롤 바, 서버 선택 화면)은 `ThemeModule.mount(el)`.
 - API: `ThemeModule.get()`(스킨 id), `ThemeModule.set(스킨 id)`, `ThemeModule.mount(el)`. 스킨이 바뀌면 `document`에 `themechange` 이벤트(`detail.theme` = light|dark, `detail.skin` = 스킨 id) — CSS 변수를 읽어 캔버스에 직접 그리는 코드가 다시 그릴 때 쓴다.
-- 색 규칙: 다크 값은 `css/theme.css`의 `[data-theme="dark"]` 블록. `--bg-white`·`--text-primary`·`--gray-*`는 다크에서 뒤집히므로, 색 버튼·그라디언트 위 흰 글자는 `--text-on-accent`, 노랑·금색 위 글자는 `--text-on-light`를 쓴다. 게임 전용 다크 값은 그 게임 CSS의 `[data-theme="dark"]` 블록에 둔다.
+- 색 규칙: 다크 값은 `css/theme.css`의 `[data-theme="dark"]` 블록. `--bg-white`·`--text-primary`·`--gray-*`는 다크에서 뒤집히므로, 색 버튼·그라디언트 위 흰 글자는 `--text-on-accent`, 노랑·금색 위 글자는 `--text-on-light`를 쓴다. 팔레트 500(`--purple-500`·`--dice-accent`·`--green-500`·`--red-500`)은 다크에서 카드 위 글자·테두리용으로 밝아지므로, 흰 글자가 올라가는 버튼·배지 바탕은 `--fill-brand`·`--fill-success`·`--fill-danger`(-soft)·`--btn-*`를 쓴다(라이트에서는 팔레트 500과 같은 값). 틴트 배경(50~200)은 카드보다 L\* 5~8 밝게, 페이지 바닥(`--dark-ground-*`)은 L\* 5~7로 둔다. 게임 전용 다크 값은 그 게임 CSS의 `[data-theme="dark"]` 블록에 둔다.
 - 게임 그림(캔버스 장면·스프라이트·등급색)은 스킨과 무관하게 그대로 둔다.
 
 ## HTML 포함 순서
