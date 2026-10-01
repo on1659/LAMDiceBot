@@ -28,9 +28,9 @@
     {"id": "marble_skin_ribbonpig_zhu", "name": "저팔계 돼지", "displayName": "저팔계 돼지", "rarity": "legend", "emoji": "📿", "price": 150, "creature": "ribbonpig", "skin": "zhu", "desc": "승복에 염주, 등에는 쇠스랑을 멘 저팔계로 변신한 돼지. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_angry", "name": "앵그리 아이언", "displayName": "앵그리 아이언", "rarity": "legend", "emoji": "🐗", "price": 150, "creature": "ribbonpig", "skin": "angry", "desc": "긁힌 강철 갑옷에 엄니를 드러낸 사나운 전투 멧돼지. 눈빛부터 무서워요. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_pilot", "name": "빨간 마후라", "displayName": "빨간 마후라", "rarity": "legend", "emoji": "🕶️", "price": 150, "creature": "ribbonpig", "skin": "pilot", "desc": "크림색 중절모에 동그란 선글라스, 멋진 정장을 차려입고 두 발로 서는 신사 돼지. 돼지를 고르면 적용돼요."},
-    {"id": "marble_skin_pillbug_gpu", "name": "공벌레 5090 LED 에디션", "displayName": "공벌레 5090 LED 에디션", "rarity": "legend", "emoji": "🌈", "price": 150, "creature": "pillbug", "skin": "gpu", "desc": "등판이 그래픽카드 방열판, 옆구리엔 쿨링팬. 공이 되면 무지개 불빛 팬이 빙글빙글! 공벌레를 고르면 적용돼요."},
-    {"id": "marble_skin_armadillo_gpu", "name": "아르마딜로 5090 화이트 에디션", "displayName": "아르마딜로 5090 화이트 에디션", "rarity": "legend", "emoji": "🤍", "price": 150, "creature": "armadillo", "skin": "gpu", "desc": "새하얀 그래픽카드를 등에 두른 아르마딜로. 쿨링팬 두 개에 하늘색 불빛. 공이 되면 하얀 팬 공! 아르마딜로를 고르면 적용돼요."},
-    {"id": "marble_skin_turtle_gpu", "name": "거북이 5090 블랙 에디션", "displayName": "거북이 5090 블랙 에디션", "rarity": "legend", "emoji": "🖥️", "price": 150, "creature": "turtle", "skin": "gpu", "desc": "등딱지 대신 검은 그래픽카드를 통째로 지고 다니는 거북이. 배에는 금색 단자가 반짝. 거북이를 고르면 적용돼요."}
+    {"id": "marble_skin_pillbug_gpu", "name": "5090 LED 에디션", "displayName": "공벌레 5090 LED 에디션", "rarity": "legend", "emoji": "🌈", "price": 150, "creature": "pillbug", "skin": "gpu", "desc": "등판이 그래픽카드 방열판, 옆구리엔 쿨링팬. 공이 되면 무지개 불빛 팬이 빙글빙글! 공벌레를 고르면 적용돼요."},
+    {"id": "marble_skin_armadillo_gpu", "name": "5090 화이트 에디션", "displayName": "아르마딜로 5090 화이트 에디션", "rarity": "legend", "emoji": "🤍", "price": 150, "creature": "armadillo", "skin": "gpu", "desc": "새하얀 그래픽카드를 등에 두른 아르마딜로. 쿨링팬 두 개에 하늘색 불빛. 공이 되면 하얀 팬 공! 아르마딜로를 고르면 적용돼요."},
+    {"id": "marble_skin_turtle_gpu", "name": "5090 블랙 에디션", "displayName": "거북이 5090 블랙 에디션", "rarity": "legend", "emoji": "🖥️", "price": 150, "creature": "turtle", "skin": "gpu", "desc": "등딱지 대신 검은 그래픽카드를 통째로 지고 다니는 거북이. 배에는 금색 단자가 반짝. 거북이를 고르면 적용돼요."}
   ],
   "marble_balloon": [
     {"id": "marble_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
