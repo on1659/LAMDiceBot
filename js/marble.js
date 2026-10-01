@@ -1368,12 +1368,19 @@ socket.on('scheduledStartError', function (message) {
     showCustomAlert((typeof message === 'string' && message) ? message : '예약에 실패했어요.', 'error');
 });
 
+// 컨트롤 바 제목 — 설정하지 않으면 자리 표시 글자("방 제목")가 그대로 보인다
+function marbleShowRoomName(roomName) {
+    var roomNameDisplay = document.getElementById('roomNameDisplay');
+    if (roomNameDisplay) roomNameDisplay.textContent = roomName || '데구리 방';
+}
+
 // ============================================
 // 소켓 이벤트 — 공통
 // ============================================
 socket.on('roomCreated', function (data) {
     currentRoomId = data.roomId;
     currentUser = data.userName || '';
+    marbleShowRoomName(data.roomName);
     window.isHost = true; isHost = true;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
@@ -1391,6 +1398,7 @@ socket.on('roomJoined', function (data) {
     var globalInput = document.getElementById('globalUserNameInput');
     currentUser = data.userName || (globalInput && globalInput.value) || '';
     if (globalInput) globalInput.value = currentUser;
+    marbleShowRoomName(data.roomName);
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];

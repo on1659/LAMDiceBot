@@ -119,3 +119,9 @@ The user asked whether the dark palette was the best it could be; a survey (8 de
 3. **Status tints raised.** `--{purple,green,red,yellow,blue}-50/100/200`, `--dice-50`, `--roulette-50` and the `*-accent-bg/-light` pastels moved to L* 17–22 so they read as tinted panels on the card instead of matching its lightness.
 Not done (optional, taste): lowering the chroma of the midnight/purple/mocha surfaces.
 
+## Addendum 3 (2026-10-02) — default dark replaced, pre-existing bugs fixed
+- **Default dark is now a warm neutral gray** (user's pick, same family as the Claude app's dark): ground `#141413`, sunken `#1f1e1d`, card `#262624`, raised `#30302e`, border `#4a4944`; text steps are warm off-whites (`#faf9f5` / `#c2c0b6` / `#a6a39a` / `#9c9a92`) shared by every dark-family skin. The former navy-tinted charcoal (`#22232b`) is gone. Accent text tokens were nudged lighter so they keep ≥ 5:1 on the lighter raised surface.
+- **Bugs fixed while here** (all pre-existing, found during the dark-mode sweeps): room-title edit in roulette and horse (`#roomTitle` was overwritten wholesale, `window.socket` assumptions, re-entrant `finishEdit`); the fixed history panel covering the control bar at 1201–1460px (roulette, `css/horse-race.css`, `css/ladder.css`); the server-select confirm "취소" button and the "?" help button inheriting the host page's global `button` rules; admin tables overflowing on narrow screens; the roulette commentary panel overflowing at 375px.
+- Lessons C-47…C-53 added to `docs/GameGuide/lessons/_common.md`.
+- Ladder and deguri never set the room title (the control bar kept showing the placeholder "방 제목") — fixed too: both now write `data.roomName` into `#roomNameDisplay` on `roomCreated`/`roomJoined`, and their title-edit handlers got the same re-entrancy guard.
+

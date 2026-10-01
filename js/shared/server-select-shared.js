@@ -472,6 +472,8 @@ const ServerSelectModule = (function () {
         .ss-tutorial-help-btn {
             position: absolute; top: 0; right: 0;
             width: 28px; height: 28px; border-radius: 50%;
+            /* 호스트 페이지(/game)의 전역 button 규칙이 샌다 — padding 12px 30px 과 모바일 최소 44px 때문에 타원으로 늘어나 제목과 겹쳤다 (C-42) */
+            padding: 0; min-width: 0; min-height: 0;
             background: linear-gradient(135deg, var(--link-brand-light), var(--heading-brand));
             color: var(--text-on-accent); border: 2px solid rgba(255,255,255,0.6);
             cursor: pointer; font-size: 0.85rem; font-weight: bold;
@@ -606,7 +608,6 @@ const ServerSelectModule = (function () {
         :root { --ss-demo-cancel-bg: #eee; }
         [data-theme="dark"] { --ss-demo-cancel-bg: var(--gray-100); --ss-empty-text: var(--text-muted); }
         /* 가입 확인 창의 취소 버튼은 글자색을 따로 주지 않는다 — 다크에서만 고정 (라이트는 호스트 페이지 상속 그대로) */
-        [data-theme="dark"] #ss-confirm-cancel { color: var(--text-primary); }
         .ss-members-modal, .ss-myserver-modal, .ss-error-modal, .ss-joining-overlay, .ss-pw-modal, .ss-name-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
@@ -1685,7 +1686,7 @@ const ServerSelectModule = (function () {
             <p style="font-size:1.5em;margin:0 0 8px;"><i class="ui ui-warn"></i></p>
             <p style="font-size:0.9em;color:var(--text-primary);margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
             <div style="display:flex;gap:10px;">
-                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:var(--bg-white);border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
+                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:var(--bg-white);color:var(--text-primary);border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
                 <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:var(--brand-gradient);color:var(--text-on-accent);border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
             </div>
         `;

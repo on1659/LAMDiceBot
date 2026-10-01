@@ -459,3 +459,13 @@
     padding: 2px 8px;
     border-radius: 6px;
 }
+
+/* 게임 기록 패널(오른쪽 고정 320px + 20px, horse-race.css .history-section)은 첫 판이 끝나면 뜬다.
+   사다리는 body.game-active 를 쓰지 않아 컨테이너가 가운데 정렬 그대로라 1201~1480px 폭에서 패널이 컨트롤 바를 덮었다
+   → 경마·룰렛과 같은 상한(패널과 40px 이상)을 둔다. 1560px 이상에서는 가운데 정렬 그대로 */
+@media (min-width: 1201px) {
+    .container {
+        margin-left: min(calc((100vw - 800px) / 2), calc(100vw - 1180px));
+        margin-right: auto;
+    }
+}

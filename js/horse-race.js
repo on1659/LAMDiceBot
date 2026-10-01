@@ -6460,7 +6460,9 @@ function startRoomExpiryCountdown(createdAt, expiryHours) {
 
 // 게임 화면 초기화
 function initializeGameScreen(data) {
-    document.getElementById('roomTitle').textContent = data.roomName || '경마 방';
+    // #roomTitle 에는 제목 span 외에 호스트 배지가 같이 들어 있다 — 통째로 덮어쓰면 전부 사라지고 제목 편집도 깨진다
+    var roomNameDisplay = document.getElementById('roomNameDisplay');
+    if (roomNameDisplay) roomNameDisplay.textContent = data.roomName || '경마 방';
     
     if (data.createdAt && data.expiryHours) {
         startRoomExpiryCountdown(data.createdAt, data.expiryHours);

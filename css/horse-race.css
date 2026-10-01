@@ -152,7 +152,8 @@ body {
 }
 
 body.game-active .container {
-    margin-left: calc((100vw - 1140px) / 2 + 160px);
+    /* 기록 패널(오른쪽 고정 320px + 20px)과 40px 이상 떨어지도록 상한을 둔다 — 없으면 1201~1460px 폭에서 패널이 컨트롤 바를 덮는다 */
+    margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
     margin-right: auto;
     max-width: 800px;
 }

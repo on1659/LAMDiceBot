@@ -343,28 +343,30 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* 회색: 바탕(50~300) ↔ 글자(400~900) 반전. 50 은 카드보다 한 단계 꺼진 면 */
-  --gray-50:  #1a1b21;
-  --gray-100: #2b2c36;
-  --gray-200: #363845;
-  --gray-300: #474958;
-  --gray-400: #8d90a0;
-  --gray-500: #a3a6b4;
-  --gray-600: #babdc9;
-  --gray-700: #d3d5de;
-  --gray-800: #e3e5ec;
-  --gray-900: #f1f2f6;
+  /* 회색: 바탕(50~300) ↔ 글자(400~900) 반전. 50 은 카드보다 한 단계 꺼진 면.
+     기본 다크는 따뜻한 기가 아주 살짝 도는 무채색 회색 (2026-10-02 사용자 선택 — Claude 앱 다크와 같은 계열).
+     글자 단계(400~900)도 같은 따뜻한 흰색 계열이며, 다크 계열 스킨 전부가 이 글자색을 같이 쓴다 */
+  --gray-50:  #1f1e1d;
+  --gray-100: #30302e;
+  --gray-200: #3a3a37;
+  --gray-300: #4a4944;
+  --gray-400: #9c9a92;
+  --gray-500: #a6a39a;
+  --gray-600: #b4b2a8;
+  --gray-700: #c2c0b6;
+  --gray-800: #e5e3dc;
+  --gray-900: #faf9f5;
 
   /* 표면 — 카드/패널 기본면 */
-  --bg-white: #22232b;
-  --panel-primary: #22232b;
+  --bg-white: #262624;
+  --panel-primary: #262624;
   /* 예약 팝업의 예약 시각 칸 — 라이트는 정의 없이 인라인 기본값 rgba(0,0,0,0.05) 을 쓴다 */
   --bg-subtle: rgba(255, 255, 255, 0.06);
 
   /* 중립 버튼 — 회색 500 이 글자색으로 뒤집혀서 따로 지정 */
-  --btn-neutral: #4a4d5e;
-  --btn-neutral-hover: #585b6e;
-  --btn-neutral-active: #666a7e;
+  --btn-neutral: #4d4c47;
+  --btn-neutral-hover: #5b5a54;
+  --btn-neutral-active: #696861;
 
   /* 흰 글자 바탕 — 팔레트 500 과 분리 (흰 글자 대비: 보라 4.8 · 초록 4.6 · 빨강 4.7) */
   --fill-brand: #6a5fe6;
@@ -392,7 +394,7 @@
   --purple-200: #4a4480;
   --purple-300: #6a62b8;
   --purple-400: #8466f2;
-  --purple-500: #9d97ff;
+  --purple-500: #a39dff;
   --purple-600: #7458c2;
   --purple-700: #c4b8ff;
   --purple-800: #d6ccff;
@@ -407,8 +409,8 @@
   --green-100: #224631;
   --green-200: #2b5a36;
   --green-300: #7fd69c;
-  --green-400: #58c57a;
-  --green-500: #45b868;
+  --green-400: #62cb82;
+  --green-500: #4fbe70;
   --green-600: #6fd08d;
   --green-700: #8adba3;
   --green-800: #a7e6b5;
@@ -419,8 +421,8 @@
   --red-100: #52272f;
   --red-200: #672e39;
   --red-300: #ffa3a0;
-  --red-400: #ff8a87;
-  --red-500: #fa7573;
+  --red-400: #ff8f8c;
+  --red-500: #fb7f7d;
   --red-600: #ff9a97;
   --red-700: #ffb3b0;
   --red-800: #ffc2c7;
@@ -443,11 +445,11 @@
 
   /* 게임별 */
   --dice-50:  #2f2d4d;
-  --dice-500: #9d97ff;
+  --dice-500: #a39dff;
   --dice-600: #7458c2;
   --dice-700: #c4b8ff;
   --roulette-50:  #1b3626;
-  --roulette-500: #a391f5;
+  --roulette-500: #a999f6;
   --roulette-600: #6b7ff5;
   --horse-accent: #d9915b;
 
@@ -460,15 +462,15 @@
   --horse-accent-light: #33291f;
 
   /* 링크/제목 */
-  --link-brand: #a78bfa;
+  --link-brand: #ad93fb;
   --link-brand-light: #c4b5fd;
   --link-brand-border: #4c4380;
   --heading-brand: #b9a3ff;
 
   /* 페이지 바닥 — 게임 색조만 남기고 L* 5~8 로 가라앉힌 톤. 게임 페이지는 각자의 [data-theme="dark"] body 규칙이
      --dark-ground-<게임> 을, 그 밖의 페이지(안내·관리자·free)는 아래 공통 body 규칙이 --dark-ground-page 를 쓴다 */
-  --dark-ground-page: #131419;
-  --dark-ground-dice: linear-gradient(135deg, #0f1020 0%, #150f22 100%);
+  --dark-ground-page: #141413;
+  --dark-ground-dice: linear-gradient(135deg, #141413 0%, #18161a 100%);
   --dark-ground-roulette: linear-gradient(135deg, #08160f 0%, #0a1b12 50%, #0c2016 100%);
   --dark-ground-horse: linear-gradient(135deg, #170f0a 0%, #1e130d 100%);
   --dark-ground-ladder: linear-gradient(135deg, #181208 0%, #1f170b 100%);
@@ -505,10 +507,10 @@
   --marble-accent: #ffc857;
 
   /* RGB 채널 변수 (다크 모드) */
-  --dice-500-rgb: 157, 151, 255;
-  --green-500-rgb: 69, 184, 104;
-  --red-500-rgb: 250, 117, 115;
-  --roulette-500-rgb: 163, 145, 245;
+  --dice-500-rgb: 163, 157, 255;
+  --green-500-rgb: 79, 190, 112;
+  --red-500-rgb: 251, 127, 125;
+  --roulette-500-rgb: 169, 153, 246;
   --game-type-horse-rgb: 217, 145, 91;
 }
 
@@ -521,8 +523,8 @@
 /* ============================================
    다크 계열 스킨 — 바탕 톤만 다른 변형 (블랙·미드나잇·모카·퍼플)
    <html data-theme="dark" data-skin="..."> — 다크 규칙은 전부 그대로 쓰고 표면·테두리·페이지 바닥 토큰만 갈아 끼운다.
-   글자·강조색은 다크 블록 값을 그대로 쓴다: 네 스킨 모두 카드·꺼진 면·올라온 면이 기본 다크보다 어두워
-   글자 대비가 같거나 더 높다. 새 스킨을 넣을 때도 이 조건(면 밝기 ≤ 기본 다크)을 지킬 것.
+   글자·강조색은 다크 블록 값을 그대로 쓴다: 네 스킨 모두 카드·꺼진 면·올라온 면이 기본 다크(카드 L* 15, 올라온 면 L* 20)보다
+   어두워 글자 대비가 같거나 더 높다. 새 스킨을 넣을 때도 이 조건(면 밝기 ≤ 기본 다크)을 지킬 것.
    게임별 페이지 바닥(--dark-ground-*)은 스킨 한 톤으로 통일한다 — 게임 색은 강조색·그림이 맡는다.
 ============================================ */
 [data-theme="dark"][data-skin="black"] {
@@ -811,8 +813,8 @@ input, select, textarea {
   /* 목록의 미리보기 칸 — 현재 스킨과 무관하게 각 스킨의 색을 보여준다 */
   --theme-swatch-light: #ffffff;
   --theme-swatch-light-ink: #495057;
-  --theme-swatch-dark: #22232b;
-  --theme-swatch-dark-ink: #f1f2f6;
+  --theme-swatch-dark: #262624;
+  --theme-swatch-dark-ink: #faf9f5;
   --theme-swatch-black: #000000;
   --theme-swatch-midnight: #121b2e;
   --theme-swatch-mocha: #26201b;

@@ -36,6 +36,8 @@
         .refresh-btn:hover { background: var(--gray-100); }
 
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        /* 좁은 화면에서 표가 카드 밖으로 넘치지 않게 목록 영역 안에서 가로로 민다 */
+        #roomsList, #serverList, #userList { overflow-x: auto; }
         th { text-align: left; padding: 10px 12px; font-size: 0.8em; color: var(--text-muted); border-bottom: 2px solid var(--gray-200); font-weight: 600; }
         td { padding: 12px; border-bottom: 1px solid var(--gray-100); font-size: 0.9em; }
         tr:hover td { background: var(--bg-primary); }

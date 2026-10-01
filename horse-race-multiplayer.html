@@ -709,6 +709,10 @@
             input.select();
 
             function finishEdit() {
+                // Enter 로 확정하면 입력칸이 빠지는 순간(replaceWith 안에서) blur 가 또 온다 — 먼저 플래그를 내려 두 번째 호출을 건너뛴다
+                // (안 그러면 replaceWith 오류 + 제목 변경 이중 전송)
+                if (!isEditingRoomName) return;
+                isEditingRoomName = false;
                 const newName = input.value.trim();
                 const newDisplay = document.createElement('span');
                 newDisplay.id = 'roomNameDisplay';
@@ -716,7 +720,6 @@
 
                 input.replaceWith(newDisplay);
                 if (editIcon) editIcon.style.display = '';
-                isEditingRoomName = false;
 
                 if (newName && newName !== currentName && window.socket) {
                     window.socket.emit('updateRoomName', { roomName: newName });
@@ -731,12 +734,14 @@
         });
 
         // Update room title on server broadcast
-        if (window.socket) {
+        // 이 인라인 스크립트는 horse-race.js(소켓 생성)보다 먼저 실행된다 — 바로 등록하면 window.socket 이 없어 건너뛰므로 DOM 준비 뒤에 건다
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!window.socket) return;
             window.socket.on('roomNameUpdated', (data) => {
                 const display = document.getElementById('roomNameDisplay');
                 if (display) display.textContent = data.roomName;
             });
-        }
+        });
 
         // Show/hide UI elements based on host status
         function updateControlBarUI(isHostUser) {

@@ -56,8 +56,8 @@
             /* 다크에서 --roulette-500/600 이 글자용으로 밝아져 흰 글자 대비가 떨어지므로(4.8 → 3.0) 바탕은 라이트 값 유지 */
             --roulette-fill: #7c4dff;
             --roulette-btn-gradient: linear-gradient(135deg, #7c4dff 0%, #4f66f5 100%);
-            /* 다크 카드(#22232b) 위에서 판이 구분되도록 한 단계 더 꺼진 면 */
-            --roulette-commentary-bg: #14151a;
+            /* 다크 카드 위에서 판이 구분되도록 한 단계 더 꺼진 면 */
+            --roulette-commentary-bg: #181817;
         }
 
         body {
@@ -86,7 +86,8 @@
         }
         
         body.game-active .container {
-            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            /* 기록 패널(오른쪽 고정 320px + 20px)과 40px 이상 떨어지도록 상한을 둔다 — 없으면 1201~1460px 폭에서 패널이 컨트롤 바를 덮는다 */
+            margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
             margin-right: auto;
             max-width: 800px;
         }
@@ -281,6 +282,7 @@
         .roulette-live-commentary {
             display: none;
             width: min(92vw, 520px);
+            max-width: 100%;
             height: 86px;
             margin: 2px auto 0;
             padding: 9px 16px;
@@ -1448,6 +1450,10 @@
                 input.select();
 
                 function finishEdit() {
+                    // Enter 로 확정하면 입력칸이 빠지는 순간(replaceWith 안에서) blur 가 또 온다 — 먼저 플래그를 내려 두 번째 호출을 건너뛴다
+                    // (안 그러면 replaceWith 오류 + 제목 변경 이중 전송)
+                    if (!isEditingRoomName) return;
+                    isEditingRoomName = false;
                     const newName = input.value.trim();
                     const newDisplay = document.createElement('span');
                     newDisplay.id = 'roomNameDisplay';
@@ -1455,10 +1461,9 @@
 
                     input.replaceWith(newDisplay);
                     if (editIcon) editIcon.style.display = '';
-                    isEditingRoomName = false;
 
-                    if (newName && newName !== currentName && window.socket) {
-                        window.socket.emit('updateRoomName', { roomName: newName });
+                    if (newName && newName !== currentName) {
+                        socket.emit('updateRoomName', { roomName: newName });
                     }
                 }
 
@@ -1468,14 +1473,6 @@
                 });
             });
         });
-
-        // Update room title on server broadcast
-        if (window.socket) {
-            window.socket.on('roomNameUpdated', (data) => {
-                const display = document.getElementById('roomNameDisplay');
-                if (display) display.textContent = data.roomName;
-            });
-        }
 
         // Show/hide UI elements based on host status
         function updateControlBarUI(isHostUser) {
@@ -2139,6 +2136,12 @@
         });
         let currentServerId = null;
         let currentServerName = null;
+
+        // 방 제목 변경 수신 (방장이 제목을 누르고 고치면 전원에게 반영)
+        socket.on('roomNameUpdated', (data) => {
+            const display = document.getElementById('roomNameDisplay');
+            if (display) display.textContent = data.roomName;
+        });
 
         // 직접 URL 접속 차단 + 새로고침 시 재입장 지원
         (function() {
@@ -3793,7 +3796,9 @@
 
         // 게임 화면 초기화
         function initializeGameScreen(data) {
-            document.getElementById('roomTitle').textContent = data.roomName || '룰렛 방';
+            // #roomTitle 에는 제목 span 외에 호스트 배지·터보 배지가 같이 들어 있다 — 통째로 덮어쓰면 전부 사라지고 제목 편집도 깨진다
+            const roomNameDisplay = document.getElementById('roomNameDisplay');
+            if (roomNameDisplay) roomNameDisplay.textContent = data.roomName || '룰렛 방';
             
             if (data.createdAt && data.expiryHours) {
                 startRoomExpiryCountdown(data.createdAt, data.expiryHours);
