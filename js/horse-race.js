@@ -243,6 +243,8 @@ function racePipOpen() {
         });
         var themeAttr = document.documentElement.getAttribute('data-theme');
         if (themeAttr) pipWin.document.documentElement.setAttribute('data-theme', themeAttr);
+        var skinAttr = document.documentElement.getAttribute('data-skin');
+        if (skinAttr) pipWin.document.documentElement.setAttribute('data-skin', skinAttr);
         // PiP 전용 보정 — 상단 버튼(-32px) 노출 여백 + 스크롤 방지 + 스케일 루트 수평 중앙 정렬.
         // flex 중앙: 창을 가로로만 늘려도(k가 세로 비율/캡에 걸린 상태) 고정폭 루트가 가운데 유지되고
         // 좌우 대칭 여백만 생긴다 (좌측 치우침 버그 수정).

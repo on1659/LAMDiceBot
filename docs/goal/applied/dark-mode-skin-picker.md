@@ -102,3 +102,13 @@ Foundation already in place: `js/shared/theme-shared.js`, the `[data-theme="dark
 ## Existing Integration Contract
 - `data-theme` on `<html>` stays the single switch that CSS reads; `js/horse-race.js` copies it into the PiP window.
 - Game loops, canvas renderers and socket handlers keep their current inputs; a renderer may listen to `themechange` only to re-read colors for UI-like drawing.
+
+## Addendum (2026-10-01, after first deploy to the test server)
+User follow-ups, both applied:
+- **Empty ad slots showed as white boxes in dark.** Cause: with `color-scheme: dark` on the page the browser paints an opaque white canvas behind a transparent ad iframe. Fix in `css/theme.css`: `.ad-container ins.adsbygoogle:not([data-ad-status="filled"]) { color-scheme: light; }` — unfilled/loading slots go back to a transparent strip; filled ads are untouched.
+- **More dark skins ("다크모드 스킨 여러 개", memradar as reference).** This supersedes the "exactly two skins" decision above. Skins are now `light` + five dark-family skins: `dark`, `black`, `midnight`, `mocha`, `purple`.
+  - `data-theme` stays `light|dark` (every dark rule in the codebase keeps keying on `[data-theme="dark"]`); a new `data-skin` attribute carries the skin id.
+  - Variant blocks `[data-theme="dark"][data-skin="…"]` in `css/theme.css` override only surfaces (`--gray-50…300`, `--bg-white`, `--panel-primary`) and the page grounds (`--dark-ground-*`, one tone per skin). Text and accent tokens are shared; every variant surface is no lighter than the default dark one, so contrast is equal or better.
+  - `localStorage.lamdiceTheme` stores the skin id; first visit still follows the device (`light` or `dark`). `themechange` detail is `{ theme: mode, skin: id }`. The horse PiP window copies `data-skin` too.
+  - Adding a skin = one line in `THEMES` (`js/shared/theme-shared.js`) + a `[data-skin]` token block and swatch color in `css/theme.css`.
+
