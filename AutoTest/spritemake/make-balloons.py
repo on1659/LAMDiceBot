@@ -303,6 +303,40 @@ def tangsuyuk():
     return c
 
 
+def gpu():
+    """5090 — 그래픽카드(docs/goal/marble-5090-edition.md). 야식은 아니지만 같은 슬롯·같은 계약.
+    옆으로 긴 검은 판 + 팬 둘 + 왼쪽 끝에 위아래로 삐져나온 은색 브래킷 + 아래 금색 단자. 상표·글자는 안 그린다."""
+    c = Cell()
+
+    def slab(x0, y0, x1, y1, r):
+        m = mask_new()
+        ImageDraw.Draw(m).rounded_rectangle((S(x0), S(y0), S(x1), S(y1)), radius=S(r), fill=255)
+        return m
+
+    body = slab(14, 34, 86, 78, 6)
+    fingers = slab(30, 72, 64, 88, 3)          # 금색 단자 — 몸 아래로 삐져나와 목이 여기서 내려간다
+    bracket = slab(10, 28, 19, 84, 3)          # 브래킷 — 몸보다 위아래로 길어야 윤곽만으로 그래픽카드로 읽힌다
+    fans = blob([(36, 54, 15), (68, 54, 15)])
+    c.add(ImageChops.lighter(body, neck(fingers)), ((60, 64, 76, 255), (34, 36, 46, 255), (104, 110, 126, 255)))
+    c.add(ImageChops.subtract(fingers, body), ((234, 188, 74, 255), (178, 130, 36, 255), (252, 224, 134, 255)), rim=(120, 86, 24, 255))
+    c.add(slab(49, 37, 55, 71, 1), ((176, 182, 194, 255), (122, 128, 142, 255), (226, 230, 238, 255)))   # 팬 사이 방열판
+    c.add(slab(22, 72, 84, 76, 2), ((150, 236, 92, 255), (96, 190, 56, 255), (206, 255, 160, 255)))      # 아래 가장자리 LED 띠
+    c.add(fans, ((26, 28, 36, 255), (14, 14, 20, 255), (48, 52, 64, 255)), rim=(150, 156, 170, 255))
+    c.add(bracket, ((188, 194, 206, 255), (128, 134, 148, 255), (236, 240, 246, 255)), rim=(84, 88, 102, 255))
+    blades = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(blades)
+    for (fx, fy) in ((36, 54), (68, 54)):
+        for k in range(7):   # 날개 7장 — 바람개비 꼴로 한쪽으로 쏠린 부채꼴
+            d.pieslice((S(fx - 13), S(fy - 13), S(fx + 13), S(fy + 13)), k * 360 / 7, k * 360 / 7 + 24, fill=(92, 98, 114, 255))
+        d.ellipse((S(fx - 4.5), S(fy - 4.5), S(fx + 4.5), S(fy + 4.5)), fill=(200, 206, 216, 255))   # 허브
+    clipped = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    clipped.paste(blades, (0, 0), fans)
+    c.decal(clipped)
+    c.decal(dots([(38, 85, 1.3), (47, 85, 1.3), (56, 85, 1.3)], (150, 106, 28, 255), clip=ImageChops.subtract(fingers, body), blur=0.3))   # 단자 홈
+    c.shine(28, 39, 5, 2)
+    return c
+
+
 SPRITES = [
     ('balloon-chicken', chicken),
     ('balloon-pizza', pizza),
@@ -311,6 +345,7 @@ SPRITES = [
     ('balloon-gimbap', gimbap),
     ('balloon-burger', burger),
     ('balloon-tangsuyuk', tangsuyuk),
+    ('balloon-gpu', gpu),
 ]
 
 

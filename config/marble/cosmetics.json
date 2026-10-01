@@ -27,7 +27,10 @@
     {"id": "marble_skin_ribbonpig_iron", "name": "강철 돼지", "displayName": "강철 돼지", "rarity": "epic", "emoji": "🔩", "price": 100, "creature": "ribbonpig", "skin": "iron", "desc": "뾰족한 쇠뿔이 달린 강철 투구와 갑옷을 두른 돼지. 공이 되면 쇠공! 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_zhu", "name": "저팔계 돼지", "displayName": "저팔계 돼지", "rarity": "legend", "emoji": "📿", "price": 150, "creature": "ribbonpig", "skin": "zhu", "desc": "승복에 염주, 등에는 쇠스랑을 멘 저팔계로 변신한 돼지. 돼지를 고르면 적용돼요."},
     {"id": "marble_skin_ribbonpig_angry", "name": "앵그리 아이언", "displayName": "앵그리 아이언", "rarity": "legend", "emoji": "🐗", "price": 150, "creature": "ribbonpig", "skin": "angry", "desc": "긁힌 강철 갑옷에 엄니를 드러낸 사나운 전투 멧돼지. 눈빛부터 무서워요. 돼지를 고르면 적용돼요."},
-    {"id": "marble_skin_ribbonpig_pilot", "name": "빨간 마후라", "displayName": "빨간 마후라", "rarity": "legend", "emoji": "🕶️", "price": 150, "creature": "ribbonpig", "skin": "pilot", "desc": "크림색 중절모에 동그란 선글라스, 멋진 정장을 차려입고 두 발로 서는 신사 돼지. 돼지를 고르면 적용돼요."}
+    {"id": "marble_skin_ribbonpig_pilot", "name": "빨간 마후라", "displayName": "빨간 마후라", "rarity": "legend", "emoji": "🕶️", "price": 150, "creature": "ribbonpig", "skin": "pilot", "desc": "크림색 중절모에 동그란 선글라스, 멋진 정장을 차려입고 두 발로 서는 신사 돼지. 돼지를 고르면 적용돼요."},
+    {"id": "marble_skin_pillbug_gpu", "name": "공벌레 5090 에디션", "displayName": "공벌레 5090 에디션", "rarity": "legend", "emoji": "🌀", "price": 150, "creature": "pillbug", "skin": "gpu", "desc": "등판이 그래픽카드 방열판, 옆구리엔 쿨링팬. 공이 되면 초록 불빛 팬이 빙글빙글! 공벌레를 고르면 적용돼요."},
+    {"id": "marble_skin_armadillo_gpu", "name": "아르마딜로 5090 에디션", "displayName": "아르마딜로 5090 에디션", "rarity": "legend", "emoji": "💨", "price": 150, "creature": "armadillo", "skin": "gpu", "desc": "등껍질에 쿨링팬 두 개와 초록 불빛을 단 그래픽카드 아르마딜로. 공이 되면 팬 달린 쇠공! 아르마딜로를 고르면 적용돼요."},
+    {"id": "marble_skin_turtle_gpu", "name": "거북이 5090 에디션", "displayName": "거북이 5090 에디션", "rarity": "legend", "emoji": "🖥️", "price": 150, "creature": "turtle", "skin": "gpu", "desc": "등딱지 대신 그래픽카드를 통째로 지고 다니는 거북이. 배에는 금색 단자가 반짝. 거북이를 고르면 적용돼요."}
   ],
   "marble_balloon": [
     {"id": "marble_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
@@ -37,6 +40,7 @@
     {"id": "marble_balloon_jokbal", "name": "족발 야식", "displayName": "족발 야식", "rarity": "rare", "emoji": "🐷", "price": 50, "sprite": "balloon-jokbal", "desc": "윤기 나는 족발 한 덩이. 동물을 안 가려요."},
     {"id": "marble_balloon_gimbap", "name": "김밥 야식", "displayName": "김밥 야식", "rarity": "rare", "emoji": "🍙", "price": 50, "sprite": "balloon-gimbap", "desc": "썰어 놓은 김밥 한 알. 동물을 안 가려요."},
     {"id": "marble_balloon_burger", "name": "햄버거 야식", "displayName": "햄버거 야식", "rarity": "rare", "emoji": "🍔", "price": 50, "sprite": "balloon-burger", "desc": "참깨빵 위에 순 쇠고기 패티. 동물을 안 가려요."},
-    {"id": "marble_balloon_tangsuyuk", "name": "탕수육 야식", "displayName": "탕수육 야식", "rarity": "rare", "emoji": "🍯", "price": 50, "sprite": "balloon-tangsuyuk", "desc": "소스 흐르는 탕수육 한 덩이. 부먹이에요. 동물을 안 가려요."}
+    {"id": "marble_balloon_tangsuyuk", "name": "탕수육 야식", "displayName": "탕수육 야식", "rarity": "rare", "emoji": "🍯", "price": 50, "sprite": "balloon-tangsuyuk", "desc": "소스 흐르는 탕수육 한 덩이. 부먹이에요. 동물을 안 가려요."},
+    {"id": "marble_balloon_gpu", "name": "5090 그래픽카드", "displayName": "5090 그래픽카드", "rarity": "rare", "emoji": "🖥️", "price": 50, "sprite": "balloon-gpu", "desc": "다들 갖고 싶어 하는 그 그래픽카드가 머리 위에 둥실. 여기선 50코인이에요. 동물을 안 가려요."}
   ]
 }

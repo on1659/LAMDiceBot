@@ -3971,6 +3971,28 @@
         "targetGamePath": "assets/marble/accessories/balloon-tangsuyuk.webp",
         "md5": "c6ab69bc862bf1d8caeea3cdc47232dd",
         "qaStatus": "PASS"
+      },
+      "balloon-gpu": {
+        "image": "accessories/balloon-gpu.webp",
+        "canvas": [
+          96,
+          128
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "cell": [
+          96,
+          128
+        ],
+        "knot": [
+          48,
+          106
+        ],
+        "targetGamePath": "assets/marble/accessories/balloon-gpu.webp",
+        "md5": "eeca928c0f7f677cb822a1d6f159899c",
+        "qaStatus": "PASS"
       }
     }
   },
@@ -5317,6 +5339,303 @@
         ],
         "targetGamePath": "assets/marble/creatures/ribbonpig-pilot-scuffle.webp",
         "md5": "8519c6bca5fee2909b35d03f0116ad82",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPillbugGpu": {
+    "batch": "marble-run-skin-pillbug-gpu-2026-10-01",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md",
+    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 1(Codex 선택 그대로). 배치 QA PASS, 보정 없음.",
+    "assets": {
+      "pillbug-gpu": {
+        "image": "creatures/pillbug-gpu.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/pillbug-gpu.webp",
+        "md5": "208698c8690828afda41f05f0fc3bd67",
+        "qaStatus": "PASS"
+      },
+      "pillbug-gpu-sleep": {
+        "image": "creatures/pillbug-gpu-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/pillbug-gpu-sleep.webp",
+        "md5": "678e186e59bcad592f21ae384c2ead9b",
+        "qaStatus": "PASS"
+      },
+      "pillbug-gpu-scuffle": {
+        "image": "creatures/pillbug-gpu-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/pillbug-gpu-scuffle.webp",
+        "md5": "059b0175cab550caee7f818f34ba8b89",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinArmadilloGpu": {
+    "batch": "marble-run-skin-armadillo-gpu-2026-10-01",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md",
+    "note": "5090 에디션. 채택 main 1·sleep 1·scuffle 2(Codex 선택 그대로). 리팩 도구는 공벌레 스킨 배치 것(아르마딜로 생성 스킨 배치 없음, r3c0 = 공 아님). 배치 QA PASS, 보정 없음.",
+    "assets": {
+      "armadillo-gpu": {
+        "image": "creatures/armadillo-gpu.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/armadillo-gpu.webp",
+        "md5": "21e6cc15832c8e03523ab54f28a463d6",
+        "qaStatus": "PASS"
+      },
+      "armadillo-gpu-sleep": {
+        "image": "creatures/armadillo-gpu-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/armadillo-gpu-sleep.webp",
+        "md5": "cc49b436d62f1ffbe7f82a675e4c5ce9",
+        "qaStatus": "PASS"
+      },
+      "armadillo-gpu-scuffle": {
+        "image": "creatures/armadillo-gpu-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/armadillo-gpu-scuffle.webp",
+        "md5": "1e05c6064e183bd1afe9a19c28d5701a",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinTurtleGpu": {
+    "batch": "marble-run-skin-turtle-gpu-2026-10-01",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md",
+    "note": "5090 에디션. 채택 main 1(Codex 는 2 선택 — r4c0 머리 방향이 기본 거북이와 같은 1번으로 교체, SOURCES.codex.json 보관)·sleep 1·scuffle 1. 배치 QA PASS, 보정 없음.",
+    "assets": {
+      "turtle-gpu": {
+        "image": "creatures/turtle-gpu.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/turtle-gpu.webp",
+        "md5": "0c81a45aa292c728f295aa4b680262b0",
+        "qaStatus": "PASS"
+      },
+      "turtle-gpu-sleep": {
+        "image": "creatures/turtle-gpu-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/turtle-gpu-sleep.webp",
+        "md5": "6a8c7aa7c7ec7e46cca578682981b63f",
+        "qaStatus": "PASS"
+      },
+      "turtle-gpu-scuffle": {
+        "image": "creatures/turtle-gpu-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/turtle-gpu-scuffle.webp",
+        "md5": "5eb58a1a4c63a053b238c1f53c67d6d9",
         "qaStatus": "PASS"
       }
     }
