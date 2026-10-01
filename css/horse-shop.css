@@ -218,7 +218,7 @@ body.hshop-open {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));   /* 1fr 는 최소 폭이 내용 크기라, 긴 이름 하나가 열을 벌려 폰에서 오른쪽 열이 화면 밖으로 나갔다(2026-10-01 5090 에디션) */
     gap: 10px;
     padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
 }
