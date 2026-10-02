@@ -289,8 +289,6 @@ window.addEventListener('DOMContentLoaded', function () {
         var resizeTimer = null, onResizeDebounced = function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, RESIZE_DEBOUNCE_MS); };   // 폰 주소창 토글마다 미니맵 캐시 재생성 방지
         window.addEventListener('resize', onResizeDebounced);
         window.addEventListener('orientationchange', onResizeDebounced);
-        var fsBtn = document.getElementById('marbleFullscreenBtn');
-        if (fsBtn && !document.fullscreenEnabled && !document.webkitFullscreenEnabled) fsBtn.hidden = true;   // iPhone Safari: 전체화면 API 없음 — 눌러도 아무 일 없던 버튼 숨김
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
         var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
         document.addEventListener('fullscreenchange', onFsChange);
@@ -430,6 +428,14 @@ function setMarbleRandomTrack(on) {
 function toggleMarbleFullscreen() {
     var box = document.getElementById('marbleCanvasBox');
     if (!box) return;
+    if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled) {   // iPhone Safari: 전체화면 API 없음 — 박스를 화면에 고정해 덮는다(css .is-pseudo-fs, 경마 .race-fs-css 와 같은 방식). 사파리 주소창은 남는다
+        var on = !box.classList.contains('is-pseudo-fs'), stage = box.parentElement;
+        stage.style.minHeight = on ? stage.offsetHeight + 'px' : '';   // 박스가 흐름에서 빠져도 페이지 높이를 그대로 — 안 그러면 스크롤 위치가 당겨져, 풀었을 때 화면이 딴 데 가 있다
+        box.classList.toggle('is-pseudo-fs', on);
+        document.body.classList.toggle('marble-pseudo-fs', on);
+        document.dispatchEvent(new Event('fullscreenchange'));   // 캔버스 크기 다시 맞추기 — API 경로와 같은 onFsChange 를 탄다
+        return;
+    }
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
     if (box.requestFullscreen) box.requestFullscreen().catch(function () {});
     else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();

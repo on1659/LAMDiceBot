@@ -6,6 +6,14 @@
 
 ## 누적
 
+## 2026-10-02 — 캔버스 박스를 `position: fixed` 로 화면에 덮으면 페이지 높이가 줄어 스크롤이 당겨진다
+
+**상황:** 전체화면 API 가 없는 아이폰 사파리용으로 `#marbleCanvasBox` 에 `.is-pseudo-fs`(`position: fixed` + 화면 전체)를 붙이는 의사 전체화면을 추가.
+**함정/실수:** 박스가 문서 흐름에서 빠지면 그 높이(폰에서 ≈480px)만큼 문서가 짧아진다. 스크롤이 아래쪽에 있었으면 브라우저가 스크롤 위치를 새 최대값으로 당기고, 전체화면을 풀어도 되돌려 주지 않는다. 전체화면 API 경로에는 없는 문제라 PC·안드로이드로만 보면 안 드러난다. 이 페이지는 스크롤 주체가 `window` 가 아니라서 `scrollY` 만 봐서는 변화가 안 잡힌다.
+**증상:** 전체화면을 풀면 캔버스가 화면 밖으로 밀려나 있다(경주를 보다 나왔는데 위쪽 설정 칸이 보임).
+**해결/예방:** 붙이기 **전에** 부모(`#marbleStage`) 높이를 재서 `min-height` 로 잡아 두고, 풀 때 지운다(`js/marble.js` toggleMarbleFullscreen). 검증은 캔버스의 `getBoundingClientRect().top` 을 진입 전·해제 후로 비교. 전체화면 API 가 없는 상황은 `Object.defineProperty(document, 'fullscreenEnabled', { value: false })`(+ `webkitFullscreenEnabled`)로 흉내 낸다. `:fullscreen` 규칙과 `.is-pseudo-fs` 를 한 선택자 목록으로 묶지 않는다 — 그 선택자를 모르는 브라우저는 규칙을 통째로 버린다.
+**관련:** `js/marble.js` toggleMarbleFullscreen, `css/marble.css` `.is-pseudo-fs`, `js/marble-render.js` R.resize(fs 판정), 경마 `.race-fs-css`
+
 ## 2026-10-01 — 판마다 독립으로 뽑는 랜덤은 평균이 고르더라도 몇 판만 보면 몰린다 → 돌려 써야 하는 건 덱으로
 
 **상황:** 랜덤 맵의 가운데 모듈을 판마다 19개 풀을 새로 셔플해 뽑았다. 2000판 평균은 모듈당 37~45% 로 고르다.
