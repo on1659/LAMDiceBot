@@ -8,6 +8,7 @@ var MarbleRender = (function () {
 
     // ─── 공유 상수 (socket/marble-sim.js 와 동일 값) ───
     var TRACK_W = 800;
+    var WALL_X0 = 150, WALL_X1 = 650;   // 트랙 벽 안쪽 가로 범위 — 동물은 이 안에서만 움직인다. 카메라 가로 한계의 기준
     var BALL_R = 14;
     var NAP_R = 17;
     var COUNTDOWN_MS = 4000;         // js/marble.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
@@ -64,12 +65,14 @@ var MarbleRender = (function () {
     var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
+    var WALL_VIEW_PAD = 25;          // 줌인했을 때 벽 바깥으로 남기는 가로 여유 — 벽 가장자리 자리(스탠드 x 175·625)의 이름표가 화면 끝에서 잘리지 않게
+    var ZOOM_RACE_MAX = TRACK_W / (WALL_X1 - WALL_X0 + WALL_VIEW_PAD * 2);   // 경주 중 줌인 상한(≈1.45) — 벽 안쪽이 여유를 두고 화면에 다 들어오는 최대 배율. 이보다 키우면 가로로 따라가야 해서 판이 쏠리고 일부가 안 보인다(사용자 2026-10-02)
     var ZOOM_MIN = 0.5;              // 결승 프레임(범퍼·시소·진흙 + 구멍밭 + 스탠드)을 한 화면에 넣기 위한 줌아웃 하한
     var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유(데스크톱) — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
     var MOBILE_FRAME_ABOVE_PX = 280; // 폰 결승 프레임 위쪽 여유 — 시소(구멍밭 위 240, 팔 ±36)부터 스탠드 바닥까지 882px 가 세로 캔버스(view.h 1120)에 줌 ≈1.27 로 통째로 들어간다(데구리 b04643a: 폰에서 골·스탠드가 잘리고 카메라가 꼴등만 봄)
     var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
-    var MINIMAP_MAX_W_NARROW = 60;   // 모바일(HUD 단위 = CSS px)에서의 미니맵 최대 폭
-    var MINIMAP_MAX_H_NARROW = 0.70; // 모바일 미니맵 아래 끝(캔버스 높이 비율) — 결승 프레임이 캔버스를 꽉 채우면 홈통이 ≈77%, 스탠드 1·2위 자리가 그 아래 왼쪽에 오므로 그 위에서 끝낸다
+    var MINIMAP_MAX_W_NARROW = 28;   // 모바일(HUD 단위 = CSS px)에서의 미니맵 최대 폭 — 60 이면 전체화면에서 60×500 으로 커져 트랙을 덮는다(사용자 2026-10-02)
+    var MINIMAP_MAX_H_NARROW = 0.50; // 모바일 미니맵 아래 끝(캔버스 높이 비율) — 결승 프레임이 캔버스를 꽉 채우면 홈통이 ≈77%, 스탠드 1·2위 자리가 그 아래 왼쪽에 오므로 그 위에서 끝낸다. 0.70 은 화면 왼쪽을 너무 가려 절반까지만(사용자 2026-10-02)
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
@@ -77,7 +80,8 @@ var MarbleRender = (function () {
     var HUD_RANK_W_MAX = 170;        // 순위표 패널 폭 상한(HUD 단위) — 실제 폭은 내용(이름 최대 7자)에 맞춘다
     var HUD_RANK_NAME_MAX = 7;       // 순위표 이름 글자 수 상한 — 넘으면 앞 7자 + …
     var HUD_RANK_ROW = 22;           // 순위표 한 줄 높이 — 얼굴 원(18)이 행 강조 네모 밖으로 삐져나오지 않게
-    var HUD_RANK_TOP_PX = 56;        // 순위표(위의 당첨 룰 배지 포함) 위 여백(CSS px) — 캔버스 위 HTML 전체화면 버튼(top 8~12 + 36)·베타 배지 아래로
+    var HUD_RANK_TOP_PX = 56;        // 전체화면에서 순위표(위의 당첨 룰 배지 포함) 위 여백(CSS px) — 캔버스 안 전체화면 끝내기 버튼(top 8~12 + 36) 아래로. 평소엔 그 버튼이 캔버스 밖이라 HUD_RANK_TOP
+    var HUD_RANK_TOP = 8;            // 평소 순위표 위 여백(HUD 단위) — 오른쪽 여백과 같게
     var HUD_RULE_H = 26 + 6;         // 당첨 룰 배지 높이 + 순위표와의 간격(HUD 단위)
     var HUD_RANK_BOTTOM_GAP = 60;    // 순위표 아래 여백(HUD 단위) — 캔버스 박스 아래 오른쪽 카메라 버튼(≈46 CSS px)과 안 겹치게
     var HUD_RANK_COLLAPSED_TOP = 3;  // 접힌 순위표에 늘 보이는 윗줄 수(+ 내 줄·당첨 자리·따라가는 동물). 명단이 이보다 +2 이하면 접기 없음
@@ -85,6 +89,10 @@ var MarbleRender = (function () {
     var HUD_RANK_TOGGLE_H = 22;      // 순위표 맨 아래 펼치기/접기 버튼 높이         // 접힌 순위표의 건너뛴 줄 표시(⋯) 높이
     var HUD_RANK_FRAME_ALPHA = 0.7;  // 결승 프레임(구멍밭)에서 순위표·미니맵 불투명도 — 뒤 트랙이 비쳐 보이게
     var HUD_RANK_MAX_H_NARROW = 0.42; // 폰: 배지+순위표 높이 상한(캔버스 높이 비율) — 긴 명단이 트랙을 덮지 않게 행을 자른다(당첨 쪽은 남김)
+    var HUD_RANK_COMPACT_ROWS = 2;    // 폰 접힌 순위표 줄 수 — 당첨 자리 + 내 동물 하나(사용자 2026-10-02: 폰에서 순위표가 트랙을 너무 가린다). 명단이 이보다 +1 이하면 접기 없이 전부
+    var HUD_RANK_COMPACT_NAME_MAX = 4; // 폰 접힌 순위표 이름 글자 수 상한 — 넘으면 앞 4자 + …
+    var HUD_RANK_COMPACT_ROW = 20;    // 폰 접힌 순위표 한 줄 높이
+    var HUD_RANK_COMPACT_ICON_PX = 16; // 폰 접힌 순위표 동물 얼굴 아이콘 크기
     var UI_SCALE_MAX = 2.2;          // 폰에서 HUD·라벨을 키우는 배율 상한 (375px 폰 ≈ 2.13 → HUD 단위 = CSS px)
     var NARROW_PX = 600;             // 이 CSS 폭 미만이면 모바일(세로 캔버스·줌 하한·짧은 결승 프레임)
     var MOBILE_ZOOM_MIN = 1.25;      // 모바일 줌 하한(공 지름 ≥ 16 CSS px @375 · 17 @390) — 폰 결승 프레임의 fit 줌(≈1.27)이 이 위에 있어야 프레임이 고정된다
@@ -303,7 +311,7 @@ var MarbleRender = (function () {
         R.resize = function () {
             var box = canvas.parentElement;
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
-            var fs = !!fsEl && (fsEl === box || fsEl === canvas);
+            var fs = (!!fsEl && (fsEl === box || fsEl === canvas)) || (!!box && box.classList.contains('is-pseudo-fs'));   // is-pseudo-fs = 전체화면 API 가 없는 아이폰용 의사 전체화면(js/marble.js toggleMarbleFullscreen)
             if (!fs) { canvas.style.width = ''; canvas.style.height = ''; }   // 전체화면에서 남은 인라인 크기가 박스 폭 측정에 끼지 않게
             var cssW = box ? box.clientWidth : canvas.clientWidth;
             if (!cssW) cssW = TRACK_W;   // display:none 상태(대기 중) — 0폭이면 논리폭으로 (NaN 방지)
@@ -389,17 +397,18 @@ var MarbleRender = (function () {
             if (onCameraModeCb) onCameraModeCb(on ? 'manual' : 'auto');
         }
         // 카메라 버튼 — 캔버스 박스(#marbleCanvasBox, position:relative) 아래 오른쪽. 도구 줄(.marble-stage-tools)은 전체화면에서 안 보여서 캔버스 박스 안에 둔다.
-        // 경주 중(카운트다운~결과)에만 보이고 지금 상태(자동 / 수동 / 누구 따라가는 중 / 내 동물 따라가는 중)를 보여 주며, 누를 때마다 자동 ↔ 수동 토글.
+        // 경주 중(카운트다운~결과)에만 보이고, 누를 때마다 자동 ↔ 수동 토글. 글자 없는 아이콘 버튼 — 상태 문구를 달았더니 도구 줄의 '내 동물 따라가는 중'과 같은 말이 두 번 보였다(사용자 2026-10-02).
+        // 지금 상태(자동 / 수동 / 누구 따라가는 중 / 내 동물 따라가는 중)는 아이콘·색과 title(마우스 올리면)로.
         // 아이콘(64×64 픽셀, 22px 표시): 데구리 assets/ui/camera-auto.png·camera-manual.png(SpriteMake sprite-tile-icon-20260923-124222) 그대로 복사. 공용 아틀라스의 camera 칸은 스틸 카메라라 뜻이 달라 안 쓴다
         var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };
-        var camButton = null, camButtonIcon = null, camButtonText = null, camBtnMine = false;
+        var camButton = null, camButtonIcon = null, camBtnMine = false;
         function updateCamButton() {
             if (!camButton) return;
             var who = manual.follow ? String(manual.follow.owner || '') : '';
             if (who.length > HUD_RANK_NAME_MAX) who = who.slice(0, HUD_RANK_NAME_MAX) + '…';
             var icon = manual.on ? CAM_ICONS.manual : CAM_ICONS.auto;
             if (camButtonIcon.getAttribute('src') !== icon) camButtonIcon.src = icon;
-            camButtonText.textContent = manual.follow ? who + ' 따라가는 중' : manual.on ? '수동 카메라' : camBtnMine ? '내 동물 따라가는 중' : '자동 카메라';
+            camButton.title = manual.follow ? who + ' 따라가는 중' : manual.on ? '수동 카메라' : camBtnMine ? '내 동물 따라가는 중' : '자동 카메라';
             camButton.classList.toggle('is-manual', manual.on);
             camButton.setAttribute('aria-pressed', manual.on ? 'true' : 'false');
             camButton.setAttribute('aria-label', (manual.on ? '지금 수동 카메라' : '지금 자동 카메라') + ' — 누르면 ' + (manual.on ? '자동' : '수동') + '으로');
@@ -412,9 +421,7 @@ var MarbleRender = (function () {
             camButtonIcon = document.createElement('img');
             camButtonIcon.alt = ''; camButtonIcon.width = 22; camButtonIcon.height = 22;
             camButtonIcon.className = 'marble-cam-btn__icon';
-            camButtonText = document.createElement('span');
             camButton.appendChild(camButtonIcon);
-            camButton.appendChild(camButtonText);
             camButton.hidden = true;
             camButton.addEventListener('click', function () { setManual(!manual.on); });
             canvas.parentElement.appendChild(camButton);
@@ -676,7 +683,7 @@ var MarbleRender = (function () {
             var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
             if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
             if (t < 0) { targetY = data.track.startY * 0.5 + 60; camTarget = null; }
-            else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
+            else if (carried) { targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
             else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; camTarget = myFocus; }   // 내 동물 따라가기
             else if (loserDone && (celNow = celebration(t)) && celNow.since >= 0) { cam.mode = 'celebrate'; targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = celNow.ball; }   // 1등 당첨 축하: 비석에서 스탠드의 1등 동물로 건너간다
             else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = loserB; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
@@ -696,15 +703,15 @@ var MarbleRender = (function () {
                 }
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
                     var kk = clamp((rear.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
-                    targetZoom = Math.max(targetZoom, 1 + (ZOOM_MAX - 1) * kk);
-                    if (kk > 0.3) { targetX = rear.x; targetY = rear.y + view.h * CAM_LEAD / targetZoom; camTarget = rear; }
+                    targetZoom = Math.max(targetZoom, 1 + (ZOOM_RACE_MAX - 1) * kk);
+                    if (kk > 0.3) { targetY = rear.y + view.h * CAM_LEAD / targetZoom; camTarget = rear; }
                 }
             }
             else {
                 targetY = focus.y + view.h * CAM_LEAD;
                 var k = clamp((focus.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
-                targetZoom = 1 + (ZOOM_MAX - 1) * k;
-                if (targetZoom > 1.01) { targetX = focus.x; targetY = focus.y + view.h * CAM_LEAD / targetZoom; }
+                targetZoom = 1 + (ZOOM_RACE_MAX - 1) * k;
+                if (targetZoom > 1.01) targetY = focus.y + view.h * CAM_LEAD / targetZoom;
             }
             // 꼴찌가 확정되는 순간 한 번 자동으로 돌아가 비석·축하 장면을 놓치지 않게 한다. 그 뒤(결과 화면)에 순위표를 누르면 다시 따라간다
             if (!loserDone) cam.loserSeen = false;
@@ -717,19 +724,20 @@ var MarbleRender = (function () {
             else if (manual.on) {   // 수동: 사용자가 옮긴 자리·배율 그대로(아래 세로·가로 한계만 적용)
                 targetX = manual.x; targetY = manual.y; targetZoom = manual.zoom; cam.mode = 'manual'; camTarget = null;
             }
-            else if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) {   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 좁아진 시야는 초점 공을 가로로 따라가 메운다
-                targetZoom = MOBILE_ZOOM_MIN;
-                var fx = carried || myFocus || focus; if (fx && !frameMode) targetX = fx.x;
-            }
+            else if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) targetZoom = MOBILE_ZOOM_MIN;   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 이 줌의 시야 폭(640)도 벽 안쪽을 다 담는다
             // 세로 한계: 출발대 위 140px(하늘 띠) ~ 트랙 끝 20px 아래. 실제 보이는 반높이는 줌을 따르므로 줌으로 나눈다 — 논리 반높이로 조이면 폰(세로 캔버스, view.h 1120)에서
             // 줌 1.36 의 비석·1등 축하 장면이 화면 아래 130px 을 비워 둔 채 바닥에 붙는다(데구리 b37d160). 줌 1(출발·주행)은 변화 없다
             var halfH = view.h / 2 / targetZoom;
             var minY = data.track.startY + halfH - 140, maxY = data.track.endY - halfH + 20;
             targetY = clamp(targetY, minY, maxY);
             var halfW = view.w / 2 / targetZoom;
-            // 줌아웃으로 트랙보다 넓으면 중앙 고정. 1등 축하는 왕관 동물을 화면 가운데에 — 스탠드 가장자리 자리(x 175·625)는 트랙 안쪽으로 조이면 한쪽에 몰려 보인다(폰).
+            // 가로: 벽 안쪽(WALL_X0~WALL_X1)이 화면에 다 들어오는 배율이면 가운데 고정 — 동물을 가로로 따라가면 판이 한쪽으로 쏠려 보이고 반대쪽이 안 보인다(사용자 2026-10-02).
+            // 그보다 확대했을 때(수동 줌)만 벽 안에서 가로로 움직인다.
+            // 경주가 끝난 뒤의 클로즈업(비석·1등 축하·골 앞)은 한 마리를 비추는 장면이라 예전대로: 1등 축하는 왕관 동물을 화면 가운데에 — 스탠드 가장자리 자리(x 175·625)는 트랙 안쪽으로 조이면 한쪽에 몰려 보인다(폰).
             // 트랙 밖은 초원 타일이 padX 만큼 더 깔려 있어 빈 곳이 안 보인다
-            targetX = halfW >= TRACK_W / 2 ? TRACK_W / 2 : cam.mode === 'celebrate' ? targetX : clamp(targetX, halfW, TRACK_W - halfW);
+            var closeup = t >= 0 && !manual.on && !carried && !myFocus && (loserDone || !focus);
+            if (closeup) targetX = halfW >= TRACK_W / 2 ? TRACK_W / 2 : cam.mode === 'celebrate' ? targetX : clamp(targetX, halfW, TRACK_W - halfW);
+            else targetX = halfW >= (WALL_X1 - WALL_X0) / 2 ? TRACK_W / 2 : clamp(targetX, WALL_X0 + halfW, WALL_X1 - halfW);
             if (manual.on && !manual.follow) {   // 한계에 걸린 값을 되돌려 써서, 끝까지 끈 뒤 반대로 끌 때 헛도는 구간이 없게 한다. 손가락을 바로 따라오도록 스무딩 없이
                 manual.x = targetX; manual.y = targetY;
                 cam.x = targetX; cam.y = targetY; cam.zoom = targetZoom; cam.init = true;
@@ -2325,7 +2333,7 @@ var MarbleRender = (function () {
             }
             // 당첨 룰 배지 — 오른쪽 위, 순위표 바로 위(19). 순위표가 있으면 둘을 같은 폭·같은 왼쪽 끝으로 맞춘다. 캔버스 위 HTML 배너는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에 띄운다
             var ruleH = (phase !== 'idle' && data.target) ? HUD_RULE_H : 0;
-            var hudTop = Math.round(HUD_RANK_TOP_PX * hw / view.cssW);   // CSS px → HUD 단위(1 CSS px = hw / cssW) — 전체화면 버튼·베타 배지 아래
+            var hudTop = view.fs ? Math.round(HUD_RANK_TOP_PX * hw / view.cssW) : HUD_RANK_TOP;   // 전체화면: CSS px → HUD 단위(1 CSS px = hw / cssW) — 전체화면 끝내기 버튼 아래
             var ruleText = ruleH ? (data.target === 'first' ? '1등' : '꼴등') + ' 당첨' : '', ruleW = 0;
             if (ruleH) { ctx.save(); ctx.font = 'bold 14px "Jua", sans-serif'; ruleW = ctx.measureText(ruleText).width + 16 + 4 + 20; ctx.restore(); }   // 아틀라스 target 아이콘(16) + 간격 + 좌우 여백
             var drawRuleBadge = function (bx, bw) {
@@ -2341,49 +2349,59 @@ var MarbleRender = (function () {
             // 순위표 — 화면 높이에 안 들어가면 당첨 순위 쪽(1등 룰이면 위, 꼴등 룰이면 아래)을 남기고 자른다. 당첨 자리 행은 금색. 피날레에도 최종 순위로 남는다
             rankHits = [];
             if (t >= 0 && hudInfo.rows.length) {
-                ctx.font = 'bold 12px "Jua", sans-serif';
+                // 폰 접힌 순위표(compact): 당첨 자리 + 내 동물 하나만, 이름 4자, 꼬리('도착'·'N번')·카메라 표시·건너뛴 줄 표시 없이 작게 — 트랙을 덜 가린다. 펼치면 PC 와 같은 모양(사용자 2026-10-02)
+                var compact = view.narrow && !rankOpen;
+                var rowH = compact ? HUD_RANK_COMPACT_ROW : HUD_RANK_ROW, hdrH = compact ? 22 : 26, nameMax = compact ? HUD_RANK_COMPACT_NAME_MAX : HUD_RANK_NAME_MAX;
+                var rowFont = 'bold ' + (compact ? 11 : 12) + 'px "Jua", sans-serif', hdrFont = 'bold ' + (compact ? 12 : 14) + 'px "Jua", sans-serif', hdrIcon = compact ? 14 : 16;
+                var xRank = compact ? 32 : 44, xIcon = compact ? 45 : 56, xName = compact ? 57 : 68;   // 묶음 안 가로 자리: 순위 오른쪽 끝·얼굴 가운데·이름 왼쪽 끝
+                ctx.font = rowFont;
                 var y = hudTop, rows = hudInfo.rows, n = rows.length;   // 당첨 룰은 따로 배지 없이 순위표 머리줄로(사용자 2026-09-24)
                 var multi = balls.some(function (b) { return b.num > 1; });   // 한 사람 여러 마리일 때만 'N번'(그 사람의 몇 번째 동물) — 1마리 경주는 늘 1번이라 뺀다(17)
-                var shortName = function (nm) { return nm.length > HUD_RANK_NAME_MAX ? nm.slice(0, HUD_RANK_NAME_MAX) + '…' : nm; };
-                var rankText = function (r) { return shortName(r.ball.owner) + (r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
+                var shortName = function (nm) { return nm.length > nameMax ? nm.slice(0, nameMax) + '…' : nm; };
+                var rankText = function (r) { return shortName(r.ball.owner) + (compact ? '' : r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
                 // 폭 = 이름 앞(카메라 표시·순위·얼굴 68) + 가장 긴 이름 + 뒤 꼬리(' 도착'·' 9번' 중 긴 것 — 경주 중 폭이 들썩이지 않게) + 오른쪽 여백. 상한 HUD_RANK_W_MAX
-                var tailW = Math.max(ctx.measureText(' 도착').width, multi ? ctx.measureText(' 9번').width : 0);
-                var textW = ctx.measureText('순위표').width + 17 - 60;
+                var tailW = compact ? 0 : Math.max(ctx.measureText(' 도착').width, multi ? ctx.measureText(' 9번').width : 0);
+                var textW = ctx.measureText('순위표').width + 17 - (xName - 8);
                 rows.forEach(function (r) { textW = Math.max(textW, ctx.measureText(shortName(r.ball.owner)).width + tailW); });
-                var blockW = Math.ceil(textW + 62);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
-                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), ruleW), L = hw - w - 8;
+                var blockW = Math.ceil(textW + xName - 6);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
+                var hdrRuleW = ruleW; if (compact && ruleH) { ctx.font = hdrFont; hdrRuleW = ctx.measureText(ruleText).width + hdrIcon + 4 + 14; ctx.font = rowFont; }
+                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), hdrRuleW), L = hw - w - 8;
                 var X = L + Math.round((w - blockW) / 2) - 6;   // 묶음을 패널 가운데로
                 badgeDone = true;
                 var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
-                var maxRows = Math.max(1, Math.floor((panelMaxH - 26 - HUD_RANK_TOGGLE_H) / HUD_RANK_ROW));
+                var maxRows = Math.max(1, Math.floor((panelMaxH - hdrH - HUD_RANK_TOGGLE_H) / rowH));
                 var targetIdx = data.target === 'first' ? 0 : n - 1;
                 // 접힌 순위표(기본): 1~3위 + 내 줄 + 당첨 자리 + 따라가는 동물만 — 트랙을 덜 가린다. 결승 프레임(구멍밭)에선 당첨 자리·내 줄·따라가는 동물만 + 더 투명(사용자 2026-09-24)
-                var frameCam = cam.mode === 'frame', collapsible = n > HUD_RANK_COLLAPSED_TOP + 2, keep = null;
+                var frameCam = cam.mode === 'frame', collapsible = n > (view.narrow ? HUD_RANK_COMPACT_ROWS + 1 : HUD_RANK_COLLAPSED_TOP + 2), keep = null;
                 if (!rankOpen && collapsible) {
                     keep = {}; keep[targetIdx] = true;
-                    if (!frameCam) for (var ki = 0; ki < Math.min(n, HUD_RANK_COLLAPSED_TOP); ki++) keep[ki] = true;
+                    if (!frameCam && !compact) for (var ki = 0; ki < Math.min(n, HUD_RANK_COLLAPSED_TOP); ki++) keep[ki] = true;
                     var mineIdx = []; rows.forEach(function (r, ri) { if (r.ball.owner === myName) mineIdx.push(ri); if (manual.follow === r.ball) keep[ri] = true; });
-                    if (mineIdx.length) { keep[mineIdx[0]] = true; keep[mineIdx[mineIdx.length - 1]] = true; }   // 내 공은 제일 앞·제일 뒤 둘만(마리 수만큼 줄이 늘지 않게)
+                    if (mineIdx.length) {   // 내 공은 제일 앞·제일 뒤 둘만(마리 수만큼 줄이 늘지 않게). 폰 접힘은 당첨 쪽 하나만(1등 룰 = 제일 앞, 꼴등 룰 = 제일 뒤)
+                        if (!compact || data.target === 'first') keep[mineIdx[0]] = true;
+                        if (!compact || data.target !== 'first') keep[mineIdx[mineIdx.length - 1]] = true;
+                    }
                 }
                 var shownIdx = [];
                 if (keep) { for (var si2 = 0; si2 < n; si2++) if (keep[si2]) shownIdx.push(si2); }
                 else { var from = n > maxRows && data.target !== 'first' ? n - maxRows : 0; for (var fi = from; fi < Math.min(n, from + maxRows); fi++) shownIdx.push(fi); }
                 if (shownIdx.length > maxRows) shownIdx = data.target === 'first' ? shownIdx.slice(0, maxRows) : shownIdx.slice(shownIdx.length - maxRows);
-                var gapCount = 0; for (var gi2 = 1; gi2 < shownIdx.length; gi2++) if (shownIdx[gi2] !== shownIdx[gi2 - 1] + 1) gapCount++;
+                var gapCount = 0; if (!compact) for (var gi2 = 1; gi2 < shownIdx.length; gi2++) if (shownIdx[gi2] !== shownIdx[gi2 - 1] + 1) gapCount++;
                 var panelA = frameCam ? HUD_RANK_FRAME_ALPHA : 1;
                 ctx.save(); ctx.globalAlpha = panelA;
-                var hdrH = 26, bodyH = shownIdx.length * HUD_RANK_ROW + gapCount * HUD_RANK_GAP_H + 4, togH = collapsible ? HUD_RANK_TOGGLE_H : 0;
+                var bodyH = shownIdx.length * rowH + gapCount * HUD_RANK_GAP_H + 4, togH = collapsible ? HUD_RANK_TOGGLE_H : 0;
                 ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(L, y, w, hdrH + bodyH + togH, 8); ctx.fill();
                 // 머리줄 = 당첨 룰(금색 띠). 룰이 없으면(대기 등) '순위표'
+                var hy = y + (hdrH - 16) / 2;
                 if (ruleH) {
                     ctx.fillStyle = '#ffd166'; roundRect(L, y, w, hdrH, 8); ctx.fill();
-                    ctx.font = 'bold 14px "Jua", sans-serif';
-                    var tw = ctx.measureText(ruleText).width, hl = L + (w - (16 + 4 + tw)) / 2;
-                    ctx.fillStyle = '#3a2a00'; ctx.textAlign = 'left'; ctx.fillText(ruleText, iconScreen('target', hl, y + 5, 16) ? hl + 20 : L + (w - tw) / 2, y + 5);
-                    ctx.font = 'bold 12px "Jua", sans-serif';
+                    ctx.font = hdrFont;
+                    var tw = ctx.measureText(ruleText).width, hl = L + (w - (hdrIcon + 4 + tw)) / 2;
+                    ctx.fillStyle = '#3a2a00'; ctx.textAlign = 'left'; ctx.fillText(ruleText, iconScreen('target', hl, hy + (16 - hdrIcon) / 2, hdrIcon) ? hl + hdrIcon + 4 : L + (w - tw) / 2, hy);
+                    ctx.font = rowFont;
                 } else {
                     var titleW = ctx.measureText('순위표').width, titleLeft = L + w / 2 - (14 + 3 + titleW) / 2;
-                    ctx.fillStyle = '#ffd166'; ctx.textAlign = 'left'; ctx.fillText('순위표', iconScreen('list', titleLeft, y + 5, 14) ? titleLeft + 17 : L + w / 2 - titleW / 2, y + 6);
+                    ctx.fillStyle = '#ffd166'; ctx.textAlign = 'left'; ctx.fillText('순위표', iconScreen('list', titleLeft, hy, 14) ? titleLeft + 17 : L + w / 2 - titleW / 2, hy + 1);
                 }
                 ctx.textBaseline = 'middle';
                 if (collapsible) {   // 맨 아래 펼치기/접기 버튼
@@ -2394,22 +2412,22 @@ var MarbleRender = (function () {
                 }
                 var rowTop = y + hdrH + 2;
                 shownIdx.forEach(function (idx, i) {
-                    if (i > 0 && idx !== shownIdx[i - 1] + 1) {   // 건너뛴 줄 표시
+                    if (!compact && i > 0 && idx !== shownIdx[i - 1] + 1) {   // 건너뛴 줄 표시
                         ctx.fillStyle = '#9e9e9e'; ctx.textAlign = 'center'; ctx.fillText('⋯', L + w / 2, rowTop + HUD_RANK_GAP_H / 2 - 1);
                         rowTop += HUD_RANK_GAP_H;
                     }
-                    var r = rows[idx], top = rowTop, cy = top + HUD_RANK_ROW / 2, b = r.ball, mineRow = b.owner === myName;
-                    rowTop += HUD_RANK_ROW;
+                    var r = rows[idx], top = rowTop, cy = top + rowH / 2, b = r.ball, mineRow = b.owner === myName;
+                    rowTop += rowH;
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
-                    if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.fill(); }
-                    if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, HUD_RANK_ROW - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
-                    if (cam.target === b) drawCamMark(X + 13, cy);   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11)
+                    if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.fill(); }
+                    if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
+                    if (!compact && cam.target === b) drawCamMark(X + 13, cy);   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11)
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
-                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + 44, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만
-                    drawMiniIcon(b, X + 56, cy, HUD_ICON_PX, mineRow);
+                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + xRank, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만
+                    drawMiniIcon(b, X + xIcon, cy, compact ? HUD_RANK_COMPACT_ICON_PX : HUD_ICON_PX, mineRow);
                     ctx.fillStyle = mineRow ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';   // 내 줄 강조: 흰 글씨 + 강조 아이콘(흰 바깥 링)
-                    ctx.fillText(rankText(r), X + 68, cy + 1);
-                    rankHits.push({ x: L, y: top, w: w, h: HUD_RANK_ROW, ball: b });
+                    ctx.fillText(rankText(r), X + xName, cy + 1);
+                    rankHits.push({ x: L, y: top, w: w, h: rowH, ball: b });
                 });
                 ctx.restore();
                 ctx.textBaseline = 'top';

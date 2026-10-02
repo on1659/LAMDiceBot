@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=4">
-    <link rel="stylesheet" href="/css/marble.css?v=28">
+    <link rel="stylesheet" href="/css/marble.css?v=32">
     <link rel="stylesheet" href="/css/marble-gacha.css?v=20">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -368,9 +368,10 @@
             <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
             <!-- 경주 캔버스 -->
             <section id="marbleStage">
-                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) -->
+                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 -->
                 <div class="marble-stage-tools">
                     <button type="button" class="marble-stage-btn" id="marbleHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
+                    <button type="button" class="marble-stage-btn" id="marbleFullscreenOpenBtn" onclick="toggleMarbleFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
                 </div>
                 <div id="marbleCanvasBox">
                     <canvas id="marbleCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
@@ -381,8 +382,8 @@
                     <div id="raceChatOverlay"></div>
                     <!-- 다시 보기 중 표시 (나만 보임) -->
                     <div id="marbleReplayBadge" style="display: none;"><i class="mi mi-replay"></i> 다시 보는 중 — 나만 보여요</div>
-                    <div id="marbleBetaBadge" aria-label="베타 테스트 중"><i class="mi mi-flask"></i> 베타 테스트</div>
-                    <button type="button" id="marbleFullscreenBtn" onclick="toggleMarbleFullscreen()" title="전체화면" aria-label="전체화면"><i class="mi mi-expand"></i></button>
+                    <!-- 전체화면 끝내기 — 전체화면일 때만 보인다(css/marble.css) -->
+                    <button type="button" id="marbleFullscreenBtn" onclick="toggleMarbleFullscreen()" title="전체화면 끝내기" aria-label="전체화면 끝내기"><i class="mi mi-expand"></i></button>
                 </div>
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
                 <div id="marbleAfterRace" class="marble-after-race" style="display: none;">
@@ -499,8 +500,8 @@
     <script src="/js/shared/shop-shared.js?v=6"></script>
     <script src="/js/marble-shop.js?v=12"></script>
     <script src="/js/marble-gacha.js?v=45"></script>
-    <script src="/js/marble-render.js?v=88"></script>
-    <script src="/js/marble.js?v=48"></script>
+    <script src="/js/marble-render.js?v=95"></script>
+    <script src="/js/marble.js?v=50"></script>
 
     <script>
         // ============================================
