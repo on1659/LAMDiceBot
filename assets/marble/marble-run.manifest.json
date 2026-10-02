@@ -5639,5 +5639,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinPandaHoney": {
+    "batch": "marble-run-skin-panda-honey-2026-10-02",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-02-marble-skin-honey.md",
+    "note": "꿀곰(marble_skin_panda_honey, legend). 채택 main 2·sleep 1·scuffle 1(Codex 는 scuffle 2 선택 — 기본 판다처럼 빙글 칸이 정면인 1 로 재판정); 서기 키를 기본과 맞추려 main cap [139,139](r0c2 놀람 표시가 몸에 붙음), r0c2·r3c2 폭 135~137 은 꿀단지 소품",
+    "assets": {
+      "panda-honey": {
+        "image": "creatures/panda-honey.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/marble/creatures/panda-honey.webp",
+        "md5": "4bd03356304b4c4f21f0c7e1f1aa0025",
+        "qaStatus": "PASS"
+      },
+      "panda-honey-sleep": {
+        "image": "creatures/panda-honey-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-honey-sleep.webp",
+        "md5": "f11b5604eac2eed815f79bc46051a609",
+        "qaStatus": "PASS"
+      },
+      "panda-honey-scuffle": {
+        "image": "creatures/panda-honey-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/marble/creatures/panda-honey-scuffle.webp",
+        "md5": "d83ff80aca7d7289e29b73c358bd716f",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
