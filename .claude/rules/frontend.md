@@ -15,6 +15,7 @@ paths:
 - 룰렛: `docs/GameGuide/03-games/roulette.md`
 - 경마: `docs/GameGuide/03-games/horse-race.md`
 - 공통 모듈: `docs/GameGuide/02-shared-systems/shared-modules.md`
+- 다크 테마·스킨·색 토큰: `docs/GameGuide/02-shared-systems/THEME-DARK.md` (다크 대응·새 색·새 스킨 작업 전 필독)
 
 ## HTML
 - AdSense 스니펫 `<head>`에 포함 확인 (admin.html 제외)

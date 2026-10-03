@@ -8706,7 +8706,7 @@
             'background:var(--fill-help);',
             'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
-            'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'
+            'box-shadow:0 2px 8px rgba(var(--help-glow-rgb),0.5); flex-shrink:0;'
         ].join('');
         helpBtn.addEventListener('click', function() {
             TutorialModule.reset('dice');

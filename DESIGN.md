@@ -36,7 +36,7 @@
 - **Pen (secondary):** `#1F5FE0` — 링크·정보·대기 중. 연한 배경 `#DCE6FB`.
 - **Game stickers:** 주사위 `#667EEA`/`#E9ECFC`, 룰렛 `#1F7A4D`/`#DFF3E7`, 경마 `#B4551C`/`#F8E6D8`, 데구리 `#3FA65B`/`#E1F5E6`, 사다리 `#D9890A`/`#FBEFD6`. (`css/theme.css`의 게임 토큰과 맞춘다.)
 - **Semantic:** success = pen `#1F5FE0`(대기·참여 가능), warning = ladder `#D9890A`, error/live = stamp `#C8281A`, info = pen.
-- **Dark mode:** 있음(2026-10-01). 스킨은 라이트 + 다크 계열 5종(다크·블랙·미드나잇·모카·퍼플), 각 페이지 상단 버튼으로 고른다. 고른 적 없으면 기기 설정을 따른다(라이트 또는 다크). `js/shared/theme-shared.js`가 `<html data-theme="light|dark" data-skin="스킨 id">`를 정하고, 색은 `css/theme.css`의 `[data-theme="dark"]` 토큰이 뒤집는다. 다크 계열 스킨은 `[data-skin]` 블록에서 표면·테두리·페이지 바닥 토큰만 갈아 끼운다(면 밝기는 기본 다크 이하 — 글자 대비 유지). 게임 그림(트랙·맵·룰렛 판·스프라이트)은 스킨과 무관하게 그대로. **이 문서의 종이 전단지 기준안은 라이트 값만 정의돼 있다 — 리뉴얼을 적용할 때 종이·잉크·도장의 다크 값을 같이 정해야 한다.**
+- **Dark mode:** 있음(2026-10-01). 규칙·토큰·검증법은 [`docs/GameGuide/02-shared-systems/THEME-DARK.md`](docs/GameGuide/02-shared-systems/THEME-DARK.md). 스킨은 라이트 + 다크 계열 5종(다크·블랙·미드나잇·모카·퍼플), 각 페이지 상단 버튼으로 고른다. 고른 적 없으면 기기 설정을 따른다(라이트 또는 다크). `js/shared/theme-shared.js`가 `<html data-theme="light|dark" data-skin="스킨 id">`를 정하고, 색은 `css/theme.css`의 `[data-theme="dark"]` 토큰이 뒤집는다. 다크 계열 스킨은 `[data-skin]` 블록에서 표면·테두리·페이지 바닥 토큰만 갈아 끼운다(면 밝기는 기본 다크 이하 — 글자 대비 유지). 게임 그림(트랙·맵·룰렛 판·스프라이트)은 스킨과 무관하게 그대로. **이 문서의 종이 전단지 기준안은 라이트 값만 정의돼 있다 — 리뉴얼을 적용할 때 종이·잉크·도장의 다크 값을 같이 정해야 한다.**
 
 ## Spacing
 - **Base unit:** 4px

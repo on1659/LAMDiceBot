@@ -276,6 +276,7 @@
   --fill-danger-soft: var(--red-400);
   --fill-ready-end: #20c997;  /* 준비 버튼 그라디언트 끝(청록) — ready-shared.js */
   --fill-help: linear-gradient(135deg, var(--link-brand), var(--link-brand-light));  /* ? 도움 버튼 */
+  --help-glow-rgb: 139, 92, 246;  /* ? 도움 버튼 발광 — 다크에서는 스킨 강조색을 따라간다 */
 
   /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백
      = 상하 패딩 + 라벨 줄 24px + 광고 높이 + 상단 border 1px. 모바일(320×50) 기준, 넓은 화면은 스티키 섹션 미디어쿼리에서 재정의 */
@@ -378,6 +379,7 @@
   --fill-danger-soft: #b84c4a;
   --fill-ready-end: #3a7a6a;
   --fill-help: linear-gradient(135deg, #6a5cbc, #6e60c4);
+  --help-glow-rgb: var(--dice-500-rgb);
   --btn-ready: var(--fill-success);
   --btn-ready-hover: #366c49;
   --btn-ready-active: #305f40;
@@ -599,6 +601,41 @@
   color: var(--text-primary) !important;
 }
 
+/* 알림·확인 창 (각 페이지의 showCustomAlert / showCustomConfirm, 경마·데구리 플레이어 메뉴)
+   라이트는 종류별 색 테두리 + 같은 색 버튼(경고 = 노랑)인데, 다크에선 노랑 상자·노랑 버튼이 번쩍인다
+   → 상자는 무채 테두리, 확인 버튼은 브랜드 바탕, 취소는 중립. 종류는 아이콘(⚠·✓·i)이 알려 준다.
+   전부 인라인 style 로 그려서 !important 로만 덮인다 */
+[data-theme="dark"] #customAlert > div,
+[data-theme="dark"] #customConfirm > div,
+[data-theme="dark"] #playerActionDialog > div,
+[data-theme="dark"] #marblePlayerActionDialog > div {
+  background: var(--bg-white) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] #customAlert button,
+[data-theme="dark"] #customConfirm button:last-of-type,
+[data-theme="dark"] #confirmOk {
+  background: var(--fill-brand) !important;
+  color: var(--text-on-accent) !important;
+  border: none !important;
+}
+
+/* 열리면 확인 버튼에 포커스가 가는데, 브라우저 기본 하늘색 포커스 링이 어두운 바탕에서 튄다 → 차분한 보라 링 (키보드 사용자용으로 링 자체는 유지) */
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus-visible,
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus {
+  outline: 2px solid var(--purple-500) !important;
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] #customConfirm button:first-of-type:not(:last-of-type),
+[data-theme="dark"] #confirmCancel {
+  background: var(--btn-neutral) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
 /* 경마 트랙 길이 칩 — 선택 표시를 형광 노랑 대신 밝은 회색으로 (horse-race.js 가 인라인으로 var(--yellow-400) 을 넣는다) */
 [data-theme="dark"] .track-length-btn[style*="yellow-400"] {
   background: var(--gray-300) !important;
@@ -612,6 +649,7 @@
    글자·강조색은 다크 블록 값을 그대로 쓴다: 네 스킨 모두 카드·꺼진 면·올라온 면이 기본 다크(카드 L* 15, 올라온 면 L* 20)보다
    어두워 글자 대비가 같거나 더 높다. 새 스킨을 넣을 때도 이 조건(면 밝기 ≤ 기본 다크)을 지킬 것.
    게임별 페이지 바닥(--dark-ground-*)은 스킨 한 톤으로 통일한다 — 게임 색은 강조색·그림이 맡는다.
+   브랜드 강조색(보라 계열 토큰: 버튼 바탕·링크·선택 표시)은 스킨마다 어울리는 색으로 바꾼다 (2026-10-03 사용자 결정).
 ============================================ */
 [data-theme="dark"][data-skin="black"] {
   --gray-50:  #050506;
@@ -626,6 +664,37 @@
   --dark-ground-horse: #000000;
   --dark-ground-ladder: #000000;
   --dark-ground-marble: #000000;
+
+  /* 강조색 — 회색빛 흰색. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #1c1c22;
+  --purple-100: #26262e;
+  --purple-200: #34343e;
+  --purple-300: #4a4a55;
+  --purple-400: #5c5c66;
+  --purple-500: #c9c9d3;
+  --purple-600: #55555f;
+  --purple-700: #dcdce3;
+  --purple-800: #e6e6ec;
+  --purple-900: #f0f0f4;
+  --dice-50:  #1c1c22;
+  --dice-500: #c9c9d3;
+  --dice-600: #55555f;
+  --dice-700: #dcdce3;
+  --dice-500-rgb: 201, 201, 211;
+  --dice-accent-bg: #26262e;
+  --dice-accent-light: #1c1c22;
+  --btn-neutral: #2e2e36;
+  --btn-neutral-hover: #3a3a44;
+  --btn-neutral-active: #46464f;
+  --fill-brand: #55555f;
+  --fill-help: linear-gradient(135deg, #55555f, #5c5c66);
+  --brand-gradient: linear-gradient(135deg, #55555f 0%, #4a4a55 100%);
+  --dice-gradient: linear-gradient(135deg, #55555f 0%, #4a4a55 100%);
+  --link-brand: #c9c9d3;
+  --link-brand-light: #dcdce3;
+  --link-brand-border: #34343e;
+  --heading-brand: #dcdce3;
 }
 
 [data-theme="dark"][data-skin="midnight"] {
@@ -641,6 +710,37 @@
   --dark-ground-horse: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
   --dark-ground-ladder: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
   --dark-ground-marble: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+
+  /* 강조색 — 파랑. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #182844;
+  --purple-100: #1f3356;
+  --purple-200: #2b4472;
+  --purple-300: #3a5b98;
+  --purple-400: #4063b4;
+  --purple-500: #a3b8dc;
+  --purple-600: #3d5fae;
+  --purple-700: #c0cfe8;
+  --purple-800: #d3def0;
+  --purple-900: #e3eaf6;
+  --dice-50:  #182844;
+  --dice-500: #a3b8dc;
+  --dice-600: #3d5fae;
+  --dice-700: #c0cfe8;
+  --dice-500-rgb: 163, 184, 220;
+  --dice-accent-bg: #1f3356;
+  --dice-accent-light: #182844;
+  --btn-neutral: #2b3a58;
+  --btn-neutral-hover: #344667;
+  --btn-neutral-active: #3d5277;
+  --fill-brand: #3d5fae;
+  --fill-help: linear-gradient(135deg, #3d5fae, #4063b4);
+  --brand-gradient: linear-gradient(135deg, #3d5fae 0%, #35539a 100%);
+  --dice-gradient: linear-gradient(135deg, #3d5fae 0%, #35539a 100%);
+  --link-brand: #a3b8dc;
+  --link-brand-light: #c0cfe8;
+  --link-brand-border: #2b4472;
+  --heading-brand: #c0cfe8;
 }
 
 [data-theme="dark"][data-skin="mocha"] {
@@ -656,6 +756,37 @@
   --dark-ground-horse: linear-gradient(135deg, #17110e 0%, #221812 100%);
   --dark-ground-ladder: linear-gradient(135deg, #17110e 0%, #221812 100%);
   --dark-ground-marble: linear-gradient(135deg, #17110e 0%, #221812 100%);
+
+  /* 강조색 — 캐러멜. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #33281f;
+  --purple-100: #3e3026;
+  --purple-200: #52402f;
+  --purple-300: #70553d;
+  --purple-400: #946642;
+  --purple-500: #d1a77f;
+  --purple-600: #8a5f3c;
+  --purple-700: #e0c3a6;
+  --purple-800: #ead4be;
+  --purple-900: #f2e3d4;
+  --dice-50:  #33281f;
+  --dice-500: #d1a77f;
+  --dice-600: #8a5f3c;
+  --dice-700: #e0c3a6;
+  --dice-500-rgb: 209, 167, 127;
+  --dice-accent-bg: #3e3026;
+  --dice-accent-light: #33281f;
+  --btn-neutral: #4a3c31;
+  --btn-neutral-hover: #56473a;
+  --btn-neutral-active: #625244;
+  --fill-brand: #8a5f3c;
+  --fill-help: linear-gradient(135deg, #8a5f3c, #946642);
+  --brand-gradient: linear-gradient(135deg, #8a5f3c 0%, #7a5434 100%);
+  --dice-gradient: linear-gradient(135deg, #8a5f3c 0%, #7a5434 100%);
+  --link-brand: #d1a77f;
+  --link-brand-light: #e0c3a6;
+  --link-brand-border: #52402f;
+  --heading-brand: #e0c3a6;
 }
 
 [data-theme="dark"][data-skin="purple"] {
@@ -671,6 +802,37 @@
   --dark-ground-horse: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
   --dark-ground-ladder: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
   --dark-ground-marble: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+
+  /* 강조색 — 보라. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #2e2550;
+  --purple-100: #382d62;
+  --purple-200: #4a3c80;
+  --purple-300: #5f4ea8;
+  --purple-400: #6a55c4;
+  --purple-500: #b0a6e3;
+  --purple-600: #6550bd;
+  --purple-700: #c9c1ee;
+  --purple-800: #d8d2f3;
+  --purple-900: #e6e2f8;
+  --dice-50:  #2e2550;
+  --dice-500: #b0a6e3;
+  --dice-600: #6550bd;
+  --dice-700: #c9c1ee;
+  --dice-500-rgb: 176, 166, 227;
+  --dice-accent-bg: #382d62;
+  --dice-accent-light: #2e2550;
+  --btn-neutral: #3d3266;
+  --btn-neutral-hover: #473b74;
+  --btn-neutral-active: #514482;
+  --fill-brand: #6550bd;
+  --fill-help: linear-gradient(135deg, #6550bd, #6a55c4);
+  --brand-gradient: linear-gradient(135deg, #6550bd 0%, #5a47a8 100%);
+  --dice-gradient: linear-gradient(135deg, #6550bd 0%, #5a47a8 100%);
+  --link-brand: #b0a6e3;
+  --link-brand-light: #c9c1ee;
+  --link-brand-border: #4a3c80;
+  --heading-brand: #c9c1ee;
 }
 
 /* ============================================

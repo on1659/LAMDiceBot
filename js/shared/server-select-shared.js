@@ -477,13 +477,13 @@ const ServerSelectModule = (function () {
             background: linear-gradient(135deg, var(--link-brand-light), var(--heading-brand));
             color: var(--text-on-accent); border: 2px solid rgba(255,255,255,0.6);
             cursor: pointer; font-size: 0.85rem; font-weight: bold;
-            box-shadow: 0 2px 8px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+            box-shadow: 0 2px 8px rgba(var(--help-glow-rgb),0.4), inset 0 1px 0 rgba(255,255,255,0.3);
             transition: transform 0.2s, box-shadow 0.2s;
             line-height: 1;
         }
         .ss-tutorial-help-btn:hover {
             transform: scale(1.12);
-            box-shadow: 0 4px 14px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+            box-shadow: 0 4px 14px rgba(var(--help-glow-rgb),0.5), inset 0 1px 0 rgba(255,255,255,0.3);
         }
         /* 다크에서는 그라디언트(--link-brand-light → --heading-brand)가 밝은 연보라가 되므로 글자를 어둡게 */
         [data-theme="dark"] .ss-tutorial-help-btn { color: var(--text-on-light); }
@@ -492,8 +492,8 @@ const ServerSelectModule = (function () {
             animation: ssHelpPulse 2s ease-in-out infinite;
         }
         @keyframes ssHelpPulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(139,92,246,0.4); }
-            50% { transform: scale(1.25); box-shadow: 0 0 16px rgba(139,92,246,0.7), 0 0 32px rgba(139,92,246,0.3); }
+            0%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(var(--help-glow-rgb),0.4); }
+            50% { transform: scale(1.25); box-shadow: 0 0 16px rgba(var(--help-glow-rgb),0.7), 0 0 32px rgba(var(--help-glow-rgb),0.3); }
         }
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {

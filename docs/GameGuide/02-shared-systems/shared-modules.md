@@ -20,6 +20,8 @@
 
 ## 화면 스킨 (`theme-shared.js`)
 
+> 색 규칙·토큰·검증 체크리스트 전체는 [THEME-DARK.md](THEME-DARK.md). 아래는 모듈 요약.
+
 - **`<head>`에서 `css/theme.css`보다 먼저, 동기로** 싣는다(`<script src="/js/shared/theme-shared.js"></script>`). 첫 페인트 전에 `<html data-theme="light|dark" data-skin="스킨 id">`를 정해 깜빡임을 막는다.
 - `data-theme`은 색 규칙의 큰 갈래(모든 다크 규칙은 `[data-theme="dark"]`에 건다), `data-skin`은 다크 안에서 바탕 톤만 다른 스킨(`dark`·`black`·`midnight`·`mocha`·`purple`). 페이지·게임 CSS에서 `data-skin`으로 분기하지 않는다 — 스킨 차이는 `css/theme.css`의 `[data-theme="dark"][data-skin="…"]` 토큰 블록(표면·테두리·`--dark-ground-*`)이 전부 맡는다.
 - 스킨 추가: `theme-shared.js`의 `THEMES`에 한 줄 + `css/theme.css`에 `[data-skin]` 토큰 블록과 미리보기 칸 색(`--theme-swatch-*`). 면 밝기는 기본 다크 이하로(글자 대비 유지).
