@@ -100,22 +100,23 @@
 
 /* 다크 모드(theme.css [data-theme="dark"]) — 재질 색을 어둡게 뒤집어 글자 대비 4.5:1 이상을 지킨다(밝은 크림 위 진한 글자 → 어두운 나무 위 밝은 글자) */
 [data-theme="dark"] {
-    --marble-ink: #f3e9d2;
-    --marble-muted: #cdbfa3;
-    --marble-wood-line: #8a6a3a;
-    --marble-wood-edge: #5a4322;
-    --marble-wood-soft: #4a3a24;
-    --marble-cream: #33291b;
-    --marble-paper: #2a2419;
-    --marble-gold-soft: #4d3d14;
-    --marble-gold-soft-ink: #ffe7a8;
-    --marble-gold-ring: #8a6a3a;
+    /* 나무·종이 재질을 다크에서는 무채 면으로 — 갈색 종이가 따뜻한 회색 다크와 어긋났다 (2026-10-03) */
+    --marble-ink: var(--text-primary);
+    --marble-muted: var(--text-tertiary);
+    --marble-wood-line: var(--border-color);
+    --marble-wood-edge: var(--gray-200);
+    --marble-wood-soft: var(--gray-200);
+    --marble-cream: var(--gray-100);
+    --marble-paper: var(--bg-white);
+    --marble-gold-soft: var(--gray-200);
+    --marble-gold-soft-ink: #ecdcac;
+    --marble-gold-ring: var(--border-color);
 
     /* 흰(밝은) 글자가 올라가는 바탕 — theme.css 다크의 --marble-500(#5fc47a)은 어두운 면 위 글자·테두리용으로 밝아져 흰 글자가 안 읽힌다.
        horse-race.css·horse-shop.css 의 --horse-500/600(내 이름표·상점 탭·장착 버튼·타깃 배너)과 --marble-gradient(버튼)는 진한 초록으로 따로 둔다.
        --horse-700 은 캔버스 위 크림 카드(.rank-vote-section.on-canvas) 안 글자색이라 같이 진하게. :root 뒤에 있어야 위 alias 를 덮는다 */
-    --horse-500: #297d42;
-    --horse-600: #216e3c;
+    --horse-500: #3a7a4f;
+    --horse-600: #336c46;
     --horse-700: var(--horse-600);
     --marble-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
 }

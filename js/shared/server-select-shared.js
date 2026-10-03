@@ -487,6 +487,7 @@ const ServerSelectModule = (function () {
         }
         /* 다크에서는 그라디언트(--link-brand-light → --heading-brand)가 밝은 연보라가 되므로 글자를 어둡게 */
         [data-theme="dark"] .ss-tutorial-help-btn { color: var(--text-on-light); }
+        [data-theme="dark"] .ss-tutorial-help-btn:not(.ss-help-attention) { box-shadow: 0 1px 3px rgba(0,0,0,0.4); }   /* 보라 발광이 어두운 바탕에서 번쩍인다 */
         .ss-tutorial-help-btn.ss-help-attention {
             animation: ssHelpPulse 2s ease-in-out infinite;
         }

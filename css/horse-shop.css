@@ -67,9 +67,9 @@
     --hshop-line:      var(--gray-300);
     --hshop-shadow:    0 2px 8px rgba(0, 0, 0, 0.35);
     --hshop-equipped-bg:  #1f3320;
-    --hshop-equipped-ink: #9fd58f;
-    --hshop-ad-ink:         #c4a5ff;
-    --hshop-gacha-coin-ink: #f5b041;
+    --hshop-equipped-ink: #a4c9af;
+    --hshop-ad-ink:         #c1b9e4;
+    --hshop-gacha-coin-ink: #d6ae4c;
     --hshop-inv-chip-bg:    var(--gray-200);
 }
 

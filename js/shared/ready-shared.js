@@ -91,14 +91,14 @@ const ReadyModule = (function () {
             if (_options.readyCancelStyle) {
                 Object.assign(btn.style, _options.readyCancelStyle);
             } else {
-                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                btn.style.background = 'linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%)';
             }
         } else {
             btn.textContent = '준비';
             if (_options.readyStyle) {
                 Object.assign(btn.style, _options.readyStyle);
             } else {
-                btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                btn.style.background = 'linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-ready-end) 100%)';
             }
         }
     }

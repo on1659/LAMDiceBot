@@ -43,8 +43,8 @@
    --horse-500/600(내 이름표·상점 탭·장착 버튼)과 --ladder-gradient(버튼·고른 칸) — 은 진한 주황으로 따로 둔다.
    :root 뒤에 있어야 위 alias 를 덮는다. */
 [data-theme="dark"] {
-    --horse-500: #b05008;
-    --horse-600: #97450a;
+    --horse-500: #85582f;
+    --horse-600: #784f2b;
     --ladder-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
 
     --ladder-chat-bg: rgba(var(--ladder-500-rgb), 0.16);
@@ -468,4 +468,10 @@
         margin-left: min(calc((100vw - 800px) / 2), calc(100vw - 1180px));
         margin-right: auto;
     }
+}
+
+/* 다크: 사다리 보드는 캔버스 글자·막대기 색이 고정이라 밝은 종이를 유지하되, 흰 종이가 눈부시지 않게 한 톤 낮춘다 */
+[data-theme="dark"] #ladderCanvas {
+    background: #d9d3c6;
+    border-color: var(--border-color);
 }
