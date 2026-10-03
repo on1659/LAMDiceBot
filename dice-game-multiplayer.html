@@ -54,35 +54,10 @@
             background: var(--dark-ground-dice);
         }
 
-        /* 이 페이지 전용 색 토큰 (공용 토큰은 css/theme.css) — 라이트 값은 기존 색 그대로 */
-        :root {
-            --dice-ink-strong: var(--dice-600);       /* 강조 보라 글자 (내 이름·서버명·룰 제목) */
-            --dice-ink-on-yellow: #ffffff;            /* 노랑 바탕 위 글자 */
-            --dice-alert-danger: var(--red-300);      /* 오류 알림 테두리·확인 버튼 */
-            --dice-debug-surface: #212529;            /* 디버그 로그 버튼 — 스킨과 무관하게 어두운 바탕 */
-            --dice-winner-sheen: rgba(255, 255, 255, 0.3); /* 당첨 기록 카드를 훑는 빛 */
-            /* 채팅 반응 칩 — 이 페이지가 처음 그리는 칩. 반응이 갱신되면 chat-shared.js 가 --chat-react-* 로 다시 그리므로 다크 값을 거기에 맞춘다 */
-            --dice-react-bg: var(--text-secondary);
-            --dice-react-mine-bg: var(--text-primary);
-            --dice-react-hover-bg: var(--gray-900);
-            --dice-react-hover-line: var(--text-primary);
-        }
-
-        [data-theme="dark"] {
-            --dice-ink-strong: var(--dice-700);
-            --dice-ink-on-yellow: var(--text-on-light);
-            --dice-alert-danger: var(--fill-danger);
-            --dice-winner-sheen: rgba(255, 255, 255, 0.08); /* 어두운 카드 위에선 0.3 이 글자를 가린다 */
-            --dice-react-bg: var(--gray-300);
-            --dice-react-mine-bg: var(--purple-300);
-            --dice-react-hover-bg: #000;
-            --dice-react-hover-line: var(--gray-400);
-        }
-
         .container {
             background: var(--bg-white);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(var(--shadow-rgb), 0.3);
             padding: 40px;
             max-width: 800px;
             width: 100%;
@@ -207,7 +182,7 @@
             transform: translateX(-50%);
             margin-bottom: 8px;
             padding: 8px 12px;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(var(--shadow-rgb), 0.85);
             color: var(--text-on-accent);
             font-size: 12px;
             white-space: nowrap;
@@ -216,7 +191,7 @@
             pointer-events: none;
             transition: opacity 0.3s ease;
             z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.2);
         }
         
         #horseRaceLabel::before {
@@ -227,7 +202,7 @@
             transform: translateX(-50%);
             margin-bottom: 2px;
             border: 6px solid transparent;
-            border-top-color: rgba(0, 0, 0, 0.85);
+            border-top-color: rgba(var(--shadow-rgb), 0.85);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
@@ -327,12 +302,12 @@
 
         .room-status.playing {
             background: rgba(var(--yellow-500-rgb), 0.15);
-            color: var(--yellow-700);
+            color: var(--dice-room-status-busy-ink);
         }
 
         .room-status.ordering {
             background: rgba(var(--yellow-500-rgb), 0.28);
-            color: var(--yellow-700);
+            color: var(--dice-room-status-busy-ink);
         }
 
         .room-enter-btn {
@@ -394,7 +369,7 @@
 
         .room-header .btn-create {
             background: var(--dice-gradient);
-            color: white;
+            color: var(--text-on-accent);
             border: none;
             border-radius: 10px;
             height: 40px;
@@ -840,7 +815,7 @@
         }
 
         button:disabled {
-            background: var(--gray-400);
+            background: var(--dice-btn-disabled-bg);
             cursor: not-allowed;
             transform: none;
         }
@@ -1062,7 +1037,7 @@
             font-weight: bold;
             color: var(--dice-500);
             margin: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 5px 15px rgba(var(--shadow-rgb), 0.2);
             transition: transform 0.3s, opacity 0.3s;
             position: relative;
         }
@@ -1317,7 +1292,7 @@
             margin-top: 4px;
             max-height: 200px;
             overflow-y: auto;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 5px 15px rgba(var(--shadow-rgb), 0.2);
             z-index: 10;
         }
 
@@ -1455,7 +1430,7 @@
             width: 320px;
             background: var(--bg-white);
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.2);
             padding: 20px;
             /* 스티키 하단 광고와 겹치지 않도록 광고 예약 높이만큼 축소 */
             max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
@@ -2088,7 +2063,7 @@
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked />
                         <span class="gt-emoji"><i class="ui ui-horse"></i></span>
                         <span class="gt-name">경마</span>
-                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <label id="bridgeLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
@@ -2102,8 +2077,8 @@
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
-                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
-                        <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
+                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">개발 중</span>
                     </label>
                     <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
@@ -2122,7 +2097,7 @@
                         <input type="radio" name="gameType" value="marble" id="marbleRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
                 </div>
                 <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
@@ -2313,7 +2288,7 @@
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
-                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
                         <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--dice-500); border: 1px solid var(--dice-500); flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
@@ -2438,12 +2413,12 @@
     </div>
 
     <!-- 디버그 로그 섹션 -->
-    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
-            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(var(--shadow-rgb), 0.9); color: var(--dice-debug-ink); border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--dice-debug-ink); padding-bottom: 5px;">
+            <div style="font-weight: bold; color: var(--dice-debug-ink);">🐛 디버그 로그</div>
             <div style="display: flex; gap: 5px;">
-                <button onclick="clearDebugLog()" style="background: var(--dice-debug-surface); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
-                <button onclick="toggleDebugLog()" style="background: var(--dice-debug-surface); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+                <button onclick="clearDebugLog()" style="background: var(--dice-debug-surface); color: var(--dice-debug-ink); border: 1px solid var(--dice-debug-ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: var(--dice-debug-surface); color: var(--dice-debug-ink); border: 1px solid var(--dice-debug-ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
             </div>
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
@@ -2680,13 +2655,13 @@
             
             const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
             const colors = {
-                'info': '#0f0',
-                'warn': '#ff0',
-                'error': '#f00',
-                'animation': '#0ff',
-                'gameEnd': '#ff0'
+                'info': 'var(--dice-debug-ink)',
+                'warn': 'var(--dice-debug-warn)',
+                'error': 'var(--dice-debug-error)',
+                'animation': 'var(--dice-debug-anim)',
+                'gameEnd': 'var(--dice-debug-warn)'
             };
-            const color = colors[type] || '#0f0';
+            const color = colors[type] || 'var(--dice-debug-ink)';
             
             const logLine = document.createElement('div');
             logLine.style.color = color;
@@ -3671,7 +3646,7 @@
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.4);
+                background: rgba(var(--shadow-rgb), 0.4);
                 z-index: 10001;
                 display: flex;
                 justify-content: center;
@@ -3687,7 +3662,7 @@
                 padding: 20px;
                 max-width: 450px;
                 width: calc(100vw - 40px);
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                 border: 2px solid ${borderColor};
                 animation: slideDown 0.3s ease-out;
                 box-sizing: border-box;
@@ -3726,7 +3701,7 @@
             `;
             confirmButton.onmouseenter = () => {
                 confirmButton.style.transform = 'scale(1.02)';
-                confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)';
             };
             confirmButton.onmouseleave = () => {
                 confirmButton.style.transform = 'scale(1)';
@@ -3813,7 +3788,7 @@
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.4);
+                    background: rgba(var(--shadow-rgb), 0.4);
                     z-index: 10002;
                     display: flex;
                     justify-content: center;
@@ -3829,7 +3804,7 @@
                     padding: 20px;
                     max-width: 450px;
                     width: calc(100vw - 40px);
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                     border: 2px solid ${borderColor};
                     animation: slideDown 0.3s ease-out;
                     box-sizing: border-box;
@@ -3876,7 +3851,7 @@
                 `;
                 cancelButton.onmouseenter = () => {
                     cancelButton.style.transform = 'scale(1.02)';
-                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.1)';
                 };
                 cancelButton.onmouseleave = () => {
                     cancelButton.style.transform = 'scale(1)';
@@ -3907,7 +3882,7 @@
                 `;
                 confirmButton.onmouseenter = () => {
                     confirmButton.style.transform = 'scale(1.02)';
-                    confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)';
                 };
                 confirmButton.onmouseleave = () => {
                     confirmButton.style.transform = 'scale(1)';
@@ -3976,7 +3951,7 @@
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.4);
+                    background: rgba(var(--shadow-rgb), 0.4);
                     z-index: 10002;
                     display: flex;
                     justify-content: center;
@@ -3992,7 +3967,7 @@
                     padding: 25px 30px;
                     max-width: 500px;
                     width: 90vw;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                     border: 2px solid var(--yellow-400);
                     animation: slideDown 0.3s ease-out;
                 `;
@@ -4066,7 +4041,7 @@
                 `;
                 kickButton.onmouseenter = () => {
                     kickButton.style.transform = 'scale(1.02)';
-                    kickButton.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                    kickButton.style.boxShadow = '0 4px 12px rgba(var(--dice-kick-glow-rgb), 0.3)';
                 };
                 kickButton.onmouseleave = () => {
                     kickButton.style.transform = 'scale(1)';
@@ -4097,7 +4072,7 @@
                 `;
                 cancelButton.onmouseenter = () => {
                     cancelButton.style.transform = 'scale(1.02)';
-                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.1)';
                 };
                 cancelButton.onmouseleave = () => {
                     cancelButton.style.transform = 'scale(1)';
@@ -7404,7 +7379,7 @@
             
             // 시스템 메시지 처리
             if (isSystemMessage) {
-                messageDiv.style.cssText = 'margin: 20px 0; padding: 16px; background: var(--dice-gradient); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+                messageDiv.style.cssText = 'margin: 20px 0; padding: 16px; background: var(--dice-gradient); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(var(--shadow-rgb), 0.1);';
                 
                 // 게임 시작 메시지 파싱
                 const lines = chatMessage.message.split('\n');
@@ -7597,7 +7572,7 @@
                         }
                         
                         const titleDiv = document.createElement('div');
-                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.2);';
                         titleDiv.replaceChildren(UIIcons.el('party'), ' 주사위 다 굴렸습니다!');
                         messageDiv.appendChild(titleDiv);
                         
@@ -7628,7 +7603,7 @@
                         if (winnerInfo) {
                             console.log('[showMessage] 당첨자 정보 표시:', winnerInfo);
                             const winnerDiv = document.createElement('div');
-                            winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                            winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.3);';
                             
                             if (winnerInfo.error) {
                                 // 에러 메시지 표시
@@ -7642,12 +7617,12 @@
                                 
                                 // 두 번째 줄: 룰 (GPT 판단)
                                 const ruleDiv = document.createElement('div');
-                                ruleDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                ruleDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.3);';
                                 ruleDiv.textContent = `${winnerInfo.gameRules || gameRulesText} (GPT 판단)`;
                                 messageDiv.appendChild(ruleDiv);
                                 
                                 // 세 번째 줄: 당첨자 이름과 숫자
-                                winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 4px; text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.3);';
                                 if (winnerInfo.isTie) {
                                     // 여러 명인 경우
                                     const winnerText = winnerInfo.winnersWithResults
@@ -7788,14 +7763,14 @@
                     return; // 여기서 종료하여 아래 코드 실행 방지
                 } else if (titleLine) {
                     const titleDiv = document.createElement('div');
-                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--text-on-accent); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.2);';
                     titleDiv.replaceChildren(UIIcons.el('gamepad'), ' 게임 시작');
                     messageDiv.appendChild(titleDiv);
                 }
                 
                 if (rulesLines.length > 0) {
                     const rulesDiv = document.createElement('div');
-                    rulesDiv.style.cssText = 'font-size: 15px; color: var(--text-on-accent); background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
+                    rulesDiv.style.cssText = 'font-size: 15px; color: var(--text-on-accent); background: rgba(var(--highlight-rgb), 0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
                     // 모든 룰 줄을 줄바꿈으로 연결
                     rulesDiv.textContent = rulesLines.map(line => line.trim()).join('\n');
                     messageDiv.appendChild(rulesDiv);
@@ -7810,7 +7785,7 @@
             
             // AI 메시지 처리
             if (isAI) {
-                messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: var(--bg-primary); border-radius: 12px; border-left: 4px solid var(--purple-500); box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+                messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: var(--bg-primary); border-radius: 12px; border-left: 4px solid var(--purple-500); box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.05);';
                 
                 const headerDiv = document.createElement('div');
                 headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 6px;';
@@ -8558,7 +8533,7 @@
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
-    <script src="/js/shared/tutorial-shared.js?v=4"></script>
+    <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script>
     var DICE_TUTORIAL_STEPS = [
         {
@@ -8699,12 +8674,12 @@
         if (typeof socket === 'undefined') return;
 
         var helpBtn = document.createElement('button');
-        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
             'background:var(--fill-help);',
-            'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
+            'color:var(--text-on-accent); border:2px solid rgba(var(--highlight-rgb), 0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(var(--help-glow-rgb),0.5); flex-shrink:0;'
         ].join('');
@@ -8731,12 +8706,12 @@
     </script>
 
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
-    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
             <h3 style="margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
-            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle); text-align: center;">
                 <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
             </div>

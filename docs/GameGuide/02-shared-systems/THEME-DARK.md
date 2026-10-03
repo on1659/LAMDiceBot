@@ -118,12 +118,32 @@
 
 | 경우 | 해법 |
 |------|------|
-| **Shadow DOM** (튜토리얼 툴팁) | 안쪽은 `var(--x, 라이트 리터럴)`, 다크 값은 바깥 문서 `[data-theme="dark"]`에 정의 (커스텀 속성은 상속된다) |
-| **인라인 style만 쓰는 모듈** (채팅·주문) | 모듈이 토큰 `<style>`을 한 번 주입하고 인라인에서 `var()` 참조 |
+| **Shadow DOM** (튜토리얼 툴팁) | 커스텀 속성은 호스트를 통해 상속된다 → 안쪽에서 `var(--tutorial-*)`를 예비값 없이 쓰고, 값은 theme.css에만 둔다(모든 페이지가 theme.css를 싣는다) |
+| **인라인 style만 쓰는 모듈** (채팅·주문·랭킹·서버 선택·초대) | 인라인에서 `var(--chat-*)` 등 토큰만 참조하고, 토큰 정의는 theme.css `common` 섹션에 있다(모듈 안에 색 리터럴·토큰 정의를 두지 않는다) |
 | **광고 iframe** | 페이지가 `color-scheme: dark`면 투명 iframe 뒤에 흰 바탕이 깔린다 → 채워지지 않은 칸만 `color-scheme: light` (`.ad-container ins.adsbygoogle:not([data-ad-status="filled"])`) |
 | **호스트 페이지 전역 `button` 규칙** (C-42) | 공유 팝업의 버튼은 `width·margin·padding·background·color·min-width/min-height`를 전부 명시 |
 | **Tailwind CDN preflight** (경마·사다리·데구리) | 전역 `button` 바탕이 지워진다 — CSS 파일만 보고 판단하지 말고 `getComputedStyle`로 확인 |
 | **같은 UI를 두 곳에서 그림** (채팅 반응 칩: 페이지 + chat-shared) | 색을 바꾸기 전에 그리는 곳을 전부 grep |
+
+---
+
+## 5-1. 하드코딩 색 금지 (2026-10-03 전체 정리 완료)
+
+화면 UI에 색 리터럴(`#hex`, `rgb()/rgba()`, `white`/`black` 같은 이름 색)을 직접 쓰지 않는다. **모든 색은 `css/theme.css`의 토큰**이다.
+
+- **토큰 위치**: `css/theme.css` 안 그룹별 섹션 — `[tokens:<그룹>:light]`(`:root`)와 `[tokens:<그룹>:dark]`(`[data-theme="dark"]`)가 짝이다. 그룹: `common`(공유 모듈·free·여러 게임 공통), `pages`(홈·관리자·안내), `shop`(꾸미기 상점 셸), `dice`, `roulette`, `horse`, `ladder`, `marble`.
+- **새 색이 필요하면**: ① 라이트 값이 같은 기존 토큰이 있는지 먼저 찾고 ② 없으면 해당 그룹 섹션에 `--<그룹>-<무엇>-<역할>` 이름으로 라이트·다크 **둘 다** 추가한다. 여러 게임이 쓰면 `common`에 하나만(`--alert-*`, `--bg-subtle`, `--order-star-idle` 처럼).
+- **게임 CSS·페이지 `:root`에 색 토큰을 다시 정의하지 말 것.** theme.css보다 뒤에 로드돼 같은 우선순위로 다크 값까지 라이트로 덮는다(free.css `--dice-gradient` 사례). 게임 CSS에는 `--horse-500: var(--ladder-fill)` 같은 **별칭만** 둔다.
+- **반투명 색**: `rgba(var(--shadow-rgb), a)`(검정 그림자), `rgba(var(--highlight-rgb), a)`(흰 광택), 그 밖은 `--<이름>-rgb: r, g, b` 토큰 + `rgba(var(--<이름>-rgb), a)`. hex 뒤에 투명도를 붙이는 `${color}15` 꼴 금지.
+- **`var(--x, 예비값)` 금지** — 토큰이 정의돼 있으면 예비값은 필요 없고, 정의가 없으면 예비값이 조용히 라이트 값으로 굳는다(`--bg-subtle`·`--horse-100` 사례). 
+- **JS에서 색을 고를 때**: `'var(--alert-error)'`처럼 토큰 문자열을 넣는다.
+- **예외(리터럴 허용)**: 게임 그림·연출 — 캔버스 그리기(`ctx.fillStyle` 등), 스프라이트·SVG 그림(`js/horse-race-sprites.js`, `js/horse-race-fall-motion.js`), 트랙 하늘·잔디·결승선·날씨·이펙트, 룰렛 판 칸 팔레트, 사다리·데구리 캔버스, 색종이·메달, 꾸미기 아이템 그림. 그리고 로컬 전용 디버그 로그(`console.log` 스타일 포함), CSS `mask`처럼 색이 화면에 안 나오는 값, 미사용 게임(다리건너기·해적·회전칼날).
+- **점검**: 아래 집계에서 "UI" 숫자는 위 예외만 남아야 한다 (2026-10-03 기준 173 — 전부 예외).
+
+```bash
+python3 <scratchpad>/orch/hc.py *.html css/*.css js/*.js js/shared/*.js pages/*.html
+```
+(세션 스크래치 도구 — 없으면 `grep -nE "#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[0-9]" <파일>`에서 `--토큰: 값` 정의 줄과 `var(` 안쪽을 빼고 본다)
 
 ---
 

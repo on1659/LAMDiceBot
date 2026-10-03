@@ -145,7 +145,7 @@ const OrderModule = (function () {
             const orderInput = document.getElementById('myOrderInput');
             if (orderInput) {
                 const originalBg = orderInput.style.backgroundColor;
-                orderInput.style.backgroundColor = 'var(--order-saved-flash, #d4edda)';
+                orderInput.style.backgroundColor = 'var(--order-saved-flash)';
                 setTimeout(() => {
                     orderInput.style.backgroundColor = originalBg || '';
                 }, 500);
@@ -362,7 +362,7 @@ const OrderModule = (function () {
         const entries = Object.entries(_ordersData).filter(([name, order]) => order && order.trim() !== '');
 
         if (entries.length === 0) {
-            orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
+            orderList.innerHTML = '<div style="color: var(--common-ink-faint); text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
             if (spectatorOrdersSection) spectatorOrdersSection.style.display = 'none';
             renderNotOrderedUsers();
             return;
@@ -388,7 +388,7 @@ const OrderModule = (function () {
             const groupedPlayerOrders = groupOrdersByMenu(playerOrders, _currentOrderSortMode);
             _renderOrderGroup(orderList, groupedPlayerOrders);
         } else {
-            orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">게임 참여자 주문이 없습니다</div>';
+            orderList.innerHTML = '<div style="color: var(--common-ink-faint); text-align: center; padding: 10px;">게임 참여자 주문이 없습니다</div>';
         }
 
         // 관전자 주문 목록 렌더링
@@ -536,7 +536,7 @@ const OrderModule = (function () {
         modalOverlay.id = 'orderListModal';
         modalOverlay.style.cssText = `
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); z-index: 10000;
+            background: rgba(var(--shadow-rgb), 0.5); z-index: 10000;
             display: flex; justify-content: center; align-items: center;
         `;
 
@@ -544,19 +544,19 @@ const OrderModule = (function () {
         modalContent.style.cssText = `
             background: var(--bg-white); border-radius: 20px; padding: 30px;
             max-width: 90vw; max-height: 90vh;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); display: inline-block;
+            box-shadow: 0 20px 60px rgba(var(--shadow-rgb), 0.3); display: inline-block;
         `;
 
         const title = document.createElement('div');
         title.textContent = '=== 현재 주문리스트 ===';
         title.style.cssText = `
-            font-size: 20px; font-weight: bold; color: var(--order-title, #667eea);
+            font-size: 20px; font-weight: bold; color: var(--order-title);
             margin-bottom: 20px; text-align: center;
         `;
 
         const contentDiv = document.createElement('div');
         contentDiv.style.cssText = `
-            font-size: 16px; line-height: 1.8; color: var(--order-ink, #333);
+            font-size: 16px; line-height: 1.8; color: var(--order-ink);
             white-space: pre-wrap; word-break: break-word; margin-bottom: 20px;
         `;
         contentDiv.textContent = content;
@@ -565,8 +565,8 @@ const OrderModule = (function () {
         closeButton.textContent = '확인';
         closeButton.style.cssText = `
             padding: 12px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; border: none; border-radius: 8px;
+            background: var(--brand-gradient);
+            color: var(--text-on-accent); border: none; border-radius: 8px;
             font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
         `;
         closeButton.onclick = () => modalOverlay.remove();
@@ -735,7 +735,7 @@ const OrderModule = (function () {
         overlay.id = 'defaultOrderModal';
         overlay.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 10000;
+            background: rgba(var(--shadow-rgb), 0.5); z-index: 10000;
             display: flex; justify-content: center; align-items: center; padding: 20px;
         `;
 
@@ -743,7 +743,7 @@ const OrderModule = (function () {
         modal.style.cssText = `
             background: var(--bg-white); border-radius: 16px; padding: 24px;
             max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            box-shadow: 0 20px 60px rgba(var(--shadow-rgb), 0.25);
         `;
 
         const closeModal = () => {
@@ -792,7 +792,7 @@ const OrderModule = (function () {
         const randomBox = document.getElementById('defaultModeRandom');
         if (!fixedTab || !randomTab || !fixedBox || !randomBox) return;
 
-        const activeStyle = 'background:var(--order-tab-active-bg); color:var(--order-accent-ink); box-shadow:0 2px 6px rgba(0,0,0,0.08);';
+        const activeStyle = 'background:var(--order-tab-active-bg); color:var(--order-accent-ink); box-shadow:0 2px 6px rgba(var(--shadow-rgb), 0.08);';
         const idleStyle = 'background:transparent; color:var(--order-ink-sub);';
         const baseTab = 'border:none; padding:10px 8px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer;';
         fixedTab.style.cssText = baseTab + (mode === 'fixed' ? activeStyle : idleStyle);
@@ -813,7 +813,7 @@ const OrderModule = (function () {
         const _preservedInputValue = _prevInput ? _prevInput.value : null;
         const current = document.createElement('div');
         if (hasFixed) {
-            current.style.cssText = 'background:var(--order-hl-bg); border:1.5px solid #ffc107; border-radius:10px; padding:14px; margin-bottom:16px;';
+            current.style.cssText = 'background:var(--order-hl-bg); border:1.5px solid var(--yellow-500); border-radius:10px; padding:14px; margin-bottom:16px;';
             const topRow = document.createElement('div');
             topRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:10px;';
             const label = document.createElement('div');
@@ -853,7 +853,7 @@ const OrderModule = (function () {
         const pool = _myOrderedMenus || [];
         if (pool.length === 0) {
             const empty = document.createElement('div');
-            empty.style.cssText = 'color:#999; font-size:13px;';
+            empty.style.cssText = 'color:var(--common-ink-faint); font-size:13px;';
             empty.textContent = '아직 주문한 메뉴가 없어요. 아래에서 직접 입력하세요';
             tags.appendChild(empty);
         } else {
@@ -861,7 +861,7 @@ const OrderModule = (function () {
                 const tag = document.createElement('span');
                 const isCur = hasFixed && menu === _myDefaultOrder;
                 tag.style.cssText = 'border-radius:18px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; '
-                    + (isCur ? 'background:var(--order-hl-bg); border:1.5px solid #ffc107; color:var(--order-hl-ink);' : 'background:var(--order-tag-bg); border:1.5px solid var(--order-line); color:var(--order-tag-ink);');
+                    + (isCur ? 'background:var(--order-hl-bg); border:1.5px solid var(--yellow-500); color:var(--order-hl-ink);' : 'background:var(--order-tag-bg); border:1.5px solid var(--order-line); color:var(--order-tag-ink);');
                 tag.textContent = menu;
                 tag.onclick = () => pickDefaultFromPool(menu);
                 tags.appendChild(tag);
@@ -890,7 +890,7 @@ const OrderModule = (function () {
         customInput.style.cssText = 'padding:10px 12px; border:1.5px solid var(--order-line); border-radius:8px; font-size:14px; outline:none;';
         customInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveCustomDefault(); } });
         const saveBtn = document.createElement('button');
-        saveBtn.style.cssText = 'background:linear-gradient(135deg,#ffe082 0%,#ffc107 100%); color:#856404; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer;';
+        saveBtn.style.cssText = 'background:var(--order-save-bg); color:var(--order-save-ink); border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer;';
         saveBtn.textContent = '저장';
         saveBtn.onclick = saveCustomDefault;
         customRow.appendChild(customInput);
@@ -909,16 +909,16 @@ const OrderModule = (function () {
         const pool = _frequentMenus || [];
 
         const explainer = document.createElement('div');
-        explainer.style.cssText = 'background:linear-gradient(135deg,#fff8e1 0%,#fff3e0 100%); border:1.5px solid #ffc107; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:#856404; line-height:1.6;';
+        explainer.style.cssText = 'background:var(--order-explainer-bg); border:1.5px solid var(--yellow-500); border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:var(--order-hl-ink); line-height:1.6;';
         explainer.innerHTML = '<strong style="font-size:14px;"><i class="ui ui-dice"></i> 매번 랜덤 모드</strong><br>주문받기가 시작될 때마다 아래 메뉴 풀에서 <strong>랜덤 1개</strong>를 자동으로 골라 주문합니다.';
 
         const toggleRow = document.createElement('label');
         toggleRow.style.cssText = 'display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; margin-bottom:16px; cursor:pointer; '
-            + (isRandomOn ? 'background:#fff3cd; border:1.5px solid #ffa000;' : 'background:#fff8e1; border:1.5px solid #ffc107;');
+            + (isRandomOn ? 'background:var(--yellow-100); border:1.5px solid var(--order-toggle-on-line);' : 'background:var(--order-hl-bg); border:1.5px solid var(--yellow-500);');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = isRandomOn;
-        checkbox.style.cssText = 'width:20px; height:20px; accent-color:#ffc107; cursor:pointer;';
+        checkbox.style.cssText = 'width:20px; height:20px; accent-color:var(--yellow-500); cursor:pointer;';
         checkbox.onchange = () => {
             if (checkbox.checked) saveRandomMode();
             else clearDefaultFromModal();
@@ -931,16 +931,16 @@ const OrderModule = (function () {
         const poolSection = document.createElement('div');
         poolSection.style.cssText = 'margin-top:20px;';
         const poolTitle = document.createElement('div');
-        poolTitle.style.cssText = 'font-size:13px; font-weight:700; color:#718096; margin-bottom:10px;';
+        poolTitle.style.cssText = 'font-size:13px; font-weight:700; color:var(--order-ink-sub); margin-bottom:10px;';
         poolTitle.textContent = '랜덤 대상 메뉴 풀';
         const poolList = document.createElement('div');
-        poolList.style.cssText = 'background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:12px; font-size:12px; color:#718096; line-height:1.8;';
+        poolList.style.cssText = 'background:var(--order-pool-bg); border:1.5px solid var(--order-line); border-radius:8px; padding:12px; font-size:12px; color:var(--order-ink-sub); line-height:1.8;';
         if (pool.length === 0) {
             poolList.textContent = '자주 쓰는 메뉴가 없습니다. 메뉴 관리에서 먼저 등록하세요.';
         } else {
             pool.forEach(menu => {
                 const item = document.createElement('span');
-                item.style.cssText = 'display:inline-block; background:white; padding:3px 10px; border-radius:12px; margin-right:4px; margin-bottom:4px; border:1px solid #e2e8f0;';
+                item.style.cssText = 'display:inline-block; background:var(--bg-white); padding:3px 10px; border-radius:12px; margin-right:4px; margin-bottom:4px; border:1px solid var(--order-line);';
                 item.textContent = menu;
                 poolList.appendChild(item);
             });
@@ -1093,7 +1093,7 @@ const OrderModule = (function () {
         if (!menuList) return;
 
         if (_frequentMenus.length === 0) {
-            menuList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
+            menuList.innerHTML = '<div style="color: var(--common-ink-faint); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
             return;
         }
 
@@ -1120,43 +1120,6 @@ const OrderModule = (function () {
         const style = document.createElement('style');
         style.id = 'order-shared-styles';
         style.textContent = `
-            /* 주문 전용 색 토큰 — 라이트 값은 예전에 박혀 있던 값 그대로, 다크만 재정의 */
-            :root {
-                --order-saved-flash: #d4edda;
-                --order-title: #667eea;
-                --order-ink: #333;
-                --order-ink-sub: #718096;
-                --order-accent-ink: #5568d3;
-                --order-track-bg: #f0f2f8;
-                --order-tab-active-bg: white;
-                --order-hl-bg: #fff8e1;
-                --order-hl-ink: #856404;
-                --order-danger-bg: #fed7d7;
-                --order-danger-ink: #c53030;
-                --order-soft-bg: #f8f9fb;
-                --order-line: #e2e8f0;
-                --order-tag-bg: #edf0f7;
-                --order-tag-ink: #2d3748;
-                --order-star-idle: #cbd5e0;
-            }
-            [data-theme="dark"] {
-                --order-saved-flash: var(--green-200);
-                --order-title: var(--purple-500);
-                --order-ink: var(--text-primary);
-                --order-ink-sub: var(--text-tertiary);
-                --order-accent-ink: var(--purple-700);
-                --order-track-bg: var(--gray-50);
-                --order-tab-active-bg: var(--gray-200);
-                --order-hl-bg: var(--yellow-50);
-                --order-hl-ink: var(--yellow-800);
-                --order-danger-bg: var(--red-100);
-                --order-danger-ink: var(--red-800);
-                --order-soft-bg: var(--gray-50);
-                --order-line: var(--border-color);
-                --order-tag-bg: var(--gray-100);
-                --order-tag-ink: var(--text-primary);
-                --order-star-idle: var(--gray-400);
-            }
             .not-rolled-tag {
                 background: var(--yellow-100);
                 border: 2px solid var(--yellow-500);
@@ -1169,7 +1132,7 @@ const OrderModule = (function () {
             #defaultStarBtn { background: none !important; border: none !important; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; padding: 0 2px !important; font-size: 16px !important; }
             #defaultStarBtn:focus, #defaultStarBtn:active { background: none !important; outline: none !important; box-shadow: none !important; }
             #defaultStarBtn { color: var(--order-star-idle) !important; }
-            #defaultStarBtn.has-default { color: #ffc107 !important; }
+            #defaultStarBtn.has-default { color: var(--yellow-500) !important; }
             #defaultStarBtn:hover { opacity: 0.75; }
         `;
         document.head.appendChild(style);

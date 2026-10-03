@@ -49,20 +49,15 @@
         deguri:   'paw'
     };
 
-    // 게임별 로딩 화면 그라데이션 (theme.css 색상 기준)
+    // 게임별 로딩 화면 바탕 — css/theme.css 의 --free-loading-* (라이트 = 게임 그라데이션, 다크 = 그 게임 페이지 바닥)
     var GAME_GRADIENT = {
-        dice:     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  // 보라
-        roulette: 'linear-gradient(135deg, #7c4dff 0%, #536dfe 100%)',  // 보라/파랑
-        horse:    'linear-gradient(135deg, #d2691e 0%, #8B4513 100%)',  // 주황/갈색
-        bridge:   'linear-gradient(135deg, #42edff 0%, #1ec8da 100%)',  // 시안
-        ladder:   'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',  // 호박/주황
-        'spin-arena': 'linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%)', // 보라/시안
-        deguri:   'linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%)'  // 초원 초록 (css/marble.css --marble-gradient)
-    };
-
-    // 다크 스킨 로딩 화면 바탕 — 들어갈 게임 페이지의 바닥 토큰(css/theme.css --dark-ground-*)과 맞춘다
-    var GAME_DARK_GROUND = {
-        dice: 'dice', roulette: 'roulette', horse: 'horse', ladder: 'ladder', deguri: 'marble'
+        dice:     'var(--free-loading-dice)',
+        roulette: 'var(--free-loading-roulette)',
+        horse:    'var(--free-loading-horse)',
+        bridge:   'var(--free-loading-bridge)',
+        ladder:   'var(--free-loading-ladder)',
+        'spin-arena': 'var(--free-loading-spin-arena)',
+        deguri:   'var(--free-loading-deguri)'
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -737,18 +732,16 @@
                 +   'position: fixed; inset: 0; z-index: 40;'
                 +   'display: flex; flex-direction: column;'
                 +   'align-items: center; justify-content: center;'
-                +   'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);'
-                +   'color: white; font-family: inherit;'
+                +   'background: var(--free-loading-dice);'
+                +   'color: var(--text-on-accent); font-family: inherit;'
                 +   'animation: fdl-fade-in 0.3s ease-out;'
                 + '}'
-                // 인라인 background(게임별 그라데이션)를 이기려면 !important 가 필요하다
-                + '[data-theme="dark"] #freeDirectLoading { background: var(--fdl-dark-ground) !important; }'
                 + '@keyframes fdl-fade-in { from { opacity: 0; } to { opacity: 1; } }'
                 + '#freeDirectLoading .fdl-emoji {'
                 +   'font-size: 80px; line-height: 1;'
                 +   'animation: fdl-bounce 1.4s ease-in-out infinite;'
                 +   'margin-bottom: 24px;'
-                +   'filter: drop-shadow(0 6px 16px rgba(0,0,0,0.25));'
+                +   'filter: drop-shadow(0 6px 16px rgba(var(--shadow-rgb),0.25));'
                 + '}'
                 + '@keyframes fdl-bounce {'
                 +   '0%, 100% { transform: translateY(0); }'
@@ -765,8 +758,8 @@
                 + '}'
                 + '#freeDirectLoading .fdl-spinner {'
                 +   'width: 36px; height: 36px;'
-                +   'border: 3px solid rgba(255,255,255,0.25);'
-                +   'border-top-color: white;'
+                +   'border: 3px solid rgba(var(--highlight-rgb),0.25);'
+                +   'border-top-color: rgb(var(--highlight-rgb));'
                 +   'border-radius: 50%;'
                 +   'animation: fdl-spin 0.9s linear infinite;'
                 + '}'
@@ -785,7 +778,6 @@
         el.id = 'freeDirectLoading';
         el.setAttribute('aria-live', 'polite');
         el.style.background = gradient;
-        el.style.setProperty('--fdl-dark-ground', 'var(--dark-ground-' + (GAME_DARK_GROUND[selectedGame] || 'dice') + ')');
         el.innerHTML = ''
             + '<div class="fdl-emoji"><i class="ui ui-hero ui-' + icon + '"></i></div>'
             + '<div class="fdl-title">방으로 입장하는 중</div>'

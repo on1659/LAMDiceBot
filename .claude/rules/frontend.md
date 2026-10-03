@@ -23,9 +23,9 @@ paths:
 - FOUC 방지 스크립트 `<head>`에 포함 확인 — `/js/shared/theme-shared.js`를 `theme.css`보다 먼저 동기 로드 (스킨 라이트/다크 결정)
 
 ## CSS
-- 새 색상은 반드시 CSS 변수로 정의 (하드코딩 금지)
-- 게임 공통 색상 → `css/theme.css`
-- 게임 전용 색상 → 해당 게임 CSS 파일의 `:root`
+- 새 색상은 반드시 CSS 변수로 정의 (하드코딩 금지 — 2026-10-03 전 화면 정리 완료, 예외는 게임 그림·디버그 로그뿐)
+- **모든 색 토큰은 `css/theme.css`의 그룹 섹션**(`[tokens:<그룹>:light]` / `[tokens:<그룹>:dark]`)에 라이트·다크 둘 다 정의. 게임 CSS·페이지 `:root`에 색 토큰을 다시 정의하지 말 것(다크 값을 덮는다) — 게임 CSS에는 별칭만
+- 규칙 전체: `docs/GameGuide/02-shared-systems/THEME-DARK.md` 5-1절
 - **다크 스킨 대응**: 새 색 변수는 `[data-theme="dark"]` 값도 같이 정한다. `--bg-white`·`--text-primary`·`--gray-*`는 다크에서 뒤집힌다 — 색 버튼·그라디언트 위 흰 글자는 `--text-on-accent`, 노랑·금색 위 글자는 `--text-on-light`. 팔레트 500(`--purple-500`·`--dice-accent`·`--green-500`·`--red-500`)은 다크에서 **글자·테두리용 밝은 톤**이라 흰 글자 바탕으로 쓰면 안 된다 — 버튼·배지 바탕은 `--fill-brand`·`--fill-success`·`--fill-danger`·`--btn-*`(흰 글자 4.5:1 이상). 게임 그림(캔버스·스프라이트)은 스킨과 무관하게 둔다. UI 변경은 두 스킨 모두에서 확인
 
 ## 공유 JS (js/shared/*-shared.js)

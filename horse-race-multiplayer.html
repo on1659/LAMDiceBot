@@ -82,7 +82,7 @@
             padding: 6px 12px;
             border-radius: 999px;
             border: 1px solid var(--yellow-400);
-            background: rgba(0, 0, 0, 0.72);
+            background: rgba(var(--shadow-rgb), 0.72);
             color: var(--text-on-accent);
             font-family: 'Jua', sans-serif;
             font-size: 13px;
@@ -193,12 +193,12 @@
     </noscript>
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--horse-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <div style="text-align: center; color: white;">
+        <div style="text-align: center; color: var(--text-on-accent);">
             <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-horse"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
-                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(var(--highlight-rgb), 0.3); border-top: 4px solid var(--text-on-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
             </div>
         </div>
     </div>
@@ -290,7 +290,7 @@
                 </div>
                 <!-- N등 투표 섹션 -->
                 <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
-                    <div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning, #f59e0b);">(베타)</span></div>
+                    <div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning);">(베타)</span></div>
                     <div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>
                     <div id="rankVoteBoxes" class="rank-vote-boxes"></div>
                     <div id="rankVoteWarn" class="rank-vote-warn" style="display: none;"></div>
@@ -351,7 +351,7 @@
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
-                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
                         <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--horse-accent); border: 1px solid var(--horse-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
@@ -359,11 +359,11 @@
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--horse-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span style="font-weight: bold; color: var(--horse-accent);"><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;">
-                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--horse-500); color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--horse-500); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">추가</button>
                         </div>
                         <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
                             <div style="color: var(--text-muted); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
@@ -417,7 +417,7 @@
                          인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->
                     <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;"><i class="ui ui-tv"></i> 작은 창으로</button>
                     <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
-                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--text-on-accent); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
+                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(var(--highlight-rgb), 0.3); background: rgba(var(--shadow-rgb), 0.65); color: var(--text-on-accent); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
                 </div>
                 <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
                      둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
@@ -429,9 +429,9 @@
                 </div>
                 </div>
                 <!-- 미니맵 (컨테이너 밖, 래퍼 안 — overflow:hidden에 잘리지 않도록) -->
-                <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(0,0,0,0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.15);">
-                    <div style="font-size: 9px; color: rgba(255,255,255,0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
-                    <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-bottom: 2px;">
+                <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(var(--shadow-rgb), 0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(var(--highlight-rgb), 0.15);">
+                    <div style="font-size: 9px; color: rgba(var(--highlight-rgb), 0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
+                    <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(var(--highlight-rgb), 0.15); border-radius: 3px; margin-bottom: 2px;">
                         <!-- 거리 마커 + 말 위치 동적 생성 -->
                     </div>
                     <div id="minimapMarkers" style="position: relative; width: 100%; height: 10px;">
@@ -508,13 +508,13 @@
 
     <!-- 비밀번호 입력 모달 -->
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
-    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
             <h3 style="color: var(--horse-accent); margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
             <!-- 예약이 걸려 있을 때만 보인다 -->
-            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle); text-align: center;">
                 <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
             </div>
@@ -542,7 +542,7 @@
         </div>
     </div>
 
-    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--horse-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
@@ -589,17 +589,17 @@
 
                 let borderColor, icon;
                 switch(type) {
-                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = UIIcons.tag('warn'); break;
-                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = UIIcons.tag('warn'); break;
-                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = UIIcons.tag('check'); break;
-                    default: borderColor = 'rgb(147, 51, 234)'; icon = UIIcons.tag('info');
+                    case 'error': borderColor = 'var(--alert-error)'; icon = UIIcons.tag('warn'); break;
+                    case 'warning': borderColor = 'var(--alert-warning)'; icon = UIIcons.tag('warn'); break;
+                    case 'success': borderColor = 'var(--alert-success)'; icon = UIIcons.tag('check'); break;
+                    default: borderColor = 'var(--alert-info)'; icon = UIIcons.tag('info');
                 }
 
                 const confirmOverlay = document.createElement('div');
                 confirmOverlay.id = 'customConfirm';
                 confirmOverlay.style.cssText = `
                     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    background: rgba(var(--shadow-rgb), 0.4); z-index: 10002;
                     display: flex; justify-content: center; align-items: center;
                     animation: fadeIn 0.2s ease-out;
                 `;
@@ -608,7 +608,7 @@
                 confirmContent.style.cssText = `
                     background: var(--bg-white); border-radius: 16px; padding: 20px;
                     max-width: 450px; width: calc(100vw - 40px);
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                     border: 2px solid ${borderColor};
                     animation: slideDown 0.3s ease-out;
                     box-sizing: border-box;
@@ -642,10 +642,10 @@
                 confirmButton.textContent = '확인';
                 confirmButton.style.cssText = `
                     padding: 10px 25px; background: ${borderColor};
-                    color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'white'}; border: none; border-radius: 8px; font-size: 16px;
+                    color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px; font-size: 16px;
                     font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
                 `;
-                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)'; };
                 confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
                 confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
 
@@ -837,7 +837,7 @@
         <div id="debugLogContent" style="line-height: 1.4;"></div>
     </div>
     <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(var(--highlight-rgb), 0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 레이스 게임 안내</h2>
         <p>LAMDice 레이스는 친구들과 함께 즐기는 무료 온라인 경주 게임입니다. 다양한 탈것 중 1등과 꼴등을 예측하여 포인트를 걸고 결과를 관전하세요. 레이스 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
@@ -884,7 +884,7 @@
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
 
-    <script src="/js/shared/tutorial-shared.js?v=4"></script>
+    <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script>
     var HORSE_RACE_TUTORIAL_STEPS = [
         {
@@ -918,7 +918,7 @@
                 wrap.className = 'rank-vote-section';
                 wrap.style.cssText = 'display:block; margin:14px 0;';
                 wrap.innerHTML = ''
-                    + '<div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size:11px;font-weight:600;color:var(--btn-warning,#f59e0b);">(베타)</span></div>'
+                    + '<div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size:11px;font-weight:600;color:var(--btn-warning);">(베타)</span></div>'
                     + '<div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>'
                     + '<div class="rank-vote-boxes">'
                     +   '<div class="rank-vote-box selected"><div class="rank-vote-rank">1등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div><div class="rank-vote-bar"></div></div></div>'
@@ -1031,7 +1031,7 @@
                 var btn = document.createElement('button');
                 btn.id = 'tutorialFakeEndGame';
                 btn.replaceChildren(UIIcons.el('checker'), ' 게임 종료');
-                btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color:white; border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
+                btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color:var(--text-on-accent); border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
                 var ref = document.getElementById('endGameSection');
                 if (ref && ref.parentNode) {
                     ref.parentNode.insertBefore(btn, ref);
@@ -1076,12 +1076,12 @@
 
         // Help button: ? (inline, users-title right side)
         const helpBtn = document.createElement('button');
-        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
             'background:var(--fill-help);',
-            'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
+            'color:var(--text-on-accent); border:2px solid rgba(var(--highlight-rgb), 0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(var(--help-glow-rgb),0.5); flex-shrink:0;'
         ].join('');

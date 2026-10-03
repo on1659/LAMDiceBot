@@ -3,74 +3,58 @@
  *
  * 모달 UI는 목업(prototype/horse-shop-mockup.html) 기반.
  * 경마 색감(--horse-*)은 horse-race.css :root에서 상속.
- * 새 색상은 모두 아래 :root 변수로 정의(하드코딩 금지).
+ * 새 색상은 css/theme.css [tokens:shop] 섹션(라이트·다크)에 --shop-* 로 정의하고 아래 :root 에서 --hshop-* 로 가리킨다(하드코딩 금지).
  */
 
 :root {
     /* 등급(rarity) 배지 색 — 상점 전용 토큰 */
-    --hshop-common: #94a3b8;
-    --hshop-rare:   #3b82f6;
-    --hshop-epic:   #a855f7;
-    --hshop-legend: #f59e0b;
+    --hshop-common: var(--shop-rarity-common);
+    --hshop-rare:   var(--shop-rarity-rare);
+    --hshop-epic:   var(--shop-rarity-epic);
+    --hshop-legend: var(--shop-rarity-legend);
 
     /* 모달 표면/텍스트 */
-    --hshop-bg:        #f4f1ee;
-    --hshop-card:      #ffffff;
-    --hshop-ink:       #2b2320;
-    --hshop-ink-soft:  #8a7d75;
-    --hshop-line:      #e9e2dc;
-    --hshop-thumb-bg:  var(--horse-50, #EFEBE9);
-    --hshop-thumb-dark:#1b2a4a;
-    --hshop-shadow:    0 2px 8px rgba(80, 50, 20, 0.10);
-    --hshop-overlay-bg: rgba(20, 12, 6, 0.55);
-    --hshop-equipped:  #4a7c3f;
-    --hshop-equipped-bg: #e8f3e3;
+    --hshop-bg:        var(--shop-bg);
+    --hshop-card:      var(--shop-card);
+    --hshop-ink:       var(--shop-ink);
+    --hshop-ink-soft:  var(--shop-ink-soft);
+    --hshop-line:      var(--shop-line);
+    --hshop-thumb-bg:  var(--horse-50);
+    --hshop-thumb-dark:var(--shop-thumb-dark);
+    --hshop-shadow:    var(--shop-shadow);
+    --hshop-overlay-bg: rgba(var(--shop-overlay-rgb), 0.55);
+    --hshop-equipped:  var(--shop-equipped);
+    --hshop-equipped-bg: var(--shop-equipped-bg);
 
     /* 광고 보상 티어 — 상점 전용 토큰 */
-    --hshop-ad:        #7c3aed;   /* 광고코인/배지 보라 */
-    --hshop-ad-dark:   #5b21b6;
-    --hshop-locked:    #9ca3af;   /* 잠금 카드 회색 */
+    --hshop-ad:        var(--shop-ad);   /* 광고코인/배지 보라 */
+    --hshop-ad-dark:   var(--shop-ad-dark);
+    --hshop-locked:    var(--shop-locked);   /* 잠금 카드 회색 */
 
     /* 뽑기(가챠) — 상점 전용 토큰 */
-    --hshop-gacha-coin:      #d97706;   /* 코인 뽑기 버튼(앰버) */
-    --hshop-gacha-coin-dark: #b45309;
+    --hshop-gacha-coin:      var(--shop-gacha-coin);   /* 코인 뽑기 버튼(앰버) */
+    --hshop-gacha-coin-dark: var(--shop-gacha-coin-dark);
     --hshop-gacha-ad:        var(--hshop-ad);       /* 광고 뽑기 버튼(보라 — 광고경제 색) */
     --hshop-gacha-ad-dark:   var(--hshop-ad-dark);
-    --hshop-reveal-bg:       rgba(12, 8, 20, 0.86); /* 리빌 오버레이 딤 */
-    --hshop-reveal-rare:     #3b82f6;
-    --hshop-reveal-epic:     #f59e0b;
-    --hshop-reveal-dupe:     #6b7280;   /* 중복 리빌(♻️ 환급) — 채도 낮은 회색 */
-    --hshop-reveal-refund:   #d97706;   /* 환급 강조(앰버 — 코인계열) */
+    --hshop-reveal-bg:       rgba(var(--shop-reveal-dim-rgb), 0.86); /* 리빌 오버레이 딤 */
+    --hshop-reveal-rare:     var(--shop-reveal-rare);
+    --hshop-reveal-epic:     var(--shop-reveal-epic);
+    --hshop-reveal-dupe:     var(--shop-reveal-dupe);   /* 중복 리빌(♻️ 환급) — 채도 낮은 회색 */
+    --hshop-reveal-refund:   var(--shop-reveal-refund);   /* 환급 강조(앰버 — 코인계열) */
 
     /* 인벤토리('내 아이템') 전용 토큰 */
-    --hshop-inv-stage:    #1b2a4a;                 /* 큰 미리보기 무대 배경(어두워 도색 가시성↑) */
-    --hshop-inv-stage-2:  #243a63;                 /* 무대 그라데이션 하단 */
-    --hshop-inv-ground:   rgba(255, 255, 255, 0.5);/* 무대 지평선 */
-    --hshop-inv-bib-bg:   #333;                    /* 이름표 기본 배경(미장착 시) */
-    --hshop-inv-chip-bg:     #ece6e0;                       /* 필터 칩 기본 배경 */
-    --hshop-inv-chip-active: var(--horse-500, #8B4513);     /* 활성 칩 */
-    --hshop-inv-vsw-bg:      rgba(255, 255, 255, 0.12);     /* 스위처 버튼(무대 위 — 밝은 글래스) */
+    --hshop-inv-stage:    var(--shop-inv-stage);                 /* 큰 미리보기 무대 배경(어두워 도색 가시성↑) */
+    --hshop-inv-stage-2:  var(--shop-inv-stage-2);                 /* 무대 그라데이션 하단 */
+    --hshop-inv-ground:   rgba(var(--highlight-rgb), 0.5);/* 무대 지평선 */
+    --hshop-inv-bib-bg:   var(--shop-bib-bg);                    /* 이름표 기본 배경(미장착 시) */
+    --hshop-inv-chip-bg:     var(--shop-inv-chip-bg);                       /* 필터 칩 기본 배경 */
+    --hshop-inv-chip-active: var(--horse-500);     /* 활성 칩 */
+    --hshop-inv-vsw-bg:      rgba(var(--highlight-rgb), 0.12);     /* 스위처 버튼(무대 위 — 밝은 글래스) */
 
     /* 카드 위 글자로 쓰는 진한 색 — 같은 색이 버튼 바탕·테두리로도 쓰여서 글자용만 따로 뺐다(다크에서 밝아진다) */
-    --hshop-ad-ink:          var(--hshop-ad-dark);          /* 광고코인 가격·안내 */
-    --hshop-gacha-coin-ink:  var(--hshop-gacha-coin-dark);  /* 뽑기로 획득 안내 */
-    --hshop-equipped-ink:    var(--hshop-equipped);         /* 장착 중 버튼 글자 */
-}
-
-/* 다크 스킨 — 상점 겉면(패널·카드·글자·선)만 바꾼다.
-   등급 색·아이템 그림·미리보기 무대·리빌 연출은 그림이라 그대로 */
-[data-theme="dark"] {
-    --hshop-bg:        var(--gray-50);
-    --hshop-card:      var(--gray-100);
-    --hshop-ink:       var(--text-primary);
-    --hshop-ink-soft:  var(--text-tertiary);
-    --hshop-line:      var(--gray-300);
-    --hshop-shadow:    0 2px 8px rgba(0, 0, 0, 0.35);
-    --hshop-equipped-bg:  #1f3320;
-    --hshop-equipped-ink: #a4c9af;
-    --hshop-ad-ink:         #c1b9e4;
-    --hshop-gacha-coin-ink: #d6ae4c;
-    --hshop-inv-chip-bg:    var(--gray-200);
+    --hshop-ad-ink:          var(--shop-ad-ink);          /* 광고코인 가격·안내 */
+    --hshop-gacha-coin-ink:  var(--shop-gacha-coin-ink);  /* 뽑기로 획득 안내 */
+    --hshop-equipped-ink:    var(--shop-equipped-ink);         /* 장착 중 버튼 글자 */
 }
 
 /* 모달 열림 시 배경(트랙) 스크롤 잠금 — 모바일 하단시트 뒤 페이지 스크롤 방지 */
@@ -98,7 +82,7 @@ body.hshop-open {
     background: var(--hshop-bg);
     color: var(--hshop-ink);
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 -4px 24px rgba(var(--shadow-rgb), 0.25);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -108,8 +92,8 @@ body.hshop-open {
 /* ── 헤더 ── */
 .hshop-header {
     flex: none;
-    background: var(--horse-gradient, linear-gradient(135deg, #8B4513 0%, #a0522d 100%));
-    color: #fff;
+    background: var(--horse-gradient);
+    color: var(--text-on-accent);
     padding: 14px 16px;
     display: flex;
     align-items: center;
@@ -134,8 +118,8 @@ body.hshop-open {
     height: 34px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.18);
-    color: #fff;
+    background: rgba(var(--shadow-rgb), 0.18);
+    color: var(--text-on-accent);
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
@@ -180,9 +164,9 @@ body.hshop-open {
     -webkit-tap-highlight-color: transparent;
 }
 .hshop-maintab.is-active {
-    background: var(--horse-500, #8B4513);
-    color: #fff;
-    border-color: var(--horse-600, #a0522d);
+    background: var(--horse-500);
+    color: var(--text-on-accent);
+    border-color: var(--horse-600);
     box-shadow: var(--hshop-shadow);
 }
 
@@ -206,9 +190,9 @@ body.hshop-open {
     transition: 0.15s;
 }
 .hshop-tab.is-active {
-    background: var(--horse-500, #8B4513);
-    color: #fff;
-    border-color: var(--horse-500, #8B4513);
+    background: var(--horse-500);
+    color: var(--text-on-accent);
+    border-color: var(--horse-500);
     box-shadow: var(--hshop-shadow);
 }
 
@@ -289,7 +273,7 @@ body.hshop-open {
     border-radius: 999px;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(to left, rgba(255, 255, 255, 0.7), currentColor 30%, transparent 95%);
+    background: linear-gradient(to left, rgba(var(--highlight-rgb), 0.7), currentColor 30%, transparent 95%);
     filter: blur(0.4px) drop-shadow(0 0 5px currentColor);
     animation: cosmeticTrailStream 0.85s ease-in-out infinite;
 }
@@ -360,9 +344,9 @@ body.hshop-open {
     overflow: hidden;
     text-overflow: ellipsis;
     border-radius: 6px;
-    border: 1.5px solid #000;
-    background: #333;
-    color: #fff;
+    border: 1.5px solid var(--shop-bib-border);
+    background: var(--shop-bib-bg);
+    color: var(--text-on-accent);
     z-index: 3;
     pointer-events: none;
 }
@@ -372,7 +356,7 @@ body.hshop-open {
     left: 7px;
     font-size: 10px;
     font-weight: 800;
-    color: #fff;
+    color: var(--text-on-accent);
     padding: 2px 7px;
     border-radius: 999px;
     letter-spacing: 0.2px;
@@ -393,20 +377,20 @@ body.hshop-open {
 .hshop-equip {
     margin-top: 9px;
     width: 100%;
-    border: 1.5px solid var(--horse-500, #8B4513);
+    border: 1.5px solid var(--horse-500);
     cursor: pointer;
     padding: 9px 0;
     border-radius: 10px;
     font-weight: 800;
     font-size: 13px;
-    background: var(--horse-500, #8B4513);
-    color: #fff;
+    background: var(--horse-500);
+    color: var(--text-on-accent);
 }
 /* 상점/옷장 분리 모드(어댑터 config.closet): 상점 뷰에서 소유 아이템은 장착 버튼 자리에 비활성 '보유 중' */
 .hshop-equip.hshop-owned, .hshop-equip.hshop-owned:disabled {
-    background: var(--gray-200, #e5e7eb);
-    border-color: var(--gray-200, #e5e7eb);
-    color: var(--text-muted, #6b7280);
+    background: var(--gray-200);
+    border-color: var(--gray-200);
+    color: var(--text-muted);
     cursor: default;
 }
 /* 옷장 빈 상태의 [상점 가기] — 전체폭 아님 */
@@ -419,8 +403,8 @@ body.hshop-open {
 /* 뒤에 선언된 .hshop-inv-chips 와 같은 특이성이면 패딩이 밀리므로 두 클래스로. 위(탭↔칩)·아래(칩↔안내, notice margin 12) 간격을 12px 로 맞춘다 */
 .hshop-inv-chips.hshop-groupchips { flex: none; flex-wrap: wrap; justify-content: center; overflow: visible; padding: 12px 16px 0; margin-bottom: 0; gap: 6px; }   /* 줄마다 가운데 정렬 — 왼쪽 끝에 붙으면 불안정해 보임(사용자 2026-09-22) */   /* 뷰 탭 아래 동물 필터 — 줄바꿈으로 전부 보이게(가로 스크롤은 PC 에서 뒤쪽 동물을 못 고름) */
 .hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
-.hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(255,255,255,0.7); }
-.hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(255,255,255,0.9); }
+.hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(var(--highlight-rgb), 0.7); }
+.hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(var(--highlight-rgb), 0.9); }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped-ink);
@@ -431,8 +415,8 @@ body.hshop-open {
 .hshop-balance {
     margin-left: auto;
     flex: none;
-    background: rgba(0, 0, 0, 0.18);
-    color: #fff;
+    background: rgba(var(--shadow-rgb), 0.18);
+    color: var(--text-on-accent);
     font-weight: 800;
     font-size: 14px;
     padding: 6px 12px;
@@ -446,7 +430,7 @@ body.hshop-open {
     margin-top: 6px;
     font-size: 12px;
     font-weight: 800;
-    color: var(--horse-ink, var(--horse-600, #a0522d));
+    color: var(--horse-ink);
 }
 .hshop-buy {
     margin-top: 7px;
@@ -458,7 +442,7 @@ body.hshop-open {
     font-weight: 800;
     font-size: 13px;
     background: var(--hshop-legend);
-    color: #fff;
+    color: var(--text-on-accent);
 }
 .hshop-buy:disabled { opacity: 0.6; cursor: default; }
 
@@ -466,7 +450,7 @@ body.hshop-open {
 /* 광고코인 잔고 배지 (헤더, 일반 잔고 옆) */
 .hshop-balance--ad {
     margin-left: 6px;
-    background: rgba(124, 58, 237, 0.35);
+    background: rgba(var(--shop-ad-rgb), 0.35);
 }
 
 /* 광고 배지 (썸네일 우상단) */
@@ -476,7 +460,7 @@ body.hshop-open {
     right: 7px;
     font-size: 10px;
     font-weight: 800;
-    color: #fff;
+    color: var(--text-on-accent);
     background: var(--hshop-ad);
     padding: 2px 7px;
     border-radius: 999px;
@@ -509,7 +493,7 @@ body.hshop-open {
     margin-top: 0;     /* 전역 button{margin-top:10px} 무력화 — flex row 정렬 보존 */
     border: 1.5px solid var(--hshop-ad);
     background: var(--hshop-ad);
-    color: #fff;
+    color: var(--text-on-accent);
     font-weight: 800;
     font-size: 12px;
     padding: 9px 12px;
@@ -524,7 +508,7 @@ body.hshop-open {
     position: fixed;
     inset: 0;
     z-index: 12600;            /* 모달(12000)·전용레이어(12500) 위 */
-    background: rgba(20, 12, 6, 0.72);
+    background: rgba(var(--shop-overlay-rgb), 0.72);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -539,7 +523,7 @@ body.hshop-open {
     color: var(--hshop-ink);
     border-radius: 16px;
     padding: 24px 18px 18px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.4);
     text-align: center;
 }
 .shop-adplay-close {
@@ -550,7 +534,7 @@ body.hshop-open {
     height: 30px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.12);
+    background: rgba(var(--shadow-rgb), 0.12);
     color: var(--hshop-ink-soft);
     font-size: 15px;
     line-height: 1;
@@ -639,7 +623,7 @@ body.hshop-open {
     padding: 9px 0;
     border-radius: 10px;
     border: 1.5px dashed var(--hshop-gacha-coin);
-    background: rgba(217, 119, 6, 0.10);
+    background: rgba(var(--shop-gacha-coin-rgb), 0.10);
     color: var(--hshop-gacha-coin-ink);
     font-weight: 800;
     font-size: 12px;
@@ -648,7 +632,7 @@ body.hshop-open {
 }
 .hshop-gacha-lock--ad {
     border-color: var(--hshop-gacha-ad);
-    background: rgba(124, 58, 237, 0.10);
+    background: rgba(var(--shop-ad-rgb), 0.10);
     color: var(--hshop-ad-ink);
 }
 
@@ -666,7 +650,7 @@ body.hshop-open {
     font-weight: 900;
     font-size: 14px;
     letter-spacing: -0.2px;
-    color: #fff;
+    color: var(--text-on-accent);
     cursor: pointer;
     border: 2px solid var(--hshop-gacha-coin-dark);
     background: linear-gradient(135deg, var(--hshop-gacha-coin) 0%, var(--hshop-gacha-coin-dark) 100%);
@@ -755,7 +739,7 @@ body.hshop-open {
     border-radius: 999px;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(to left, rgba(255, 255, 255, 0.7), currentColor 30%, transparent 95%);
+    background: linear-gradient(to left, rgba(var(--highlight-rgb), 0.7), currentColor 30%, transparent 95%);
     filter: blur(0.5px) drop-shadow(0 0 7px currentColor);
     animation: cosmeticTrailStream 0.85s ease-in-out infinite;
 }
@@ -828,9 +812,9 @@ body.hshop-open {
     overflow: hidden;
     text-overflow: ellipsis;
     border-radius: 7px;
-    border: 1.5px solid #000;
+    border: 1.5px solid var(--shop-bib-border);
     background: var(--hshop-inv-bib-bg);
-    color: #fff;
+    color: var(--text-on-accent);
     z-index: 3;
     pointer-events: none;
 }
@@ -849,7 +833,7 @@ body.hshop-open {
     border: none;
     border-radius: 999px;
     background: var(--hshop-inv-vsw-bg);
-    color: #fff;
+    color: var(--text-on-accent);
     font-size: 15px;
     line-height: 1;
     cursor: pointer;
@@ -859,14 +843,14 @@ body.hshop-open {
     -webkit-tap-highlight-color: transparent;
     transition: background 0.15s, transform 0.1s;
 }
-.hshop-inv-vsw-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.hshop-inv-vsw-btn:hover { background: rgba(var(--highlight-rgb), 0.22); }
 .hshop-inv-vsw-btn:active { transform: scale(0.92); }
 .hshop-inv-vsw-name {
     min-width: 84px;
     text-align: center;
     font-size: 13px;
     font-weight: 800;
-    color: #fff;
+    color: var(--text-on-accent);
     letter-spacing: -0.2px;
 }
 
@@ -897,7 +881,7 @@ body.hshop-open {
 }
 .hshop-inv-chip.is-active {
     background: var(--hshop-inv-chip-active);
-    color: #fff;
+    color: var(--text-on-accent);
 }
 
 /* PC: 칩 살짝 키우고 스위처 버튼 hover 반응 강화 */
@@ -928,9 +912,9 @@ body.hshop-open {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    border: 1.5px solid var(--horse-500, #8B4513);
-    background: var(--bg-white, #fff);
-    color: var(--horse-ink, var(--horse-600, #a0522d));
+    border: 1.5px solid var(--horse-500);
+    background: var(--bg-white);
+    color: var(--horse-ink);
     font-weight: 800;
     font-size: 12px;
     padding: 6px 11px;
@@ -954,7 +938,7 @@ body.hshop-open {
     inset: -3px;
     border-radius: inherit;             /* 알약(999px) 모양 따라감 */
     padding: 3px;
-    background: conic-gradient(from var(--hshopRingAngle), #ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55);
+    background: conic-gradient(from var(--hshopRingAngle), var(--shop-rainbow-ring-stops));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -966,14 +950,14 @@ body.hshop-open {
     to { --hshopRingAngle: 360deg; }
 }
 @keyframes hshopOpenGlow {
-    0%, 100% { box-shadow: var(--hshop-shadow), 0 0 0 0 rgba(255, 77, 148, 0); }
-    50%      { box-shadow: var(--hshop-shadow), 0 0 13px 2px rgba(255, 77, 148, 0.55); }
+    0%, 100% { box-shadow: var(--hshop-shadow), 0 0 0 0 rgba(var(--shop-open-glow-rgb), 0); }
+    50%      { box-shadow: var(--hshop-shadow), 0 0 13px 2px rgba(var(--shop-open-glow-rgb), 0.55); }
 }
 /* 모션 최소화: 회전/펄스 끄고 정적 글로우 + 무지개 테두리만 유지 */
 @media (prefers-reduced-motion: reduce) {
     .hshop-open-btn {
         animation: none;
-        box-shadow: var(--hshop-shadow), 0 0 10px 1px rgba(255, 77, 148, 0.45);
+        box-shadow: var(--hshop-shadow), 0 0 10px 1px rgba(var(--shop-open-glow-rgb), 0.45);
     }
     .hshop-open-btn::before { animation: none; }
 }
@@ -1070,7 +1054,7 @@ body.hshop-open {
 /* 무지개 잔상(실루엣은 JS가 연속 hue 인라인) — 프리뷰 2맥락은 글로우 유지(상점 진열용) */
 .hshop-preview-trail.rainbow,
 .hshop-inv-trail.rainbow {
-    background: linear-gradient(to left, rgba(255, 255, 255, 0.8), #f43f5e 12%, #f59e0b 30%, #22c55e 50%, #3b82f6 70%, #a855f7 88%, transparent);
+    background: linear-gradient(to left, rgba(var(--highlight-rgb), 0.8), #f43f5e 12%, #f59e0b 30%, #22c55e 50%, #3b82f6 70%, #a855f7 88%, transparent);
     filter: blur(0.4px) drop-shadow(0 0 6px #a78bfa);
 }
 /* 인레이스 무지개 띠 — base .cosmetic-trail 과 동일 방침: white-hot 헤드/글로우 제거(부스터 오독 소거) */
@@ -1148,7 +1132,7 @@ body.hshop-open {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.5) 50%, transparent 68%);
+    background: linear-gradient(115deg, transparent 32%, rgba(var(--highlight-rgb), 0.5) 50%, transparent 68%);
     transform: translateX(-120%);
     animation: cosmeticBibShine 2.6s ease-in-out infinite;
     pointer-events: none;
@@ -1243,26 +1227,26 @@ body.hshop-open {
     font-size: 11px;
     font-weight: 800;
     line-height: 1.2;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: var(--text-on-accent);
+    background: rgba(var(--shadow-rgb), 0.55);
+    border: 1px solid rgba(var(--highlight-rgb), 0.4);
     border-radius: 999px;
     cursor: pointer;
     white-space: nowrap;
 }
-.hshop-fx-preview-btn:hover { background: rgba(0, 0, 0, 0.72); }
+.hshop-fx-preview-btn:hover { background: rgba(var(--shadow-rgb), 0.72); }
 .hshop-fx-preview-btn:disabled { opacity: 0.55; cursor: default; }
 
 /* ── 잔고 차감/적립 연출 ── */
 .hshop-balance--spend { animation: hshopBalSpend 0.55s ease-out; }
 .hshop-balance--earn  { animation: hshopBalEarn 0.55s ease-out; }
 @keyframes hshopBalSpend {
-    0%   { background: var(--fill-danger, #ef4444); transform: scale(1.08); }
-    100% { background: rgba(0, 0, 0, 0.18);     transform: scale(1); }
+    0%   { background: var(--fill-danger); transform: scale(1.08); }
+    100% { background: rgba(var(--shadow-rgb), 0.18);     transform: scale(1); }
 }
 @keyframes hshopBalEarn {
-    0%   { background: var(--fill-success, #22c55e); transform: scale(1.08); }
-    100% { background: rgba(0, 0, 0, 0.18);       transform: scale(1); }
+    0%   { background: var(--fill-success); transform: scale(1.08); }
+    100% { background: rgba(var(--shadow-rgb), 0.18);       transform: scale(1); }
 }
 
 /* ── 상점 전용 팝업 레이어 (확인/토스트, 상점 모달 위) ── */
@@ -1281,12 +1265,12 @@ body.hshop-open {
     font-weight: 900;
     letter-spacing: -0.3px;
     pointer-events: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    text-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.25);
     animation: hshopDeltaFloat 1.1s ease-out forwards;
     will-change: transform, opacity;
 }
-.hshop-delta.is-spend { color: var(--red-500, #ef4444); }
-.hshop-delta.is-earn  { color: var(--green-500, #22c55e); }
+.hshop-delta.is-spend { color: var(--red-500); }
+.hshop-delta.is-earn  { color: var(--green-500); }
 @keyframes hshopDeltaFloat {
     0%   { transform: translate(-50%, 4px);   opacity: 0; }
     20%  { opacity: 1; }
@@ -1298,7 +1282,7 @@ body.hshop-open {
     position: absolute;
     inset: 0;
     pointer-events: auto;
-    background: rgba(20, 12, 6, 0.5);
+    background: rgba(var(--shop-overlay-rgb), 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1311,7 +1295,7 @@ body.hshop-open {
     color: var(--hshop-ink);
     border-radius: 16px;
     padding: 20px 18px 16px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.35);
     text-align: center;
 }
 .hshop-confirm-title {
@@ -1339,7 +1323,7 @@ body.hshop-open {
 .hshop-confirm-price {
     font-size: 14px;
     font-weight: 900;
-    color: var(--horse-ink, var(--horse-600, #a0522d));
+    color: var(--horse-ink);
     white-space: nowrap;
 }
 .hshop-confirm-btns {
@@ -1362,7 +1346,7 @@ body.hshop-open {
 }
 .hshop-confirm-ok {
     background: var(--hshop-legend);
-    color: #fff;
+    color: var(--text-on-accent);
     border: 1.5px solid var(--hshop-legend);
 }
 
@@ -1374,13 +1358,13 @@ body.hshop-open {
     transform: translate(-50%, 12px);
     max-width: 84%;
     pointer-events: none;
-    background: rgba(20, 12, 6, 0.92);
-    color: #fff;
+    background: rgba(var(--shop-overlay-rgb), 0.92);
+    color: var(--text-on-accent);
     font-size: 13.5px;
     font-weight: 700;
     padding: 11px 18px;
     border-radius: 999px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.3);
     opacity: 0;
     transition: opacity 0.22s ease, transform 0.22s ease;
     white-space: nowrap;
@@ -1389,8 +1373,8 @@ body.hshop-open {
     opacity: 1;
     transform: translate(-50%, 0);
 }
-.hshop-toast--success { background: var(--hshop-equipped, #4a7c3f); }
-.hshop-toast--error   { background: var(--fill-danger, #ef4444); }
+.hshop-toast--success { background: var(--hshop-equipped); }
+.hshop-toast--error   { background: var(--fill-danger); }
 
 /* ── 뽑기(가챠) 리빌 오버레이 ── */
 /* 빌드업(캡슐 흔들림) → 버스트(라디얼 라이트 + 파티클) → 리빌(아이템 스케일인 + 샤인). */
@@ -1446,7 +1430,7 @@ body.hshop-open {
     pointer-events: none;
 }
 .hshop-reveal-overlay.rarity-epic .hshop-reveal-burst {
-    background: radial-gradient(circle, var(--hshop-reveal-epic) 0%, #fff 30%, transparent 72%);
+    background: radial-gradient(circle, var(--hshop-reveal-epic) 0%, rgb(var(--highlight-rgb)) 30%, transparent 72%);
 }
 .hshop-reveal-overlay.is-revealed .hshop-reveal-burst {
     animation: hshopRevealBurst 0.6s ease-out forwards;
@@ -1460,7 +1444,7 @@ body.hshop-open {
     content: "";
     position: absolute;
     inset: 0;
-    background: #fff;
+    background: rgb(var(--highlight-rgb));
     opacity: 0;
     pointer-events: none;
     animation: hshopRevealFlash 0.5s ease-out forwards;
@@ -1505,7 +1489,7 @@ body.hshop-open {
     background: var(--hshop-card);
     border-radius: 18px;
     padding: 18px 16px 16px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.5);
     text-align: center;
     opacity: 0;
     transform: scale(0.6) rotate(-6deg);
@@ -1516,7 +1500,7 @@ body.hshop-open {
     animation: hshopRevealCardIn 0.55s cubic-bezier(0.18, 0.9, 0.3, 1.3) forwards;
 }
 .hshop-reveal-overlay.rarity-epic.is-revealed .hshop-reveal-card {
-    box-shadow: 0 0 0 3px var(--hshop-reveal-epic), 0 12px 44px rgba(245, 158, 11, 0.5);
+    box-shadow: 0 0 0 3px var(--hshop-reveal-epic), 0 12px 44px rgba(var(--shop-reveal-epic-rgb), 0.5);
 }
 @keyframes hshopRevealCardIn {
     0%   { opacity: 0; transform: scale(0.6) rotate(-6deg); }
@@ -1547,7 +1531,7 @@ body.hshop-open {
     left: -60%;
     width: 50%;
     height: 100%;
-    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    background: linear-gradient(100deg, transparent, rgba(var(--highlight-rgb), 0.55), transparent);
     transform: skewX(-18deg);
     animation: hshopRevealShine 0.9s ease-out 0.25s 1;
 }
@@ -1562,7 +1546,7 @@ body.hshop-open {
     inset: -2px;
     border-radius: 12px;
     padding: 2px;
-    background: conic-gradient(#ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55);
+    background: conic-gradient(var(--shop-rainbow-ring-stops));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -1600,9 +1584,9 @@ body.hshop-open {
     cursor: pointer;
 }
 .hshop-reveal-equip {
-    background: var(--horse-500, #8B4513);
-    color: #fff;
-    border: 1.5px solid var(--horse-600, #a0522d);
+    background: var(--horse-500);
+    color: var(--text-on-accent);
+    border: 1.5px solid var(--horse-600);
 }
 .hshop-reveal-close {
     background: var(--hshop-card);
@@ -1640,7 +1624,7 @@ body.hshop-open {
 /* 에픽 풀플래시/링은 중복에서 끔(요란함 제거) */
 .hshop-reveal-overlay.is-dupe.rarity-epic.is-revealed::before { animation: none; opacity: 0; }
 .hshop-reveal-overlay.is-dupe.rarity-epic.is-revealed .hshop-reveal-card {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.5);
 }
 
 /* 모션 최소화 선호 시 카드 미리보기 애니메이션 정지 */

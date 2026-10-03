@@ -69,8 +69,8 @@ var ME_NAMETAG_CSS = 'background: linear-gradient(135deg, var(--yellow-500), var
     + 'font-weight: bold;'
     + 'white-space: nowrap;'
     + 'border: 2px solid var(--text-on-accent);'
-    + 'box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);'
-    + 'text-shadow: 0 1px 1px rgba(255,255,255,0.5);';
+    + 'box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.5), 0 0 8px rgba(var(--horse-gold-rgb), 0.6);'
+    + 'text-shadow: 0 1px 1px rgba(var(--highlight-rgb), 0.5);';
 
 // 상태 변수
 var currentRoomId = null;
@@ -256,7 +256,7 @@ function racePipOpen() {
         // 이 스타일은 PiP 문서에만 주입되고 #pipScaleRoot 하위로 스코프된다 — 메인·타 게임 영향 0.
         pipFix.textContent = 'body{margin:0;padding:40px 8px 8px;overflow:hidden;display:flex;justify-content:center;align-items:flex-start;}'
             + '#pipScaleRoot .race-track-container{height:400px;margin:20px 0;border-radius:12px;}'
-            + '#pipScaleRoot #raceMinimap{position:absolute!important;bottom:8px!important;right:8px!important;top:auto!important;left:auto!important;width:180px!important;border-radius:8px!important;padding:8px 10px!important;background:rgba(0,0,0,0.75)!important;}'
+            + '#pipScaleRoot #raceMinimap{position:absolute!important;bottom:8px!important;right:8px!important;top:auto!important;left:auto!important;width:180px!important;border-radius:8px!important;padding:8px 10px!important;background:rgba(var(--shadow-rgb), 0.75)!important;}'
             + '#pipScaleRoot #cameraSwitchBtn{min-width:0;min-height:0;font-size:11px!important;padding:4px 10px!important;}'
             + '#pipScaleRoot .race-pip-btn,#pipScaleRoot .race-fullscreen-btn{min-height:0;font-size:11px;padding:4px 10px;}';
         pipWin.document.head.appendChild(pipFix);
@@ -1167,13 +1167,13 @@ function showEntryFailureUI(reason) {
     if (!ls) return;
     if (entryLoadingHTML === null) entryLoadingHTML = ls.innerHTML;
     ls.innerHTML = '' +
-        '<div id="entryFailNotice" style="text-align: center; color: white; padding: 0 20px; max-width: 400px;">' +
+        '<div id="entryFailNotice" style="text-align: center; color: var(--text-on-accent); padding: 0 20px; max-width: 400px;">' +
             '<div style="font-size: 60px; margin-bottom: 16px;">' + UIIcons.tag('horse') + '</div>' +
             '<h2 style="font-size: 22px; margin-bottom: 10px;">방에 들어가지 못했어요</h2>' +
             '<p id="entryFailReason" style="font-size: 15px; opacity: 0.9; margin-bottom: 24px; line-height: 1.5; word-break: keep-all;"></p>' +
             '<div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">' +
                 '<button id="entryRetryBtn" type="button" style="padding: 12px 24px; background: var(--bg-white); color: var(--text-primary); border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer;">다시 시도</button>' +
-                '<button id="entryLobbyBtn" type="button" style="padding: 12px 24px; background: transparent; color: white; border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer;">로비로</button>' +
+                '<button id="entryLobbyBtn" type="button" style="padding: 12px 24px; background: transparent; color: var(--text-on-accent); border: 2px solid rgba(var(--highlight-rgb), 0.6); border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer;">로비로</button>' +
             '</div>' +
         '</div>';
     updateEntryFailureReason(reason || '네트워크 상태를 확인하고 다시 시도해주세요.');
@@ -1562,7 +1562,7 @@ function renderTrackForSelection() {
                 transform: translateX(-50%);
                 font-size: 16px;
                 color: var(--yellow-500);
-                text-shadow: 0 0 6px rgba(255,215,0,0.8);
+                text-shadow: 0 0 6px rgba(var(--horse-gold-rgb), 0.8);
                 animation: arrowBounce 0.8s ease-in-out infinite;
                 pointer-events: none;
                 z-index: 300;
@@ -1608,7 +1608,7 @@ function renderTrackForSelection() {
                 } else {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
-                        background: rgba(0,0,0,0.75);
+                        background: rgba(var(--shadow-rgb), 0.75);
                         color: var(--text-on-accent);
                         padding: 2px 5px;
                         border-radius: 3px;
@@ -1616,8 +1616,8 @@ function renderTrackForSelection() {
                         line-height: 15px;
                         font-weight: bold;
                         white-space: nowrap;
-                        border: 1px solid rgba(255,255,255,0.3);
-                        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+                        border: 1px solid rgba(var(--highlight-rgb), 0.3);
+                        text-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.8);
                     `;
                     nameTag.textContent = userName;
                 }
@@ -2046,7 +2046,7 @@ function showTrackToast(message) {
     var toast = doc.createElement('div');
     toast.textContent = message;
     toast.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
-        + 'background:rgba(0,0,0,0.75);color:var(--yellow-400);padding:8px 20px;border-radius:8px;'
+        + 'background:rgba(var(--shadow-rgb), 0.75);color:var(--yellow-400);padding:8px 20px;border-radius:8px;'
         + 'font-size:14px;font-weight:bold;pointer-events:none;transition:opacity 0.5s;';
     container.style.position = 'relative';
     container.appendChild(toast);
@@ -2075,15 +2075,15 @@ function showPipResultBanner(targetRank, winners) {
     var banner = doc.createElement('div');
     banner.id = 'pipResultBanner';
     banner.style.cssText = 'position:absolute;inset:0;z-index:150;display:flex;justify-content:center;'
-        + 'align-items:center;background:rgba(0,0,0,0.72);cursor:pointer;'
+        + 'align-items:center;background:rgba(var(--shadow-rgb), 0.72);cursor:pointer;'
         + 'font-family:"Jua","Segoe UI",Tahoma,sans-serif;';
     banner.innerHTML =
-        '<div style="background:rgba(20,20,20,0.95);border:2px solid var(--yellow-400);border-radius:14px;'
-        + 'padding:16px 22px;max-width:88%;text-align:center;color:#fff;">'
+        '<div style="background:rgba(var(--horse-pip-banner-rgb), 0.95);border:2px solid var(--yellow-400);border-radius:14px;'
+        + 'padding:16px 22px;max-width:88%;text-align:center;color:var(--text-on-accent);">'
         + '<div style="font-size:20px;font-weight:900;margin-bottom:6px;">' + UIIcons.tag('confetti') + ' 순위 발표</div>'
         + '<div style="font-size:14px;color:var(--yellow-400);margin-bottom:10px;">' + UIIcons.tag('target') + ' ' + escapeHtmlText(titleText) + '</div>'
         + '<div style="font-size:15px;font-weight:700;line-height:1.5;word-break:break-all;">당첨: ' + names + '</div>'
-        + '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:12px;">자세한 순위는 원래 화면에서 · 눌러서 닫기</div>'
+        + '<div style="font-size:11px;color:rgba(var(--highlight-rgb), 0.6);margin-top:12px;">자세한 순위는 원래 화면에서 · 눌러서 닫기</div>'
         + '</div>';
     // 인라인 onclick 금지 — 문서 입양 후 PiP 전역을 참조해 죽는다. 클로저 리스너는 살아남는다.
     banner.addEventListener('click', removePipResultBanner);
@@ -2753,9 +2753,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         const markerPx = m * PIXELS_PER_METER;
         const marker = document.createElement('div');
         marker.className = 'distance-marker';
-        marker.style.cssText = `position: absolute; left: ${markerPx}px; top: 0; height: 100%; width: 1px; background: rgba(255,255,255,0.08); z-index: 1; pointer-events: none;`;
+        marker.style.cssText = `position: absolute; left: ${markerPx}px; top: 0; height: 100%; width: 1px; background: rgba(var(--highlight-rgb), 0.08); z-index: 1; pointer-events: none;`;
         const label = document.createElement('span');
-        label.style.cssText = `position: absolute; top: -14px; left: -12px; font-size: 9px; color: rgba(255,255,255,0.75); white-space: nowrap;`;
+        label.style.cssText = `position: absolute; top: -14px; left: -12px; font-size: 9px; color: rgba(var(--highlight-rgb), 0.75); white-space: nowrap;`;
         label.textContent = `${m}m`;
         marker.appendChild(label);
         track.appendChild(marker);
@@ -2869,7 +2869,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             transform: translateX(-50%);
             font-size: 16px;
             color: var(--red-400);
-            text-shadow: 0 0 4px rgba(233,69,96,0.6);
+            text-shadow: 0 0 4px rgba(var(--horse-loser-rgb), 0.6);
             animation: arrowBounce 0.8s ease-in-out infinite;
             pointer-events: none;
             z-index: 300;
@@ -2947,7 +2947,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 } else {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
-                        background: rgba(0,0,0,0.75);
+                        background: rgba(var(--shadow-rgb), 0.75);
                         color: var(--text-on-accent);
                         padding: 2px 5px;
                         border-radius: 3px;
@@ -2955,8 +2955,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         line-height: 15px;
                         font-weight: bold;
                         white-space: nowrap;
-                        border: 1px solid rgba(255,255,255,0.3);
-                        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+                        border: 1px solid rgba(var(--highlight-rgb), 0.3);
+                        text-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.8);
                     `;
                     nameTag.textContent = userName;
                 }
@@ -2977,9 +2977,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     if (!liveRankingPanel) {
         liveRankingPanel = document.createElement('div');
         liveRankingPanel.id = 'liveRankingPanel';
-        liveRankingPanel.style.cssText = 'background: linear-gradient(135deg, var(--slate-950) 0%, var(--slate-960) 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        liveRankingPanel.style.cssText = 'background: linear-gradient(135deg, var(--slate-950) 0%, var(--slate-960) 100%); color: var(--text-on-accent); padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
         const title = document.createElement('div');
-        title.style.cssText = 'font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px; font-family: "Jua", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        title.style.cssText = 'font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(var(--highlight-rgb), 0.3); padding-bottom: 8px; font-size: 14px; font-family: "Jua", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
         title.replaceChildren(UIIcons.el('dash'), ' 실시간 순위');
         liveRankingPanel.appendChild(title);
         const list = document.createElement('div');
@@ -3126,8 +3126,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const pct = (m / trackMeters) * 100;
             const isMajor = m % 100 === 0;
             const remaining = trackMeters - m;
-            ticksHtml += `<div style="position: absolute; left: ${pct}%; top: 0; width: 1px; height: 6px; background: rgba(255,255,255,${isMajor ? '0.4' : '0.2'}); transform: translateX(-50%);"></div>`;
-            markersHtml += `<div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 7px; color: rgba(255,255,255,${isMajor ? '0.75' : '0.6'}); white-space: nowrap;">${remaining}m</div>`;
+            ticksHtml += `<div style="position: absolute; left: ${pct}%; top: 0; width: 1px; height: 6px; background: rgba(var(--highlight-rgb), ${isMajor ? '0.4' : '0.2'}); transform: translateX(-50%);"></div>`;
+            markersHtml += `<div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 7px; color: rgba(var(--highlight-rgb), ${isMajor ? '0.75' : '0.6'}); white-space: nowrap;">${remaining}m</div>`;
         });
         // 결승선 마커
         ticksHtml += `<div style="position: absolute; right: 0; top: 0; width: 2px; height: 6px; background: var(--green-400);"></div>`;
@@ -3301,23 +3301,23 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         let label, bg, cutIcon = null;
         if (cameraMode === 'myHorse') {
             label = '내 말 보는중';
-            bg = 'rgba(255,215,0,0.3)';
+            bg = 'rgba(var(--horse-gold-rgb), 0.3)';
         } else if (cameraMode === '_loser' || panningToLoser) {
             // N등 투표 결과(window._targetRank)에 따라 라벨 동적 표시
             const _tr = window._targetRank;
             const _trLabel = (typeof _tr === 'number' && _tr >= 1) ? (_tr + '등') : '꼴등';
             label = _trLabel + ' 추적중';
-            bg = 'rgba(233,69,96,0.4)';
+            bg = 'rgba(var(--horse-loser-rgb), 0.4)';
         } else if (activeEventCut) {
             cutIcon = activeEventCut.icon;
             label = activeEventCut.label;
-            bg = 'rgba(255,140,0,0.45)';
+            bg = 'rgba(var(--horse-cam-event-rgb), 0.45)';
         } else if (isRandomCutaway) {
             label = '다른말 구경중';
-            bg = 'rgba(100,200,255,0.4)';
+            bg = 'rgba(var(--horse-cam-random-rgb), 0.4)';
         } else {
             label = '시스템 카메라';
-            bg = 'rgba(0,0,0,0.6)';
+            bg = 'rgba(var(--shadow-rgb), 0.6)';
         }
         if (cutIcon) cameraSwitchBtn.replaceChildren(UIIcons.el('camera'), ' ', UIIcons.el(cutIcon), ' ' + label);
         else cameraSwitchBtn.replaceChildren(UIIcons.el('camera'), ' ' + label);
@@ -3506,7 +3506,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             // 재개 토스트
             const toast = document.createElement('div');
             toast.textContent = '▶ 경주 재개!';
-            toast.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background: rgba(0,0,0,0.7); color: var(--green-400); padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; pointer-events: none; transition: opacity 0.5s;';
+            toast.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background: rgba(var(--shadow-rgb), 0.7); color: var(--green-400); padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; pointer-events: none; transition: opacity 0.5s;';
             trackContainer.style.position = 'relative';
             trackContainer.appendChild(toast);
             setTimeout(() => { toast.style.opacity = '0'; }, 800);
@@ -3590,7 +3590,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     vignette.style.cssText = `
                         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
                         pointer-events: none; z-index: 9999;
-                        box-shadow: inset 0 0 60px 30px rgba(0,0,0,0.5);
+                        box-shadow: inset 0 0 60px 30px rgba(var(--shadow-rgb), 0.5);
                         border-radius: inherit;
                         transition: opacity 0.5s;
                     `;
@@ -3599,8 +3599,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 }
                 // 리더=검정 / 꼴등(타깃)=빨강 비네트 (트리거 블록과 동일 값)
                 vignette.style.boxShadow = loserSlowMotionActive
-                    ? 'inset 0 0 60px 30px rgba(233,69,96,0.4)'
-                    : 'inset 0 0 60px 30px rgba(0,0,0,0.5)';
+                    ? 'inset 0 0 60px 30px rgba(var(--horse-loser-rgb), 0.4)'
+                    : 'inset 0 0 60px 30px rgba(var(--shadow-rgb), 0.5)';
                 vignette.style.opacity = '1';
                 track.style.transition = 'filter 0.3s';
                 track.style.filter = 'contrast(1.1) saturate(1.3)';
@@ -3825,11 +3825,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         arrow.style.display = 'block';
                         // 내 베팅 말이면 노란색, 아니면 빨간색
                         if (idx === myBetIndex) {
-                            arrow.style.color = '#ffd700';
-                            arrow.style.textShadow = '0 0 6px rgba(255,215,0,0.8)';
+                            arrow.style.color = 'rgb(var(--horse-gold-rgb))';
+                            arrow.style.textShadow = '0 0 6px rgba(var(--horse-gold-rgb), 0.8)';
                         } else {
-                            arrow.style.color = '#e94560';
-                            arrow.style.textShadow = '0 0 4px rgba(233,69,96,0.6)';
+                            arrow.style.color = 'var(--result-loser-border)';
+                            arrow.style.textShadow = '0 0 4px rgba(var(--horse-loser-rgb), 0.6)';
                         }
                     } else {
                         arrow.style.display = 'none';
@@ -3889,7 +3889,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (!state.offscreenIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator';
-                    indicator.style.cssText = `position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
+                    indicator.style.cssText = `position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(var(--shadow-rgb), 0.8); pointer-events: none;`;
                     state.lane.appendChild(indicator);
                     state.offscreenIndicator = indicator;
                 }
@@ -3899,7 +3899,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (!state.offscreenRightIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator-right';
-                    indicator.style.cssText = `position: absolute; left: ${trackWidth - 5}px; top: 50%; transform: translate(-100%, -50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
+                    indicator.style.cssText = `position: absolute; left: ${trackWidth - 5}px; top: 50%; transform: translate(-100%, -50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(var(--shadow-rgb), 0.8); pointer-events: none;`;
                     state.lane.appendChild(indicator);
                     state.offscreenRightIndicator = indicator;
                 }
@@ -3998,7 +3998,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 vignette.style.cssText = `
                                     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
                                     pointer-events: none; z-index: 9999;
-                                    box-shadow: inset 0 0 60px 30px rgba(0,0,0,0.5);
+                                    box-shadow: inset 0 0 60px 30px rgba(var(--shadow-rgb), 0.5);
                                     border-radius: inherit;
                                     transition: opacity 0.5s;
                                 `;
@@ -4155,7 +4155,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 vignette.style.cssText = `
                                     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
                                     pointer-events: none; z-index: 9999;
-                                    box-shadow: inset 0 0 60px 30px rgba(233,69,96,0.4);
+                                    box-shadow: inset 0 0 60px 30px rgba(var(--horse-loser-rgb), 0.4);
                                     border-radius: inherit;
                                     transition: opacity 0.5s;
                                 `;
@@ -4163,7 +4163,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 track.parentElement.appendChild(vignette);
                             }
                             // 리더 비네트(검정)→꼴등(빨강) 색상 전환 (기존 DOM 재사용 시)
-                            vignette.style.boxShadow = 'inset 0 0 60px 30px rgba(233,69,96,0.4)';
+                            vignette.style.boxShadow = 'inset 0 0 60px 30px rgba(var(--horse-loser-rgb), 0.4)';
                             vignette.style.opacity = '1';
                             track.style.transition = 'filter 0.3s';
                             track.style.filter = 'contrast(1.1) saturate(1.3)';
@@ -5017,7 +5017,7 @@ function showFinishAnimation(horseElement, finishOrder, horseIndex) {
     if (finishOrder === 0) {
         const vid = horseElement.dataset.vehicleId;
         if (vid) setVehicleState(horseElement, vid, 'victory');
-        horseElement.style.filter = 'drop-shadow(0 0 15px gold) brightness(1.2)';
+        horseElement.style.filter = 'drop-shadow(0 0 15px rgb(var(--horse-gold-rgb))) brightness(1.2)';
         horseElement.style.transform = 'scale(1.1)';
     }
 }
@@ -5068,7 +5068,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
         transform: translateX(-50%);
         font-size: 30px;
         animation: soulRise 3s ease-out forwards;
-        text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        text-shadow: 0 0 10px rgba(var(--highlight-rgb), 0.8);
     `;
     soulContainer.appendChild(soul);
     // 유령은 PiP body 직속 fixed 오버레이(스케일 루트 밖)라 fit transform을 못 받는다 — 트랙과 비석은
@@ -5103,7 +5103,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
             text-align: center;
             animation: tombstoneDrop 1.6s ease-out 1s forwards;
             opacity: 0;
-            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
+            filter: drop-shadow(2px 4px 6px rgba(var(--shadow-rgb), 0.5));
         `;
         tombstoneWrap.innerHTML = `${UIIcons.tag('tomb')}<span style="display:block;font-size:12px;font-weight:bold;color:var(--race-tomb-text);">${finishRank + 1}등</span>`;
         track.appendChild(tombstoneWrap);
@@ -5700,7 +5700,7 @@ function showRaceResult(data, isReplay = false) {
             }).join('')
             : '<span class="winner-chip empty">베팅한 사람 없음</span>';
         rankingsHtml += `
-            <div class="result-target-block" style="background: linear-gradient(135deg, var(--result-loser-dark) 0%, var(--result-loser-dark2) 100%); padding: 14px 16px 16px; border-radius: 12px; margin-top: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.45); border: 2px solid var(--result-loser-border); position: relative; overflow: hidden;">
+            <div class="result-target-block" style="background: linear-gradient(135deg, var(--result-loser-dark) 0%, var(--result-loser-dark2) 100%); padding: 14px 16px 16px; border-radius: 12px; margin-top: 12px; box-shadow: 0 6px 24px rgba(var(--shadow-rgb), 0.45); border: 2px solid var(--result-loser-border); position: relative; overflow: hidden;">
                 <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: var(--result-loser-border); color: var(--text-on-accent); padding: 2px 12px; border-radius: 0 0 6px 6px; font-size: 10px; font-weight: bold; letter-spacing: 1.5px;">${targetBadge}</div>
                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
                     <span style="font-size: 22px;">${targetIcon}</span>
@@ -5820,7 +5820,7 @@ function showPipCountdown(container) {
 
         var overlay = doc.createElement('div');
         overlay.id = 'countdownOverlay';
-        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:100;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(var(--shadow-rgb), 0.75);z-index:100;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;';
         container.style.position = 'relative';
         container.appendChild(overlay);
 
@@ -5851,7 +5851,7 @@ function showQuickRaceOverlay() {
     overlay.id = 'quickRaceOverlay';
     overlay.style.cssText = `
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.6); z-index: 100;
+        background: rgba(var(--shadow-rgb), 0.6); z-index: 100;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         pointer-events: none;
@@ -5861,7 +5861,7 @@ function showQuickRaceOverlay() {
         <style>@keyframes qr-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}</style>
         <div style="font-size: 40px; margin-bottom: 8px; animation: qr-bounce 0.8s ease-in-out infinite;">${UIIcons.tag('bolt')}</div>
         <div style="font-size: 20px; font-weight: 800; color: var(--yellow-400);
-            text-shadow: 0 0 20px rgba(255,215,0,0.6);">
+            text-shadow: 0 0 20px rgba(var(--horse-gold-rgb), 0.6);">
             모두 같은 선택!
         </div>
         <div style="font-size: 14px; color: var(--race-on-dark-soft); margin-top: 6px;">
@@ -6143,14 +6143,14 @@ function showReplaySelector() {
 
     const overlay = document.createElement('div');
     overlay.id = 'replaySelectorOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;justify-content:center;align-items:center;z-index:1000;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(var(--shadow-rgb), 0.7);display:flex;justify-content:center;align-items:center;z-index:1000;';
 
     const card = document.createElement('div');
     card.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:20px;max-width:320px;width:90%;text-align:center;';
 
     card.innerHTML = '<div style="font-weight:bold;font-size:16px;margin-bottom:15px;font-family:\'Jua\',sans-serif;">' + UIIcons.tag('clapper') + ' 다시보기 선택</div>';
 
-    const bgColors = ['var(--horse-500)', '#A0522D', '#B8734A'];
+    const bgColors = ['var(--horse-500)', 'var(--horse-600)', 'var(--horse-replay-btn-3-bg)'];
     recent.forEach((record, idx) => {
         const roundNum = record.round || (horseRaceHistory.length - idx);
         const winnerText = record.winners && record.winners.length > 0
@@ -6158,7 +6158,7 @@ function showReplaySelector() {
             : '진행 중';
         const bg = bgColors[idx];
         const btn = document.createElement('button');
-        btn.style.cssText = 'display:block;width:100%;padding:12px;margin-bottom:8px;border:none;border-radius:8px;background:' + bg + ';color:white;font-weight:bold;cursor:pointer;font-family:\'Jua\',sans-serif;font-size:14px;';
+        btn.style.cssText = 'display:block;width:100%;padding:12px;margin-bottom:8px;border:none;border-radius:8px;background:' + bg + ';color:var(--text-on-accent);font-weight:bold;cursor:pointer;font-family:\'Jua\',sans-serif;font-size:14px;';
         btn.textContent = roundNum + '라운드 — 승자: ' + winnerText;
         btn.onclick = function() {
             overlay.remove();
@@ -6194,7 +6194,7 @@ function showReplayStopButton(onStop) {
     const btn = document.createElement('button');
     btn.id = 'replayStopBtn';
     btn.replaceChildren(UIIcons.el('stop'), ' 다시보기 종료');
-    btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:200;width:auto;margin:0;padding:6px 14px;background:rgba(0,0,0,0.7);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;font-family:"Jua",sans-serif;';
+    btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:200;width:auto;margin:0;padding:6px 14px;background:rgba(var(--shadow-rgb), 0.7);color:var(--text-on-accent);border:1px solid rgba(var(--highlight-rgb), 0.3);border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;font-family:"Jua",sans-serif;';
     btn.onclick = onStop;
     const wrapper = raceDoc().getElementById('raceTrackWrapper'); // 상시 PiP — 래퍼가 있는 문서에 부착
     if (wrapper) {
@@ -7570,19 +7570,19 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     let borderColor, icon; // icon = 스프라이트 태그 (innerHTML 전용)
     switch (type) {
         case 'error':
-            borderColor = 'rgb(239, 68, 68)';
+            borderColor = 'var(--alert-error)';
             icon = UIIcons.tag('warn');
             break;
         case 'warning':
-            borderColor = 'rgb(234, 179, 8)';
+            borderColor = 'var(--alert-warning)';
             icon = UIIcons.tag('warn');
             break;
         case 'success':
-            borderColor = 'rgb(34, 197, 94)';
+            borderColor = 'var(--alert-success)';
             icon = UIIcons.tag('check');
             break;
         default:
-            borderColor = 'rgb(147, 51, 234)';
+            borderColor = 'var(--alert-info)';
             icon = UIIcons.tag('info');
     }
 
@@ -7590,7 +7590,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     alertOverlay.id = 'customAlert';
     alertOverlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.4); z-index: 10001;
+        background: rgba(var(--shadow-rgb), 0.4); z-index: 10001;
         display: flex; justify-content: center; align-items: center;
         animation: fadeIn 0.2s ease-out;
     `;
@@ -7599,7 +7599,7 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     alertContent.style.cssText = `
         background: var(--bg-white); border-radius: 16px; padding: 20px;
         max-width: 450px; width: calc(100vw - 40px);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
         border: 2px solid ${borderColor};
         animation: slideDown 0.3s ease-out;
         box-sizing: border-box;
@@ -7641,11 +7641,11 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
     confirmButton.style.cssText = `
         padding: 10px 30px;
         background: ${borderColor};
-        color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'white'}; border: none; border-radius: 8px;
+        color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px;
         font-size: 16px; font-weight: 600; cursor: pointer;
         width: 100%; transition: transform 0.1s, box-shadow 0.1s;
     `;
-    confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+    confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)'; };
     confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
     confirmButton.onclick = closeAlert;
 
@@ -7665,16 +7665,16 @@ function showCustomAlert(message, type = 'info', title = '', onClose) {
 // 확인 다이얼로그
 function showConfirmDialog(message, onConfirm) {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
     
     const modal = document.createElement('div');
-    modal.style.cssText = 'background: var(--bg-white); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+    modal.style.cssText = 'background: var(--bg-white); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.3);';
     
     modal.innerHTML = `
         <div style="margin-bottom: 20px; line-height: 1.6; text-align: center;">${message}</div>
         <div style="display: flex; gap: 10px;">
             <button id="confirmCancel" style="flex: 1; padding: 12px; background: var(--gray-100); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">취소</button>
-            <button id="confirmOk" style="flex: 1; padding: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
+            <button id="confirmOk" style="flex: 1; padding: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
         </div>
     `;
     
@@ -7696,10 +7696,10 @@ function showPlayerActionDialog(playerName) {
 
         const dialogOverlay = document.createElement('div');
         dialogOverlay.id = 'playerActionDialog';
-        dialogOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10002; display: flex; justify-content: center; align-items: center;';
+        dialogOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.4); z-index: 10002; display: flex; justify-content: center; align-items: center;';
 
         const dialogContent = document.createElement('div');
-        dialogContent.style.cssText = 'background: var(--bg-white); border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid var(--horse-accent);';
+        dialogContent.style.cssText = 'background: var(--bg-white); border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2); border: 2px solid var(--horse-accent);';
 
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: var(--text-primary); text-align: center; margin-bottom: 25px; font-weight: 600;';
@@ -7711,7 +7711,7 @@ function showPlayerActionDialog(playerName) {
         function createBtn(text, bg, resolveValue) {
             const btn = document.createElement('button');
             btn.textContent = text;
-            btn.style.cssText = `padding: 12px 25px; background: ${bg}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;`;
+            btn.style.cssText = `padding: 12px 25px; background: ${bg}; color: var(--text-on-accent); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;`;
             btn.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(resolveValue); };
             return btn;
         }

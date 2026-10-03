@@ -22,43 +22,8 @@ const ChatModule = (function () {
 
     const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
 
-    // 채팅 전용 색 토큰 — 인라인 style 이 var() 로 참조한다.
-    // 라이트 값은 예전에 박혀 있던 값 그대로, 다크만 재정의 (공용 토큰은 css/theme.css)
+    // 채팅 색 토큰(--chat-*)은 css/theme.css [tokens:common] 섹션에 있다 — 인라인 style 이 var() 로 참조한다.
     const CHAT_TOKEN_CSS = `
-        :root {
-            --chat-ink: #333;
-            --chat-ink-sub: #666;
-            --chat-line: #ccc;
-            --chat-error: #c00;
-            --chat-name: #667eea;
-            --chat-my-name: #764ba2;
-            --chat-chip-bg: #f9f9f9;
-            --chat-chip-line: #ddd;
-            --chat-chip-hover-bg: #ffe0e0;
-            --chat-ai-bg: #f0f4f8;
-            --chat-ai-name: #4285f4;
-            --chat-react-bg: #555;
-            --chat-react-mine-bg: #333;
-            --chat-react-hover-line: #333;
-            --chat-flash-bg: #fff9e6;
-        }
-        [data-theme="dark"] {
-            --chat-ink: var(--text-primary);
-            --chat-ink-sub: var(--text-tertiary);
-            --chat-line: var(--border-color);
-            --chat-error: var(--red-400);
-            --chat-name: var(--purple-500);
-            --chat-my-name: var(--purple-700);
-            --chat-chip-bg: var(--gray-100);
-            --chat-chip-line: var(--border-color);
-            --chat-chip-hover-bg: var(--red-100);
-            --chat-ai-bg: var(--blue-50);
-            --chat-ai-name: var(--blue-300);
-            --chat-react-bg: var(--gray-300);
-            --chat-react-mine-bg: var(--purple-300);
-            --chat-react-hover-line: var(--gray-400);
-            --chat-flash-bg: var(--yellow-200);
-        }
         /* 색을 따로 주지 않은 모달 제목·취소 버튼 — 다크에서만 글자색 고정 (라이트는 호스트 페이지 상속 그대로) */
         [data-theme="dark"] .chat-modal-box,
         [data-theme="dark"] #imageCancelBtn { color: var(--text-primary); }
@@ -198,7 +163,7 @@ const ChatModule = (function () {
                 addBtn.className = 'reaction-button hover add-emoji-btn';
                 addBtn.textContent = '+';
                 addBtn.title = '이모지 등록';
-                addBtn.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#667eea;border:1px solid #5568d3;color:white;font-size:14px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;';
+                addBtn.style.cssText = 'width:16px;height:16px;border-radius:50%;background:var(--fill-brand);border:1px solid var(--chat-add-line);color:var(--text-on-accent);font-size:14px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;';
                 addBtn.onclick = (e) => { e.stopPropagation(); showAddEmojiModal(); };
                 hoverReactions.appendChild(addBtn);
 
@@ -207,7 +172,7 @@ const ChatModule = (function () {
                 removeBtn.className = 'reaction-button hover remove-emoji-btn';
                 removeBtn.textContent = '−';
                 removeBtn.title = '이모지 삭제';
-                removeBtn.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#e74c3c;border:1px solid #c0392b;color:white;font-size:14px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;';
+                removeBtn.style.cssText = 'width:16px;height:16px;border-radius:50%;background:var(--chat-remove-bg);border:1px solid var(--chat-remove-line);color:var(--text-on-accent);font-size:14px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;';
                 removeBtn.onclick = (e) => { e.stopPropagation(); showRemoveEmojiModal(); };
                 hoverReactions.appendChild(removeBtn);
             }
@@ -224,7 +189,7 @@ const ChatModule = (function () {
             border-radius: 10px;
             background: ${hasReacted ? 'var(--chat-react-mine-bg)' : 'var(--chat-react-bg)'};
             border: none;
-            color: #ffffff !important;
+            color: var(--text-on-accent) !important;
             font-size: 12px;
             cursor: pointer;
             display: inline-flex;
@@ -241,7 +206,7 @@ const ChatModule = (function () {
         emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
         const countSpan = document.createElement('span');
         countSpan.textContent = users.length;
-        countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+        countSpan.style.cssText = 'font-size: 12px; color: var(--text-on-accent) !important; font-weight: 600; line-height: 1; display: inline-block;';
         reactionBtn.appendChild(emojiSpan);
         reactionBtn.appendChild(countSpan);
         reactionBtn.title = emojiConfig[emoji] || emoji;
@@ -259,9 +224,9 @@ const ChatModule = (function () {
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #000;
+            background: var(--chat-hover-react-bg);
             border: 1px solid var(--chat-react-hover-line);
-            color: white;
+            color: var(--text-on-accent);
             font-size: 10px;
             cursor: pointer;
             display: inline-flex;
@@ -283,10 +248,10 @@ const ChatModule = (function () {
     function showAddEmojiModal() {
         const overlay = document.createElement('div');
         overlay.id = 'addEmojiModalOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(var(--shadow-rgb),0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
         const modal = document.createElement('div');
         modal.className = 'chat-modal-box';
-        modal.style.cssText = 'background:var(--bg-white);border-radius:12px;padding:20px;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.2);';
+        modal.style.cssText = 'background:var(--bg-white);border-radius:12px;padding:20px;min-width:280px;box-shadow:0 8px 24px rgba(var(--shadow-rgb),0.2);';
         modal.innerHTML = `
             <div style="font-weight:600;margin-bottom:12px;">이모지 등록</div>
             <div style="margin-bottom:10px;">
@@ -299,7 +264,7 @@ const ChatModule = (function () {
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;">
                 <button type="button" id="addEmojiCancel" style="padding:8px 14px;border:1px solid var(--chat-line);border-radius:6px;background:var(--bg-white);cursor:pointer;color:var(--chat-ink);">취소</button>
-                <button type="button" id="addEmojiSubmit" style="padding:8px 14px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer;">등록</button>
+                <button type="button" id="addEmojiSubmit" style="padding:8px 14px;border:none;border-radius:6px;background:var(--fill-brand);color:var(--text-on-accent);cursor:pointer;">등록</button>
             </div>
             <div id="addEmojiError" style="font-size:12px;color:var(--chat-error);margin-top:8px;display:none;"></div>
         `;
@@ -360,10 +325,10 @@ const ChatModule = (function () {
 
         const overlay = document.createElement('div');
         overlay.id = 'removeEmojiModalOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(var(--shadow-rgb),0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
         const modal = document.createElement('div');
         modal.className = 'chat-modal-box';
-        modal.style.cssText = 'background:var(--bg-white);border-radius:12px;padding:20px;min-width:280px;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,0.2);';
+        modal.style.cssText = 'background:var(--bg-white);border-radius:12px;padding:20px;min-width:280px;max-width:360px;box-shadow:0 8px 24px rgba(var(--shadow-rgb),0.2);';
 
         const title = document.createElement('div');
         title.style.cssText = 'font-weight:600;margin-bottom:12px;';
@@ -383,7 +348,7 @@ const ChatModule = (function () {
             btn.type = 'button';
             btn.style.cssText = 'padding:6px 12px;border:1px solid var(--chat-chip-line);border-radius:8px;background:var(--chat-chip-bg);cursor:pointer;font-size:14px;transition:all 0.2s;color:var(--chat-ink);';
             btn.textContent = `${emoji} ${label}`;
-            btn.onmouseenter = () => { btn.style.background = 'var(--chat-chip-hover-bg)'; btn.style.borderColor = '#e74c3c'; };
+            btn.onmouseenter = () => { btn.style.background = 'var(--chat-chip-hover-bg)'; btn.style.borderColor = 'var(--chat-remove-bg)'; };
             btn.onmouseleave = () => { btn.style.background = 'var(--chat-chip-bg)'; btn.style.borderColor = 'var(--chat-chip-line)'; };
             btn.onclick = async () => {
                 const errEl = modal.querySelector('#removeEmojiError');
@@ -471,9 +436,9 @@ const ChatModule = (function () {
         addBtn.style.cssText = `
             width: 16px; height: 16px;
             border-radius: 50%;
-            background: #667eea;
-            border: 1px solid #5568d3;
-            color: white;
+            background: var(--fill-brand);
+            border: 1px solid var(--chat-add-line);
+            color: var(--text-on-accent);
             font-size: 14px;
             line-height: 1;
             cursor: pointer;
@@ -496,9 +461,9 @@ const ChatModule = (function () {
         removeBtn.style.cssText = `
             width: 16px; height: 16px;
             border-radius: 50%;
-            background: #e74c3c;
-            border: 1px solid #c0392b;
-            color: white;
+            background: var(--chat-remove-bg);
+            border: 1px solid var(--chat-remove-line);
+            color: var(--text-on-accent);
             font-size: 14px;
             line-height: 1;
             cursor: pointer;
@@ -522,7 +487,7 @@ const ChatModule = (function () {
         container.style.cssText = 'display: inline-flex; align-items: center; gap: 6px;';
 
         const timeSpan = document.createElement('span');
-        timeSpan.style.cssText = 'font-size: 11px; color: #999;';
+        timeSpan.style.cssText = 'font-size: 11px; color: var(--common-ink-faint);';
         timeSpan.textContent = time;
         container.appendChild(timeSpan);
 
@@ -570,7 +535,7 @@ const ChatModule = (function () {
         mentions.forEach(name => {
             const isMentioningMe = name === currentUser;
             const style = isMentioningMe
-                ? 'background: #fff3cd; color: #856404; font-weight: 600; padding: 2px 4px; border-radius: 3px;'
+                ? 'background: var(--yellow-100); color: var(--common-warn-ink); font-weight: 600; padding: 2px 4px; border-radius: 3px;'
                 : 'color: var(--chat-name); font-weight: 600;';
             const regex = new RegExp(`@${name}(?![\\w])`, 'g');
             highlighted = highlighted.replace(regex, `<span style="${style}">@${name}</span>`);
@@ -621,11 +586,11 @@ const ChatModule = (function () {
         // 시스템 메시지
         if (isSystemMessage) {
             addToHistory(chatMessage); // 서버와 인덱스 동기화
-            const gradientColor = _options.systemGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            const gradientColor = _options.systemGradient || 'var(--brand-gradient)';
             if (chatMessage.noBackground) {
                 messageDiv.style.cssText = 'margin: 4px 0; padding: 0; text-align: left;';
             } else {
-                messageDiv.style.cssText = `margin: 20px 0; padding: 16px; background: ${gradientColor}; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);`;
+                messageDiv.style.cssText = `margin: 20px 0; padding: 16px; background: ${gradientColor}; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(var(--shadow-rgb),0.1);`;
             }
 
             if (chatMessage.isRouletteWinner) {
@@ -633,7 +598,7 @@ const ChatModule = (function () {
             }
 
             const msgText = document.createElement('div');
-            msgText.style.cssText = 'color: white; white-space: pre-wrap; word-break: break-word;';
+            msgText.style.cssText = 'color: var(--text-on-accent); white-space: pre-wrap; word-break: break-word;';
             if (chatMessage.isHtml) {
                 msgText.innerHTML = chatMessage.message;
             } else {
@@ -651,7 +616,7 @@ const ChatModule = (function () {
         // AI 메시지
         if (isAI) {
             addToHistory(chatMessage); // 서버와 인덱스 동기화
-            messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: var(--chat-ai-bg); border-radius: 12px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+            messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: var(--chat-ai-bg); border-radius: 12px; border-left: 4px solid var(--chat-ai-name); box-shadow: 0 2px 4px rgba(var(--shadow-rgb),0.05);';
 
             const headerDiv = document.createElement('div');
             headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 6px;';
@@ -671,7 +636,7 @@ const ChatModule = (function () {
             messageDiv.appendChild(messageSpan);
 
             const timeDiv = document.createElement('div');
-            timeDiv.style.cssText = 'font-size: 11px; color: #999; margin-top: 6px; text-align: right;';
+            timeDiv.style.cssText = 'font-size: 11px; color: var(--common-ink-faint); margin-top: 6px; text-align: right;';
             timeDiv.textContent = chatMessage.time;
             messageDiv.appendChild(timeDiv);
 
@@ -754,7 +719,7 @@ const ChatModule = (function () {
                 img.style.display = 'none';
                 const errorMsg = document.createElement('div');
                 errorMsg.textContent = '이미지를 불러올 수 없습니다';
-                errorMsg.style.cssText = 'color: #999; font-size: 12px; font-style: italic;';
+                errorMsg.style.cssText = 'color: var(--common-ink-faint); font-size: 12px; font-style: italic;';
                 imageContainer.appendChild(errorMsg);
             };
 
@@ -959,7 +924,7 @@ const ChatModule = (function () {
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(var(--shadow-rgb),0.9);
             display: flex; align-items: center; justify-content: center;
             z-index: 10000; cursor: pointer;
         `;
@@ -974,11 +939,11 @@ const ChatModule = (function () {
     // 클립보드 이미지 모달
     function showClipboardImageModal(imageData) {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+        overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(var(--shadow-rgb),0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
 
         const modal = document.createElement('div');
         modal.className = 'chat-modal-box';
-        modal.style.cssText = 'background: var(--bg-white); border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 8px 24px rgba(0,0,0,0.2);';
+        modal.style.cssText = 'background: var(--bg-white); border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 8px 24px rgba(var(--shadow-rgb),0.2);';
         modal.innerHTML = `
             <h3 style="margin: 0 0 15px 0; color: var(--chat-ink);">이미지 전송</h3>
             <div style="margin-bottom: 15px;">
@@ -989,7 +954,7 @@ const ChatModule = (function () {
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button id="clipboardImageCancelBtn" style="padding: 10px 20px; border: 1px solid var(--chat-line); border-radius: 6px; background: var(--bg-white); cursor: pointer; color: var(--chat-ink);">취소</button>
-                <button id="clipboardImageSendBtn" style="padding: 10px 20px; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer;">전송</button>
+                <button id="clipboardImageSendBtn" style="padding: 10px 20px; border: none; border-radius: 6px; background: var(--fill-brand); color: var(--text-on-accent); cursor: pointer;">전송</button>
             </div>
         `;
 
@@ -1024,16 +989,16 @@ const ChatModule = (function () {
     // 이미지 업로드 모달
     function showImageUploadModal(onSend) {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+        overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(var(--shadow-rgb),0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
 
         const modal = document.createElement('div');
         modal.className = 'chat-modal-box';
-        modal.style.cssText = 'background: var(--bg-white); border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 8px 24px rgba(0,0,0,0.2);';
+        modal.style.cssText = 'background: var(--bg-white); border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 8px 24px rgba(var(--shadow-rgb),0.2);';
         modal.innerHTML = `
             <h3 style="margin: 0 0 15px 0; color: var(--chat-ink);">이미지 전송</h3>
             <div style="margin-bottom: 15px;">
                 <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style="display: block; width: 100%; padding: 10px; border: 2px dashed var(--chat-line); border-radius: 6px; cursor: pointer;" />
-                <div style="font-size: 12px; color: #999; margin-top: 6px;">PNG/JPG/GIF/WEBP 형식 (큰 이미지는 자동 압축)</div>
+                <div style="font-size: 12px; color: var(--common-ink-faint); margin-top: 6px;">PNG/JPG/GIF/WEBP 형식 (큰 이미지는 자동 압축)</div>
             </div>
             <div id="imagePreviewContainer" style="display: none; margin-bottom: 15px;">
                 <img id="imagePreview" style="max-width: 100%; max-height: 300px; border-radius: 8px; display: block;" />
@@ -1043,7 +1008,7 @@ const ChatModule = (function () {
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button id="imageCancelBtn" style="padding: 10px 20px; border: 1px solid var(--chat-line); border-radius: 6px; background: var(--bg-white); cursor: pointer;">취소</button>
-                <button id="imageSendBtn" disabled style="padding: 10px 20px; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer;">전송</button>
+                <button id="imageSendBtn" disabled style="padding: 10px 20px; border: none; border-radius: 6px; background: var(--fill-brand); color: var(--text-on-accent); cursor: pointer;">전송</button>
             </div>
             <div id="imageError" style="color: var(--chat-error); font-size: 12px; margin-top: 10px; display: none;"></div>
         `;
@@ -1154,9 +1119,9 @@ const ChatModule = (function () {
         const toast = document.createElement('div');
         toast.style.cssText = `
             position: fixed; top: 20px; right: 20px;
-            background: #667eea; color: white;
+            background: var(--fill-brand); color: var(--text-on-accent);
             padding: 16px 20px; border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(var(--shadow-rgb),0.3);
             z-index: 10000;
         `;
         toast.innerHTML = `
@@ -1324,7 +1289,7 @@ const ChatModule = (function () {
         const timeStr = msg.time || (msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' }) : '');
         if (timeStr) {
             const timeSpan = document.createElement('span');
-            timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-left: 8px;';
+            timeSpan.style.cssText = 'font-size: 11px; color: var(--common-ink-faint); margin-left: 8px;';
             timeSpan.textContent = timeStr;
             pinnedItem.appendChild(timeSpan);
         }
@@ -1342,7 +1307,7 @@ const ChatModule = (function () {
                         border-radius: 10px;
                         background: var(--chat-react-bg);
                         border: none;
-                        color: #ffffff !important;
+                        color: var(--text-on-accent) !important;
                         font-size: 12px;
                         display: inline-flex;
                         align-items: center;
@@ -1359,7 +1324,7 @@ const ChatModule = (function () {
 
                     const countSpan = document.createElement('span');
                     countSpan.textContent = users.length;
-                    countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+                    countSpan.style.cssText = 'font-size: 12px; color: var(--text-on-accent) !important; font-weight: 600; line-height: 1; display: inline-block;';
 
                     reactionBtn.appendChild(emojiSpan);
                     reactionBtn.appendChild(countSpan);
@@ -1440,7 +1405,7 @@ const ChatModule = (function () {
                 const btn = document.createElement('button');
                 btn.id = 'rankingBtn';
                 btn.replaceChildren(UIIcons.el('trophy'), ' 랭킹');
-                btn.style.cssText = 'width:auto;margin:0;flex-shrink:0;background:var(--bg-white,#fff);border:1px solid currentColor;color:inherit;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
+                btn.style.cssText = 'width:auto;margin:0;flex-shrink:0;background:var(--bg-white);border:1px solid currentColor;color:inherit;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
                 btn.addEventListener('click', () => RankingModule.show(_options.gameType));
                 titleEl.appendChild(btn);
             }
@@ -1456,7 +1421,7 @@ const ChatModule = (function () {
                 display: none;
             `;
             pinnedSection.innerHTML = `
-                <div style="font-weight: 600; color: #ff6f00; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <div style="font-weight: 600; color: var(--chat-pin-title); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                     <i class="ui ui-pin"></i> 고정된 메시지
                 </div>
                 <div id="pinnedMessagesList"></div>
@@ -1518,12 +1483,12 @@ const ChatModule = (function () {
                 left: 0;
                 right: 0;
                 background: var(--bg-white);
-                border: 1px solid #667eea;
+                border: 1px solid var(--purple-500);
                 border-radius: 6px;
                 max-height: 200px;
                 overflow-y: auto;
                 z-index: 1000;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                box-shadow: 0 4px 12px rgba(var(--shadow-rgb),0.1);
                 margin-top: 2px;
             `;
             chatInput.parentElement.appendChild(mentionDropdown);
@@ -1633,8 +1598,8 @@ const ChatModule = (function () {
 
         dropdown.querySelectorAll('.mention-item').forEach(item => {
             if (item.classList.contains('selected')) {
-                item.style.background = '#667eea';
-                item.style.color = 'white';
+                item.style.background = 'var(--fill-brand)';
+                item.style.color = 'var(--text-on-accent)';
             } else {
                 item.style.background = 'var(--bg-white)';
                 item.style.color = 'var(--chat-ink)';

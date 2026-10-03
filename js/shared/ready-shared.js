@@ -113,7 +113,7 @@ const ReadyModule = (function () {
         readyCount.textContent = _readyUsers.length;
 
         if (_readyUsers.length === 0) {
-            readyUsersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
+            readyUsersList.innerHTML = '<div style="color: var(--common-ink-faint); text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
             if (_isHost && !isGameActive()) {
                 setupDragAndDrop();
             }
