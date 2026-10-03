@@ -481,6 +481,97 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-47. 다크 스킨: 뒤집히는 토큰을 "흰색·검정"이라는 뜻으로 쓰지 마라
+
+- `--bg-white`·`--text-primary`·`--gray-*`·`--panel-primary`는 다크(`[data-theme="dark"]`)에서 **뒤집힌다**. 라이트에서 우연히 흰색·검정이라고 해서 "흰 글자"·"검은 선"의 뜻으로 쓰면 다크에서 깨진다.
+  - 색 버튼·그라디언트 위 흰 글자 → `--text-on-accent`. (`color: var(--bg-white)`는 다크에서 어두운 글자가 된다 — 2026-10-01 작업 때 76곳)
+  - 노랑·금색처럼 늘 밝은 바탕 위 글자 → `--text-on-light`.
+  - **그림**(돌림판 테두리·칸 이름, 결과 카드, 캔버스 위 카드)은 스킨과 무관해야 한다 → 게임 전용 **고정** 토큰(리터럴 값)으로 분리. `:root { --x: var(--gray-800) }`처럼 뒤집히는 토큰을 참조하는 로컬 토큰은 같이 뒤집히므로 고정이 아니다.
+  - "늘 어두운 패널"(랭킹 팝업, 중계 문구 판, 디버그 로그) 안에서 `--gray-900` 같은 토큰을 바탕으로 쓰면 다크에서 밝아진다(랭킹 시즌 선택 상자 사례).
+- `var(--없는토큰, 대체값)`은 다크에서 조용히 깨진다. 대체값이 라이트 전용 색(`rgba(0,0,0,0.05)`)이면 다크에서 안 보인다 — `--bg-subtle`이 네 페이지에서 이 상태였다. 새 토큰을 쓸 땐 `grep -rn "^\s*--토큰이름:" css/ *.html`로 정의가 있는지 확인.
+- 같은 특이성이면 **나중 시트가 이긴다**: `css/horse-race.css`의 `:root { --horse-accent: … }`가 `css/theme.css`의 `[data-theme="dark"]` 값을 덮는다. 게임 CSS가 다시 선언하는 토큰은 그 파일에 `[data-theme="dark"]` 블록을 따로 두고, alias 뒤에 와야 한다.
+- **검증:** 다크로 띄워 화면에 보이는 글자의 대비를 훑는다(Playwright로 `getComputedStyle` 색과 가장 가까운 불투명 배경의 대비 계산). 눈으로만 보면 숨은 팝업·hover 상태를 놓친다.
+- (출처: 2026-10-01 다크 스킨 도입 — `docs/goal/applied/dark-mode-skin-picker.md`)
+
+---
+
+## C-48. 팔레트 500은 다크에서 글자용이다 — 흰 글자 바탕은 `--fill-*` / `--btn-*`
+
+- 한 색을 "카드 위 강조 글자"와 "흰 글자 버튼 바탕"에 같이 쓰면 다크에서 둘 다 만족하는 값이 없다(글자로 읽히려면 밝아야 하고, 흰 글자를 올리려면 진해야 한다 — 두 대비의 곱이 일정하다). 타협값은 흰 글자 3.3:1에 머문다.
+- 그래서 나눴다: `--purple-500`·`--dice-accent`·`--green-500`·`--red-500`·`--red-400`은 다크에서 **밝은 글자·테두리용**(카드 위 약 6:1), 흰 글자가 올라가는 바탕은 `--fill-brand`·`--fill-success`·`--fill-danger`(-soft)·`--btn-ready`·`--btn-danger`(흰 글자 4.5:1 이상). 라이트에서는 fill 토큰이 팔레트 값과 같은 별칭이다.
+- **규칙:** `background`에 팔레트 500을 직접 쓰지 말 것. 반대로 `color`·`border`에 `--btn-*`·`--fill-*`를 쓰지 말 것(다크에서 어두워 안 읽힌다 → `--red-500`·`--green-500`).
+- `css/horse-race.css`·`css/horse-shop.css`를 빌려 쓰는 게임(사다리·데구리)은 `--horse-500/600`이 "흰 글자 바탕", `--horse-accent`·`--horse-ink`가 "글자"다. 게임 색이 다크에서 밝아지면 그 게임 CSS의 다크 블록에서 **`--horse-500/600`(과 게임 그라디언트)만** 진하게 다시 정한다. 안 그러면 `.user-tag.me`·상점 탭·장착 버튼이 한꺼번에 안 읽힌다(사다리 1.67:1 사례).
+- **검증:** `grep -nE "background[^;]*var\(--(purple-500|dice-accent|dice-500|green-500|red-500|red-400)\)" *.html css/*.css js/**/*.js` 가 장식(슬라이더 손잡이·점) 외에 비어 있어야 한다.
+- (출처: 2026-10-02 레퍼런스 조사 후 색 배합 조정)
+
+---
+
+## C-49. 다크 전용 CSS 규칙이 닿지 않는 곳 — Shadow DOM, 인라인 style, iframe
+
+- **Shadow DOM**(튜토리얼 툴팁): 바깥 문서의 `[data-theme="dark"] .x` 셀렉터는 안 먹는다. 커스텀 속성은 호스트를 통해 상속되므로, 안쪽은 `var(--tutorial-title, 라이트 리터럴)`로 쓰고 다크 값은 바깥 문서의 `[data-theme="dark"]`에 정의한다.
+- **인라인 style로만 그리는 모듈**(채팅, 주문): 다크 전용 규칙을 걸 클래스가 없다. 모듈이 토큰 `<style>`을 한 번 주입하고(`:root` + `[data-theme="dark"]`) 인라인에서 `var()`로 참조한다. 인라인 `style="color:#333"`은 어떤 다크 규칙으로도 못 이긴다(`!important` 제외).
+- **교차 출처 iframe**(광고): 페이지에 `color-scheme: dark`를 걸면 브라우저가 **투명한 iframe 뒤에 흰 바탕을 깐다**(iframe 문서는 기본이 light라 색 구성이 다르면 불투명 캔버스를 그린다). 빈 광고 칸이 흰 상자로 보인 원인. 채워지지 않은 칸에만 `color-scheme: light`를 준다 — 채워진 광고까지 투명하게 만들면 투명 배경 광고의 어두운 글자가 안 보인다.
+- (출처: 2026-10-01 다크 스킨 — `js/shared/tutorial-shared.js`, `js/shared/chat-shared.js`, `css/theme.css` `.ad-container ins.adsbygoogle`)
+
+---
+
+## C-50. CSS 파일만 읽고 "실제로 보이는 색"을 판단하지 마라
+
+- **Tailwind CDN preflight가 전역 `button` 바탕을 지운다.** 경마·사다리·데구리 페이지는 Tailwind CDN을 싣기 때문에 `css/horse-race.css`의 `button { background: var(--horse-gradient) }`가 **적용되지 않는다**. 인라인 바탕이 없는 버튼(전송·저장·입장)은 투명 바탕 + `--text-primary` 글자다. CSS만 보고 "갈색 그라디언트 위 글자"로 판단하면 틀린다. (C-1과 같은 뿌리)
+- **같은 UI를 두 곳에서 그리는 경우**: 채팅 반응 칩은 주사위 페이지의 `displayChatMessage`가 처음 그리고, 반응이 갱신되면 `js/shared/chat-shared.js`가 다시 그린다. 한쪽 색만 바꾸면 한 목록 안에서 모양이 갈린다. 색을 바꾸기 전에 `grep -rn "reaction-button" *.html js/`처럼 그리는 곳을 전부 찾는다.
+- **정의되지 않은 토큰**(`--horse-100`은 경마에 정의가 없다)이 들어간 선언은 통째로 무효가 된다. 사다리·데구리는 alias로 정의해 같은 규칙이 다르게 보인다.
+- **검증:** 판단이 서지 않으면 브라우저에서 `getComputedStyle(el).backgroundColor`를 읽는다. 파일을 읽고 추론한 값보다 그 값이 맞다.
+- (출처: 2026-10-01 다크 스킨 — 경마·사다리/데구리·주사위 담당 에이전트가 각각 보고)
+
+---
+
+## C-51. (AutoTest) 색·스킨 변경은 "수정 전 버전과 계산된 색 비교"로 검증하라
+
+- 스크린샷 픽셀 비교는 애니메이션·무작위 게임 상태·타이머에 흔들린다. 대신 **수정 전 커밋을 다른 포트로 띄우고**(`git worktree add --detach <임시> HEAD` + `node_modules`·`.env` 심링크 + `PORT=5177 node server.js`), 같은 페이지에서 모든 요소의 `color`·`backgroundColor`·`backgroundImage`·테두리색·`boxShadow`를 DOM 경로 키로 떠서 비교한다.
+- `getComputedStyle`은 **`display:none` 요소에도 값을 준다** — 숨겨진 팝업·모달·결과 화면까지 한 번에 덮인다. 2026-10-02 조정 때 11개 화면 3,911개 요소를 이렇게 비교해 "라이트 불변"을 확인했다.
+- 비교 전에 `*, *::before, *::after { animation: none !important; transition: none !important; }`를 주입하고, `backgroundImage`의 `localhost:포트`는 지운다. 남는 차이는 무작위 상태(경마 트랙 배경, 사다리 당첨 칸)뿐이어야 한다.
+- 같은 방식으로 "글자 대비가 떨어진 곳만" 뽑을 수 있다(요소별 대비를 전후 비교). 실행 중에만 만들어지는 화면(알림창·토스트)은 DOM에 없어 안 잡히므로 따로 띄워 본다.
+- 파일 하나만 바꿔 끼울 땐 Playwright `page.route()`로 수정 전 파일을 서빙해도 된다.
+- QA 스크립트 요령: 방을 만들거나 들어오면 이미 준비 상태다(C-24). `showPlayerActionDialog`처럼 끝나지 않는 Promise를 돌려주는 함수는 `page.evaluate('void fn()')`로 부른다. 공유 dev 서버의 공개 방이 10개(`PUBLIC_ROOMS_LIMIT`)를 넘으면 새 방이 로비 목록에 안 보인다. 룰렛 `.container`는 `max-height: 90vh` 내부 스크롤이라 전체 페이지 캡처가 잘린다.
+- (출처: 2026-10-01~02 다크 스킨 — 세션 스크래치 도구 `fp.js`·`reg.js`, 저장소에는 넣지 않음)
+
+---
+
+## C-52. `#roomTitle`을 통째로 덮어쓰지 마라 — 제목 span·호스트 배지·추가 배지가 같이 들어 있다
+
+- `ControlBar`가 그리는 `#roomTitle` 안에는 `#roomNameDisplay`(제목), 편집 아이콘, `#hostBadge`, `extraBadges`(룰렛 터보 배지)가 들어 있다. `document.getElementById('roomTitle').textContent = name`은 이걸 **전부 지운다** → 호스트 배지가 안 보이고, 제목을 눌러 고치려 하면 `#roomNameDisplay`가 없어 TypeError. 룰렛과 경마가 이 상태였다. 제목은 `#roomNameDisplay`(주사위는 `#roomNameText`)에만 쓴다.
+- 인라인 스크립트의 `if (window.socket) { window.socket.on(...) }`는 두 가지로 죽는다:
+  - 소켓을 `const socket = io()`로 만들면(룰렛·주사위) **`window.socket`이 없다** — 등록도, `window.socket.emit`도 영영 실행되지 않는다. 그 페이지의 `socket` 변수를 직접 쓴다.
+  - 인라인 스크립트가 소켓을 만드는 js(`js/horse-race.js`)보다 **먼저 실행되면** 그 시점엔 `window.socket`이 없다 → `DOMContentLoaded` 안에서 등록한다.
+- 제목 편집의 `finishEdit`는 Enter와 blur 양쪽에서 불린다. `input.replaceWith()`가 포커스된 입력칸을 빼는 **그 순간** blur가 동기로 와서 재진입한다 → 플래그를 `replaceWith` **앞에서** 내려야 한다(안 그러면 `NotFoundError` + 이중 전송).
+- **검증:** 방장으로 방을 만들어 제목을 누르고 고친 뒤, 다른 소켓의 `getRooms` 목록에 새 제목이 오는지 본다. `grep -n "getElementById('roomTitle').textContent" *.html js/*.js`가 비어 있어야 한다.
+- 사다리·데구리는 반대로 제목을 **아예 설정하지 않아** 자리 표시 글자 "방 제목"이 그대로 보였다. 새 게임은 `roomCreated`·`roomJoined` 양쪽에서 `#roomNameDisplay`에 `data.roomName`을 넣는다(새로고침 재입장은 `roomJoined` 경로).
+- (출처: 2026-10-02 — 다크 스킨 작업 중 룰렛 담당 에이전트가 발견. 룰렛·경마·사다리·데구리 모두 수정)
+
+---
+
+## C-53. 오른쪽 고정 기록 패널(`.history-section`)은 컨테이너와 겹치는 폭 구간이 있다
+
+- 기록 패널은 `position: fixed; right: 20px; width: 320px`이고 컨테이너는 800px이다. 컨테이너 왼쪽 여백을 `calc((100vw - 1140px) / 2 + 160px)`(룰렛·경마) 또는 가운데 정렬(사다리)로 두면 **1201~1460px 폭**(노트북 대부분)에서 패널이 컨테이너 오른쪽 — 컨트롤 바의 음량·스킨 버튼 — 을 덮는다. 1200px 이하는 미디어 쿼리가 패널을 아래로 내려서 괜찮았다.
+- 해결: 왼쪽 여백에 상한을 둔다 — `margin-left: min(<기존 식>, calc(100vw - 1180px))` (패널 340px + 간격 40px + 컨테이너 800px). 주사위는 패널을 컨테이너 옆에 붙이는 다른 방식이라 겹치지 않는다(대신 1460px 미만에서 패널이 화면 밖으로 나간다).
+- **검증:** 1210·1280·1366·1440px에서 `.container`의 `right`와 `.history-section`(강제로 보이게 한 뒤)의 `left`를 비교.
+- (출처: 2026-10-02 — `roulette-game-multiplayer.html`, `css/horse-race.css`, `css/ladder.css`)
+
+---
+
+## C-54. 색 토큰을 옮기거나 만들 때의 함정 (2026-10-03 하드코딩 색 전체 정리)
+
+- **같은 이름을 페이지 `:root`에 다시 정의하면 다크가 깨진다.** `:root`와 `[data-theme="dark"]`는 우선순위가 같아 나중에 로드된 파일이 이긴다. 게임 CSS(`css/free.css`, `css/marble.css` …)는 theme.css 뒤에 오므로, theme.css로 옮긴 토큰을 원래 자리에 남기면 다크 값이 라이트로 덮인다. 옮기면 원래 정의는 **지운다**. 게임 CSS에는 별칭(`--horse-500: var(--ladder-fill)`)만.
+- **게임 CSS의 다크 별칭 덮어쓰기**(`[data-theme="dark"] { --horse-500: #리터럴 }`)를 theme.css로 그대로 옮기면, 게임 CSS `:root`의 별칭(`--horse-500: var(--ladder-500)`)에 진다. 라이트·다크 값을 가진 새 토큰(`--ladder-fill`)을 만들고 별칭이 그것을 가리키게 한다.
+- **CSS 주석 안의 `*/`**: 주석에 `--marble-wood-*/gold-*`처럼 쓰면 `*/`에서 주석이 닫히고 뒤 선언이 조용히 버려진다(데구리 초록이 경마 갈색으로 바뀜 — 계산된 색 비교로 잡음).
+- **`var(--x, 예비값)`은 미정의 토큰을 숨긴다.** `--bg-subtle`(라이트 미정의), `--horse-100`(경마 미정의)이 예비값·무효 선언으로 버티고 있었다. 예비값을 지우기 전에 `:root` 정의를 grep. 일괄 정규식은 예비값 안 리터럴까지 바꿔 `var(--x, rgb(var(--y)))`를 만들 수 있다 — 변환 뒤 `var(--[^,)]*,`를 다시 grep.
+- **hex에 투명도 문자열을 붙이는 `${color}15`·`colors[i] + '40'`** 꼴은 토큰(`var(...)`)을 넣는 순간 무효 값이 된다 → `--x-rgb` 토큰 + `rgba(var(--x-rgb), 0.082)`.
+- **여러 게임이 같은 색을 따로 토큰화하기 쉽다**(주문 꺼진 별·예약 칸·알림 색이 게임마다 4벌 생김). 공통이면 `common`에 하나만.
+- **검증**: C-51(수정 전 버전과 계산된 색 비교)로 라이트 불변, 다크·스킨 대비 감사, 실행 중에만 생기는 화면(알림·결과·상점)은 기준본·작업본에 같은 조건으로 띄워 비교.
+- (출처: 2026-10-03 — THEME-DARK.md 5-1절)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

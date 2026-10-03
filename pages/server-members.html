@@ -5,20 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>서버 멤버 관리 - LAMDice</title>
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
-      })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; background: var(--gray-100); }
-        .container { background: var(--bg-white); padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .container { background: var(--bg-white); padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(var(--shadow-rgb), 0.1); }
         h1 { color: var(--dice-accent); border-bottom: 2px solid var(--dice-accent); padding-bottom: 10px; }
         .back-link { display: inline-block; margin-bottom: 20px; color: var(--dice-accent); text-decoration: none; }
         .back-link:hover { text-decoration: underline; }
@@ -40,18 +35,18 @@
         .member-meta { font-size: 0.85em; color: var(--gray-400); margin-top: 2px; }
         .member-actions { display: flex; gap: 8px; }
 
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; color: white; margin-left: 8px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; color: var(--text-on-accent); margin-left: 8px; }
         .badge-online { background: var(--btn-ready); }
         .badge-offline { background: var(--text-muted); }
-        .badge-host { background: var(--dice-accent); }
-        .badge-pending { background: var(--yellow-500); color: var(--text-primary); }
+        .badge-host { background: var(--fill-brand); }
+        .badge-pending { background: var(--yellow-500); color: var(--text-on-light); }
 
         .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
-        .btn-approve { background: var(--btn-ready); color: white; }
+        .btn-approve { background: var(--btn-ready); color: var(--text-on-accent); }
         .btn-approve:hover { background: var(--btn-ready-hover); }
-        .btn-reject { background: var(--btn-danger); color: white; }
+        .btn-reject { background: var(--btn-danger); color: var(--text-on-accent); }
         .btn-reject:hover { background: var(--btn-danger-hover); }
-        .btn-kick { background: var(--btn-neutral); color: white; }
+        .btn-kick { background: var(--btn-neutral); color: var(--text-on-accent); }
         .btn-kick:hover { background: var(--btn-neutral-hover); }
 
         .record-table { width: 100%; border-collapse: collapse; }
@@ -64,13 +59,14 @@
         .error-state { text-align: center; padding: 40px; color: var(--red-500); }
         .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
         .pagination button { padding: 6px 12px; border: 1px solid var(--gray-300); border-radius: 4px; background: var(--bg-white); cursor: pointer; }
-        .pagination button.active { background: var(--dice-accent); color: white; border-color: var(--dice-accent); }
+        .pagination button.active { background: var(--fill-brand); color: var(--text-on-accent); border-color: var(--dice-accent); }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="/" class="back-link">&larr; 메인으로</a>
+        <span data-theme-switcher style="float: right;"></span>
 
         <div class="server-header" id="serverHeader">
             <h2 id="serverName">로딩 중...</h2>

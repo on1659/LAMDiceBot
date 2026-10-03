@@ -16,6 +16,20 @@
 | `page-history-shared.js` | 브라우저 뒤로가기 관리 | 전체 |
 | `tutorial-shared.js` | 튜토리얼 하이라이트, 비트 플래그 | 전체 |
 | `shop-shared.js` | 꾸미기 상점 셸 (인증/지갑/모달/구매/장착) | 경마, 회전 칼날 |
+| `theme-shared.js` | 화면 스킨(라이트 + 다크 계열 5종) 결정·적용 + 스킨 선택 버튼 | 전체 (홈·로비·게임·안내 페이지) |
+
+## 화면 스킨 (`theme-shared.js`)
+
+> 색 규칙·토큰·검증 체크리스트 전체는 [THEME-DARK.md](THEME-DARK.md). 아래는 모듈 요약.
+
+- **`<head>`에서 `css/theme.css`보다 먼저, 동기로** 싣는다(`<script src="/js/shared/theme-shared.js"></script>`). 첫 페인트 전에 `<html data-theme="light|dark" data-skin="스킨 id">`를 정해 깜빡임을 막는다.
+- `data-theme`은 색 규칙의 큰 갈래(모든 다크 규칙은 `[data-theme="dark"]`에 건다), `data-skin`은 다크 안에서 바탕 톤만 다른 스킨(`dark`·`black`·`midnight`·`mocha`·`purple`). 페이지·게임 CSS에서 `data-skin`으로 분기하지 않는다 — 스킨 차이는 `css/theme.css`의 `[data-theme="dark"][data-skin="…"]` 토큰 블록(표면·테두리·`--dark-ground-*`)이 전부 맡는다.
+- 스킨 추가: `theme-shared.js`의 `THEMES`에 한 줄 + `css/theme.css`에 `[data-skin]` 토큰 블록과 미리보기 칸 색(`--theme-swatch-*`). 면 밝기는 기본 다크 이하로(글자 대비 유지).
+- 스킨 결정: 직접 고른 값(`localStorage.lamdiceTheme` = 스킨 id) → 없으면 기기 설정(`prefers-color-scheme` → `light` 또는 `dark`).
+- 버튼: 정적 마크업은 `<span data-theme-switcher></span>`만 두면 DOM 준비 시 자동으로 붙는다. 동적으로 그리는 곳(컨트롤 바, 서버 선택 화면)은 `ThemeModule.mount(el)`.
+- API: `ThemeModule.get()`(스킨 id), `ThemeModule.set(스킨 id)`, `ThemeModule.mount(el)`. 스킨이 바뀌면 `document`에 `themechange` 이벤트(`detail.theme` = light|dark, `detail.skin` = 스킨 id) — CSS 변수를 읽어 캔버스에 직접 그리는 코드가 다시 그릴 때 쓴다.
+- 색 규칙: 다크 값은 `css/theme.css`의 `[data-theme="dark"]` 블록. `--bg-white`·`--text-primary`·`--gray-*`는 다크에서 뒤집히므로, 색 버튼·그라디언트 위 흰 글자는 `--text-on-accent`, 노랑·금색 위 글자는 `--text-on-light`를 쓴다. 팔레트 500(`--purple-500`·`--dice-accent`·`--green-500`·`--red-500`)은 다크에서 카드 위 글자·테두리용으로 밝아지므로, 흰 글자가 올라가는 버튼·배지 바탕은 `--fill-brand`·`--fill-success`·`--fill-danger`(-soft)·`--btn-*`를 쓴다(라이트에서는 팔레트 500과 같은 값). 틴트 배경(50~200)은 카드보다 L\* 5~8 밝게, 페이지 바닥(`--dark-ground-*`)은 L\* 5~7로 둔다. 게임 전용 다크 값은 그 게임 CSS의 `[data-theme="dark"]` 블록에 둔다.
+- 게임 그림(캔버스 장면·스프라이트·등급색)은 스킨과 무관하게 그대로 둔다.
 
 ## HTML 포함 순서
 

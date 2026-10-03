@@ -261,6 +261,23 @@
   --border-color: var(--gray-300);
   --border-light: var(--gray-200);
 
+  /* 스킨이 바뀌어도 고정인 글자색 — 바탕이 스킨과 무관한 색일 때 쓴다
+     (--bg-white / --text-primary 는 다크에서 뒤집히므로 색 버튼·배지 위 글자에 쓰면 안 됨) */
+  --text-on-accent: #ffffff;  /* 색 버튼·그라디언트·어두운 패널 위 */
+  --text-on-light: #212529;   /* 노랑·금색처럼 늘 밝은 바탕 위 */
+
+  /* 흰 글자가 올라가는 색 바탕 — 라이트에서는 팔레트 500 과 같은 값.
+     다크에서는 팔레트 500 이 "카드 위 강조 글자"용으로 밝아지므로, 버튼·배지 바탕은 이 토큰으로 따로 진하게 둔다
+     (흰 글자 대비 4.5:1 이상). background 에 --purple-500 / --dice-accent / --green-500 / --red-500 을 직접 쓰지 말 것 */
+  --fill-brand: var(--purple-500);
+  --fill-success: var(--green-500);
+  --fill-success-light: var(--green-400);  /* 초록 그라디언트 끝 */
+  --fill-danger: var(--red-500);
+  --fill-danger-soft: var(--red-400);
+  --fill-ready-end: #20c997;  /* 준비 버튼 그라디언트 끝(청록) — ready-shared.js */
+  --fill-help: linear-gradient(135deg, var(--link-brand), var(--link-brand-light));  /* ? 도움 버튼 */
+  --help-glow-rgb: 139, 92, 246;  /* ? 도움 버튼 발광 — 다크에서는 스킨 강조색을 따라간다 */
+
   /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백
      = 상하 패딩 + 라벨 줄 24px + 광고 높이 + 상단 border 1px. 모바일(320×50) 기준, 넓은 화면은 스티키 섹션 미디어쿼리에서 재정의 */
   --ad-sticky-reserve: 84px;
@@ -311,41 +328,512 @@
   --yellow-gold-rgb: 255, 215, 0;
   --roulette-500-rgb: 124, 77, 255;
   --roulette-pointer: #ff1744;
+  /* ============================================
+     하드코딩 색 토큰화 (2026-10-03) — 화면에 쓰이던 색 리터럴을 전부 여기 토큰으로.
+     라이트 값 = 원래 리터럴 그대로. 다크 값은 아래 [data-theme="dark"] 의 같은 이름 섹션.
+     규칙: docs/GameGuide/02-shared-systems/THEME-DARK.md
+  ============================================ */
+  --shadow-rgb: 0, 0, 0;        /* 그림자 rgba(var(--shadow-rgb), a) */
+  --highlight-rgb: 255, 255, 255;  /* 흰 광택·반투명 흰 막 rgba(var(--highlight-rgb), a) */
+
+  /* [tokens:common:light] 공통 공유 모듈 (js/shared/*·free) */
+  --common-ink-faint: #999;        /* 빈 목록 안내·시각 같은 옅은 글자 (채팅·주문·준비) */
+  --common-warn-ink: #856404;      /* 노랑 틴트 위 글자 (채팅 멘션 강조) */
+  --common-tagline-ink: #888;      /* 홈 태그라인 (tagline-roller.js) */
+  /* 채팅 (chat-shared.js) */
+  --chat-ink: #333;
+  --chat-ink-sub: #666;
+  --chat-line: #ccc;
+  --chat-error: #c00;
+  --chat-name: #667eea;
+  --chat-my-name: #764ba2;
+  --chat-chip-bg: #f9f9f9;
+  --chat-chip-line: #ddd;
+  --chat-chip-hover-bg: #ffe0e0;
+  --chat-ai-bg: #f0f4f8;
+  --chat-ai-name: #4285f4;
+  --chat-react-bg: #555;
+  --chat-react-mine-bg: #333;
+  --chat-react-hover-line: #333;
+  --chat-flash-bg: #fff9e6;
+  --chat-add-line: #5568d3;        /* 이모지 등록(+) 버튼 테두리 — 바탕은 --fill-brand */
+  --chat-remove-bg: #e74c3c;       /* 이모지 삭제(−) 버튼 */
+  --chat-remove-line: #c0392b;
+  --chat-hover-react-bg: #000;     /* 마우스 올림 반응 동그라미 */
+  --chat-pin-title: #ff6f00;       /* 고정된 메시지 제목 */
+  /* 주문 (order-shared.js) */
+  --order-saved-flash: #d4edda;
+  --order-title: #667eea;
+  --order-ink: #333;
+  --order-ink-sub: #718096;
+  --order-accent-ink: #5568d3;
+  --order-track-bg: #f0f2f8;
+  --order-tab-active-bg: white;
+  --order-hl-bg: #fff8e1;
+  --order-hl-ink: #856404;
+  --order-danger-bg: #fed7d7;
+  --order-danger-ink: #c53030;
+  --order-soft-bg: #f8f9fb;
+  --order-line: #e2e8f0;
+  --order-tag-bg: #edf0f7;
+  --order-tag-ink: #2d3748;
+  --order-star-idle: #cbd5e0;
+  --order-save-bg: linear-gradient(135deg,#ffe082 0%,#ffc107 100%);  /* 디폴트 메뉴 저장 버튼 */
+  --order-save-ink: #856404;
+  --order-explainer-bg: linear-gradient(135deg,#fff8e1 0%,#fff3e0 100%);  /* 랜덤 모드 설명 상자 */
+  --order-toggle-on-line: #ffa000;
+  --order-pool-bg: #f8fafc;        /* 랜덤 대상 메뉴 풀 상자 */
+  /* 자유 초대 (free-invite.js) */
+  --fi-soft-bg: #f5f7fa;
+  --fi-close-line: #e9ecef;
+  --fi-bar-ink: #5a67d8;
+  --fi-transient-bg: rgba(33, 37, 41, 0.92);  /* 잠깐 뜨는 알림 알약 */
+  --fi-copied-bg: #4ade80;         /* 초대 바 "복사됨" */
+  --fi-copied-line: #22c55e;
+  /* 서버 선택 화면 (server-select-shared.js) */
+  --ss-free-bg: #f0f2ff;
+  --ss-free-bg-hover: #e8ebff;
+  --ss-free-text: #4a5acf;
+  --ss-divider-text: #ccc;
+  --ss-manage-hover-bg: #f0f0ff;
+  --ss-empty-text: var(--gray-300);
+  --ss-badge-text: var(--text-muted);
+  --ss-demo-cancel-bg: #eee;
+  --ss-login-hover-bg: #5a6fd6;
+  --ss-badge-waiting-bg: #fd7e14;  /* "승인 대기 중" 배지 (흰 글자) */
+  --ss-avatar-1-rgb: 102, 126, 234;  /* 서버 목록 머리글자 — 글자 rgb(), 바탕 rgba(.., 0.082) */
+  --ss-avatar-2-rgb: 40, 167, 69;
+  --ss-avatar-3-rgb: 232, 62, 140;
+  --ss-avatar-4-rgb: 253, 126, 20;
+  --ss-avatar-5-rgb: 23, 162, 184;
+  --ss-avatar-6-rgb: 111, 66, 193;
+  /* 튜토리얼 (tutorial-shared.js — 툴팁은 Shadow DOM 이라 여기서 상속받는다) */
+  --tutorial-title: #1e1e2e;
+  --tutorial-body: #555;
+  --tutorial-close: #bbb;
+  --tutorial-close-hover: #666;
+  --tutorial-line: #ccc;
+  --tutorial-prev-ink: #888;
+  --tutorial-prev-hover-bg: #f5f5f5;
+  --tutorial-next-bg: #8b5cf6;
+  --tutorial-counter: #aaa;
+  --tutorial-ring: #a855f7;        /* 강조 테두리 */
+  /* /free 페이지 (free.css·free.js) */
+  --free-bg: #f5f7fa;
+  --free-surface: #ffffff;
+  --free-text: #212529;
+  --free-text-muted: #6c757d;
+  --free-border: #e9ecef;
+  --free-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --free-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
+  --free-title-gradient: linear-gradient(135deg, #667eea, #1ec8da);
+  --free-card-horse: linear-gradient(135deg, #8B4513 0%, #c97a3e 100%);
+  --free-card-bridge: linear-gradient(135deg, #0891b2 0%, #42edff 100%);
+  --free-loading-dice: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  /* 바로 입장 로딩 화면 */
+  --free-loading-roulette: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+  --free-loading-horse: linear-gradient(135deg, #d2691e 0%, #8B4513 100%);
+  --free-loading-bridge: linear-gradient(135deg, #42edff 0%, #1ec8da 100%);
+  --free-loading-ladder: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --free-loading-spin-arena: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
+  --free-loading-deguri: linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%);
+  /* 랭킹 팝업 (ranking-shared.js) — 라이트·다크 모두 같은 어두운 팝업이 의도라 다크 섹션에서 재정의하지 않는다 */
+  --rk-bg-start: #1a1a2e;
+  --rk-bg-end: #16213e;
+  --rk-accent: #667eea;
+  --rk-accent-rgb: 102, 126, 234;
+  --rk-accent-light: #8B9CF7;
+  --rk-accent-purple: #764ba2;
+  --rk-accent-purple2: #9B59B6;
+  --rk-gold: #FFD700;
+  --rk-gold-rgb: 255, 215, 0;
+  --rk-gold-end: #FFA500;
+  --rk-silver: #C0C0C0;
+  --rk-silver-rgb: 192, 192, 192;
+  --rk-silver-end: #A8A8A8;
+  --rk-bronze: #CD7F32;
+  --rk-bronze-rgb: 205, 127, 50;
+  --rk-bronze-end: #B87333;
+  --rk-red-rgb: 239, 68, 68;
+  --rk-blue-rgb: 59, 130, 246;
+  --rk-success-rgb: 40, 167, 69;
+  --rk-error-rgb: 220, 53, 69;
+  --rk-text: rgba(255,255,255,0.85);
+  --rk-text-dim: rgba(255,255,255,0.5);
+  --rk-text-muted: rgba(255,255,255,0.4);
+  --rk-border: rgba(255,255,255,0.08);
+  --rk-border-light: rgba(255,255,255,0.12);
+  --rk-surface: rgba(255,255,255,0.06);
+  --rk-surface-hover: rgba(255,255,255,0.03);
+  --rk-btn-bg: rgba(255,255,255,0.2);
+  --rk-btn-hover: rgba(255,255,255,0.3);
+  --rk-me-line: rgba(255,215,0,0.6);
+  --rk-me-bg: rgba(255,215,0,0.07);
+  --rk-select-bg: #212529;  /* 시즌 선택 상자 — 고정 (--gray-900 은 다크에서 밝은 색으로 뒤집힘) */
+  --rk-tab-participant: #27ae60;  /* 탭 칩 (흰 글자) — 순위·주사위 칩은 --rk-accent */
+  --rk-tab-horse: #e67e22;
+  --rk-tab-roulette: #7c4dff;
+  --rk-tab-ladder: #f59e0b;
+  --rk-tab-marble: #3fa65b;
+  --rk-tab-orders: #e91e63;
+  /* 여러 게임이 같이 쓰는 것 (게임별로 따로 만들던 것을 합침) */
+  --bg-subtle: rgba(0, 0, 0, 0.05);           /* 예약 창 '현재 예약' 상자 등 은은한 면 */
+  --alert-error: rgb(239, 68, 68);            /* 알림·확인 창 종류별 테두리·버튼·제목 */
+  --alert-warning: rgb(234, 179, 8);
+  --alert-success: rgb(34, 197, 94);
+  --alert-info: rgb(147, 51, 234);
+  /* [/tokens:common:light] */
+
+  /* [tokens:dice:light] 주사위 */
+  /* dice-game-multiplayer.html <style> 에 있던 페이지 전용 토큰을 옮겨 옴 */
+  --dice-ink-strong: var(--dice-600);       /* 강조 보라 글자 (내 이름·서버명·룰 제목) */
+  --dice-ink-on-yellow: #ffffff;            /* 노랑 바탕 위 글자 */
+  --dice-alert-danger: var(--red-300);      /* 오류 알림 테두리·확인 버튼 */
+  --dice-winner-sheen: rgba(255, 255, 255, 0.3); /* 당첨 기록 카드를 훑는 빛 */
+  /* 채팅 반응 칩 — 이 페이지가 처음 그리는 칩. 반응이 갱신되면 chat-shared.js 가 다시 그리므로 다크 값을 거기에 맞춘다 */
+  --dice-react-bg: var(--text-secondary);
+  --dice-react-mine-bg: var(--text-primary);
+  --dice-react-hover-bg: var(--gray-900);
+  --dice-react-hover-line: var(--text-primary);
+  /* 방 만들기 게임 선택 — 모서리 배지 발광 */
+  --dice-badge-new-glow-rgb: 233, 69, 96;   /* NEW·베타 배지 */
+  --dice-badge-dev-glow-rgb: 245, 158, 11;  /* 개발 중 배지 */
+  --dice-kick-glow-rgb: 255, 107, 107;      /* 플레이어 메뉴 '제외시키기' 마우스 올림 */
+  --dice-btn-disabled-bg: var(--gray-400);  /* 비활성 버튼 바탕 (흰 글자) — 다크에선 gray-400 이 밝은 글자색이라 따로 */
+  --dice-room-status-busy-ink: var(--yellow-700); /* 로비 방 상태 '게임 진행 중'·'주문받기 중' 글자 */
+  /* 디버그 로그 (로컬 전용) — 스킨과 무관하게 검은 판 위 터미널 색 */
+  --dice-debug-surface: #212529;
+  --dice-debug-ink: #0f0;
+  --dice-debug-warn: #ff0;
+  --dice-debug-error: #f00;
+  --dice-debug-anim: #0ff;
+  /* [/tokens:dice:light] */
+
+  /* [tokens:roulette:light] 룰렛 */
+  /* roulette-game-multiplayer.html <style> 에 있던 페이지 전용 토큰을 옮겨 옴 (돌림판 그림 --roulette-wheel-ink* 는 페이지에 남김) */
+  --roulette-fill: var(--roulette-accent);  /* 흰 글자가 올라가는 바탕 (버튼·태그) */
+  --roulette-btn-gradient: linear-gradient(135deg, var(--roulette-accent) 0%, var(--roulette-600) 100%);
+  --roulette-commentary-bg: #212529;        /* 중계 문구 판 — 라이트에서도 어두운 판 */
+  --roulette-suspense-rgb: 255, 214, 10;    /* 긴장 연출 — 돌림판 둘레 금빛 링·발광 */
+  --roulette-tension-rgb: 233, 69, 96;      /* 긴장 연출 — 붉은 발광 (돌림판·중계 판) */
+  --roulette-danger-glow-rgb: 255, 107, 107; /* 다시보기·제외시키기 버튼 그림자 */
+  /* 디버그 로그 (로컬 전용) — 스킨과 무관하게 검은 판 위 터미널 색 */
+  --roulette-debug-ink: #0f0;
+  --roulette-debug-btn-bg: #333;
+  --roulette-debug-warn: #ff0;
+  --roulette-debug-error: #f00;
+  --roulette-debug-animation: #0ff;
+  --roulette-debug-game-end: #f0f;
+  --roulette-debug-visibility: #ffa500;
+  --roulette-debug-time: #888;
+  /* [/tokens:roulette:light] */
+
+  /* [tokens:horse:light] 경마 */
+  /* 트랙·결과 연출 금색과 꼴등 빨강 (화살표·비네트·카메라 버튼·순위 강조 줄) */
+  --horse-gold-rgb: 255, 215, 0;
+  --horse-gold-warm-rgb: 255, 200, 0;
+  --horse-gold-deep: #ffb300;             /* 당첨자 칩 그라디언트 끝 */
+  --horse-gold-orange: #ffa000;           /* 투표 체크 배지·당첨 막대 끝 */
+  --horse-winner-chip-text: #1a1a1a;      /* 금색 당첨자 칩 글자 */
+  --horse-loser-rgb: 233, 69, 96;
+  --horse-sheen-rgb: 255, 245, 160;       /* 결과 당첨 줄을 훑는 빛 */
+  /* 경주 중 카메라 버튼 바탕 (이벤트 컷·다른 말 구경) */
+  --horse-cam-event-rgb: 255, 140, 0;
+  --horse-cam-random-rgb: 100, 200, 255;
+  --horse-pip-banner-rgb: 20, 20, 20;     /* 작은 창 결과 요약 카드 */
+  /* N등 투표 — 크림 카드·칸·막대 */
+  --horse-cream-rgb: 255, 250, 230;
+  --horse-cream-deep-rgb: 252, 228, 180;
+  --horse-vote-cream-rgb: 255, 250, 240;
+  --horse-vote-shadow-rgb: 139, 94, 60;
+  --horse-vote-border: #d4a574;
+  --horse-vote-box-bottom: #fff8ec;
+  --horse-vote-title-mid: #c9881f;
+  --horse-reason-text: #5d3a24;           /* 캔버스 위 결정 사유 카드 글자 */
+  --horse-vote-selected-border: #d4a017;
+  --horse-vote-selected-inset-rgb: 180, 130, 30;
+  --horse-vote-bar-active-top: #ffe06a;
+  --horse-vote-bar-active-bottom: #ffb938;
+  --horse-vote-bar-active-glow-rgb: 255, 213, 74;
+  --horse-vote-bar-winner-top: #fff3a0;
+  --horse-vote-bar-winner-ring: #fff8d8;
+  --horse-vote-bar-winner-glow-rgb: 255, 220, 80;
+  --horse-warn-rgb: 255, 152, 0;          /* 투표 무효 경고 상자 */
+  --horse-warn-text: #b87a00;
+  /* 탈것 카드 '선택됨' 꼬리표 */
+  --horse-taken-badge-bg: rgba(255, 255, 255, 0.9);
+  /* 알림·확인 창 종류 색 (테두리·제목·확인 버튼) */
+  --horse-replay-btn-3-bg: #B8734A;       /* 다시보기 선택 세 번째 버튼 (흰 글자) */
+  /* [/tokens:horse:light] */
+
+  /* [tokens:ladder:light] 사다리 */
+  /* css/ladder.css :root 에 있던 사다리 전용 토큰을 옮겨 옴 */
+  --ladder-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);  /* 버튼·고른 칸·헤더 바탕 */
+  --ladder-fill: var(--ladder-500);         /* 흰 글자가 올라가는 바탕 — ladder.css 가 --horse-500 으로 alias */
+  --ladder-fill-hover: var(--ladder-600);   /* 〃 --horse-600 */
+  --ladder-chat-bg: #fef3c7;                /* 내 채팅 말풍선 — 밝은 amber */
+  --ladder-chat-name: #92400e;              /* 〃 이름 — 진한 amber */
+  /* 레인 픽 배지 — 자기 바탕을 가진 칩이라 버튼 면이 무엇이든 읽힌다. 남의 픽 = 밝은 칩(모드 불변), 내 픽 = 반전 칩 */
+  --ladder-pick-bg: #fef3c7;
+  --ladder-pick-text: #92400e;
+  --ladder-pick-me-bg: #92400e;
+  --ladder-pick-me-text: #fffbeb;
+  --ladder-board-ink: #b45309;              /* 보드(늘 밝은 캔버스) 위 큰 글자 — 모드 불변 */
+  --ladder-board-bg: #fbf6ec;               /* 보드 종이 — 캔버스 글자·막대기 색이 고정이라 밝은 종이 */
+  --ladder-win: #ef4444;                    /* 당첨 칸 테두리 */
+  --ladder-win-rgb: 239, 68, 68;            /* 당첨 칸 그림자·재대결 배너 틴트 */
+  /* 알림·확인 창 종류별 테두리·확인 버튼 (다크는 theme.css 알림 창 규칙이 무채로 덮는다) */
+  /* [/tokens:ladder:light] */
+
+  /* [tokens:marble:light] 데구리 */
+  /* 게임 재질(데구리 eca74cb 역반영, 24) — css/marble.css 에서 옮겨 옴. 캔버스(픽셀 초원·나무 울타리·금색 HUD 배지)와 같은 재료 — '내 동물 고르기'·캔버스 틀·결과 카드에만 쓴다 */
+  --marble-ink: #2b2416;
+  --marble-muted: #6e6350;
+  --marble-wood-line: #d9b27f;
+  --marble-wood-edge: #d3b184;
+  --marble-wood-soft: #eadbbd;
+  --marble-cream: #fff8e6;
+  --marble-paper: #fffdf5;
+  --marble-gold: #ffd166;
+  --marble-gold-deep: #e0a93a;
+  --marble-gold-ink: #3a2a00;
+  --marble-gold-soft: #fff3cc;
+  --marble-gold-soft-ink: #3a2a00;
+  --marble-gold-ring: #ffe7a8;
+  /* 스킨과 무관하게 고정인 색 — 바탕이 늘 같은 자리(캔버스 위 버튼, 결과 카드의 하늘 머리)에 쓴다. --marble-cream / --red-500 은 다크에서 뒤집힌다 */
+  --marble-hud-cream: #fff8e6;   /* 캔버스 위 어두운 카메라 버튼의 테두리(수동) */
+  --marble-win-ink: #dc3545;     /* 결과 카드 하늘 머리 위 당첨자 이름 */
+  --marble-wood-shadow-rgb: 90, 60, 20;           /* 나무 팻말·캔버스 틀 아래 번진 그림자 */
+  --marble-skin-badge-bg: #e0435c;                /* 동물 버튼 모서리 스킨 배지 바탕 */
+  --marble-spin-border: #ffd700;                  /* 캔버스 위 투표 칸 — 룰렛이 스칠 때 금빛 */
+  --marble-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
+  --marble-spin-glow-rgb: 255, 213, 74;
+  --marble-hud-rgb: 43, 36, 22;                   /* 캔버스 위 어두운 버튼·말풍선 바탕 */
+  --marble-hud-manual-rgb: 90, 61, 30;            /* 카메라 버튼 수동 상태 */
+  --marble-fullscreen-bg: #000;                   /* 전체화면 캔버스 둘레 */
+  --marble-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);   /* 결과 카드 하늘→잔디 머리 */
+  --marble-result-head-ink: #2b2416;
+  --marble-result-head-sub: #4f5f3a;
+  --marble-result-sprite-bg: #fff;
+  --marble-result-sprite-shadow-rgb: 138, 90, 43;
+  --marble-yard-grass-rgb: 111, 180, 90;          /* 동물 마당 띠 아래 풀빛 */
+  --marble-yard-shadow-rgb: 60, 45, 20;           /* 마당 동물 발밑 그림자 */
+  --marble-yard-zz: #6d7fb8;                      /* 마당 동물 낮잠 z */
+  /* [/tokens:marble:light] */
+
+  /* [tokens:pages:light] 홈·관리자·안내 페이지 */
+  --pages-nav-bg: var(--purple-500);        /* 안내 페이지 상단 메뉴 바탕 (흰 글자) */
+  --pages-hero-cta-bg: #fff;                /* 홈 '지금 플레이' 알약 버튼 바탕 */
+  --pages-hero-cta-ink: var(--purple-600);  /* 그 버튼 글자 */
+  --pages-admin-badge-roulette-bg: #c2185b; /* 관리자 방 목록 게임 배지 (흰 글자) */
+  --pages-admin-badge-horse-bg: #f57c00;
+  /* [/tokens:pages:light] */
+
+  /* [tokens:shop:light] 꾸미기 상점 공용 셸 (horse-shop.css·shop-shared.js) */
+  /* css/horse-shop.css :root 의 --hshop-* 가 이 값을 가리킨다 (경마·사다리·데구리 공용) */
+  /* 등급(rarity) 배지 바탕 — 아이템 정체성 색, 흰 글자가 올라간다 */
+  --shop-rarity-common: #94a3b8;
+  --shop-rarity-rare: #3b82f6;
+  --shop-rarity-epic: #a855f7;
+  --shop-rarity-legend: #f59e0b;            /* 전설 배지 + 구매·구매 확인 버튼 바탕 */
+  /* 모달 표면·글자 */
+  --shop-bg: #f4f1ee;
+  --shop-card: #ffffff;
+  --shop-ink: #2b2320;
+  --shop-ink-soft: #8a7d75;
+  --shop-line: #e9e2dc;
+  --shop-shadow: 0 2px 8px rgba(80, 50, 20, 0.10);
+  --shop-overlay-rgb: 20, 12, 6;            /* 팝업 뒤 딤·토스트 바탕 (갈색 기 검정) */
+  --shop-thumb-dark: #1b2a4a;               /* 레어·에픽 썸네일 무대 (그림) */
+  --shop-bib-border: #000;                  /* 미리보기 이름표 테두리 (트랙 이름표 그림과 같게) */
+  --shop-bib-bg: #333;                      /* 이름표 기본 바탕(미장착) */
+  /* 장착 */
+  --shop-equipped: #4a7c3f;                 /* 장착 테두리·성공 토스트 바탕 */
+  --shop-equipped-bg: #e8f3e3;
+  --shop-equipped-ink: var(--shop-equipped);  /* 장착 중 버튼 글자 */
+  /* 광고 보상 티어 (광고코인 보라) */
+  --shop-ad: #7c3aed;
+  --shop-ad-rgb: 124, 58, 237;
+  --shop-ad-dark: #5b21b6;
+  --shop-ad-ink: var(--shop-ad-dark);       /* 광고코인 가격·안내 글자 */
+  --shop-locked: #9ca3af;                   /* 잠금 버튼 */
+  /* 뽑기(가챠) — 코인 앰버 */
+  --shop-gacha-coin: #d97706;
+  --shop-gacha-coin-rgb: 217, 119, 6;
+  --shop-gacha-coin-dark: #b45309;
+  --shop-gacha-coin-ink: var(--shop-gacha-coin-dark);  /* 뽑기로 획득 안내 글자 */
+  /* 뽑기 리빌 연출 (그림) */
+  --shop-reveal-dim-rgb: 12, 8, 20;
+  --shop-reveal-rare: #3b82f6;
+  --shop-reveal-epic: #f59e0b;
+  --shop-reveal-epic-rgb: 245, 158, 11;
+  --shop-reveal-dupe: #6b7280;
+  --shop-reveal-refund: #d97706;            /* 환급 안내 글자 (리빌 카드 위) */
+  /* 내 아이템 */
+  --shop-inv-stage: #1b2a4a;                /* 큰 미리보기 무대 (그림) */
+  --shop-inv-stage-2: #243a63;
+  --shop-inv-chip-bg: #ece6e0;              /* 필터 칩 기본 바탕 */
+  /* 장식 — 상점 열기 버튼·에픽 리빌의 회전 무지개 링, 상점 열기 버튼 분홍 발광 */
+  --shop-rainbow-ring-stops: #ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55;
+  --shop-open-glow-rgb: 255, 77, 148;
+  /* [/tokens:shop:light] */
 }
 
 /* ============================================
-   다크 테마 (Phase 3 - 선택 사항)
-   다크 모드용 팔레트 재정의
+   다크 스킨 — 팔레트 재정의
+   스킨 결정·선택 버튼: js/shared/theme-shared.js (data-theme 은 <html> 에 붙는다)
+
+   뒤집는 규칙:
+   - 50~300 = 어두운 바탕(연한 틴트 자리), 700~900 = 밝은 글자(진한 글자 자리)
+   - 500 = 다크 카드 위 강조 글자·테두리용 밝은 톤 (카드 위 6:1 안팎). 흰 글자 바탕으로는 못 쓴다
+   - 흰 글자가 올라가는 바탕은 --fill-* / --btn-* (흰 글자 4.5:1 이상의 진한 톤)
+   - 틴트 배경(50~200)은 카드보다 L* 5~8 밝게 — 카드와 명도가 같으면 색조로만 구분돼 묻힌다
+   - 페이지 바닥은 L* 5~7 — 카드(L* 14)가 떠 보이도록 (레퍼런스 조사 2026-10-02: 바닥→카드 계단 4~6 이상)
+   - 강조색은 채도를 낮춘다(HSL S 25~60%) — 라이트의 원색을 어두운 바탕에 그대로 두면 "형광"처럼 번쩍여 눈이 아프다 (2026-10-02 사용자 피드백)
+   - 노랑 500~700 은 그대로 (늘 밝은 바탕 + --text-on-light)
 ============================================ */
 [data-theme="dark"] {
-  /* 회색 반전 */
-  --gray-50: #1a1a1a;
-  --gray-100: #2d2d2d;
-  --gray-200: #3a3a3a;
-  --gray-300: #4a4a4a;
-  --gray-500: #9ca3af;
-  --gray-700: #d1d5db;
-  --gray-900: #f0f0f0;
+  color-scheme: dark;
 
-  /* 보라색: 채도 감소 */
-  --purple-500: #9C7FFF;
-  --purple-600: #8B6FCC;
+  /* 회색: 바탕(50~300) ↔ 글자(400~900) 반전. 50 은 카드보다 한 단계 꺼진 면.
+     기본 다크는 따뜻한 기가 아주 살짝 도는 무채색 회색 (2026-10-02 사용자 선택 — Claude 앱 다크와 같은 계열).
+     글자 단계(400~900)도 같은 따뜻한 흰색 계열이며, 다크 계열 스킨 전부가 이 글자색을 같이 쓴다 */
+  --gray-50:  #1f1e1d;
+  --gray-100: #30302e;
+  --gray-200: #3a3a37;
+  --gray-300: #4a4944;
+  --gray-400: #9c9a92;
+  --gray-500: #a6a39a;
+  --gray-600: #b4b2a8;
+  --gray-700: #c2c0b6;
+  --gray-800: #e5e3dc;
+  --gray-900: #faf9f5;
 
-  /* 초록색: 채도 감소 */
-  --green-500: #66BB6A;
-  --green-600: #52A556;
+  /* 표면 — 카드/패널 기본면 */
+  --bg-white: #262624;
+  --panel-primary: #262624;
+  /* 예약 팝업의 예약 시각 칸 — 라이트는 정의 없이 인라인 기본값 rgba(0,0,0,0.05) 을 쓴다 */
+  --bg-subtle: rgba(255, 255, 255, 0.06);
 
-  /* 빨강색: 채도 감소 */
-  --red-500: #EF5350;
-  --red-600: #E53935;
+  /* 중립 버튼 — 회색 500 이 글자색으로 뒤집혀서 따로 지정 */
+  --btn-neutral: #4d4c47;
+  --btn-neutral-hover: #5b5a54;
+  --btn-neutral-active: #696861;
 
-  /* 노란색: 채도 감소 */
-  --yellow-500: #FFD54F;
-  --yellow-600: #FFC107;
+  /* 흰 글자 바탕 — 팔레트 500 과 분리 (흰 글자 대비: 보라 4.8 · 초록 4.6 · 빨강 4.7) */
+  --fill-brand: #5f58b8;
+  --fill-success: #3d7a52;
+  --fill-success-light: #3f7d55;
+  --fill-danger: #b54a48;
+  --fill-danger-soft: #b84c4a;
+  --fill-ready-end: #3a7a6a;
+  --fill-help: linear-gradient(135deg, #6a5cbc, #6e60c4);
+  --help-glow-rgb: var(--dice-500-rgb);
+  --btn-ready: var(--fill-success);
+  --btn-ready-hover: #366c49;
+  --btn-ready-active: #305f40;
+  --btn-start: var(--fill-success);
+  --btn-start-hover: #366c49;
+  --btn-start-active: #305f40;
+  --btn-danger: var(--fill-danger);
+  --btn-danger-hover: #a54341;
+  --btn-danger-active: #943c3a;
 
-  /* 게임별: 채도 감소 */
-  --dice-500: #9C7FFF;
-  --roulette-500: #9575cd;
+  /* 호스트 배지 — 노랑 바탕 위 글자는 고정 */
+  --host-badge-text: var(--text-on-light);
+
+  /* 보라 — 300·400·600 은 흰 글자가 올라가는 진한 톤(채팅 내 반응 칩·그라디언트 끝·hover), 500 과 700~900 은 글자용 */
+  --purple-50:  #2f2d4d;
+  --purple-100: #3a366b;
+  --purple-200: #4a4480;
+  --purple-300: #625ba8;
+  --purple-400: #6e60c4;
+  --purple-500: #a9a4e0;
+  --purple-600: #6a56a8;
+  --purple-700: #c5c0e8;
+  --purple-800: #d6d2ee;
+  --purple-900: #e6e3f4;
+
+  /* 색 버튼·헤더 그라디언트 — 시작색을 라이트(#667eea, 흰 글자 3.7)보다 조금 진하게 해 흰 글자 4.5 이상 */
+  --brand-gradient: linear-gradient(135deg, #5a62b4 0%, #67508f 100%);
+  --dice-gradient: linear-gradient(135deg, #5a62b4 0%, #67508f 100%);
+
+  /* 초록 — 전 단계 글자용 (바탕은 --fill-success / --btn-ready) */
+  --green-50:  #1d3a28;
+  --green-100: #224631;
+  --green-200: #2b5a36;
+  --green-300: #9cc6a8;
+  --green-400: #88ba97;
+  --green-500: #7cb08c;
+  --green-600: #8fbd9d;
+  --green-700: #a4c9af;
+  --green-800: #bcd8c4;
+  --green-900: #d3e6d8;
+
+  /* 빨강 — 전 단계 글자용 (바탕은 --fill-danger / --btn-danger) */
+  --red-50:  #42242a;
+  --red-100: #52272f;
+  --red-200: #672e39;
+  --red-300: #e8a5a2;
+  --red-400: #e3908d;
+  --red-500: #e08a87;
+  --red-600: #e69c99;
+  --red-700: #ebb2b0;
+  --red-800: #f0c4c3;
+  --red-900: #f4d7d6;
+
+  /* 노랑: 50~200 은 어두운 틴트, 800~900 은 밝은 글자 */
+  --yellow-50:  #3a3118;
+  --yellow-100: #473b1a;
+  --yellow-200: #5c4b1c;
+  /* 300~700: 라이트의 형광 노랑(#ffc107)을 그대로 두면 다크에서 번쩍인다 — 채도·명도를 낮춘 황토 톤 (위 글자는 --text-on-light) */
+  --yellow-300: #dcbb68;
+  --yellow-400: #d6ae4c;
+  --yellow-500: #c9a03c;
+  --yellow-600: #b88f30;
+  --yellow-700: #a8812a;
+  --yellow-800: #e6cf8f;
+  --yellow-900: #ecdcac;
+
+  /* 파랑 */
+  --blue-50:  #1c2f4f;
+  --blue-100: #223a63;
+  --blue-200: #2b4a82;
+  --blue-700: #a3b8de;
+  --blue-800: #bccbe6;
+  --blue-900: #d1dbee;
+
+  /* 게임별 */
+  --dice-50:  #2f2d4d;
+  --dice-500: #a9a4e0;
+  --dice-600: #6a56a8;
+  --dice-700: #c5c0e8;
+  --roulette-50:  #1b3626;
+  --roulette-500: #aca2e0;
+  --roulette-600: #5f6cc0;
+  --horse-accent: #bd9a7c;
+
+  /* 게임별 파스텔 배경 — -bg 는 카드보다 뚜렷하게, -light 는 은은하게 */
+  --dice-accent-bg: #302e52;
+  --dice-accent-light: #29283f;
+  --roulette-accent-bg: #1b3a33;
+  --roulette-accent-light: #17302b;
+  --horse-accent-bg: #36302a;
+  --horse-accent-light: #2e2822;
+
+  /* 링크/제목 */
+  --link-brand: #ab9fdc;
+  --link-brand-light: #c1b9e4;
+  --link-brand-border: #4c4380;
+  --heading-brand: #b9b0e3;
+
+  /* 페이지 바닥 — 게임 색조만 남기고 L* 5~8 로 가라앉힌 톤. 게임 페이지는 각자의 [data-theme="dark"] body 규칙이
+     --dark-ground-<게임> 을, 그 밖의 페이지(안내·관리자·free)는 아래 공통 body 규칙이 --dark-ground-page 를 쓴다 */
+  --dark-ground-page: #141413;
+  --dark-ground-dice: linear-gradient(135deg, #141413 0%, #18161a 100%);
+  --dark-ground-roulette: linear-gradient(135deg, #08160f 0%, #0a1b12 50%, #0c2016 100%);
+  --dark-ground-horse: linear-gradient(135deg, #16120f 0%, #1b1612 100%);
+  --dark-ground-ladder: linear-gradient(135deg, #181208 0%, #1f170b 100%);
+  --dark-ground-marble: linear-gradient(135deg, #0a170f 0%, #0f1e14 100%);
 
   /* 다리건너기: 명도 약간 높임 */
   --bridge-500: #5af2ff;
@@ -354,10 +842,10 @@
   --bridge-accent: #67e8f9;
 
   /* 사다리타기: 다크 모드 명도 높임 */
-  --ladder-500: #fbbf24;
-  --ladder-500-rgb: 251, 191, 36;
-  --ladder-600: #f59e0b;
-  --ladder-accent: #fcd34d;
+  --ladder-500: #d4aa55;
+  --ladder-500-rgb: 212, 170, 85;
+  --ladder-600: #c99a45;
+  --ladder-accent: #dcbb6e;
 
   /* 회전 칼날: 다크 모드 명도 높임 */
   --spin-arena-500: #9b7dff;
@@ -372,18 +860,606 @@
   --pirate-accent: #2dd4bf;
 
   /* 데구리: 다크 모드 명도 높임 */
-  --marble-500: #5fc47a;
-  --marble-500-rgb: 95, 196, 122;
-  --marble-600: #3fa65b;
-  --marble-accent: #ffc857;
+  --marble-500: #7cb08c;
+  --marble-500-rgb: 124, 176, 140;
+  --marble-600: #5f9670;
+  --marble-accent: #d6b36a;
 
   /* RGB 채널 변수 (다크 모드) */
-  --dice-500-rgb: 156, 127, 255;
-  --green-500-rgb: 102, 187, 106;
-  --red-500-rgb: 239, 83, 80;
-  --yellow-500-rgb: 255, 213, 79;
-  --roulette-500-rgb: 149, 117, 205;
-  --game-type-horse-rgb: 139, 69, 19;
+  --dice-500-rgb: 169, 164, 224;
+  --green-500-rgb: 124, 176, 140;
+  --red-500-rgb: 224, 138, 135;
+  --roulette-500-rgb: 172, 162, 224;
+  --game-type-horse-rgb: 189, 154, 124;
+
+  /* 하드코딩 색 토큰화 (2026-10-03) — :root 의 같은 섹션과 짝 */
+
+  /* [tokens:common:dark] 공통 공유 모듈 (js/shared/*·free) */
+  --common-ink-faint: var(--text-tertiary);
+  --common-warn-ink: var(--yellow-800);
+  --common-tagline-ink: var(--text-muted);
+  --chat-ink: var(--text-primary);
+  --chat-ink-sub: var(--text-tertiary);
+  --chat-line: var(--border-color);
+  --chat-error: var(--red-400);
+  --chat-name: var(--purple-500);
+  --chat-my-name: var(--purple-700);
+  --chat-chip-bg: var(--gray-100);
+  --chat-chip-line: var(--border-color);
+  --chat-chip-hover-bg: var(--red-100);
+  --chat-ai-bg: var(--blue-50);
+  --chat-ai-name: var(--blue-300);
+  --chat-react-bg: var(--gray-300);
+  --chat-react-mine-bg: var(--purple-300);
+  --chat-react-hover-line: var(--gray-400);
+  --chat-flash-bg: var(--yellow-200);
+  --chat-add-line: var(--fill-brand);
+  --chat-remove-bg: var(--fill-danger);
+  --chat-remove-line: var(--btn-danger-hover);
+  --chat-hover-react-bg: var(--gray-200);
+  --chat-pin-title: var(--yellow-800);
+  --order-saved-flash: var(--green-200);
+  --order-title: var(--purple-500);
+  --order-ink: var(--text-primary);
+  --order-ink-sub: var(--text-tertiary);
+  --order-accent-ink: var(--purple-700);
+  --order-track-bg: var(--gray-50);
+  --order-tab-active-bg: var(--gray-200);
+  --order-hl-bg: var(--yellow-50);
+  --order-hl-ink: var(--yellow-800);
+  --order-danger-bg: var(--red-100);
+  --order-danger-ink: var(--red-800);
+  --order-soft-bg: var(--gray-50);
+  --order-line: var(--border-color);
+  --order-tag-bg: var(--gray-100);
+  --order-tag-ink: var(--text-primary);
+  --order-star-idle: var(--gray-400);
+  --order-save-bg: linear-gradient(135deg, var(--yellow-400) 0%, var(--yellow-500) 100%);
+  --order-save-ink: var(--text-on-light);
+  --order-explainer-bg: var(--yellow-50);
+  --order-toggle-on-line: var(--yellow-400);
+  --order-pool-bg: var(--gray-50);
+  --fi-soft-bg: var(--gray-100);
+  --fi-close-line: var(--border-color);
+  --fi-bar-ink: var(--purple-700);
+  --fi-transient-bg: var(--gray-200);
+  --fi-copied-bg: var(--fill-success);
+  --fi-copied-line: var(--fill-success);
+  --ss-free-bg: var(--purple-50);
+  --ss-free-bg-hover: var(--purple-100);
+  --ss-free-text: var(--purple-700);
+  --ss-divider-text: var(--text-muted);
+  --ss-manage-hover-bg: var(--purple-50);
+  --ss-empty-text: var(--text-muted);
+  --ss-badge-text: var(--text-tertiary);
+  --ss-demo-cancel-bg: var(--gray-100);
+  --ss-login-hover-bg: var(--purple-300);
+  --ss-badge-waiting-bg: #9a5a34;  /* 흰 글자 5.4:1 */
+  --ss-avatar-1-rgb: var(--dice-500-rgb);  /* 카드 위 글자 6:1 안팎, 채도 S ≤ 56% */
+  --ss-avatar-2-rgb: var(--green-500-rgb);
+  --ss-avatar-3-rgb: 214, 140, 170;
+  --ss-avatar-4-rgb: 214, 160, 110;
+  --ss-avatar-5-rgb: 110, 180, 190;
+  --ss-avatar-6-rgb: 176, 150, 214;
+  --tutorial-title: var(--text-primary);
+  --tutorial-body: var(--text-secondary);
+  --tutorial-close: var(--text-muted);
+  --tutorial-close-hover: var(--text-primary);
+  --tutorial-line: var(--border-color);
+  --tutorial-prev-ink: var(--text-tertiary);
+  --tutorial-prev-hover-bg: var(--gray-100);
+  --tutorial-next-bg: var(--fill-brand);
+  --tutorial-counter: var(--text-muted);
+  --tutorial-ring: var(--purple-500);
+  --free-bg: var(--gray-50);
+  --free-surface: var(--bg-white);
+  --free-text: var(--text-primary);
+  --free-text-muted: var(--text-tertiary);
+  --free-border: var(--border-color);
+  --free-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.4);
+  --free-shadow-lg: 0 12px 32px rgba(var(--shadow-rgb), 0.6);
+  --free-title-gradient: linear-gradient(135deg, var(--purple-500), #8cc4cc);
+  --free-card-horse: linear-gradient(135deg, #6b4a33 0%, #8a6448 100%);  /* 흰 글자 5.2:1 이상 */
+  --free-card-bridge: linear-gradient(135deg, #0891b2 0%, #42edff 100%);  /* 미사용 게임 — 카드 없음 */
+  --free-loading-dice: var(--dark-ground-dice);  /* 다크 로딩 화면 = 들어갈 게임 페이지 바닥 */
+  --free-loading-roulette: var(--dark-ground-roulette);
+  --free-loading-horse: var(--dark-ground-horse);
+  --free-loading-bridge: var(--dark-ground-dice);
+  --free-loading-ladder: var(--dark-ground-ladder);
+  --free-loading-spin-arena: var(--dark-ground-dice);
+  --free-loading-deguri: var(--dark-ground-marble);
+  --alert-error: var(--red-500);              /* 다크: 테두리·버튼은 알림창 규칙이 덮고, 제목 글자에만 쓰인다 → 글자용 톤 */
+  --alert-warning: var(--yellow-500);
+  --alert-success: var(--green-500);
+  --alert-info: var(--purple-500);
+  /* [/tokens:common:dark] */
+
+  /* [tokens:dice:dark] 주사위 */
+  --dice-ink-strong: var(--dice-700);
+  --dice-ink-on-yellow: var(--text-on-light);
+  --dice-alert-danger: var(--fill-danger);
+  --dice-winner-sheen: rgba(255, 255, 255, 0.08); /* 어두운 카드 위에선 0.3 이 글자를 가린다 */
+  --dice-react-bg: var(--gray-300);
+  --dice-react-mine-bg: var(--purple-300);
+  --dice-react-hover-bg: #000;
+  --dice-react-hover-line: var(--gray-400);
+  --dice-badge-new-glow-rgb: 181, 74, 72;   /* = --fill-danger */
+  --dice-badge-dev-glow-rgb: var(--yellow-500-rgb);
+  --dice-kick-glow-rgb: 184, 76, 74;        /* = --fill-danger-soft */
+  --dice-btn-disabled-bg: var(--btn-neutral);   /* 흰 글자 대비 4.5 이상 (gray-400 위 흰 글자는 2.8) */
+  --dice-room-status-busy-ink: var(--yellow-800); /* yellow-700 은 카드 위 4.2 */
+  --dice-debug-surface: #212529;
+  --dice-debug-ink: #0f0;
+  --dice-debug-warn: #ff0;
+  --dice-debug-error: #f00;
+  --dice-debug-anim: #0ff;
+  /* [/tokens:dice:dark] */
+
+  /* [tokens:roulette:dark] 룰렛 */
+  /* 다크에서 --roulette-500/600 이 글자용으로 밝아져 흰 글자 대비가 떨어지므로(4.8 → 3.0) 바탕은 진한 보라로 따로 둔다 */
+  --roulette-fill: #5f58b8;
+  --roulette-btn-gradient: linear-gradient(135deg, #5f58b8 0%, #5a62b4 100%);
+  --roulette-commentary-bg: #181817;        /* 다크 카드 위에서 판이 구분되도록 한 단계 더 꺼진 면 */
+  --roulette-suspense-rgb: 255, 214, 10;    /* 돌림판 연출 — 그림이라 그대로 */
+  --roulette-tension-rgb: 233, 69, 96;
+  --roulette-danger-glow-rgb: 184, 76, 74;  /* --fill-danger-soft 와 같은 톤 */
+  --roulette-debug-ink: #0f0;
+  --roulette-debug-btn-bg: #333;
+  --roulette-debug-warn: #ff0;
+  --roulette-debug-error: #f00;
+  --roulette-debug-animation: #0ff;
+  --roulette-debug-game-end: #f0f;
+  --roulette-debug-visibility: #ffa500;
+  --roulette-debug-time: #888;
+  /* [/tokens:roulette:dark] */
+
+  /* [tokens:horse:dark] 경마 */
+  /* 트랙 위·결과 연출(금색·꼴등 빨강·크림 투표 카드)은 게임 그림 위라 라이트와 같다.
+     본문 안 투표 영역은 horse-race.css 의 [data-theme="dark"] .rank-vote-* 규칙이 어두운 면으로 덮는다 */
+  --horse-gold-rgb: 255, 215, 0;
+  --horse-gold-warm-rgb: 255, 200, 0;
+  --horse-gold-deep: #ffb300;
+  --horse-gold-orange: #ffa000;
+  --horse-winner-chip-text: #1a1a1a;
+  --horse-loser-rgb: 233, 69, 96;
+  --horse-sheen-rgb: 255, 245, 160;
+  --horse-cam-event-rgb: 255, 140, 0;
+  --horse-cam-random-rgb: 100, 200, 255;
+  --horse-pip-banner-rgb: 20, 20, 20;
+  --horse-cream-rgb: 255, 250, 230;
+  --horse-cream-deep-rgb: 252, 228, 180;
+  --horse-vote-cream-rgb: 255, 250, 240;
+  --horse-vote-shadow-rgb: 139, 94, 60;
+  --horse-vote-border: #d4a574;
+  --horse-vote-box-bottom: #fff8ec;
+  --horse-vote-title-mid: #c9881f;
+  --horse-reason-text: #5d3a24;
+  --horse-vote-selected-border: #d4a017;
+  --horse-vote-selected-inset-rgb: 180, 130, 30;
+  --horse-vote-bar-active-top: #ffe06a;
+  --horse-vote-bar-active-bottom: #ffb938;
+  --horse-vote-bar-active-glow-rgb: 255, 213, 74;
+  --horse-vote-bar-winner-top: #fff3a0;
+  --horse-vote-bar-winner-ring: #fff8d8;
+  --horse-vote-bar-winner-glow-rgb: 255, 220, 80;
+  /* 본문 안 무효 경고 — 형광 주황 대신 황토 틴트, 글자는 기존 다크 규칙과 같은 --yellow-800 */
+  --horse-warn-rgb: 201, 160, 60;
+  --horse-warn-text: var(--yellow-800);
+  /* 흰 꼬리표 위에 다크의 밝은 글자(--text-secondary)가 묻히던 것 → 올라온 면 */
+  --horse-taken-badge-bg: var(--gray-200);
+  /* 알림창 테두리·확인 버튼은 theme.css 알림 규칙이 무채·--fill-brand 로 덮는다. 남는 건 제목 글자 → 강조 글자 톤 */
+  --horse-replay-btn-3-bg: #8a5d40;       /* 흰 글자 5.6:1, S 37% — --horse-600(#80553a) 보다 한 단계 밝게 */
+  /* [/tokens:horse:dark] */
+
+  /* [tokens:ladder:dark] 사다리 */
+  /* 다크의 --ladder-500/600/accent 는 어두운 면 위 글자·테두리용으로 밝아져 흰 글자가 안 읽힌다
+     → 흰 글자가 올라가는 바탕(내 이름표·상점 탭·장착 버튼·버튼·고른 칸)은 진한 주황으로 따로 둔다 */
+  --ladder-fill: #85582f;
+  --ladder-fill-hover: #784f2b;
+  --ladder-gradient: linear-gradient(135deg, var(--ladder-fill) 0%, var(--ladder-fill-hover) 100%);
+  --ladder-chat-bg: rgba(var(--ladder-500-rgb), 0.16);  /* 메시지 글자가 스킨을 따라 밝아지므로 어두운 틴트 */
+  --ladder-chat-name: var(--ladder-accent);
+  --ladder-pick-bg: #fef3c7;
+  --ladder-pick-text: #92400e;
+  --ladder-pick-me-bg: #422006;             /* selected 바탕이 진한 주황이라 더 진하게 */
+  --ladder-pick-me-text: #fffbeb;
+  --ladder-board-ink: #b45309;
+  --ladder-board-bg: #d9d3c6;               /* 흰 종이가 눈부시지 않게 한 톤 낮춘다 */
+  --ladder-win: var(--red-500);
+  --ladder-win-rgb: var(--red-500-rgb);
+  /* [/tokens:ladder:dark] */
+
+  /* [tokens:marble:dark] 데구리 */
+  /* 나무·종이 재질을 다크에서는 무채 면으로 — 갈색 종이가 따뜻한 회색 다크와 어긋났다 (2026-10-03). css/marble.css 에서 옮겨 옴 */
+  --marble-ink: var(--text-primary);
+  --marble-muted: var(--text-tertiary);
+  --marble-wood-line: var(--border-color);
+  --marble-wood-edge: var(--gray-200);
+  --marble-wood-soft: var(--gray-200);
+  --marble-cream: var(--gray-100);
+  --marble-paper: var(--bg-white);
+  --marble-gold-soft: var(--gray-200);
+  --marble-gold-soft-ink: #ecdcac;
+  --marble-gold-ring: var(--border-color);
+  --marble-wood-shadow-rgb: var(--shadow-rgb);
+  --marble-skin-badge-bg: var(--fill-danger);
+  /* 캔버스 위 요소(투표 크림 카드·HUD 버튼·결과 카드 하늘 머리)는 그림 위 연출이라 라이트와 같은 값 */
+  --marble-spin-border: #ffd700;
+  --marble-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
+  --marble-spin-glow-rgb: 255, 213, 74;
+  --marble-hud-rgb: 43, 36, 22;
+  --marble-hud-manual-rgb: 90, 61, 30;
+  --marble-fullscreen-bg: #000;
+  --marble-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
+  --marble-result-head-ink: #2b2416;
+  --marble-result-head-sub: #4f5f3a;
+  --marble-result-sprite-bg: #fff;
+  --marble-result-sprite-shadow-rgb: 138, 90, 43;
+  --marble-yard-grass-rgb: var(--marble-500-rgb);
+  --marble-yard-shadow-rgb: var(--shadow-rgb);
+  --marble-yard-zz: #9aa6cc;
+  /* 알림·확인 창은 theme.css "알림·확인 창" 블록이 무채 테두리·브랜드 버튼으로 덮는다 — 아래는 덮이지 않는 경우의 차분한 값 */
+  /* [/tokens:marble:dark] */
+
+  /* [tokens:pages:dark] 홈·관리자·안내 페이지 */
+  --pages-nav-bg: var(--purple-200);        /* 스킨 보라 틴트 (흰 글자) */
+  --pages-hero-cta-bg: var(--bg-white);     /* 다크 바닥 위 큰 흰 알약은 번쩍인다 → 카드 면 + 스킨 강조 글자 */
+  --pages-hero-cta-ink: var(--purple-500);
+  --pages-admin-badge-roulette-bg: #96406b; /* 흰 글자 6.5:1, S 40% */
+  --pages-admin-badge-horse-bg: #8d5e35;    /* 흰 글자 5.6:1, S 45% */
+  /* [/tokens:pages:dark] */
+
+  /* [tokens:shop:dark] 꾸미기 상점 공용 셸 (horse-shop.css·shop-shared.js) */
+  /* 흰 글자 바탕(등급 배지·구매·광고·뽑기 버튼)은 같은 색상(hue)에서 채도를 낮추고 흰 글자 4.7:1 이상으로.
+     아이템 그림·미리보기 무대·리빌 연출·장식 링은 그림이라 그대로 */
+  --shop-rarity-common: #5f6b7a;
+  --shop-rarity-rare: #3d63a8;
+  --shop-rarity-epic: #7a52b0;
+  --shop-rarity-legend: #9a6a2a;
+  --shop-bg: var(--gray-50);
+  --shop-card: var(--gray-100);
+  --shop-ink: var(--text-primary);
+  --shop-ink-soft: var(--text-tertiary);
+  --shop-line: var(--gray-300);
+  --shop-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shop-overlay-rgb: var(--shadow-rgb);
+  --shop-thumb-dark: #1b2a4a;
+  --shop-bib-border: #000;
+  --shop-bib-bg: #333;
+  --shop-equipped: var(--fill-success);
+  --shop-equipped-bg: #1f3320;
+  --shop-equipped-ink: var(--green-700);
+  --shop-ad: #6448b0;
+  --shop-ad-rgb: 100, 72, 176;
+  --shop-ad-dark: #553d99;
+  --shop-ad-ink: #c1b9e4;
+  --shop-locked: #5d6470;
+  --shop-gacha-coin: #93602a;
+  --shop-gacha-coin-rgb: 147, 96, 42;
+  --shop-gacha-coin-dark: #7c5222;
+  --shop-gacha-coin-ink: var(--yellow-400);
+  --shop-reveal-dim-rgb: 12, 8, 20;
+  --shop-reveal-rare: #3b82f6;
+  --shop-reveal-epic: #f59e0b;
+  --shop-reveal-epic-rgb: 245, 158, 11;
+  --shop-reveal-dupe: #6b7280;
+  --shop-reveal-refund: var(--yellow-400);
+  --shop-inv-stage: #1b2a4a;
+  --shop-inv-stage-2: #243a63;
+  --shop-inv-chip-bg: var(--gray-200);
+  --shop-rainbow-ring-stops: #ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55;
+  --shop-open-glow-rgb: 255, 77, 148;
+  /* [/tokens:shop:dark] */
+  --yellow-500-rgb: 201, 160, 60;
+  --yellow-gold-rgb: 214, 174, 76;
+}
+
+/* 다크: 자기 body 규칙이 없는 페이지(안내·관리자·free)의 바닥. 이 페이지들은 라이트에서 회색 바닥 + 흰 카드인데,
+   회색 토큰을 그대로 뒤집으면 바닥이 카드보다 밝아져 층이 거꾸로 된다. 게임 페이지는 뒤에 오는 자기 규칙이 덮는다 */
+[data-theme="dark"] body {
+  background: var(--dark-ground-page);
+}
+
+/* ============================================
+   다크: 게임 방 화면 차분하게 (2026-10-03 사용자 피드백 "색감이 다크랑 안 맞아")
+   라이트에서 섹션마다 게임 색 테두리·노랑 그라디언트 상자·갈색 종이를 쓰던 것을 다크에서는 무채 면 + 무채 테두리로 바꾼다.
+   게임 색은 이름표·주요 버튼·선택 상태에만 남긴다 (레퍼런스: 다크 게임 사이트는 크롬을 무채로 물리고 색은 액센트만).
+   대상 클래스는 css/horse-race.css 를 빌려 쓰는 경마·사다리·데구리와 룰렛·주사위 방이 공유한다.
+   인라인 style 로 색을 주는 버튼은 !important 로만 덮을 수 있다.
+============================================ */
+[data-theme="dark"] .ready-section,
+[data-theme="dark"] .chat-section,
+[data-theme="dark"] .horse-selection-section,
+[data-theme="dark"] .horse-selection-button,
+[data-theme="dark"] .rank-vote-section:not(.on-canvas),
+[data-theme="dark"] #marblePickSection,
+[data-theme="dark"] .ladder-lane-btn:not(.is-win):not(.selected) {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .host-controls,
+[data-theme="dark"] .room-expiry-section {
+  background: var(--gray-100);
+  border-color: var(--border-color);
+}
+
+/* 인라인 style 로 노랑 틴트를 주는 상자 — !important 로만 덮인다 */
+[data-theme="dark"] #notSelectedVehicleSection,
+[data-theme="dark"] #notPickedSection {
+  background: var(--gray-100) !important;
+}
+
+[data-theme="dark"] .not-rolled-tag {
+  background: var(--gray-200);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .schedule-open-btn,
+[data-theme="dark"] .schedule-open-button,
+[data-theme="dark"] #rankingBtn,
+[data-theme="dark"] .marble-shop-btn,
+[data-theme="dark"] .ladder-shop-btn {
+  border-color: var(--border-color) !important;  /* 랭킹 버튼은 공유 모듈이 인라인으로 테두리를 준다 */
+}
+
+[data-theme="dark"] .rank-vote-box:not(.selected) {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .rank-vote-warn {
+  border-color: var(--border-color);
+}
+
+/* 접속자·준비 목록 면과 섹션 제목 밑줄 — 게임 색 틴트 대신 무채 */
+[data-theme="dark"] .users-list {
+  background: var(--gray-100);
+}
+
+[data-theme="dark"] .users-title,
+[data-theme="dark"] .container h2,
+[data-theme="dark"] .container h3 {
+  border-bottom-color: var(--border-color);
+}
+
+/* 주문받기 시작 — 보조 동작. 라이트의 노랑 그라디언트가 다크에선 머스터드 덩어리로 보인다 → 중립 버튼 */
+[data-theme="dark"] #startOrderButton {
+  background: var(--btn-neutral) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 알림·확인 창 (각 페이지의 showCustomAlert / showCustomConfirm, 경마·데구리 플레이어 메뉴)
+   라이트는 종류별 색 테두리 + 같은 색 버튼(경고 = 노랑)인데, 다크에선 노랑 상자·노랑 버튼이 번쩍인다
+   → 상자는 무채 테두리, 확인 버튼은 브랜드 바탕, 취소는 중립. 종류는 아이콘(⚠·✓·i)이 알려 준다.
+   전부 인라인 style 로 그려서 !important 로만 덮인다 */
+[data-theme="dark"] #customAlert > div,
+[data-theme="dark"] #customConfirm > div,
+[data-theme="dark"] #playerActionDialog > div,
+[data-theme="dark"] #marblePlayerActionDialog > div {
+  background: var(--bg-white) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] #customAlert button,
+[data-theme="dark"] #customConfirm button:last-of-type,
+[data-theme="dark"] #confirmOk {
+  background: var(--fill-brand) !important;
+  color: var(--text-on-accent) !important;
+  border: none !important;
+}
+
+/* 열리면 확인 버튼에 포커스가 가는데, 브라우저 기본 하늘색 포커스 링이 어두운 바탕에서 튄다 → 차분한 보라 링 (키보드 사용자용으로 링 자체는 유지) */
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus-visible,
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus {
+  outline: 2px solid var(--purple-500) !important;
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] #customConfirm button:first-of-type:not(:last-of-type),
+[data-theme="dark"] #confirmCancel {
+  background: var(--btn-neutral) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* 경마 트랙 길이 칩 — 선택 표시를 형광 노랑 대신 밝은 회색으로 (horse-race.js 가 인라인으로 var(--yellow-400) 을 넣는다) */
+[data-theme="dark"] .track-length-btn[style*="yellow-400"] {
+  background: var(--gray-300) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+/* ============================================
+   다크 계열 스킨 — 바탕 톤만 다른 변형 (블랙·미드나잇·모카·퍼플)
+   <html data-theme="dark" data-skin="..."> — 다크 규칙은 전부 그대로 쓰고 표면·테두리·페이지 바닥 토큰만 갈아 끼운다.
+   글자·강조색은 다크 블록 값을 그대로 쓴다: 네 스킨 모두 카드·꺼진 면·올라온 면이 기본 다크(카드 L* 15, 올라온 면 L* 20)보다
+   어두워 글자 대비가 같거나 더 높다. 새 스킨을 넣을 때도 이 조건(면 밝기 ≤ 기본 다크)을 지킬 것.
+   게임별 페이지 바닥(--dark-ground-*)은 스킨 한 톤으로 통일한다 — 게임 색은 강조색·그림이 맡는다.
+   브랜드 강조색(보라 계열 토큰: 버튼 바탕·링크·선택 표시)은 스킨마다 어울리는 색으로 바꾼다 (2026-10-03 사용자 결정).
+============================================ */
+[data-theme="dark"][data-skin="black"] {
+  --gray-50:  #050506;
+  --gray-100: #18181d;
+  --gray-200: #222229;
+  --gray-300: #32323c;
+  --bg-white: #0d0d10;
+  --panel-primary: #0d0d10;
+  --dark-ground-page: #000000;
+  --dark-ground-dice: #000000;
+  --dark-ground-roulette: #000000;
+  --dark-ground-horse: #000000;
+  --dark-ground-ladder: #000000;
+  --dark-ground-marble: #000000;
+
+  /* 강조색 — 회색빛 흰색. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #1c1c22;
+  --purple-100: #26262e;
+  --purple-200: #34343e;
+  --purple-300: #4a4a55;
+  --purple-400: #5c5c66;
+  --purple-500: #c9c9d3;
+  --purple-600: #55555f;
+  --purple-700: #dcdce3;
+  --purple-800: #e6e6ec;
+  --purple-900: #f0f0f4;
+  --dice-50:  #1c1c22;
+  --dice-500: #c9c9d3;
+  --dice-600: #55555f;
+  --dice-700: #dcdce3;
+  --dice-500-rgb: 201, 201, 211;
+  --dice-accent-bg: #26262e;
+  --dice-accent-light: #1c1c22;
+  --btn-neutral: #2e2e36;
+  --btn-neutral-hover: #3a3a44;
+  --btn-neutral-active: #46464f;
+  --fill-brand: #55555f;
+  --fill-help: linear-gradient(135deg, #55555f, #5c5c66);
+  --brand-gradient: linear-gradient(135deg, #55555f 0%, #4a4a55 100%);
+  --dice-gradient: linear-gradient(135deg, #55555f 0%, #4a4a55 100%);
+  --link-brand: #c9c9d3;
+  --link-brand-light: #dcdce3;
+  --link-brand-border: #34343e;
+  --heading-brand: #dcdce3;
+}
+
+[data-theme="dark"][data-skin="midnight"] {
+  --gray-50:  #0c1322;
+  --gray-100: #1a2640;
+  --gray-200: #23324f;
+  --gray-300: #334568;
+  --bg-white: #121b2e;
+  --panel-primary: #121b2e;
+  --dark-ground-page: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-dice: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-roulette: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-horse: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-ladder: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-marble: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+
+  /* 강조색 — 파랑. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #182844;
+  --purple-100: #1f3356;
+  --purple-200: #2b4472;
+  --purple-300: #3a5b98;
+  --purple-400: #4063b4;
+  --purple-500: #a3b8dc;
+  --purple-600: #3d5fae;
+  --purple-700: #c0cfe8;
+  --purple-800: #d3def0;
+  --purple-900: #e3eaf6;
+  --dice-50:  #182844;
+  --dice-500: #a3b8dc;
+  --dice-600: #3d5fae;
+  --dice-700: #c0cfe8;
+  --dice-500-rgb: 163, 184, 220;
+  --dice-accent-bg: #1f3356;
+  --dice-accent-light: #182844;
+  --btn-neutral: #2b3a58;
+  --btn-neutral-hover: #344667;
+  --btn-neutral-active: #3d5277;
+  --fill-brand: #3d5fae;
+  --fill-help: linear-gradient(135deg, #3d5fae, #4063b4);
+  --brand-gradient: linear-gradient(135deg, #3d5fae 0%, #35539a 100%);
+  --dice-gradient: linear-gradient(135deg, #3d5fae 0%, #35539a 100%);
+  --link-brand: #a3b8dc;
+  --link-brand-light: #c0cfe8;
+  --link-brand-border: #2b4472;
+  --heading-brand: #c0cfe8;
+}
+
+[data-theme="dark"][data-skin="mocha"] {
+  --gray-50:  #1c1613;
+  --gray-100: #322a24;
+  --gray-200: #3e342d;
+  --gray-300: #52463d;
+  --bg-white: #26201b;
+  --panel-primary: #26201b;
+  --dark-ground-page: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-dice: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-roulette: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-horse: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-ladder: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-marble: linear-gradient(135deg, #17110e 0%, #221812 100%);
+
+  /* 강조색 — 캐러멜. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #33281f;
+  --purple-100: #3e3026;
+  --purple-200: #52402f;
+  --purple-300: #70553d;
+  --purple-400: #946642;
+  --purple-500: #d1a77f;
+  --purple-600: #8a5f3c;
+  --purple-700: #e0c3a6;
+  --purple-800: #ead4be;
+  --purple-900: #f2e3d4;
+  --dice-50:  #33281f;
+  --dice-500: #d1a77f;
+  --dice-600: #8a5f3c;
+  --dice-700: #e0c3a6;
+  --dice-500-rgb: 209, 167, 127;
+  --dice-accent-bg: #3e3026;
+  --dice-accent-light: #33281f;
+  --btn-neutral: #4a3c31;
+  --btn-neutral-hover: #56473a;
+  --btn-neutral-active: #625244;
+  --fill-brand: #8a5f3c;
+  --fill-help: linear-gradient(135deg, #8a5f3c, #946642);
+  --brand-gradient: linear-gradient(135deg, #8a5f3c 0%, #7a5434 100%);
+  --dice-gradient: linear-gradient(135deg, #8a5f3c 0%, #7a5434 100%);
+  --link-brand: #d1a77f;
+  --link-brand-light: #e0c3a6;
+  --link-brand-border: #52402f;
+  --heading-brand: #e0c3a6;
+}
+
+[data-theme="dark"][data-skin="purple"] {
+  --gray-50:  #191430;
+  --gray-100: #2c2350;
+  --gray-200: #382d62;
+  --gray-300: #4b3e7c;
+  --bg-white: #211a3b;
+  --panel-primary: #211a3b;
+  --dark-ground-page: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-dice: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-roulette: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-horse: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-ladder: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-marble: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+
+  /* 강조색 — 보라. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
+     성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
+  --purple-50:  #2e2550;
+  --purple-100: #382d62;
+  --purple-200: #4a3c80;
+  --purple-300: #5f4ea8;
+  --purple-400: #6a55c4;
+  --purple-500: #b0a6e3;
+  --purple-600: #6550bd;
+  --purple-700: #c9c1ee;
+  --purple-800: #d8d2f3;
+  --purple-900: #e6e2f8;
+  --dice-50:  #2e2550;
+  --dice-500: #b0a6e3;
+  --dice-600: #6550bd;
+  --dice-700: #c9c1ee;
+  --dice-500-rgb: 176, 166, 227;
+  --dice-accent-bg: #382d62;
+  --dice-accent-light: #2e2550;
+  --btn-neutral: #3d3266;
+  --btn-neutral-hover: #473b74;
+  --btn-neutral-active: #514482;
+  --fill-brand: #6550bd;
+  --fill-help: linear-gradient(135deg, #6550bd, #6a55c4);
+  --brand-gradient: linear-gradient(135deg, #6550bd 0%, #5a47a8 100%);
+  --dice-gradient: linear-gradient(135deg, #6550bd 0%, #5a47a8 100%);
+  --link-brand: #b0a6e3;
+  --link-brand-light: #c9c1ee;
+  --link-brand-border: #4a3c80;
+  --heading-brand: #c9c1ee;
 }
 
 /* ============================================
@@ -550,7 +1626,7 @@ input, select, textarea {
 }
 
 #readyBtn.ready {
-  background: var(--green-600);
+  background: var(--btn-ready-hover);
   opacity: 0.6;
   cursor: default;
 }
@@ -601,6 +1677,177 @@ input, select, textarea {
 
 .action-btn.kick:hover {
   background: var(--red-200);
+}
+
+/* ============================================
+   스킨 선택 버튼 + 목록 (js/shared/theme-shared.js)
+   호스트 페이지의 전역 button 규칙(width:100% · margin-top · padding · 그라디언트 · hover 이동 · 모바일 최소 44px)이
+   그대로 뚫고 들어오므로 관련 속성을 전부 명시해 상쇄한다 — lessons C-42
+============================================ */
+:root {
+  /* 목록의 미리보기 칸 — 현재 스킨과 무관하게 각 스킨의 색을 보여준다 */
+  --theme-swatch-light: #ffffff;
+  --theme-swatch-light-ink: #495057;
+  --theme-swatch-dark: #262624;
+  --theme-swatch-dark-ink: #faf9f5;
+  --theme-swatch-black: #000000;
+  --theme-swatch-midnight: #121b2e;
+  --theme-swatch-mocha: #26201b;
+  --theme-swatch-purple: #211a3b;
+}
+
+.theme-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-white);
+  color: var(--text-secondary);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.theme-switcher-btn:hover,
+.theme-switcher-btn:active {
+  background: var(--gray-100);
+  color: var(--text-primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.theme-switcher-popover {
+  position: fixed;
+  z-index: 10050; /* 서버 선택 화면·모달 위 */
+  width: 220px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-white);
+  color: var(--text-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+
+.theme-switcher-popover[hidden] {
+  display: none;
+}
+
+.theme-switcher-title {
+  padding: 4px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.theme-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.theme-switcher-option + .theme-switcher-option {
+  margin-top: 2px;
+}
+
+.theme-switcher-option:hover,
+.theme-switcher-option:active {
+  background: var(--gray-100);
+  transform: none;
+  box-shadow: none;
+}
+
+.theme-switcher-option[aria-checked="true"] {
+  background: var(--purple-50);
+}
+
+.theme-switcher-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.theme-switcher-swatch-light {
+  background: var(--theme-swatch-light);
+  color: var(--theme-swatch-light-ink);
+}
+
+.theme-switcher-swatch-dark {
+  background: var(--theme-swatch-dark);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-swatch-black {
+  background: var(--theme-swatch-black);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-swatch-midnight {
+  background: var(--theme-swatch-midnight);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-swatch-mocha {
+  background: var(--theme-swatch-mocha);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-swatch-purple {
+  background: var(--theme-swatch-purple);
+  color: var(--theme-swatch-dark-ink);
+}
+
+.theme-switcher-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.theme-switcher-desc {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.theme-switcher-check {
+  display: inline-flex;
+  color: var(--purple-500);
+  visibility: hidden;
+}
+
+.theme-switcher-option[aria-checked="true"] .theme-switcher-check {
+  visibility: visible;
 }
 
 /* Mobile Responsive */
@@ -655,6 +1902,12 @@ input, select, textarea {
   min-height: 0;
   margin: 0;
   padding: 0;
+}
+/* 다크 스킨의 빈 광고 칸 — 페이지가 color-scheme: dark 면 브라우저가 투명한 광고 iframe 뒤에 흰 바탕을 깔아
+   광고가 없는 칸이 흰 상자로 보인다. 채워지지 않은 칸(불러오는 중·unfilled)만 light 로 되돌려 라이트처럼 투명한 빈 띠로 둔다.
+   채워진 광고는 건드리지 않는다 — 배경이 투명한 광고까지 투명해지면 어두운 바탕에 어두운 글자가 된다 */
+.ad-container ins.adsbygoogle:not([data-ad-status="filled"]) {
+  color-scheme: light;
 }
 /* Mobile: reduce ad container reserved height */
 @media (max-width: 480px) {

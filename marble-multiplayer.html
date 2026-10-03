@@ -25,10 +25,8 @@
     <meta name="twitter:description" content="쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)!">
     <link rel="canonical" href="https://lamdice.com/marble">
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() { document.documentElement.setAttribute('data-theme', 'light'); })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/ui-icons.css">
@@ -41,9 +39,9 @@
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — marble.css 의 --horse-* alias 로 데구리 색 -->
-    <link rel="stylesheet" href="/css/horse-shop.css?v=3">
-    <link rel="stylesheet" href="/css/marble.css?v=32">
-    <link rel="stylesheet" href="/css/marble-gacha.css?v=19">
+    <link rel="stylesheet" href="/css/horse-shop.css?v=6">
+    <link rel="stylesheet" href="/css/marble.css?v=34">
+    <link rel="stylesheet" href="/css/marble-gacha.css?v=21">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -61,8 +59,8 @@
             padding: 6px 12px;
             border-radius: 999px;
             border: 1px solid var(--yellow-400);
-            background: rgba(0, 0, 0, 0.72);
-            color: var(--bg-white);
+            background: rgba(var(--shadow-rgb), 0.72);
+            color: var(--text-on-accent);
             font-family: 'Jua', sans-serif;
             font-size: 13px;
             line-height: 1.4;
@@ -91,9 +89,9 @@
             white-space: nowrap;
         }
         .schedule-open-btn.is-armed {
-            border-color: var(--btn-danger);
+            border-color: var(--red-500);
             background: var(--btn-danger);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
         .schedule-preset-btn {
             width: auto;
@@ -106,7 +104,7 @@
             font-size: 14px;
             font-weight: 600;
             background: var(--marble-gradient);
-            color: var(--bg-white);
+            color: var(--text-on-accent);
         }
         .schedule-time-select {
             flex: 1 1 0;
@@ -160,12 +158,12 @@
 
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--marble-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <div style="text-align: center; color: white;">
+        <div style="text-align: center; color: var(--text-on-accent);">
             <i class="mi mi-paw mi-loading"></i>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
-                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(var(--highlight-rgb),0.3); border-top: 4px solid var(--text-on-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
             </div>
         </div>
     </div>
@@ -252,8 +250,8 @@
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
-                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
-                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
             </div>
 
@@ -263,8 +261,8 @@
                     <div class="users-title" style="font-weight: bold; color: var(--marble-accent); font-size: 16px; margin: 0;"><i class="mi mi-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--marble-gradient); color: var(--text-primary); font-weight: 600;"><i class="mi mi-list"></i> 주문리스트</button>
-                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--marble-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
-                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--marble-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
 
@@ -279,18 +277,18 @@
                             <i class="mi mi-memo"></i><span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
-                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
                         <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--marble-accent); border: 1px solid var(--marble-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
 
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--marble-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span style="font-weight: bold; color: var(--marble-accent);"><i class="mi mi-list"></i> 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;">
-                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--marble-500); color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--horse-500); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">추가</button>
                         </div>
                         <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
                             <div style="color: var(--text-muted); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
@@ -441,13 +439,13 @@
     </div>
 
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
-    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb),0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
             <h3 style="color: var(--marble-accent); margin-bottom: 6px;"><i class="mi mi-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 경주를 대신 시작합니다. 그때 준비한 사람이 참가자예요.</p>
 
             <!-- 예약이 걸려 있을 때만 보인다 -->
-            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle); text-align: center;">
                 <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
             </div>
@@ -470,14 +468,14 @@
 
             <div style="display: flex; gap: 10px;">
                 <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
-                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600;">예약 취소</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
             </div>
         </div>
     </div>
 
     <!-- 비밀번호 입력 모달 -->
-    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb),0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--marble-accent); margin-bottom: 15px;"><i class="mi mi-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
@@ -497,13 +495,13 @@
     <script src="/js/shared/ranking-shared.js"></script>
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/shared/shop-shared.js?v=6"></script>
     <script src="/js/marble-shop.js?v=12"></script>
     <script src="/js/marble-gacha.js?v=45"></script>
     <script src="/js/marble-render.js?v=95"></script>
-    <script src="/js/marble.js?v=50"></script>
+    <script src="/js/marble.js?v=51"></script>
 
     <script>
         // ============================================
@@ -514,22 +512,22 @@
             if (existingAlert) existingAlert.remove();
             let borderColor, icon;
             switch(type) {
-                case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '<i class="mi mi-warn"></i>'; break;
-                case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '<i class="mi mi-warn"></i>'; break;
-                case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '<i class="mi mi-check"></i>'; break;
-                default: borderColor = 'rgb(147, 51, 234)'; icon = '<i class="mi mi-info"></i>';
+                case 'error': borderColor = 'var(--alert-error)'; icon = '<i class="mi mi-warn"></i>'; break;
+                case 'warning': borderColor = 'var(--alert-warning)'; icon = '<i class="mi mi-warn"></i>'; break;
+                case 'success': borderColor = 'var(--alert-success)'; icon = '<i class="mi mi-check"></i>'; break;
+                default: borderColor = 'var(--alert-info)'; icon = '<i class="mi mi-info"></i>';
             }
             const alertOverlay = document.createElement('div');
             alertOverlay.id = 'customAlert';
-            alertOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 10001; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
+            alertOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.4); z-index: 10001; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
             const alertContent = document.createElement('div');
-            alertContent.style.cssText = `background: white; border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
+            alertContent.style.cssText = `background: var(--bg-white); border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
             const messageDiv = document.createElement('div');
-            messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 20px; max-width: 100%;';
+            messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 20px; max-width: 100%;';
             messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
             const confirmButton = document.createElement('button');
             confirmButton.textContent = '확인';
-            confirmButton.style.cssText = `padding: 10px 30px; background: ${borderColor}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;`;
+            confirmButton.style.cssText = `padding: 10px 30px; background: ${borderColor}; color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;`;
             confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
             const handleEsc = (e) => { if (e.key === 'Escape') { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200); } };
             document.addEventListener('keydown', handleEsc);
@@ -545,28 +543,28 @@
                 if (existing) existing.remove();
                 let borderColor, icon;
                 switch(type) {
-                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '<i class="mi mi-warn"></i>'; break;
-                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '<i class="mi mi-warn"></i>'; break;
-                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '<i class="mi mi-check"></i>'; break;
-                    default: borderColor = 'rgb(147, 51, 234)'; icon = '<i class="mi mi-info"></i>';
+                    case 'error': borderColor = 'var(--alert-error)'; icon = '<i class="mi mi-warn"></i>'; break;
+                    case 'warning': borderColor = 'var(--alert-warning)'; icon = '<i class="mi mi-warn"></i>'; break;
+                    case 'success': borderColor = 'var(--alert-success)'; icon = '<i class="mi mi-check"></i>'; break;
+                    default: borderColor = 'var(--alert-info)'; icon = '<i class="mi mi-info"></i>';
                 }
                 const confirmOverlay = document.createElement('div');
                 confirmOverlay.id = 'customConfirm';
-                confirmOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 10002; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
+                confirmOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.4); z-index: 10002; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
                 const confirmContent = document.createElement('div');
-                confirmContent.style.cssText = `background: white; border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
+                confirmContent.style.cssText = `background: var(--bg-white); border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
                 const messageDiv = document.createElement('div');
-                messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 25px; max-width: 100%;';
+                messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 25px; max-width: 100%;';
                 messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
                 const buttonContainer = document.createElement('div');
                 buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: center;';
                 const cancelButton = document.createElement('button');
                 cancelButton.textContent = '취소';
-                cancelButton.style.cssText = 'padding: 10px 25px; background: rgb(243, 244, 246); color: rgb(107, 114, 128); border: 1px solid rgb(209, 213, 219); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;';
+                cancelButton.style.cssText = 'padding: 10px 25px; background: var(--horse-dialog-cancel-bg); color: var(--horse-dialog-cancel-text); border: 1px solid var(--horse-dialog-cancel-border); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;';
                 cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
                 const confirmButton = document.createElement('button');
                 confirmButton.textContent = '확인';
-                confirmButton.style.cssText = `padding: 10px 25px; background: ${borderColor}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;`;
+                confirmButton.style.cssText = `padding: 10px 25px; background: ${borderColor}; color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;`;
                 confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
                 const handleEsc = (e) => { if (e.key === 'Escape') { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200); } };
                 document.addEventListener('keydown', handleEsc);
@@ -595,13 +593,15 @@
                 input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--marble-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
                 displaySpan.replaceWith(input); input.focus(); input.select();
                 function finishEdit() {
+                    // Enter 로 확정하면 입력칸이 빠지는 순간(replaceWith 안에서) blur 가 또 온다 — 먼저 플래그를 내려 두 번째 호출을 건너뛴다
+                    if (!isEditingRoomName) return;
+                    isEditingRoomName = false;
                     const newName = input.value.trim();
                     const newDisplay = document.createElement('span');
                     newDisplay.id = 'roomNameDisplay';
                     newDisplay.textContent = newName || currentName;
                     input.replaceWith(newDisplay);
                     if (editIcon) editIcon.style.display = '';
-                    isEditingRoomName = false;
                     if (newName && newName !== currentName && window.socket) window.socket.emit('updateRoomName', { roomName: newName });
                 }
                 input.addEventListener('blur', finishEdit);
@@ -618,7 +618,7 @@
     </script>
 
     <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(var(--highlight-rgb),0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 데구리 게임 안내</h2>
         <p>LAMDice 데구리은 친구들과 함께 즐기는 무료 온라인 구슬 경주 게임입니다. 고슴도치·아르마딜로·공벌레·거북이·판다 중 내 동물을 고르면, 쏙 웅크린 동물들이 언덕을 데굴데굴 굴러 내려갑니다. 벌집, 낮잠 양지, 비버 댐, 함정 구덩이, 진흙탕과 시소, 마지막 관문을 지나 결승선까지 — 제일 늦게 도착한 동물의 주인이 당첨(벌칙)으로 정해집니다. 방장이 1인당 동물 수를 정할 수 있고, 카메라가 꼴찌 동물을 따라가며 전체화면으로도 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
@@ -677,7 +677,7 @@
             'margin-left:8px; width:22px; height:22px; border-radius:50%;',
             'font-size:13px; font-weight:bold; line-height:1;',
             'background: var(--marble-gradient);',
-            'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
+            'color:var(--text-on-accent); border:2px solid rgba(var(--highlight-rgb),0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(var(--marble-500-rgb),0.5); flex-shrink:0;'
         ].join('');

@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<title>LAMDice 홈 리뉴얼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ───────── 토큰: 밝은 테마가 기본 (실서버는 밝은 테마 고정) ───────── */
+:root {
+  --display: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --body: 'IBM Plex Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+
+  --ink: #1E1B3A;       /* 본문 글자 */
+  --ink-2: #4B4770;     /* 보조 글자 */
+  --ink-3: #8A86A8;     /* 흐린 글자 */
+  --ground: #F5F4FB;    /* 페이지 바닥 — 보라 기운이 살짝 도는 흰색 */
+  --surface: #FFFFFF;
+  --surface-2: #EEECF8;
+  --line: #E3E0F2;
+
+  --brand: #5B4FE0;     /* 버튼·링크 (흰 바탕 대비 5.6:1) */
+  --brand-ink: #3B2FB8;
+  --brand-soft: #E9E6FD;
+
+  --dice: #667EEA;      --dice-soft: #E9ECFC;
+  --roulette: #1F7A4D;  --roulette-soft: #DFF3E7;
+  --horse: #A4521B;     --horse-soft: #F8E9DD;
+  --marble: #3FA65B;    --marble-soft: #E1F5E6;
+  --ladder: #D9890A;    --ladder-soft: #FBEFD6;
+
+  --live: #D93B3B;      --live-soft: #FDE7E7;   --live-ink: #A81F1F;
+  --good: #22A05B;
+
+  --r-s: 10px; --r-m: 16px; --r-l: 24px;
+  --sh-1: 0 1px 2px rgba(30,27,58,.05), 0 6px 20px rgba(30,27,58,.06);
+  --sh-2: 0 14px 34px rgba(30,27,58,.16);
+  --track-sky: #A9DDF7; --track-grass: #7FC46C; --track-dirt: #D9B37E; --track-dirt-2: #CFA26A;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #F1EFFC; --ink-2: #C3BFE0; --ink-3: #8D89B0;
+    --ground: #14122A; --surface: #1E1B3A; --surface-2: #29254D; --line: #35315E;
+    --brand: #9C8DFF; --brand-ink: #CFC7FF; --brand-soft: #2B2660;
+    --dice: #8C9BF5; --dice-soft: #262C5C;
+    --roulette: #4FCB86; --roulette-soft: #16382A;
+    --horse: #E58A4B; --horse-soft: #3A2417;
+    --marble: #6BD187; --marble-soft: #173A25;
+    --ladder: #F0B14A; --ladder-soft: #3B2B10;
+    --live: #FF7B7B; --live-soft: #4A1F24; --live-ink: #FFB3B3;
+    --sh-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.3);
+    --sh-2: 0 14px 34px rgba(0,0,0,.5);
+    --track-sky: #2B3D6B; --track-grass: #2F6B3D; --track-dirt: #7A5A3A; --track-dirt-2: #6A4C2F;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #F1EFFC; --ink-2: #C3BFE0; --ink-3: #8D89B0;
+  --ground: #14122A; --surface: #1E1B3A; --surface-2: #29254D; --line: #35315E;
+  --brand: #9C8DFF; --brand-ink: #CFC7FF; --brand-soft: #2B2660;
+  --dice: #8C9BF5; --dice-soft: #262C5C;
+  --roulette: #4FCB86; --roulette-soft: #16382A;
+  --horse: #E58A4B; --horse-soft: #3A2417;
+  --marble: #6BD187; --marble-soft: #173A25;
+  --ladder: #F0B14A; --ladder-soft: #3B2B10;
+  --live: #FF7B7B; --live-soft: #4A1F24; --live-ink: #FFB3B3;
+  --sh-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.3);
+  --sh-2: 0 14px 34px rgba(0,0,0,.5);
+  --track-sky: #2B3D6B; --track-grass: #2F6B3D; --track-dirt: #7A5A3A; --track-dirt-2: #6A4C2F;
+}
+
+/* ───────── 기본 ───────── */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 16px/1.55 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 400; letter-spacing: -.01em; text-wrap: balance; }
+p { margin: 0; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 55%, transparent); outline-offset: 2px; }
+.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+.wrap { max-width: 1120px; margin-inline: auto; padding-inline: 20px; }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+.sec { padding-block: 56px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.sec-head h2 { font-size: 30px; }
+.sec-head p { color: var(--ink-3); font-size: 14px; }
+
+/* 버튼 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 22px; border-radius: 14px; border: 1px solid transparent; font-weight: 600; font-size: 16px; line-height: 1; cursor: pointer; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.btn.primary { background: var(--brand); color: #fff; box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 35%, transparent); }
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px color-mix(in srgb, var(--brand) 42%, transparent); }
+.btn.ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.soft { background: var(--brand-soft); color: var(--brand-ink); }
+.btn.soft:hover { filter: brightness(.97); }
+.btn.sm { height: 38px; padding: 0 14px; font-size: 14px; border-radius: 11px; }
+.btn .ic { width: 20px; height: 20px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 4px 9px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.pill.wait { background: var(--brand-soft); color: var(--brand-ink); }
+.pill.live { background: var(--live-soft); color: var(--live-ink); }
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.live .dot { animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+
+/* ───────── 목업 전용 바 ───────── */
+.mock { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 8px 16px; background: var(--ink); color: var(--ground); font-size: 12px; }
+.mock .seg { display: inline-flex; border-radius: 999px; padding: 3px; background: rgba(255,255,255,.12); }
+.mock .seg button { border: 0; background: transparent; color: inherit; padding: 4px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 600; opacity: .7; }
+.mock .seg button[aria-pressed="true"] { background: var(--ground); color: var(--ink); opacity: 1; }
+.mock .note { opacity: .6; }
+
+/* ───────── 헤더 ───────── */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: color-mix(in srgb, var(--ground) 82%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 24px; height: 62px; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 24px; letter-spacing: -.01em; }
+.logo .ic { width: 28px; height: 28px; }
+.top nav { display: flex; gap: 4px; margin-inline-start: 8px; }
+.top nav a { padding: 8px 12px; border-radius: 10px; font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.top nav a:hover, .top nav a[aria-current="page"] { background: var(--surface-2); color: var(--ink); }
+.top .actions { margin-inline-start: auto; display: flex; gap: 8px; align-items: center; }
+
+/* ───────── 히어로 ───────── */
+.hero { padding-block: 40px 24px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.hero h1 { font-size: clamp(38px, 5.2vw, 60px); line-height: 1.08; margin-block: 12px 14px; }
+.hero h1 em { font-style: normal; color: var(--brand); }
+.lede { font-size: 17px; color: var(--ink-2); max-width: 30em; }
+.start { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 24px; }
+.start label { grid-column: 1 / -1; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.start input { height: 52px; padding: 0 16px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: 500 16px var(--body); min-width: 0; }
+.start input:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent); }
+.start .btn { height: 52px; }
+.hint { margin-top: 10px; font-size: 13px; color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.hint .chip { cursor: pointer; }
+
+/* 경주 트랙: 실제 게임 도트 그림이 뛰어다니는 한 컷 */
+.runway { position: relative; height: 340px; border-radius: var(--r-l); overflow: hidden; background: linear-gradient(180deg, var(--track-sky) 0 52%, var(--track-grass) 52% 60%, var(--track-dirt) 60% 100%); box-shadow: var(--sh-1); border: 1px solid var(--line); }
+.runway .cloud { position: absolute; top: 12%; width: 90px; height: 30px; border-radius: 999px; background: rgba(255,255,255,.55); animation: drift 26s linear infinite; }
+.runway .cloud::before { content: ''; position: absolute; left: 22px; top: -14px; width: 40px; height: 40px; border-radius: 50%; background: inherit; }
+.runway .cloud.c2 { top: 26%; width: 60px; animation-duration: 38s; animation-delay: -12s; }
+@keyframes drift { from { left: -120px; } to { left: 100%; } }
+.lanes { position: absolute; left: 0; right: 0; bottom: 14px; display: grid; gap: 4px; }
+.lane { position: relative; height: 64px; border-top: 2px dashed rgba(255,255,255,.55); }
+.lane:nth-child(even) { background: color-mix(in srgb, var(--track-dirt-2) 60%, transparent); }
+.veh { position: absolute; bottom: 4px; left: -140px; width: 120px; height: 90px; background: var(--f1) center / contain no-repeat; animation: run var(--t, 9s) linear infinite var(--d, 0s), gallop .34s steps(1) infinite; }
+@keyframes gallop { 50% { background-image: var(--f2); } }
+@keyframes run { from { left: -140px; } to { left: 100%; } }
+.finish { position: absolute; top: 46%; right: 26px; width: 46px; height: 58%; background: repeating-conic-gradient(#1E1B3A 0 25%, #fff 0 50%) 0 0 / 12px 12px; border-inline: 3px solid #1E1B3A; opacity: .9; }
+.finish::after { content: 'FINISH'; position: absolute; top: -26px; left: 50%; transform: translateX(-50%); font: 700 11px/1 var(--body); letter-spacing: .12em; color: var(--ink); background: var(--surface); padding: 5px 8px; border-radius: 8px; box-shadow: var(--sh-1); }
+.runway .live-pill { position: absolute; top: 14px; left: 14px; z-index: 2; background: var(--surface); box-shadow: var(--sh-1); }
+.runway .spec { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: -4px; }
+.spec .av { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--surface); background: var(--brand-soft); display: grid; place-items: center; font: 600 11px var(--body); color: var(--brand-ink); margin-inline-start: -8px; }
+.spec .av:first-child { margin-inline-start: 0; }
+
+/* ───────── 숫자 띠 ───────── */
+.stats { padding-block: 8px 0; }
+.stats .wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
+.stat .ic { width: 36px; height: 36px; flex: none; }
+.stat b { display: block; font: 400 26px/1 var(--display); }
+.stat span { font-size: 13px; color: var(--ink-3); }
+
+/* ───────── 게임 선반 ───────── */
+.cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.game-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 16px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sh-1); text-align: left; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; --soft: var(--surface-2); --acc: var(--brand); }
+.game-card:hover { transform: translateY(-4px); box-shadow: var(--sh-2); }
+.game-card:hover .art .px { transform: scale(1.08); }
+.game-card .art { position: relative; height: 128px; border-radius: 16px; background: var(--soft); display: grid; place-items: center; overflow: hidden; }
+.game-card .art .px { transition: transform .25s ease; }
+.game-card .art .ic { width: 84px; height: 84px; }
+.game-card h3 { font-size: 24px; line-height: 1.1; display: flex; align-items: center; gap: 8px; }
+.game-card h3 .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--acc); flex: none; }
+.game-card .hook { font-size: 13.5px; line-height: 1.5; color: var(--ink-2); min-height: 3em; }
+.game-card .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.game-card .badge { position: absolute; top: 22px; right: 22px; z-index: 1; font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 4px 8px; border-radius: 999px; background: var(--ink); color: var(--ground); }
+.game-card.soon { cursor: default; opacity: .72; }
+.game-card.soon:hover { transform: none; box-shadow: var(--sh-1); }
+.game-card.soon .badge { background: var(--ladder); color: #fff; }
+.game-card[data-game="dice"] { --soft: var(--dice-soft); --acc: var(--dice); }
+.game-card[data-game="roulette"] { --soft: var(--roulette-soft); --acc: var(--roulette); }
+.game-card[data-game="horse"] { --soft: var(--horse-soft); --acc: var(--horse); }
+.game-card[data-game="marble"] { --soft: var(--marble-soft); --acc: var(--marble); }
+.game-card[data-game="ladder"] { --soft: var(--ladder-soft); --acc: var(--ladder); }
+/* 경마 카드: 탈것 두 마리가 나란히 */
+.art .duo { display: flex; align-items: flex-end; gap: 0; }
+.art .duo .veh { position: static; animation: gallop .34s steps(1) infinite; width: 96px; height: 72px; }
+/* 데구리 카드: 4프레임 idle 스프라이트 */
+.mb { width: 112px; height: 112px; background: var(--strip) 0 0 / 400% 100% no-repeat; animation: idle .58s steps(4) infinite; }
+@keyframes idle { to { background-position: 133.34% 0; } }
+/* 주사위 카드: 눈 세 개 */
+.art .trio { display: flex; gap: 2px; align-items: center; }
+.art .trio .ic { width: 52px; height: 52px; }
+.art .trio .ic:nth-child(2) { width: 64px; height: 64px; }
+
+/* ───────── 노는 법 ───────── */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; counter-reset: step; }
+.step { padding: 22px 20px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.step .n { counter-increment: step; font: 400 14px var(--display); color: var(--brand); }
+.step .n::before { content: counter(step) '단계'; }
+.step .ic { width: 44px; height: 44px; }
+.step h3 { font-size: 22px; }
+.step p { font-size: 14px; color: var(--ink-2); }
+.step .demo { margin-top: 6px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 13px; display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.step .demo code { font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); background: var(--surface); padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ───────── 우리 팀 서버 ───────── */
+.team .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; padding-block: 32px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--line); max-width: 1080px; }
+.team h2 { font-size: 34px; margin-block: 8px 10px; }
+.team p { color: var(--ink-2); max-width: 30em; }
+.team .cta { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.srv { padding: 16px; border-radius: 18px; background: var(--ground); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.srv-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.srv-row .mark { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font: 400 20px var(--display); background: var(--brand-soft); color: var(--brand-ink); flex: none; }
+.srv-row b { display: block; font-weight: 600; font-size: 15px; }
+.srv-row small { color: var(--ink-3); font-size: 12.5px; }
+.srv-row .pill { margin-inline-start: auto; }
+.rank { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px 10px; align-items: center; font-size: 14px; padding: 4px 6px; }
+.rank .ic { width: 22px; height: 22px; }
+.rank .bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; grid-column: 2; }
+.rank .bar i { display: block; height: 100%; background: var(--brand); border-radius: inherit; }
+
+/* ───────── 로비 ───────── */
+.lobby { padding-block: 32px 40px; }
+.lobby-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.lobby-head h1 { font-size: 38px; line-height: 1.1; display: flex; align-items: center; gap: 10px; }
+.lobby-head h1 .count { font: 400 18px var(--display); background: var(--brand-soft); color: var(--brand-ink); padding: 4px 12px; border-radius: 999px; }
+.me { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
+.me .av { width: 28px; height: 28px; border-radius: 50%; background: var(--brand-soft); display: grid; place-items: center; color: var(--brand-ink); font: 600 12px var(--body); }
+.tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-block: 20px 14px; }
+.tools .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.fbtn { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fbtn .ic { width: 18px; height: 18px; }
+.fbtn[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.tools .right { margin-inline-start: auto; display: flex; gap: 8px; }
+.lobby-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.room { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sh-1); --soft: var(--surface-2); }
+.room[data-game="dice"] { --soft: var(--dice-soft); } .room[data-game="roulette"] { --soft: var(--roulette-soft); } .room[data-game="horse"] { --soft: var(--horse-soft); } .room[data-game="marble"] { --soft: var(--marble-soft); }
+.room .thumb { width: 64px; height: 64px; border-radius: 14px; background: var(--soft); display: grid; place-items: center; }
+.room .thumb .ic { width: 44px; height: 44px; }
+.room .title { font: 400 20px/1.15 var(--display); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.room .sub { font-size: 13px; color: var(--ink-3); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+.room .sub b { color: var(--ink-2); font-weight: 600; }
+.room .seats { display: flex; gap: 3px; margin-top: 8px; }
+.room .seats i { width: 14px; height: 6px; border-radius: 3px; background: var(--surface-2); }
+.room .seats i.on { background: var(--brand); }
+.room .act { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.empty { padding: 40px 20px; text-align: center; color: var(--ink-3); border: 1.5px dashed var(--line); border-radius: 18px; }
+.side { display: grid; gap: 12px; }
+.card { padding: 18px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.card h3 { font-size: 20px; margin-bottom: 10px; }
+.recent { display: grid; gap: 8px; }
+.recent li { list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.recent .ic { width: 22px; height: 22px; }
+.recent .r { margin-inline-start: auto; font-weight: 600; }
+.recent .r.lose { color: var(--live-ink); }
+.card ul { margin: 0; padding: 0; }
+.invite { background: linear-gradient(160deg, var(--brand-soft), var(--surface)); }
+.invite p { font-size: 14px; color: var(--ink-2); }
+.lobby-cta { display: none; }
+
+/* ───────── 방 만들기 시트 ───────── */
+.sheet { position: fixed; inset: 0; z-index: 80; background: rgba(20,18,42,.45); display: grid; place-items: end center; padding: 0; }
+.sheet-panel { width: min(560px, 100%); max-height: 92vh; overflow: auto; background: var(--surface); border-radius: 24px 24px 0 0; padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; box-shadow: var(--sh-2); animation: up .22s ease; }
+@keyframes up { from { transform: translateY(24px); opacity: 0; } }
+.sheet-panel h2 { font-size: 26px; display: flex; align-items: center; justify-content: space-between; }
+.sheet-panel h2 button { border: 0; background: var(--surface-2); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.field input { height: 48px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: 500 16px var(--body); }
+.field input:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent); }
+.pick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.pick button { position: relative; border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px 4px 8px; display: grid; gap: 6px; justify-items: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); --soft: var(--surface-2); }
+.pick button .ic { width: 40px; height: 40px; }
+.pick button .sq { width: 48px; height: 48px; border-radius: 12px; background: var(--soft); display: grid; place-items: center; }
+.pick button[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+.pick button:disabled { opacity: .45; cursor: not-allowed; }
+.pick [data-game="dice"] { --soft: var(--dice-soft); } .pick [data-game="roulette"] { --soft: var(--roulette-soft); } .pick [data-game="horse"] { --soft: var(--horse-soft); } .pick [data-game="marble"] { --soft: var(--marble-soft); } .pick [data-game="ladder"] { --soft: var(--ladder-soft); }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+.switch small { display: block; color: var(--ink-3); font-size: 12px; }
+.tog { width: 44px; height: 26px; border-radius: 999px; background: var(--line); border: 0; position: relative; cursor: pointer; flex: none; }
+.tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.tog[aria-checked="true"] { background: var(--brand); } .tog[aria-checked="true"]::after { left: 21px; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 90; background: var(--ink); color: var(--ground); padding: 12px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; box-shadow: var(--sh-2); display: flex; gap: 8px; align-items: center; animation: up .2s ease; max-width: calc(100% - 32px); }
+.toast .ic { width: 18px; height: 18px; }
+
+/* ───────── 푸터 ───────── */
+footer { border-top: 1px solid var(--line); padding-block: 36px 28px; color: var(--ink-3); font-size: 13px; }
+footer .wrap { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; }
+footer h4 { margin: 0 0 8px; font: 400 16px var(--display); color: var(--ink); }
+footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+footer a:hover { color: var(--ink); }
+footer .fine { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* ───────── 반응형 ───────── */
+@media (max-width: 960px) {
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lobby-grid { grid-template-columns: 1fr; }
+  .team .wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .sec { padding-block: 36px; }
+  .sec-head h2 { font-size: 26px; }
+  .top .wrap { height: 56px; gap: 12px; }
+  .top nav { display: none; }
+  .hero { padding-block: 24px 16px; }
+  .hero .wrap { grid-template-columns: 1fr; gap: 22px; }
+  .lede { font-size: 15.5px; }
+  .start { grid-template-columns: 1fr; }
+  .runway { height: 210px; }
+  .lane { height: 50px; }
+  .veh { width: 84px; height: 63px; bottom: 2px; }
+  .lane:nth-child(4) { display: none; }
+  .finish { top: 44%; right: 14px; width: 32px; }
+  .stats .wrap { grid-template-columns: 1fr; gap: 8px; }
+  .stat { padding: 12px 14px; } .stat b { font-size: 22px; }
+  /* 게임 카드: 가로 스냅 스크롤 */
+  .cards { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; margin-inline: -20px; padding-inline: 20px; scrollbar-width: none; }
+  .cards::-webkit-scrollbar { display: none; }
+  .game-card { flex: 0 0 76%; scroll-snap-align: start; }
+  .steps { grid-template-columns: 1fr; }
+  .team .wrap { padding-block: 24px; }
+  .team h2 { font-size: 28px; }
+  .lobby-head h1 { font-size: 30px; }
+  .tools .right { margin-inline-start: 0; width: 100%; }
+  .tools .right .btn { flex: 1; }
+  .room { grid-template-columns: 54px minmax(0, 1fr); }
+  .room .thumb { width: 54px; height: 54px; } .room .thumb .ic { width: 38px; height: 38px; }
+  .room .act { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
+  .lobby-cta { display: block; position: sticky; bottom: 0; z-index: 40; padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, var(--ground) 40%); }
+  .lobby-cta .btn { width: 100%; }
+  .pick { grid-template-columns: repeat(3, 1fr); }
+  footer .wrap { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 721px) {
+  .sheet { place-items: center; padding: 20px; }
+  .sheet-panel { border-radius: 24px; padding-bottom: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .veh, .mb, .cloud, .pill .dot { animation: none !important; }
+  .lane .veh { left: auto; right: calc(20% + var(--i, 0) * 12%); }
+  .game-card, .btn { transition: none; }
+}
+
+/* ── 서버 고르기 추가분 ── */
+.search { display: flex; gap: 8px; flex: 1; min-width: 220px; }
+.search input { flex: 1; min-width: 0; }
+.cont { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.cont .txt2 { flex: 1; min-width: 200px; }
+.room .thumb .mark { font-family: var(--display, inherit); font-size: 22px; font-weight: 800; }
+.mems { display: grid; }
+.mem { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line, #ddd); font-size: 14px; }
+.mem:last-child { border-bottom: 0; }
+.mem .dot { width: 8px; height: 8px; border-radius: 50%; background: #22A05B; flex: none; }
+.mem .dot.off { background: var(--ink-3, #999); }
+.mem .who { flex: 1; }
+.mem .who small { color: var(--ink-3, #999); margin-left: 6px; font-size: 12px; }
+.mem .acts { display: flex; gap: 6px; }
+.top .actions .who { font-weight: 700; font-size: 14px; }
+#screen-lobby .eyebrow a, #screen-lobby .meta a { color: inherit; }
+
+/* 로그인 상태의 홈: 서버 고르기가 맨 위, 소개는 접힘 */
+#homeServerSlot { padding-block: 26px 10px; }
+#screen-home.is-member .hero .wrap, #screen-home.is-member .screen-grid { grid-template-columns: 1fr; }
+#screen-home.is-member .screen-grid { padding-bottom: 30px; }
+#screen-home.is-member .hero { padding-block: 6px 10px; }
+#screen-home.is-member .hero .wrap { padding-block: 14px 18px; }
+#screen-home.is-member .hero h1 { font-size: clamp(22px, 3vw, 30px); margin-block: 4px 10px; }
+#screen-home.is-member .ticket, #screen-home.is-member .startcard, #screen-home.is-member .start { max-width: 640px; margin-top: 8px; }
+
+input.txt { height: 48px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: 500 16px var(--body); width: 100%; }
+input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent); }
+.rl { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.rl:last-of-type { border-bottom: 0; }
+.rl .dots { flex: 1; } .rl .r { color: var(--ink); font-weight: 600; white-space: nowrap; } .rl .r.hot { color: var(--live-ink); }
+.fine { font-size: 13px; color: var(--ink-3); }
+.mnav { color: inherit; text-decoration: underline; text-underline-offset: 3px; margin: 0 4px; font: inherit; opacity: .85; }
+</style>
+
+<!-- 목업 전용 조작 바 (실제 화면 아님) -->
+<div class="mock" id="mockBar">
+  <span>목업</span><a class="mnav" href="/main">목록</a><a class="mnav" href="/2">다음</a>
+  <span class="seg" role="group" aria-label="화면">
+    <button type="button" data-screen="home" aria-pressed="true">첫 화면(홈)</button>
+    <button type="button" data-screen="lobby" aria-pressed="false">다음 화면(로비)</button>
+  </span>
+  <span class="seg" role="group" aria-label="테마">
+    <button type="button" data-theme="light" aria-pressed="true">밝게</button>
+    <button type="button" data-theme="dark" aria-pressed="false">어둡게</button>
+  </span>
+  <span class="note">숫자·방 목록은 예시</span>
+</div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#"><img class="ic px" src="/mockups/assets/ic-dice.png" alt="">LAMDice</a>
+    <nav>
+      <a href="#" aria-current="page">게임</a>
+      <a href="#">랭킹</a>
+      <a href="#">게임 가이드</a>
+      <a href="#">통계</a>
+    </nav>
+    <div class="actions">
+      <button type="button" class="btn ghost sm"><img class="ic px" src="/mockups/assets/ic-key.png" alt="">로그인</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════ 첫 화면: 홈 ═══════════ -->
+<main id="screen-home">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow">무료 · 가입 없음 · 링크 하나로 초대</p>
+        <h1>오늘 커피는<br><em>누가 쏠까?</em></h1>
+        <p class="lede">게임 하나 고르고 링크를 보내면 끝. 친구가 다 모이면 서버가 결과를 정해요. 실제 돈은 오가지 않아요.</p>
+        <form class="start" id="startForm">
+          <label for="name">친구들이 보는 이름</label>
+          <input id="name" name="name" maxlength="8" value="라온" autocomplete="off" placeholder="8자까지">
+          <button type="submit" class="btn primary">바로 시작</button>
+        </form>
+        <p class="hint">지난번엔 <b>라온</b>으로 놀았어요 · 결과는 서버 난수로만 정해져요</p>
+      </div>
+      <div class="runway" aria-hidden="true">
+        <span class="pill live live-pill"><i class="dot"></i>지금 3판 진행 중</span>
+        <span class="spec"><span class="av">민</span><span class="av">지</span><span class="av">하</span><span class="av">+4</span></span>
+        <i class="cloud"></i><i class="cloud c2"></i>
+        <div class="finish"></div>
+        <div class="lanes">
+          <div class="lane"><i class="veh px" style="--f1:url(/mockups/assets/veh-rocket-1.webp);--f2:url(/mockups/assets/veh-rocket-2.webp);--t:7.5s;--d:-3s;--i:0"></i></div>
+          <div class="lane"><i class="veh px" style="--f1:url(/mockups/assets/veh-horse-1.webp);--f2:url(/mockups/assets/veh-horse-2.webp);--t:9s;--d:-1s;--i:1"></i></div>
+          <div class="lane"><i class="veh px" style="--f1:url(/mockups/assets/veh-rabbit-1.webp);--f2:url(/mockups/assets/veh-rabbit-2.webp);--t:8.2s;--d:-6s;--i:2"></i></div>
+          <div class="lane"><i class="veh px" style="--f1:url(/mockups/assets/veh-turtle-1.webp);--f2:url(/mockups/assets/veh-turtle-2.webp);--t:14s;--d:-9s;--i:3"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="오늘의 숫자">
+    <div class="wrap">
+      <div class="stat"><img class="ic px" src="/mockups/assets/ic-fire.png" alt=""><div><b class="num">12판</b><span>오늘 놀았어요</span></div></div>
+      <div class="stat"><img class="ic px" src="/mockups/assets/ic-people.png" alt=""><div><b class="num">7명</b><span>지금 접속 중</span></div></div>
+      <div class="stat"><img class="ic px" src="/mockups/assets/ic-trophy.png" alt=""><div><b class="num">714판</b><span>지금까지 결정된 내기</span></div></div>
+    </div>
+  </section>
+
+  <section class="sec" id="games">
+    <div class="wrap">
+      <div class="sec-head"><h2>게임 고르기</h2><p>누르면 이름 그대로 방이 생기고 링크가 나와요</p></div>
+      <div class="cards">
+        <button type="button" class="game-card" data-game="dice">
+          <div class="art"><div class="trio px"><img class="ic px" src="/mockups/assets/ic-d3.png" alt=""><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""><img class="ic px" src="/mockups/assets/ic-d5.png" alt=""></div></div>
+          <h3><i class="sw"></i>주사위</h3>
+          <p class="hook">높은 수·낮은 수·가까운 수. 규칙 하나 골라 한 번에 굴려요.</p>
+          <div class="meta"><span class="chip">2~10명</span><span class="chip">1분</span></div>
+        </button>
+        <button type="button" class="game-card" data-game="roulette">
+          <div class="art"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""></div>
+          <h3><i class="sw"></i>룰렛</h3>
+          <p class="hook">한 칸씩 찍고 돌려요. 바늘이 멈춘 칸의 주인이 쏘는 거예요.</p>
+          <div class="meta"><span class="chip">2~10명</span><span class="chip">30초</span></div>
+        </button>
+        <button type="button" class="game-card" data-game="horse">
+          <div class="art"><div class="duo"><i class="veh px" style="--f1:url(/mockups/assets/veh-horse-1.webp);--f2:url(/mockups/assets/veh-horse-2.webp)"></i><i class="veh px" style="--f1:url(/mockups/assets/veh-rabbit-1.webp);--f2:url(/mockups/assets/veh-rabbit-2.webp);animation-delay:-.17s"></i></div></div>
+          <h3><i class="sw"></i>경마</h3>
+          <p class="hook">탈것 15종 중 하나 골라 1등·꼴등을 맞혀요. 다 같이 관전.</p>
+          <div class="meta"><span class="chip">2~10명</span><span class="chip">2분</span><span class="chip">인기</span></div>
+        </button>
+        <button type="button" class="game-card" data-game="marble">
+          <span class="badge">베타</span>
+          <div class="art"><i class="mb px" style="--strip:url(/mockups/assets/mb-hedgehog-idle.webp)"></i></div>
+          <h3><i class="sw"></i>데구리</h3>
+          <p class="hook">동물 구슬을 언덕에서 굴려요. 구멍에 먼저 들어가면 승리.</p>
+          <div class="meta"><span class="chip">2~8명</span><span class="chip">3분</span></div>
+        </button>
+        <div class="game-card soon" data-game="ladder" aria-disabled="true">
+          <span class="badge">준비 중</span>
+          <div class="art"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""></div>
+          <h3><i class="sw"></i>사다리</h3>
+          <p class="hook">번호 하나 골라 타고 내려가요. 당첨 한 칸, 걸리면 끝.</p>
+          <div class="meta"><span class="chip">2~10명</span><span class="chip">곧 열려요</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="how" style="padding-top:8px">
+    <div class="wrap">
+      <div class="sec-head"><h2>이렇게 놀아요</h2><p>세 걸음이면 결과가 나와요</p></div>
+      <div class="steps">
+        <div class="step">
+          <span class="n"></span>
+          <img class="ic px" src="/mockups/assets/ic-play.png" alt="">
+          <h3>게임 고르고 이름 적기</h3>
+          <p>가입 없이 이름만 적으면 방이 바로 생겨요. 방장은 규칙을 고를 수 있어요.</p>
+          <div class="demo"><img class="ic px" src="/mockups/assets/ic-person.png" alt="" style="width:20px;height:20px"><span><b>라온</b>님의 경마 · 대기 중</span></div>
+        </div>
+        <div class="step">
+          <span class="n"></span>
+          <img class="ic px" src="/mockups/assets/ic-link.png" alt="">
+          <h3>링크 복사해서 보내기</h3>
+          <p>카톡에 붙여넣기만 하면 친구는 앱 설치 없이 바로 들어와요.</p>
+          <div class="demo"><code>lamdice.com/free/horse/7QK3</code><button type="button" class="btn soft sm" data-copy="https://lamdice.com/free/horse/7QK3">복사</button></div>
+        </div>
+        <div class="step">
+          <span class="n"></span>
+          <img class="ic px" src="/mockups/assets/ic-confetti.png" alt="">
+          <h3>다 모이면 시작</h3>
+          <p>결과는 서버 난수로만 정해져요. 누가 쏘는지는 다 같이 보는 화면에서 확인.</p>
+          <div class="demo"><img class="ic px" src="/mockups/assets/ic-crown.png" alt="" style="width:20px;height:20px"><span>1등 <b>지우</b> · 오늘 커피는 <b>민수</b>가 쏨</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec team" id="team">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">자주 노는 팀이라면</p>
+        <h2>우리 팀 서버를 만들어요</h2>
+        <p>회원가입하고 서버를 열면 멤버끼리 기록이 쌓여요. 누가 제일 많이 쐈는지, 이번 달 운 좋은 사람은 누군지 랭킹으로 남아요. 참여코드를 걸면 아는 사람만 들어와요.</p>
+        <div class="cta">
+          <button type="button" class="btn primary" id="btnMakeServer"><img class="ic px" src="/mockups/assets/ic-people.png" alt="">서버 만들기</button>
+          <button type="button" class="btn ghost">이미 계정이 있어요</button>
+        </div>
+      </div>
+      <div class="srv">
+        <div class="srv-row"><span class="mark">L</span><div><b>LAMDice :)</b><small>방장 LAM · 멤버 3명 · 참여코드 있음</small></div><span class="pill wait"><i class="dot"></i>참여 가능</span></div>
+        <div class="srv-row"><span class="mark" style="background:var(--roulette-soft);color:var(--roulette)">개</span><div><b>개발2팀 점심조</b><small>방장 서연 · 멤버 8명</small></div><span class="pill live"><i class="dot"></i>진행 중</span></div>
+        <div class="card" style="padding:12px 14px">
+          <div class="eyebrow" style="margin-bottom:8px">이번 달 많이 쏜 사람</div>
+          <div class="rank"><img class="ic px" src="/mockups/assets/ic-crown.png" alt=""><span>민수</span><span class="num">5번</span><span class="bar"><i style="width:100%"></i></span></div>
+          <div class="rank"><img class="ic px" src="/mockups/assets/ic-medal.png" alt=""><span>하루</span><span class="num">3번</span><span class="bar"><i style="width:60%"></i></span></div>
+          <div class="rank"><img class="ic px" src="/mockups/assets/ic-star.png" alt=""><span>라온</span><span class="num">1번</span><span class="bar"><i style="width:20%"></i></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════ 다음 화면: 로비(방 목록) — 같은 헤더·같은 카드 언어 ═══════════ -->
+<main id="screen-lobby" class="lobby" hidden>
+  <div class="wrap">
+    <div class="lobby-head">
+      <div>
+        <p class="eyebrow">자유 방</p>
+        <h1>열린 방 <span class="count num" id="roomCount">4</span></h1>
+      </div>
+      <div class="me"><span class="av">라</span><span><b id="meName">라온</b>으로 놀고 있어요</span><button type="button" class="btn ghost sm">이름 바꾸기</button></div>
+    </div>
+
+    <div class="tools">
+      <div class="filters" id="filters">
+        <button type="button" class="fbtn" data-f="all" aria-pressed="true">전체</button>
+        <button type="button" class="fbtn" data-f="dice" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-dice.png" alt="">주사위</button>
+        <button type="button" class="fbtn" data-f="roulette" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-slot.png" alt="">룰렛</button>
+        <button type="button" class="fbtn" data-f="horse" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-horse.png" alt="">경마</button>
+        <button type="button" class="fbtn" data-f="marble" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-paw.png" alt="">데구리</button>
+      </div>
+      <div class="right">
+        <button type="button" class="btn ghost sm"><img class="ic px" src="/mockups/assets/ic-refresh.png" alt="">새로고침</button>
+        <button type="button" class="btn ghost sm"><img class="ic px" src="/mockups/assets/ic-trophy.png" alt="">랭킹</button>
+        <button type="button" class="btn primary sm" data-open-sheet>방 만들기</button>
+      </div>
+    </div>
+
+    <div class="lobby-grid">
+      <div>
+        <ul class="rooms" id="rooms"></ul>
+        <div class="empty" id="emptyRooms" hidden>이 게임은 아직 열린 방이 없어요. 첫 방을 만들어 볼까요?</div>
+      </div>
+      <aside class="side">
+        <div class="card invite">
+          <h3>링크로 초대해요</h3>
+          <p>방을 만들면 짧은 링크가 생겨요. 카톡에 붙여넣기만 하면 친구는 가입 없이 들어와요.</p>
+          <button type="button" class="btn primary sm" style="margin-top:12px" data-open-sheet>방 만들고 링크 받기</button>
+        </div>
+        <div class="card">
+          <h3>내 최근 판</h3>
+          <ul class="recent">
+            <li><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""><span>점심 내기 · 경마</span><span class="r">2등</span></li>
+            <li><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""><span>커피 한 판 · 주사위</span><span class="r lose">꼴찌 · 쏨</span></li>
+            <li><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""><span>야식 정하기 · 데구리</span><span class="r">1등</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>지금까지</h3>
+          <ul class="recent">
+            <li><img class="ic px" src="/mockups/assets/ic-fire.png" alt=""><span>오늘 놀았어요</span><span class="r num">12판</span></li>
+            <li><img class="ic px" src="/mockups/assets/ic-people.png" alt=""><span>지금 접속</span><span class="r num">7명</span></li>
+            <li><img class="ic px" src="/mockups/assets/ic-trophy.png" alt=""><span>결정된 내기</span><span class="r num">714판</span></li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+    <div class="lobby-cta"><button type="button" class="btn primary" data-open-sheet>방 만들기</button></div>
+  </div>
+</main>
+
+
+<!-- ═══════════ 서버 고르기 (로그인 뒤) ═══════════ -->
+<main id="screen-server" class="lobby" hidden>
+  <div class="wrap">
+    <div class="lobby-head">
+      <div>
+        <p class="eyebrow">우리 팀 서버 · 기록이 쌓이는 방</p>
+        <h1>서버 고르기 <span class="count num" id="srvCount">4</span></h1>
+      </div>
+      <div class="me" id="srvMe" hidden><span class="av">라</span><span><b>라온</b>으로 로그인</span><button type="button" class="btn ghost sm" data-logout>로그아웃</button></div>
+    </div>
+
+    <div id="srvLoggedOut" hidden>
+      <div class="card invite" style="max-width:600px">
+        <h3>서버는 로그인이 필요해요</h3>
+        <p>이름과 숫자 암호코드만 있으면 돼요. 이메일 없음. 서버에 들어가면 우리 팀끼리 기록과 랭킹이 쌓여요.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <button type="button" class="btn primary sm" data-open-panel="login">로그인</button>
+          <button type="button" class="btn soft sm" data-open-panel="register">회원가입</button>
+          <button type="button" class="btn ghost sm" data-screen-go="home">가입 없이 자유로 놀기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="srvLoggedIn">
+      <div class="card invite cont">
+        <div class="txt2"><div class="eyebrow" style="margin-bottom:2px">지난번에 놀던 서버</div><b style="font-size:18px">LAMDice :)</b><div style="font-size:13px;opacity:.75">멤버 3 · 온라인 2 · 열린 방 1</div></div>
+        <button type="button" class="btn primary" data-enter="s1">이 서버로 계속</button>
+      </div>
+      <div class="tools">
+        <div class="search"><input class="txt" id="srvSearch" placeholder="서버 이름 검색" autocomplete="off"><button type="button" class="btn ghost sm">검색</button></div>
+        <div class="right">
+          <button type="button" class="btn ghost sm" data-open-panel="manage">내 서버 관리</button>
+          <button type="button" class="btn primary sm" data-open-panel="create">새 서버 만들기</button>
+        </div>
+      </div>
+      <div class="lobby-grid">
+        <div>
+          <ul class="rooms" id="servers"></ul>
+        </div>
+        <aside class="side">
+          <div class="card">
+            <h3>서버가 뭐예요?</h3>
+            <div class="rl"><span>우리 팀만의 방</span><span class="dots"></span><span class="r">기록·랭킹</span></div>
+            <div class="rl"><span>참여코드를 걸면</span><span class="dots"></span><span class="r">아는 사람만</span></div>
+            <div class="rl"><span>공개 서버는</span><span class="dots"></span><span class="r">방장이 승인</span></div>
+          </div>
+          <div class="card">
+            <h3>내 서버</h3>
+            <div class="rl"><span>LAMDice :)</span><span class="dots"></span><span class="r hot">승인 대기 1명</span></div>
+            <button type="button" class="btn soft sm" style="margin-top:10px" data-open-panel="manage">멤버 관리</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <div class="lobby-cta"><button type="button" class="btn primary big" data-open-panel="create">새 서버 만들기</button></div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <h4>LAMDice</h4>
+      <p>친구랑 링크 하나로 즉석에서 정하는 내기 게임. 실제 화폐는 쓰지 않는 무료 소셜 게임이고, 모든 결과는 서버 난수(CSPRNG)로만 정해져요.</p>
+    </div>
+    <div>
+      <h4>게임</h4>
+      <ul><li><a href="#">주사위</a></li><li><a href="#">룰렛</a></li><li><a href="#">경마</a></li><li><a href="#">데구리</a></li><li><a href="#">게임 가이드</a></li></ul>
+    </div>
+    <div>
+      <h4>안내</h4>
+      <ul><li><a href="#">사이트 소개</a></li><li><a href="#">공정성과 난수</a></li><li><a href="#">개인정보 처리방침</a></li><li><a href="#">이용 약관</a></li><li><a href="#">문의하기</a></li></ul>
+    </div>
+    <div class="fine"><span>© 2026 LAMDice</span><span>모바일 · PC 어디서나</span></div>
+  </div>
+</footer>
+
+<!-- 방 만들기 시트 -->
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">방 만들기 <button type="button" data-close-sheet aria-label="닫기">✕</button></h2>
+    <div class="field">
+      <label>어떤 게임?</label>
+      <div class="pick" id="pick">
+        <button type="button" data-game="dice" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""></span>주사위</button>
+        <button type="button" data-game="roulette" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""></span>룰렛</button>
+        <button type="button" data-game="horse" aria-pressed="true"><span class="sq"><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""></span>경마</button>
+        <button type="button" data-game="marble" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리</button>
+        <button type="button" data-game="ladder" aria-pressed="false" disabled><span class="sq"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""></span>사다리</button>
+      </div>
+    </div>
+    <div class="field"><label for="roomTitle">방 제목</label><input id="roomTitle" maxlength="20" value="라온님의 경마"></div>
+    <div class="field"><label for="sheetName">내 이름</label><input id="sheetName" maxlength="8" value="라온"></div>
+    <div class="switch"><span>비공개 방<small>링크를 아는 사람만 들어와요</small></span><button type="button" class="tog" role="switch" aria-checked="false" aria-label="비공개 방"></button></div>
+    <button type="button" class="btn primary" id="btnCreate"><img class="ic px" src="/mockups/assets/ic-link.png" alt="">방 만들고 링크 받기</button>
+  </div>
+</div>
+
+
+<!-- 서버 관련 시트: 로그인 / 회원가입 / 새 서버 / 참여코드 / 내 서버 관리 -->
+<div class="sheet" id="sheet2" hidden>
+  <div class="sheet-panel" data-panel="login" role="dialog" aria-modal="true" hidden>
+    <h2>로그인 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field"><label for="loginName">이름</label><input class="txt" id="loginName" maxlength="20" placeholder="가입할 때 쓴 이름" value="라온"></div>
+    <div class="field"><label for="loginPin">암호코드 (4~6자리 숫자)</label><input class="txt" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="숫자만" value="1234"></div>
+    <button type="button" class="btn primary big" id="doLogin">로그인</button>
+    <p class="fine" style="text-align:center;font-size:13px">처음이에요? <a href="#" data-open-panel="register">회원가입</a> · 서버 방 링크로 들어왔다면 로그인 뒤 그 방으로 바로 가요</p>
+  </div>
+  <div class="sheet-panel" data-panel="register" role="dialog" aria-modal="true" hidden>
+    <h2>회원가입 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <p style="font-size:14px;opacity:.8">이메일 없이 이름과 숫자 암호코드만 정해요. 30초면 끝.</p>
+    <div class="field"><label for="regName">이름 (다른 사람에게 보여요)</label><input class="txt" id="regName" maxlength="20" placeholder="2~20자" value="라온"></div>
+    <div class="field"><label for="regPin">암호코드 (4~6자리 숫자)</label><input class="txt" id="regPin" type="password" inputmode="numeric" maxlength="6" placeholder="숫자만" value="1234"></div>
+    <div class="field"><label for="regPin2">암호코드 확인</label><input class="txt" id="regPin2" type="password" inputmode="numeric" maxlength="6" placeholder="한 번 더" value="1234"></div>
+    <button type="button" class="btn primary big" id="doRegister">가입하고 서버 고르기</button>
+    <p class="fine" style="text-align:center;font-size:13px">이미 계정이 있어요? <a href="#" data-open-panel="login">로그인</a></p>
+  </div>
+  <div class="sheet-panel" data-panel="create" role="dialog" aria-modal="true" hidden>
+    <h2>새 서버 만들기 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field"><label for="csName">서버 이름 (2~20자)</label><input class="txt" id="csName" maxlength="20" placeholder="예: 개발2팀 점심조" value="마케팅팀 커피조"></div>
+    <div class="field"><label for="csDesc">설명 (선택, 100자)</label><input class="txt" id="csDesc" maxlength="100" placeholder="어떤 서버인지 한 줄" value="매일 3시 커피 내기"></div>
+    <div class="field"><label for="csCode">참여코드 (비워두면 공개 서버)</label><input class="txt" id="csCode" maxlength="20" placeholder="4~20자, 영문·숫자" value=""></div>
+    <p class="fine" style="font-size:13px;opacity:.8">공개 서버는 누구나 가입 신청할 수 있고 방장이 승인해요. 참여코드를 걸면 코드를 아는 사람만 바로 들어와요.</p>
+    <button type="button" class="btn primary big" id="doCreate">서버 만들기</button>
+  </div>
+  <div class="sheet-panel" data-panel="code" role="dialog" aria-modal="true" hidden>
+    <h2>참여코드 입력 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <p style="font-size:14px;opacity:.8"><b id="codeServerName">디자인팀 야식회</b> 서버는 참여코드가 있어요. 방장에게 받은 코드를 넣어 주세요.</p>
+    <div class="field"><label for="codeInput">참여코드</label><input class="txt" id="codeInput" type="password" maxlength="20" placeholder="4~20자" value="cafe2026"></div>
+    <button type="button" class="btn primary big" id="doCode">입장</button>
+  </div>
+  <div class="sheet-panel" data-panel="manage" role="dialog" aria-modal="true" hidden>
+    <h2>내 서버 관리 <button type="button" data-close-panel aria-label="닫기">✕</button></h2>
+    <div class="field">
+      <label>LAMDice :) · 비공개 · 멤버 3 · 승인 대기 1</label>
+      <div class="mems">
+        <div class="mem"><i class="dot"></i><span class="who">라온<small>방장 · 나</small></span><span class="acts"></span></div>
+        <div class="mem"><i class="dot"></i><span class="who">민수<small>멤버 · 온라인</small></span><span class="acts"><button type="button" class="btn ghost sm">강퇴</button></span></div>
+        <div class="mem"><i class="dot off"></i><span class="who">지우<small>멤버 · 오프라인</small></span><span class="acts"><button type="button" class="btn ghost sm">강퇴</button></span></div>
+        <div class="mem"><i class="dot off"></i><span class="who">하루<small>승인 대기</small></span><span class="acts"><button type="button" class="btn primary sm" data-approve>승인</button><button type="button" class="btn ghost sm" data-reject>거절</button></span></div>
+      </div>
+    </div>
+    <div class="field"><label>참여코드</label><div class="search"><input class="txt" value="lam-2026" readonly><button type="button" class="btn soft sm" data-copy="lam-2026">복사</button></div></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+      <button type="button" class="btn ghost sm" data-close-panel>닫기</button>
+      <button type="button" class="btn ghost sm" style="color:#C8281A" data-danger>서버 삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var GAMES = {
+    dice:     { name: '주사위', icon: '/mockups/assets/ic-dice.png' },
+    roulette: { name: '룰렛',   icon: '/mockups/assets/ic-slot.png' },
+    horse:    { name: '경마',   icon: '/mockups/assets/ic-horse.png' },
+    marble:   { name: '데구리', icon: '/mockups/assets/ic-paw.png' }
+  };
+  // 예시 방 목록
+  var rooms = [
+    { title: '점심 내기',   game: 'horse',    host: '민수', n: 3, max: 10, live: false, code: '7QK3' },
+    { title: '커피 한 판',  game: 'dice',     host: '지우', n: 5, max: 10, live: true,  code: 'B2XD' },
+    { title: '야식 정하기', game: 'marble',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
+    { title: '회식 룰렛',   game: 'roulette', host: '서연', n: 6, max: 10, live: true,  code: 'R4WT' }
+  ];
+  var filter = 'all';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  function seats(n, max) {
+    var s = '';
+    for (var i = 0; i < max; i++) s += '<i class="' + (i < n ? 'on' : '') + '"></i>';
+    return s;
+  }
+  function renderRooms() {
+    var list = rooms.filter(function (r) { return filter === 'all' || r.game === filter; });
+    $('#rooms').innerHTML = list.map(function (r) {
+      var g = GAMES[r.game];
+      return '<li class="room" data-game="' + r.game + '">' +
+        '<div class="thumb"><img class="ic px" src="' + g.icon + '" alt=""></div>' +
+        '<div><div class="title">' + r.title + ' <span class="pill ' + (r.live ? 'live' : 'wait') + '"><i class="dot"></i>' + (r.live ? '진행 중' : '대기 중') + '</span></div>' +
+        '<div class="sub"><span>' + g.name + '</span><span>방장 <b>' + r.host + '</b></span><span class="num"><b>' + r.n + '</b>/' + r.max + '명</span></div>' +
+        '<div class="seats">' + seats(r.n, r.max) + '</div></div>' +
+        '<div class="act"><button type="button" class="btn ' + (r.live ? 'ghost' : 'primary') + ' sm">' + (r.live ? '구경하기' : '들어가기') + '</button>' +
+        '<button type="button" class="btn soft sm" data-copy="https://lamdice.com/free/' + r.game + '/' + r.code + '">링크 복사</button></div>' +
+      '</li>';
+    }).join('');
+    $('#emptyRooms').hidden = list.length > 0;
+    $('#roomCount').textContent = rooms.length;
+  }
+
+  // 화면·테마 전환 (목업 바)
+  function setScreen(s) {
+    $('#screen-home').hidden = s !== 'home';
+    $('#screen-lobby').hidden = s !== 'lobby';
+    $$('#mockBar [data-screen]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.screen === s)); });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    $$('#mockBar [data-theme]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.theme === t)); });
+  }
+  $$('#mockBar [data-screen]').forEach(function (b) { b.addEventListener('click', function () { setScreen(b.dataset.screen); }); });
+  $$('#mockBar [data-theme]').forEach(function (b) { b.addEventListener('click', function () { setTheme(b.dataset.theme); }); });
+
+  // 시트
+  var picked = 'horse';
+  function pickGame(g) {
+    picked = g;
+    $$('#pick button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.game === g)); });
+    var name = $('#sheetName').value.trim() || '라온';
+    $('#roomTitle').value = name + '님의 ' + GAMES[g].name;
+  }
+  function openSheet(g) {
+    $('#sheetName').value = $('#name').value.trim() || '라온';
+    pickGame(g || picked);
+    $('#sheet').hidden = false;
+    setTimeout(function () { $('#roomTitle').focus(); }, 50);
+  }
+  function closeSheet() { $('#sheet').hidden = true; }
+  $$('[data-open-sheet]').forEach(function (b) { b.addEventListener('click', function () { openSheet(); }); });
+  $$('[data-close-sheet]').forEach(function (b) { b.addEventListener('click', closeSheet); });
+  $('#sheet').addEventListener('click', function (e) { if (e.target === e.currentTarget) closeSheet(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+  $$('#pick button').forEach(function (b) { b.addEventListener('click', function () { if (!b.disabled) pickGame(b.dataset.game); }); });
+  $('#sheetName').addEventListener('input', function () { pickGame(picked); });
+  $$('.game-card:not(.soon)').forEach(function (c) { c.addEventListener('click', function () { openSheet(c.dataset.game); }); });
+  $('#startForm').addEventListener('submit', function (e) { e.preventDefault(); openSheet(); });
+  $('.tog').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); });
+
+  $('#btnCreate').addEventListener('click', function () {
+    var name = $('#sheetName').value.trim() || '라온';
+    var title = $('#roomTitle').value.trim() || (name + '님의 ' + GAMES[picked].name);
+    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'marble' ? 8 : 10, live: false, code: 'NEW1' });
+    $('#meName').textContent = name;
+    $('.me .av').textContent = name.charAt(0);
+    filter = 'all';
+    $$('#filters .fbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.f === 'all')); });
+    renderRooms();
+    closeSheet();
+    setScreen('lobby');
+    toast('방이 생겼어요. 링크를 복사했어요 — 카톡에 붙여넣어 보세요');
+  });
+
+  // 필터
+  $$('#filters .fbtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.dataset.f;
+      $$('#filters .fbtn').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      renderRooms();
+    });
+  });
+
+  // 링크 복사 (위임)
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-copy]');
+    if (!b) return;
+    var url = b.getAttribute('data-copy');
+    var done = function () { toast('링크를 복사했어요'); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () { fallback(url); done(); });
+      else { fallback(url); done(); }
+    } catch (err) { fallback(url); done(); }
+  });
+  function fallback(text) {
+    var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta);
+  }
+  var toastTimer;
+  function toast(msg) {
+    var old = $('.toast'); if (old) old.remove();
+    var t = document.createElement('div'); t.className = 'toast';
+    t.innerHTML = '<img class="ic px" src="/mockups/assets/ic-check.png" alt="">' + msg;
+    document.body.appendChild(t);
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.remove(); }, 2600);
+  }
+  $('#btnMakeServer').addEventListener('click', function () { toast('회원가입 → 서버 만들기 화면으로 이어져요 (목업)'); });
+
+  setTheme('light');   /* 실서버는 밝은 테마 고정 — 목업도 밝게로 시작 */
+  renderRooms();
+
+  // ── 서버 고르기 · 로그인 · 서버 로비 (목업 추가분) ──
+  var UI = {"P": "btn primary", "S": "btn soft", "G": "btn ghost", "receipt": false};
+  var loggedIn = false, lobbyMode = 'free', myName = '라온', codeTarget = null, curServer = null;
+  var servers = [
+    { id: 's1', name: 'LAMDice :)',     owner: 'LAM',  members: 3,  online: 2, open: 1, priv: true,  state: 'joined', mine: true },
+    { id: 's2', name: '개발2팀 점심조', owner: '서연', members: 8,  online: 5, open: 2, priv: false, state: 'open' },
+    { id: 's3', name: '디자인팀 야식회', owner: '하루', members: 5,  online: 1, open: 0, priv: true,  state: 'code' },
+    { id: 's4', name: '헬스장 5시',     owner: '민수', members: 12, online: 4, open: 1, priv: false, state: 'pending' }
+  ];
+  var STATE_LABEL = { joined: '가입됨', open: '참여 가능', code: '참여코드', pending: '승인 대기' };
+  function esc(x) { return String(x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function bt(cls, label, attrs) { return '<button type="button" class="' + cls + ' sm"' + (attrs || '') + '>' + label + '</button>'; }
+  function byId(id) { return servers.filter(function (x) { return x.id === id; })[0]; }
+  function renderServers() {
+    var els = $$('#servers, [data-server-list]'); if (!els.length) return;
+    var q = ($('#srvSearch') && $('#srvSearch').value.trim()) || '';
+    var list = servers.filter(function (s) { return !q || s.name.indexOf(q) >= 0; });
+    var html;
+    if (UI.receipt) {
+      html = list.map(function (s) {
+        var act = s.state === 'joined' ? bt('btn', '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt('btn ghost', '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt('btn ghost', '참여코드', ' data-code="' + s.id + '"') : '<span class="st live">승인 대기 중</span>';
+        return '<li class="room"><div class="t">' + (s.priv ? '<img class="ic px" src="/mockups/assets/ic-lock.png" alt="">' : '<img class="ic px" src="/mockups/assets/ic-people.png" alt="">') + s.name + '<span class="st ' + (s.state === 'pending' ? 'live' : 'wait') + '">' + STATE_LABEL[s.state] + '</span></div>' +
+          '<div class="sub"><span>방장 ' + s.owner + '</span><span class="num">멤버 ' + s.members + '</span><span class="num">온라인 ' + s.online + '</span><span class="num">열린 방 ' + s.open + '</span></div>' +
+          '<div class="act">' + act + '</div></li>';
+      }).join('');
+    } else {
+      html = list.map(function (s) {
+        var pills = '<span class="pill ' + (s.state === 'pending' ? 'live' : 'wait') + '"><i class="dot"></i>' + STATE_LABEL[s.state] + '</span>' + (s.priv ? '<span class="chip"><img class="ic px" src="/mockups/assets/ic-lock.png" alt="" style="width:14px;height:14px">비공개</span>' : '');
+        var act = s.state === 'joined' ? bt(UI.P, '들어가기', ' data-enter="' + s.id + '"') : s.state === 'open' ? bt(UI.P, '가입 신청', ' data-apply="' + s.id + '"') : s.state === 'code' ? bt(UI.S, '참여코드 입력', ' data-code="' + s.id + '"') : bt(UI.G, '승인 대기 중', ' disabled');
+        return '<li class="room"><div class="thumb"><span class="mark">' + s.name.charAt(0) + '</span></div>' +
+          '<div><div class="title">' + s.name + ' ' + pills + '</div>' +
+          '<div class="sub"><span>방장 <b>' + s.owner + '</b></span><span class="num">멤버 <b>' + s.members + '</b></span><span class="num">온라인 <b>' + s.online + '</b></span><span class="num">열린 방 <b>' + s.open + '</b></span></div></div>' +
+          '<div class="act">' + act + '</div></li>';
+      }).join('');
+    }
+    els.forEach(function (el) { el.innerHTML = html; });
+    var c = $('#srvCount'); if (c) c.textContent = servers.length;
+  }
+  // 로그인하면 홈 히어로 바로 아래에 서버 고르기가 뜬다 (지금 실서버처럼 로그인 = 서버 목록이 첫 화면)
+  function homeServerBlock() {
+    if (UI.receipt) return '<div class="k">' + esc(myName) + '님, 어디서 놀까요? · 서버는 기록·랭킹이 남아요</div>' +
+      '<div class="rl"><span>지난번 · LAMDice :)</span><span class="dots"></span><span class="r pen">온라인 2/3 · 열린 방 1</span></div>' +
+      '<button type="button" class="btn" data-enter="s1">LAMDice :) 서버로 계속</button>' +
+      '<ul class="rooms" data-server-list style="margin-top:8px"></ul>' +
+      '<div class="act" style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn ghost sm" data-open-panel="manage">내 서버 관리</button><button type="button" class="btn sm" data-open-panel="create">새 서버 만들기</button></div>' +
+      '<hr class="dash"><div class="k">또는 자유 방으로 (기록 안 남음)</div>';
+    return '<div class="wrap"><div class="lobby-head" style="margin-bottom:14px"><div><p class="eyebrow">' + esc(myName) + '님, 어디서 놀까요? · 서버는 기록과 랭킹이 남아요</p><h1>서버 고르기 <span class="count num">' + servers.length + '</span></h1></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' + bt(UI.G, '내 서버 관리', ' data-open-panel="manage"') + bt(UI.P, '새 서버 만들기', ' data-open-panel="create"') + '</div></div>' +
+      '<div class="card invite cont"><div class="txt2"><div class="eyebrow" style="margin-bottom:2px">지난번에 놀던 서버</div><b style="font-size:18px">LAMDice :)</b><div style="font-size:13px;opacity:.75">멤버 3 · 온라인 2 · 열린 방 1</div></div><button type="button" class="' + UI.P + '" data-enter="s1">이 서버로 계속</button></div>' +
+      '<ul class="rooms" data-server-list></ul></div>';
+  }
+  // 로그인 = 소개가 필요 없는 단골. 서버 고르기를 맨 위로 올리고 소개(문구·그림)는 접는다. 자유 방 티켓만 그 아래에 남긴다.
+  var INTRO_SEL = '#screen-home .hero .lede, #screen-home .hero .stamp, #screen-home .hero .led, #screen-home .startline, #screen-home .runway, #screen-home .tile, #screen-home .cabinet > .lanes, #screen-home .hint';
+  function syncHomeServers(v) {
+    var home = $('#screen-home'); if (!home) return;
+    var slot = $('#homeServerSlot');
+    if (!slot) {
+      slot = document.createElement(UI.receipt ? 'div' : 'section'); slot.id = 'homeServerSlot';
+      var anchor = UI.receipt ? $('#screen-home #ticket') : $('#screen-home .hero');
+      if (!anchor) return; anchor.parentNode.insertBefore(slot, anchor);   // 히어로(소개)보다 앞
+    }
+    slot.hidden = !v; if (v) slot.innerHTML = homeServerBlock();
+    home.classList.toggle('is-member', v);
+    $$(INTRO_SEL).forEach(function (el) { el.hidden = v; });
+    var team = $('#team'); if (team) team.hidden = v;
+    var eb = $('#screen-home .hero .eyebrow');
+    if (eb) { if (!eb.dataset.orig) eb.dataset.orig = eb.innerHTML; eb.innerHTML = v ? '또는 자유 방으로 · 기록은 안 남아요' : eb.dataset.orig; }
+    var fine = $('#screen-home #ticket .fine') || $('#screen-home .startcard .fine');
+    if (fine) {
+      if (!fine.dataset.orig) fine.dataset.orig = fine.innerHTML;
+      fine.innerHTML = v ? '친구는 링크만 열면 바로 참가 · 가입 안 한 친구와 놀 때' : fine.dataset.orig + ' · 팀 기록을 남기려면 <a href="#" data-open-panel="login">서버로 놀기 (로그인)</a>';
+    }
+  }
+  if ($('#srvSearch')) $('#srvSearch').addEventListener('input', renderServers);
+
+  function setScreen(s) {
+    ['home', 'server', 'lobby'].forEach(function (k) { var el = $('#screen-' + k); if (el) el.hidden = k !== s; });
+    $$('#mockBar [data-screen]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.screen === s)); });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function bindTop() {
+    $$('.top .actions').forEach(function (acts) { $$('button', acts).forEach(function (b) {
+      if (b.hasAttribute('data-logout')) b.onclick = function () { setLogin(false); toast('로그아웃했어요'); };
+      else if (/회원가입/.test(b.textContent)) b.onclick = function () { openPanel('register'); };
+      else if (/로그인/.test(b.textContent)) b.onclick = function () { openPanel('login'); };
+    }); });
+  }
+  function setLogin(v, name) {
+    loggedIn = v; if (name) myName = name;
+    var lo = $('#srvLoggedOut'), li = $('#srvLoggedIn'); if (lo) lo.hidden = v; if (li) li.hidden = !v;
+    var me = $('#srvMe'); if (me) { me.hidden = !v; if (v) { me.querySelector('b').textContent = myName; var av = me.querySelector('.av'); if (av) av.textContent = myName.charAt(0); } }
+    $$('.top .actions').forEach(function (acts) {
+      if (!acts.dataset.orig) acts.dataset.orig = acts.innerHTML;
+      acts.innerHTML = v ? '<span class="who">' + esc(myName) + '</span>' + bt(UI.G, '로그아웃', ' data-logout') : acts.dataset.orig;
+    });
+    bindTop();
+    $$('#mockBar [data-login]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.login === 'in') === v)); });
+    if (!v && lobbyMode === 'server') setLobbyMode('free');
+    syncHomeServers(v);
+    renderServers();
+  }
+  function openPanel(name) {
+    var host = $('#sheet2'); if (!host) return;
+    $$('.sheet-panel', host).forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+    host.hidden = false;
+    var f = host.querySelector('.sheet-panel:not([hidden]) input:not([readonly])'); if (f) setTimeout(function () { f.focus(); }, 50);
+  }
+  function closePanel() { var host = $('#sheet2'); if (host) host.hidden = true; }
+  if ($('#sheet2')) $('#sheet2').addEventListener('click', function (e) { if (e.target === e.currentTarget) closePanel(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+  function memberLines(s) {
+    var names = ['라온', '민수', '지우', '하루', '서연', '준호', '유나', '도윤', '하은', '시우', '지아', '민재'].slice(0, s.members);
+    return names.map(function (n, i) { return '<div class="mem"><i class="dot' + (i < s.online ? '' : ' off') + '"></i><span class="who">' + n + (i === 0 ? '<small>방장</small>' : '') + '</span></div>'; }).join('');
+  }
+  function setLobbyMode(m) {
+    lobbyMode = m; if (m === 'server' && !curServer) curServer = servers[0];
+    var eb = $('#screen-lobby .eyebrow') || $('#screen-lobby .meta');
+    if (eb) eb.innerHTML = m === 'server'
+      ? '<a href="#" data-screen-go="server">← 서버 목록</a> · <b>' + curServer.name + '</b> 서버 · 멤버 ' + curServer.members + ' · 온라인 ' + curServer.online
+      : '자유 방 · 링크로 들어온 친구는 여기서 만나요';
+    var slot = $('#lobbySrvSlot');
+    if (!slot) { slot = document.createElement('div'); slot.id = 'lobbySrvSlot'; var side = $('#screen-lobby .side'); if (side) side.insertBefore(slot, side.firstChild); else return; }
+    slot.hidden = m !== 'server';
+    if (m === 'server') {
+      slot.innerHTML = UI.receipt
+        ? '<div class="k">서버 멤버 · 온라인 ' + curServer.online + '/' + curServer.members + '</div><div class="mems">' + memberLines(curServer) + '</div><hr class="dash"><div class="k">서버 랭킹 · 이번 달 많이 쏜 사람</div><div class="rl"><span>민수</span><span class="dots"></span><span class="r">5번</span></div><div class="rl"><span>하루</span><span class="dots"></span><span class="r">3번</span></div><div class="rl"><span>라온</span><span class="dots"></span><span class="r">1번</span></div><hr class="dash">'
+        : '<div class="card"><h3>서버 멤버 <span class="num" style="font-size:14px;opacity:.7">온라인 ' + curServer.online + '/' + curServer.members + '</span></h3><div class="mems">' + memberLines(curServer) + '</div></div>' +
+          '<div class="card"><h3>서버 랭킹 · 이번 달</h3><div class="rl"><span>민수</span><span class="dots"></span><span class="r">5번 쏨</span></div><div class="rl"><span>하루</span><span class="dots"></span><span class="r">3번</span></div><div class="rl"><span>라온</span><span class="dots"></span><span class="r">1번</span></div></div>';
+    }
+    $$('#mockBar [data-lobby]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.lobby === m)); });
+  }
+  function enterServer(id) { var s = byId(id); if (!s) return; curServer = s; if (!loggedIn) setLogin(true); setLobbyMode('server'); setScreen('lobby'); toast(esc(s.name) + ' 서버로 들어왔어요'); }
+  document.addEventListener('click', function (e) {
+    var t;
+    if ((t = e.target.closest('[data-open-panel]'))) { e.preventDefault(); openPanel(t.dataset.openPanel); }
+    else if ((t = e.target.closest('[data-enter]'))) { enterServer(t.dataset.enter); }
+    else if ((t = e.target.closest('[data-apply]'))) { var s = byId(t.dataset.apply); if (s) { s.state = 'pending'; renderServers(); toast('가입 신청했어요. 방장이 승인하면 들어갈 수 있어요'); } }
+    else if ((t = e.target.closest('[data-code]'))) { codeTarget = t.dataset.code; var s2 = byId(codeTarget); var cn = $('#codeServerName'); if (cn) cn.textContent = s2 ? s2.name : ''; openPanel('code'); }
+    else if ((t = e.target.closest('[data-approve]'))) { var row = t.closest('.mem'); row.querySelector('small').textContent = '멤버 · 방금 승인'; row.querySelector('.dot').classList.remove('off'); row.querySelector('.acts').innerHTML = bt(UI.G, '강퇴'); toast('승인했어요'); }
+    else if ((t = e.target.closest('[data-reject]'))) { t.closest('.mem').remove(); toast('거절했어요'); }
+    else if ((t = e.target.closest('[data-danger]'))) { toast('서버 삭제는 한 번 더 확인하는 화면이 떠요 (목업)'); }
+    else if ((t = e.target.closest('[data-screen-go]'))) { e.preventDefault(); setScreen(t.dataset.screenGo); }
+    else if ((t = e.target.closest('[data-close-panel]'))) { closePanel(); }
+  });
+  if ($('#doLogin')) $('#doLogin').onclick = function () { var n = $('#loginName').value.trim() || '라온', pin = $('#loginPin').value.trim(); if (!/^\d{4,6}$/.test(pin)) { toast('암호코드는 4~6자리 숫자예요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast(esc(n) + '님, 로그인했어요'); };
+  if ($('#doRegister')) $('#doRegister').onclick = function () { var n = $('#regName').value.trim() || '라온', p1 = $('#regPin').value.trim(), p2 = $('#regPin2').value.trim(); if (!/^\d{4,6}$/.test(p1)) { toast('암호코드는 4~6자리 숫자예요'); return; } if (p1 !== p2) { toast('암호코드 확인이 달라요'); return; } setLogin(true, n); closePanel(); setScreen('server'); toast('가입했어요. 이제 서버를 고르세요'); };
+  if ($('#doCreate')) $('#doCreate').onclick = function () { var n = $('#csName').value.trim(); if (n.length < 2) { toast('서버 이름은 2자 이상이에요'); return; } var code = $('#csCode').value.trim(); servers.unshift({ id: 's' + Date.now(), name: esc(n), owner: esc(myName), members: 1, online: 1, open: 0, priv: !!code, state: 'joined', mine: true }); closePanel(); renderServers(); toast('서버를 만들었어요' + (code ? '. 참여코드를 친구에게 알려주세요' : '. 공개 서버라 가입 신청이 오면 승인해 주세요')); };
+  if ($('#doCode')) $('#doCode').onclick = function () { var v = $('#codeInput').value.trim(); if (v.length < 4) { toast('참여코드는 4자 이상이에요'); return; } var s = byId(codeTarget); if (s) { s.state = 'joined'; renderServers(); } closePanel(); toast('가입됐어요. 이제 들어갈 수 있어요'); };
+  // 홈의 '서버 만들기' / '이미 계정이 있어요' 를 실제 흐름에 연결
+  (function () {
+    var old = $('#btnMakeServer'); if (old) { var nb = old.cloneNode(true); old.parentNode.replaceChild(nb, old); nb.addEventListener('click', function () { openPanel(loggedIn ? 'create' : 'register'); }); }
+    var have = $$('.team .cta button').filter(function (b) { return /계정/.test(b.textContent); })[0]; if (have) have.addEventListener('click', function () { openPanel('login'); });
+  })();
+  // 목업 바: 서버 고르기 화면 + 로그인/로비 상태 전환
+  (function () {
+    var bar = $('#mockBar'); if (!bar) return;
+    var seg = bar.querySelector('.seg');
+    var b = document.createElement('button'); b.type = 'button'; b.dataset.screen = 'server'; b.setAttribute('aria-pressed', 'false'); b.textContent = '서버 고르기';
+    seg.insertBefore(b, seg.children[1]); b.addEventListener('click', function () { setScreen('server'); });
+    var seg2 = document.createElement('span'); seg2.className = 'seg'; seg2.setAttribute('role', 'group'); seg2.innerHTML = '<button type="button" data-login="out" aria-pressed="true">로그아웃 상태</button><button type="button" data-login="in" aria-pressed="false">로그인 상태</button>';
+    var seg3 = document.createElement('span'); seg3.className = 'seg'; seg3.setAttribute('role', 'group'); seg3.innerHTML = '<button type="button" data-lobby="free" aria-pressed="true">자유 로비</button><button type="button" data-lobby="server" aria-pressed="false">서버 로비</button>';
+    var note = bar.querySelector('.note'); bar.insertBefore(seg2, note); bar.insertBefore(seg3, note);
+    $$('[data-login]', seg2).forEach(function (x) { x.addEventListener('click', function () { setLogin(x.dataset.login === 'in'); }); });
+    $$('[data-lobby]', seg3).forEach(function (x) { x.addEventListener('click', function () { if (x.dataset.lobby === 'server' && !loggedIn) setLogin(true); setLobbyMode(x.dataset.lobby); setScreen('lobby'); }); });
+  })();
+  bindTop(); renderServers(); setLogin(false); setLobbyMode('free');
+
+})();
+</script>
+
+</html>

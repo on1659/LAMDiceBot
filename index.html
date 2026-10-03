@@ -19,8 +19,8 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- Theme: always light -->
-    <script>document.documentElement.setAttribute('data-theme', 'light');</script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -38,14 +38,15 @@
             background: var(--dice-gradient);
             min-height: 100vh;
         }
+        [data-theme="dark"] body { background: var(--dark-ground-dice); }
 
         /* Header: 배경 그라디언트와 어우러지는 글래스 효과 */
         header {
-            background: rgba(255,255,255,0.08);
+            background: rgba(var(--highlight-rgb), 0.08);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             padding: 15px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 1px solid rgba(var(--highlight-rgb), 0.15);
         }
         header nav {
             display: flex;
@@ -54,11 +55,11 @@
             max-width: 1200px;
             margin: 0 auto;
         }
-        header h1 { margin: 0; font-size: 1.5em; color: #fff; letter-spacing: -0.5px; }
+        header h1 { margin: 0; font-size: 1.5em; color: var(--text-on-accent); letter-spacing: -0.5px; }
         header a { text-decoration: none; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 4px 0; }
-        .nav-links a { margin-left: 20px; color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.95em; transition: color 0.15s; }
-        .nav-links a:hover { color: #fff; }
+        .nav-links a { margin-left: 20px; color: rgba(var(--highlight-rgb), 0.85); text-decoration: none; font-size: 0.95em; transition: color 0.15s; }
+        .nav-links a:hover { color: var(--text-on-accent); }
 
         /* Hero */
         .hero {
@@ -69,14 +70,14 @@
         }
         .hero h2 {
             font-size: 2.5em;
-            color: #fff;
+            color: var(--text-on-accent);
             margin-bottom: 14px;
-            text-shadow: 0 3px 12px rgba(0,0,0,0.2);
+            text-shadow: 0 3px 12px rgba(var(--shadow-rgb), 0.2);
             line-height: 1.25;
             letter-spacing: -0.5px;
         }
         .hero p {
-            color: rgba(255,255,255,0.88);
+            color: rgba(var(--highlight-rgb), 0.88);
             font-size: 1.05em;
             line-height: 1.7;
             margin-bottom: 28px;
@@ -86,25 +87,25 @@
         .hero-cta {
             display: inline-block;
             padding: 17px 48px;
-            background: #fff;
-            color: var(--purple-600);
+            background: var(--pages-hero-cta-bg);
+            color: var(--pages-hero-cta-ink);
             font-size: 1.2em;
             font-weight: 700;
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 0 0 4px rgba(255,255,255,0.15);
+            box-shadow: 0 4px 20px rgba(var(--shadow-rgb), 0.18), 0 0 0 4px rgba(var(--highlight-rgb), 0.15);
             transition: transform 0.15s, box-shadow 0.15s;
             animation: cta-pulse 3s ease-in-out infinite;
         }
         .hero-cta:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+            box-shadow: 0 8px 28px rgba(var(--shadow-rgb), 0.22);
             animation: none;
         }
         @keyframes cta-pulse {
-            0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 0 0 4px rgba(255,255,255,0.15); }
-            50% { box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 0 0 9px rgba(255,255,255,0.06); }
+            0%, 100% { box-shadow: 0 4px 20px rgba(var(--shadow-rgb), 0.18), 0 0 0 4px rgba(var(--highlight-rgb), 0.15); }
+            50% { box-shadow: 0 4px 20px rgba(var(--shadow-rgb), 0.18), 0 0 0 9px rgba(var(--highlight-rgb), 0.06); }
         }
 
         /* Game Cards */
@@ -117,13 +118,13 @@
             padding: 0 20px;
         }
         .game-card {
-            background: rgba(255,255,255,0.1);
+            background: rgba(var(--highlight-rgb), 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 32px 24px 24px;
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.18);
+            color: var(--text-on-accent);
+            border: 1px solid rgba(var(--highlight-rgb), 0.18);
             transition: transform 0.2s, box-shadow 0.2s;
             animation: card-in 0.5s ease both;
         }
@@ -131,7 +132,7 @@
         .game-card:nth-child(1) { border-top: 3px solid var(--dice-500); animation-delay: 0.1s; }
         .game-card:nth-child(2) { border-top: 3px solid var(--roulette-500); animation-delay: 0.2s; }
         .game-card:nth-child(3) { border-top: 3px solid var(--horse-accent); animation-delay: 0.3s; }
-        .game-card:hover { transform: translateY(-6px); box-shadow: 0 14px 36px rgba(0,0,0,0.2); }
+        .game-card:hover { transform: translateY(-6px); box-shadow: 0 14px 36px rgba(var(--shadow-rgb), 0.2); }
 
         @keyframes card-in {
             from { opacity: 0; transform: translateY(18px); }
@@ -143,13 +144,13 @@
         .game-card p { font-size: 0.9em; opacity: 0.85; line-height: 1.6; margin-bottom: 16px; }
         .game-card-links { display: flex; gap: 12px; flex-wrap: wrap; }
         .game-card-links a {
-            color: rgba(255,255,255,0.8);
+            color: rgba(var(--highlight-rgb), 0.8);
             text-decoration: none;
             font-size: 0.85em;
-            border-bottom: 1px solid rgba(255,255,255,0.25);
+            border-bottom: 1px solid rgba(var(--highlight-rgb), 0.25);
             transition: color 0.15s, border-color 0.15s;
         }
-        .game-card-links a:hover { color: #fff; border-color: rgba(255,255,255,0.7); }
+        .game-card-links a:hover { color: var(--text-on-accent); border-color: rgba(var(--highlight-rgb), 0.7); }
 
         /* Content Section */
         .content-section {
@@ -158,7 +159,7 @@
             padding: 0 20px;
         }
         .content-section h3 {
-            color: #fff;
+            color: var(--text-on-accent);
             font-size: 1.3em;
             margin-bottom: 16px;
             text-align: center;
@@ -171,16 +172,16 @@
         }
         .content-link {
             display: block;
-            background: rgba(255,255,255,0.08);
+            background: rgba(var(--highlight-rgb), 0.08);
             border-radius: 12px;
             padding: 15px 18px;
-            color: rgba(255,255,255,0.9);
+            color: rgba(var(--highlight-rgb), 0.9);
             text-decoration: none;
             font-size: 0.92em;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(var(--highlight-rgb), 0.1);
             transition: background 0.15s, transform 0.15s;
         }
-        .content-link:hover { background: rgba(255,255,255,0.16); transform: translateY(-2px); }
+        .content-link:hover { background: rgba(var(--highlight-rgb), 0.16); transform: translateY(-2px); }
         .content-link-icon { margin-right: 8px; }
 
         /* About Section */
@@ -188,7 +189,7 @@
             max-width: 720px;
             margin: 0 auto 40px;
             padding: 0 20px;
-            color: rgba(255,255,255,0.75);
+            color: rgba(var(--highlight-rgb), 0.75);
             text-align: center;
             line-height: 1.8;
             font-size: 0.92em;
@@ -199,12 +200,12 @@
             text-align: center;
             padding: 24px 20px;
             font-size: 0.88em;
-            color: rgba(255,255,255,0.55);
-            border-top: 1px solid rgba(255,255,255,0.1);
+            color: rgba(var(--highlight-rgb), 0.55);
+            border-top: 1px solid rgba(var(--highlight-rgb), 0.1);
         }
         .footer-links { margin-top: 10px; line-height: 2.2; }
-        .footer-links a { color: rgba(255,255,255,0.65); text-decoration: none; margin: 0 8px; transition: color 0.15s; }
-        .footer-links a:hover { color: #fff; }
+        .footer-links a { color: rgba(var(--highlight-rgb), 0.65); text-decoration: none; margin: 0 8px; transition: color 0.15s; }
+        .footer-links a:hover { color: var(--text-on-accent); }
 
         @media (max-width: 600px) {
             .hero h2 { font-size: 1.8em; }
@@ -243,6 +244,7 @@
                 <a href="/pages/faq.html">FAQ</a>
                 <a href="/pages/about-us.html">소개</a>
                 <a href="/pages/statistics.html">통계</a>
+                <span data-theme-switcher></span>
             </div>
         </nav>
     </header>
@@ -327,21 +329,21 @@
             <p>LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.
                서버 기반 암호학적 난수 생성(CSPRNG)을 사용하여 모든 게임의 공정성을 보장하며,
                게임 결과는 투명하게 기록됩니다.
-               <a href="/pages/about-us.html" style="color:#fff; text-decoration:underline;">자세히 알아보기 →</a></p>
+               <a href="/pages/about-us.html" style="color:var(--text-on-accent); text-decoration:underline;">자세히 알아보기 →</a></p>
         </section>
     </main>
 
     <noscript>
-        <div style="max-width:700px; margin:40px auto; padding:20px; color:#fff; text-align:center;">
+        <div style="max-width:700px; margin:40px auto; padding:20px; color:var(--text-on-accent); text-align:center;">
             <h2>LAMDice - 무료 온라인 멀티플레이어 보드게임</h2>
             <p style="margin:16px 0;">이 사이트는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 활성화해주세요.</p>
             <p style="margin:16px 0;">LAMDice는 친구들과 함께 즐기는 무료 온라인 보드게임 플랫폼입니다. 주사위, 룰렛, 레이스 등 다양한 게임을 제공합니다.</p>
             <ul style="list-style:none; margin:16px 0;">
-                <li><a href="/pages/game-guides.html" style="color:#fff;">게임 가이드</a></li>
-                <li><a href="/pages/dice-rules-guide.html" style="color:#fff;">주사위 규칙 가이드</a></li>
-                <li><a href="/pages/probability-analysis.html" style="color:#fff;">확률 분석 및 팁</a></li>
-                <li><a href="/pages/about-us.html" style="color:#fff;">사이트 소개</a></li>
-                <li><a href="/pages/faq.html" style="color:#fff;">자주 묻는 질문</a></li>
+                <li><a href="/pages/game-guides.html" style="color:var(--text-on-accent);">게임 가이드</a></li>
+                <li><a href="/pages/dice-rules-guide.html" style="color:var(--text-on-accent);">주사위 규칙 가이드</a></li>
+                <li><a href="/pages/probability-analysis.html" style="color:var(--text-on-accent);">확률 분석 및 팁</a></li>
+                <li><a href="/pages/about-us.html" style="color:var(--text-on-accent);">사이트 소개</a></li>
+                <li><a href="/pages/faq.html" style="color:var(--text-on-accent);">자주 묻는 질문</a></li>
             </ul>
         </div>
     </noscript>
@@ -350,7 +352,7 @@
     <script src="/js/shared/page-history-shared.js"></script>
     <script src="/config/client-config.js"></script>
     <script src="/js/tagline-roller.js"></script>
-    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/shared/server-select-shared.js"></script>
     <script>

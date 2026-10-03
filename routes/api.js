@@ -7,6 +7,7 @@ const { getVisitorStats, getGameStatsByType, getRecentPlaysList } = require('../
 const { resolveShortcode } = require('../utils/shortcode');
 const { renderFreeHtml } = require('../utils/og-meta');
 const { getServerById } = require('../db/servers');
+const { DEV_GAMES_ENABLED } = require('../config');
 
 // 데구리 에셋(assets/marble/**) 브라우저 캐시 — URL 에 ?v= 이 붙어 있어(js/marble-render.js ASSET_VER) 오래 캐시해도 된다.
 // 기본값(max-age=0)이면 방에 들어올 때마다 시트 95개를 재검증(304)한다 (2026-09-22)
@@ -65,7 +66,9 @@ function setupRoutes(app) {
     // 미사용 게임(CLAUDE.md '미사용 게임')의 페이지·js·css·에셋은 정적 서빙에서 뺀다 → 라우트도 없으니 다른 없는 URL 과 똑같이 404.
     // 저장소 루트를 통째로 서빙하는 구조라 라우트만 지우면 *-multiplayer.html 이 정적 파일로 그대로 열린다. 삭제 전까지의 가림.
     const HIDDEN_GAME_FILES = /^\/(bridge-cross|pirate)-multiplayer\.html$|^\/(js|css)\/(bridge-cross|pirate)[^/]*$|^\/assets\/(bridge-cross|pirate)\//;
-    app.use((req, res, next) => (HIDDEN_GAME_FILES.test(req.path) ? next() : staticFiles(req, res, next)));
+    // 홈 리뉴얼 목업(mockups/)은 테스트 서버(DEV_GAMES)·로컬에서만 — 실서버에서는 라우트도 정적 파일도 404
+    const HIDDEN_MOCKUP_FILES = /^\/mockups\//;
+    app.use((req, res, next) => (HIDDEN_GAME_FILES.test(req.path) || (!DEV_GAMES_ENABLED && HIDDEN_MOCKUP_FILES.test(req.path)) ? next() : staticFiles(req, res, next)));
 
     app.get('/', (req, res) => {
         res.redirect('/game');
@@ -121,6 +124,22 @@ function setupRoutes(app) {
     // 옛 데구리 링크(/marble, /marble/:code, /free/marble/:code) → deguri 로 301. /free/:game 일반 라우트보다 먼저 걸어야 슬러그 검사에 안 걸린다
     app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
     app.get('/free/marble/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/marble\//, '/free/deguri/')));
+
+    // 디자인 목업 (외부 리뷰용, 유저 동선과 무관) — /main 허브, /1 /2 … 각 목업. 파일은 mockups/ 정적 폴더.
+    // 테스트 서버(DEV_GAMES)·로컬에서만 연다 — 실서버에서는 없는 URL 과 같은 404
+    if (DEV_GAMES_ENABLED) {
+        const MOCKUP_DIR = path.join(__dirname, '..', 'mockups');
+        app.get('/main', (req, res) => {
+            res.setHeader('Cache-Control', 'no-cache');
+            res.sendFile(path.join(MOCKUP_DIR, 'index.html'));
+        });
+        app.get('/:mockupNo(\\d{1,2})', (req, res, next) => {
+            const file = path.join(MOCKUP_DIR, req.params.mockupNo + '.html');
+            if (!fs.existsSync(file)) return next();
+            res.setHeader('Cache-Control', 'no-cache');
+            res.sendFile(file);
+        });
+    }
 
     const freeHtmlPath = path.join(__dirname, '..', 'free.html');
 

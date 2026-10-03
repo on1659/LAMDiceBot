@@ -3,35 +3,28 @@
    vibe(D:\Work\vibe\ladder) 메커니즘 이식(Phase B) — 칸 수 스테퍼 + 라벨 편집 + 드래그 막대기 + 셔플/하강 연출. */
 
 :root {
-    /* 게임 전용 그라데이션 (amber/gold) */
-    --ladder-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-
     /* 사다리 게임 뷰 최대 폭 — 캔버스/라벨행/상태/시작버튼이 같은 폭으로 정렬되게 단일 토큰으로 관리.
        backing store(720×560)는 불변; 표시 크기만 키운다(좌표/공정성 무관, 720:560 종횡비 유지).
        LAMDice 셸 .container는 800px 고정이라 view-max도 그 안(720)에 들어가게 유지(데스크톱 확장 없음). */
     --ladder-view-max: 720px;
 
-    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 텍스트 가독) + 진한 이름색. */
-    --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
-    --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
+    /* 사다리 색 토큰(그라데이션·채팅 말풍선·레인 픽 배지·보드 등)은 css/theme.css [tokens:ladder] (라이트·다크) */
 
-    /* 레인 픽 배지 — 버튼 배경이 모드 불변(--bg-white는 다크 오버라이드 없음 / selected는 amber 그라데이션)이라
-       배지 색도 모드 불변으로 고정한다. --ladder-accent는 다크에서 밝은 노랑이 되어 흰 버튼 위 대비가 무너진다
-       (말풍선과 같은 이유). 남의 픽 = 밝은 칩, 내 픽 = 반전 칩으로 구분. */
-    --ladder-pick-bg: #fef3c7;        /* 밝은 amber, 모드 불변 */
-    --ladder-pick-text: #92400e;      /* 진한 amber, 모드 불변 */
-    --ladder-pick-me-bg: #92400e;     /* 내 픽 — 반전 */
-    --ladder-pick-me-text: #fffbeb;
-
-    /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
-    --horse-500: var(--ladder-500);
-    --horse-600: var(--ladder-600);
+    /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias.
+       500/600 은 흰 글자가 올라가는 바탕(내 이름표·상점 탭·장착 버튼) — 다크에서 진한 주황인 --ladder-fill 로 */
+    --horse-500: var(--ladder-fill);
+    --horse-600: var(--ladder-fill-hover);
     --horse-accent: var(--ladder-accent);
     --horse-gradient: var(--ladder-gradient);
     --horse-50: rgba(var(--ladder-500-rgb), 0.08);
     --horse-100: rgba(var(--ladder-500-rgb), 0.16);
     --horse-200: rgba(var(--ladder-500-rgb), 0.24);
     --horse-700: var(--ladder-600);
+}
+
+/* 다크: 페이지 바닥 (--ladder-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
+[data-theme="dark"] body {
+    background: var(--dark-ground-ladder);
 }
 
 /* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 (C-1) */
@@ -119,14 +112,19 @@
     margin: 0 auto 12px;
     padding: 10px 14px;
     border-radius: 10px;
-    background: rgba(239, 68, 68, 0.10);
-    border: 1.5px solid rgba(239, 68, 68, 0.5);
-    color: var(--red-600, #dc2626);
+    background: rgba(var(--ladder-win-rgb), 0.10);
+    border: 1.5px solid rgba(var(--ladder-win-rgb), 0.5);
+    color: var(--red-600);
     font-size: 13px;
     font-weight: 700;
     text-align: center;
     line-height: 1.5;
     word-break: keep-all;
+}
+/* 다크: --red-600 은 어두운 면 위에서 대비가 모자라 한 단계 밝은 빨강으로 */
+[data-theme="dark"] .ladder-tournament-banner,
+[data-theme="dark"] .ladder-result-tag.loser {
+    color: var(--red-400);
 }
 
 /* ── 6택1 lane-pick (경마식) ── */
@@ -171,17 +169,17 @@
 /* 내가 고른 칸 */
 .ladder-lane-btn.selected {
     background: var(--ladder-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     border-color: var(--ladder-600);
     box-shadow: 0 3px 10px rgba(var(--ladder-500-rgb), 0.4);
 }
 /* 당첨 칸 표시(빨강 테두리) — 위치만 공개, routing은 숨김 */
 .ladder-lane-btn.is-win {
-    border-color: #ef4444;
-    box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.25);
+    border-color: var(--ladder-win);
+    box-shadow: inset 0 0 0 2px rgba(var(--ladder-win-rgb), 0.25);
 }
 .ladder-lane-btn.is-win.selected {
-    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 3px 10px rgba(var(--ladder-win-rgb), 0.5);
 }
 .ladder-lane-num {
     font-size: 20px;
@@ -277,7 +275,7 @@
     max-height: 72vh;          /* 세로로 긴 캔버스가 뷰포트를 넘지 않게 (모바일 스케일) */
     /* 캔버스 내부 텍스트·막대기 색이 하드코딩(어두운 갈색/회색)이라, 다크모드에서 페이지 그라데이션이
        비치면 대비가 나빠진다. 불투명 웜화이트 "보드"로 고정해 라이트·다크 모두 가독 확보. */
-    background: #fbf6ec;
+    background: var(--ladder-board-bg);
     border: 2px solid var(--ladder-500);
     border-radius: 12px;
     display: block;
@@ -306,8 +304,8 @@
     font-family: 'Jua', 'Segoe UI', Tahoma, sans-serif;
     font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 */
     font-weight: 900;
-    color: var(--ladder-accent);
-    text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(255, 255, 255, 0.9);
+    color: var(--ladder-board-ink);
+    text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(var(--highlight-rgb), 0.9);
     pointer-events: none;
     opacity: 0;
     transform: scale(0.7);
@@ -340,11 +338,11 @@
     align-items: center;
     padding: 10px 12px;
     border-radius: 8px;
-    border-bottom: 1px solid var(--gray-200, #e5e7eb);
+    border-bottom: 1px solid var(--gray-200);
 }
 .ladder-result-name { font-weight: 600; }
 .ladder-result-tag { font-weight: bold; white-space: nowrap; }
-.ladder-result-tag.loser { color: var(--red-600, #dc2626); }
+.ladder-result-tag.loser { color: var(--red-600); }
 
 /* ── 빠른 재준비(경마식) — 결과 카드 안 버튼들 ── */
 .ladder-result-actions {
@@ -373,9 +371,9 @@
 .ladder-result-close-btn {
     width: 100%;
     padding: 10px 20px;
-    background: var(--btn-neutral, #e5e7eb);
+    background: var(--btn-neutral);
     color: var(--text-secondary);
-    border: 1px solid var(--gray-300, #d1d5db);
+    border: 1px solid var(--gray-300);
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
@@ -430,4 +428,19 @@
     background: rgba(var(--ladder-500-rgb), 0.12);
     padding: 2px 8px;
     border-radius: 6px;
+}
+
+/* 게임 기록 패널(오른쪽 고정 320px + 20px, horse-race.css .history-section)은 첫 판이 끝나면 뜬다.
+   사다리는 body.game-active 를 쓰지 않아 컨테이너가 가운데 정렬 그대로라 1201~1480px 폭에서 패널이 컨트롤 바를 덮었다
+   → 경마·룰렛과 같은 상한(패널과 40px 이상)을 둔다. 1560px 이상에서는 가운데 정렬 그대로 */
+@media (min-width: 1201px) {
+    .container {
+        margin-left: min(calc((100vw - 800px) / 2), calc(100vw - 1180px));
+        margin-right: auto;
+    }
+}
+
+/* 다크: 보드 테두리는 무채로 (종이는 --ladder-board-bg 다크 값이 한 톤 낮춘다 — 흰 종이가 눈부시지 않게) */
+[data-theme="dark"] #ladderCanvas {
+    border-color: var(--border-color);
 }

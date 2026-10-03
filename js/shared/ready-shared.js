@@ -91,14 +91,14 @@ const ReadyModule = (function () {
             if (_options.readyCancelStyle) {
                 Object.assign(btn.style, _options.readyCancelStyle);
             } else {
-                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                btn.style.background = 'linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%)';
             }
         } else {
             btn.textContent = '준비';
             if (_options.readyStyle) {
                 Object.assign(btn.style, _options.readyStyle);
             } else {
-                btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                btn.style.background = 'linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-ready-end) 100%)';
             }
         }
     }
@@ -113,7 +113,7 @@ const ReadyModule = (function () {
         readyCount.textContent = _readyUsers.length;
 
         if (_readyUsers.length === 0) {
-            readyUsersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
+            readyUsersList.innerHTML = '<div style="color: var(--common-ink-faint); text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
             if (_isHost && !isGameActive()) {
                 setupDragAndDrop();
             }
@@ -205,8 +205,8 @@ const ReadyModule = (function () {
             e.preventDefault();
             if (_isHost && !isGameActive()) {
                 e.dataTransfer.dropEffect = 'move';
-                readyUsersList.style.backgroundColor = '#e8f5e9';
-                readyUsersList.style.border = '2px dashed #28a745';
+                readyUsersList.style.backgroundColor = 'var(--green-50)';
+                readyUsersList.style.border = '2px dashed var(--green-500)';
             }
         });
 

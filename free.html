@@ -15,13 +15,8 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
-      })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>LAMDice 홈 목업 모음</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<style>
+  :root { --ink: #191F28; --ink-2: #4E5968; --ink-3: #8B95A1; --line: #E5E8EB; --surface: #F2F4F6; --blue: #3182F6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 400 16px/1.6 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin-inline: auto; padding: 40px 20px 60px; }
+  h1 { margin: 0 0 6px; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .sub { color: var(--ink-2); margin: 0 0 8px; }
+  .note { font-size: 13px; color: var(--ink-3); margin: 0 0 28px; }
+  .list { display: grid; gap: 12px; }
+  .item { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 18px; border: 1px solid var(--line); border-radius: 18px; text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s; }
+  .item:hover { box-shadow: 0 8px 28px rgba(0,0,0,.08); transform: translateY(-2px); }
+  .no { width: 56px; height: 56px; border-radius: 14px; background: var(--surface); display: grid; place-items: center; font-size: 22px; font-weight: 800; color: var(--ink-2); }
+  .item.base .no { background: var(--ink); color: #fff; }
+  .item b { display: block; font-size: 18px; font-weight: 700; }
+  .item p { margin: 2px 0 8px; font-size: 14px; color: var(--ink-2); }
+  .meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--ink-3); }
+  .sw { display: inline-flex; gap: 3px; }
+  .sw i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.08); }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--surface); color: var(--ink-2); }
+  .tag.base { background: #E8F3FF; color: #1B64DA; }
+  .open { font-weight: 700; color: var(--blue); white-space: nowrap; }
+  .foot { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+  .foot a { color: var(--ink-2); }
+  @media (max-width: 600px) { .item { grid-template-columns: 44px minmax(0, 1fr); } .no { width: 44px; height: 44px; font-size: 18px; } .open { grid-column: 2; justify-self: start; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LAMDice 홈 목업 모음</h1>
+  <p class="sub">홈·서버 선택·로비를 서로 다른 방향으로 그린 목업 모음입니다. 번호를 누르면 열려요.</p>
+  <p class="note">외부 공유용 목업입니다. 숫자·방 목록·결과는 예시입니다. 1~5번은 같은 기본 흐름의 시각 비교, 6~9번은 첫 화면 구조 자체가 다른 안입니다. 로그인 후에는 서버를 첫 화면에서 고를 수 있습니다.</p>
+
+  <div class="list">
+    <a class="item" href="/1">
+      <span class="no">1</span>
+      <div>
+        <b>라벤더 카드</b>
+        <p>보라 기운 흰 바탕에 흰 카드. 게임 카드 5장이 주인공, 오른쪽에 탈것이 달리는 트랙. 기존 브랜드색을 살린 무난한 안.</p>
+        <div class="meta"><span class="sw"><i style="background:#F5F4FB"></i><i style="background:#5B4FE0"></i><i style="background:#1E1B3A"></i><i style="background:#667EEA"></i></span><span>Jua · IBM Plex Sans KR</span><span class="tag">밝게/어둡게</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item base" href="/2">
+      <span class="no">2</span>
+      <div>
+        <b>종이 위 내기 전단지 <span class="tag base">기준안</span></b>
+        <p>감열지 톤 종이, 굵은 잉크 선, 도장 하나, 풀컬러 픽셀 스티커. 첫 행동은 "걸 것 + 이름 → 방 만들기". 결과는 영수증.</p>
+        <div class="meta"><span class="sw"><i style="background:#FBF8F1"></i><i style="background:#ECE6D8"></i><i style="background:#14110F"></i><i style="background:#C8281A"></i><i style="background:#1F5FE0"></i></span><span>Bagel Fat One · Pretendard · Galmuri11</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/3">
+      <span class="no">3</span>
+      <div>
+        <b>밤의 오락실</b>
+        <p>어두운 바탕에 오락실 기계 한 대. 전구 노랑 하나, 스캔라인, LED 점수판. 게임은 기계(캐비닛)로, 결과는 게임 오버 화면.</p>
+        <div class="meta"><span class="sw"><i style="background:#0E0D1A"></i><i style="background:#1A1830"></i><i style="background:#FFD23F"></i><i style="background:#5DE0E6"></i><i style="background:#FF5C5C"></i></span><span>Gasoek One · Pretendard · Galmuri11</span><span class="tag">다크</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/4">
+      <span class="no">4</span>
+      <div>
+        <b>내기 계산서</b>
+        <p>홈 전체가 카페 영수증 한 장. 검정·빨강·파랑 셋뿐, 게임은 "결제수단" 줄, 스프라이트는 절취선 위를 걷는 유일한 색. 가장 과감한 안.</p>
+        <div class="meta"><span class="sw"><i style="background:#E9E2D3"></i><i style="background:#FBF8F1"></i><i style="background:#14110F"></i><i style="background:#C8281A"></i><i style="background:#1F5FE0"></i></span><span>Galmuri11 · Nanum Gothic Coding</span><span class="tag">세로 한 줄</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/5">
+      <span class="no">5</span>
+      <div>
+        <b>깔끔한 앱</b>
+        <p>흰 바탕, 파랑 하나, Pretendard만. 외곽선 없이 연한 그림자와 둥근 모서리. 게임은 목록 행. 한국 앱에서 가장 익숙한 결의 비교용 안.</p>
+        <div class="meta"><span class="sw"><i style="background:#FFFFFF"></i><i style="background:#F2F4F6"></i><i style="background:#191F28"></i><i style="background:#3182F6"></i><i style="background:#F04452"></i></span><span>Pretendard</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/6">
+      <span class="no">6</span>
+      <div>
+        <b>로비가 곧 홈 <span class="tag">새 구조</span></b>
+        <p>접속하면 열린 방과 팀 서버부터 보입니다. 자주 오는 사람이 가장 짧게 다음 판에 들어가는 안.</p>
+        <div class="meta"><span>방·서버 우선 · 소개 최소화</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/7">
+      <span class="no">7</span>
+      <div>
+        <b>한 화면 앱 <span class="tag">새 구조</span></b>
+        <p>휴대폰 한 화면에서 걸 것, 이름, 시작을 끝냅니다. 로그인 후에는 서버 선택이 첫 화면입니다.</p>
+        <div class="meta"><span>모바일 우선 · 짧은 동선</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/8">
+      <span class="no">8</span>
+      <div>
+        <b>놀이터 지도 <span class="tag">새 구조</span></b>
+        <p>게임을 카드가 아닌 지도 위 장소로 탐색합니다. 픽셀 에셋과 서버 선택을 한 장면에 놓습니다.</p>
+        <div class="meta"><span>탐색형 · 게임 장면 중심</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+    <a class="item" href="/9">
+      <span class="no">9</span>
+      <div>
+        <b>오늘의 판 <span class="tag">새 구조</span></b>
+        <p>결과 피드로 시작해 친구의 한 판을 보고 방에 합류합니다. 서버는 상단 탭과 첫 화면 목록으로 고릅니다.</p>
+        <div class="meta"><span class="sw"><i style="background:#F2F6F5"></i><i style="background:#17202D"></i><i style="background:#DF541E"></i><i style="background:#D8F5E6"></i></span><span>피드형 · 결과 중심</span></div>
+      </div>
+      <span class="open">열기 →</span>
+    </a>
+  </div>
+
+  <div class="foot"><span>기준 문서: 저장소 DESIGN.md · 2026-09-29</span><a href="https://lamdice.com/">지금 실서버 보기 →</a></div>
+</div>
+</body>
+</html>

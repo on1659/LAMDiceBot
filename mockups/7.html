@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>LAMDice 7 · 손안의 모임</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap');
+:root { color-scheme:light; --paper:#f2f0eb; --canvas:#faf9f6; --card:#fff; --ink:#222520; --muted:#777b73; --line:#e6e7df; --mint:#c8f767; --mint-dark:#9ed63b; --forest:#193d35; --coral:#f7785c; --violet:#e9e3ff; --shadow:0 12px 35px rgba(24,41,30,.09); font-family:'DM Sans','Noto Sans KR',sans-serif; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); }
+button,input { font:inherit; }
+button { cursor:pointer; }
+a { color:inherit; }
+:focus-visible { outline:3px solid var(--coral); outline-offset:3px; }
+.mockbar { min-height:38px; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; background:#161c17; color:#e7efdc; font-size:12px; padding:7px 12px; }
+.mockbar a { text-underline-offset:3px; font-weight:700; }
+.mockbar span { opacity:.7; }
+.demo-switch { border:1px solid #768773; border-radius:99px; background:transparent; color:#fff; padding:4px 10px; font-size:12px; font-weight:700; }
+.stage { max-width:1160px; margin:auto; display:grid; grid-template-columns:minmax(0,1fr) 430px; min-height:calc(100vh - 38px); align-items:center; gap:clamp(30px,7vw,100px); padding:32px; }
+.intro { max-width:570px; padding:30px; }
+.intro-mark { display:inline-flex; align-items:center; gap:9px; border:1px solid #d6d9cc; border-radius:99px; padding:7px 13px; color:var(--forest); font-size:13px; font-weight:800; }
+.intro-mark::before { content:'●'; color:var(--coral); font-size:12px; }
+.intro h1 { font-size:clamp(48px,5.5vw,82px); line-height:1.08; letter-spacing:-.075em; margin:26px 0; font-weight:900; }
+.intro h1 em { font-style:normal; color:var(--forest); }
+.intro p { color:#666e63; font-size:18px; line-height:1.7; max-width:440px; }
+.intro .hint { display:flex; align-items:center; gap:12px; margin-top:32px; font-size:13px; font-weight:700; color:var(--forest); }
+.hint i { display:block; width:40px; height:2px; background:var(--forest); }
+.device { background:var(--canvas); width:100%; min-height:790px; height:min(900px,calc(100dvh - 88px)); border:8px solid #252a26; border-radius:42px; box-shadow:0 28px 75px rgba(28,37,29,.22); overflow:hidden; display:flex; flex-direction:column; position:relative; }
+.device::before { content:''; width:100px; height:18px; border-radius:0 0 14px 14px; background:#252a26; position:absolute; top:0; left:50%; transform:translateX(-50%); z-index:5; }
+.app-head { padding:30px 22px 12px; display:flex; justify-content:space-between; align-items:center; background:var(--canvas); flex:none; }
+.brand { font-size:21px; font-weight:900; letter-spacing:-.07em; text-decoration:none; }
+.brand b { color:var(--coral); }
+.head-right { display:flex; gap:8px; align-items:center; }
+.avatar { width:36px; height:36px; border:0; border-radius:50%; background:var(--violet); font-weight:900; color:var(--forest); }
+.tiny-action { border:0; background:transparent; color:var(--forest); font-size:13px; font-weight:800; padding:8px; }
+.scroll { flex:1; overflow:auto; overscroll-behavior:contain; padding:0 20px 26px; scrollbar-width:thin; }
+.screen { min-height:100%; }
+.eyebrow { margin:5px 0 7px; color:#688141; font-size:11px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+.page-title { font-size:29px; line-height:1.25; letter-spacing:-.055em; margin:0 0 8px; }
+.sub { color:var(--muted); font-size:13px; line-height:1.5; margin:0 0 18px; }
+.hero-card { background:var(--forest); border-radius:25px; color:#fff; padding:22px; position:relative; overflow:hidden; margin-top:8px; }
+.hero-card::after { content:'✷'; position:absolute; right:-12px; top:-36px; font-size:150px; line-height:1; color:#2e5848; transform:rotate(12deg); pointer-events:none; }
+.hero-card > * { position:relative; z-index:1; }
+.hero-card .eyebrow { color:var(--mint); }
+.hero-card h2 { font-size:27px; line-height:1.2; letter-spacing:-.055em; margin:6px 0 8px; }
+.hero-card p { color:#d1ddd3; font-size:12px; margin:0; }
+.form-card { margin-top:-6px; position:relative; z-index:2; padding:16px; border:1px solid var(--line); background:var(--card); border-radius:22px; box-shadow:var(--shadow); }
+label,.label { display:block; font-size:12px; font-weight:800; margin-bottom:8px; }
+.stake-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:13px; }
+.stake { min-width:0; padding:9px 2px; background:#f5f6f1; border:1px solid transparent; border-radius:12px; font-size:12px; font-weight:800; }
+.stake[aria-pressed="true"] { background:var(--mint); border-color:#b4e757; }
+.text-input { width:100%; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 13px; background:#fafbf8; color:var(--ink); font-size:14px; outline:none; }
+.text-input:focus { border-color:#8daf63; box-shadow:0 0 0 3px #c8f76755; }
+.form-card .text-input { margin-bottom:12px; }
+.primary,.secondary { width:100%; min-height:48px; border:0; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:7px; font-weight:900; font-size:14px; }
+.primary { background:var(--mint); color:#19331c; }
+.primary:hover { background:var(--mint-dark); }
+.secondary { background:#edf0e8; color:var(--forest); }
+.ghost { border:0; background:none; font-weight:800; color:var(--forest); padding:8px 0; font-size:13px; }
+.section-head { display:flex; justify-content:space-between; align-items:center; margin:22px 0 10px; }
+.section-head h2 { font-size:17px; letter-spacing:-.04em; margin:0; }
+.section-head button { border:0; background:none; color:var(--forest); font-size:12px; font-weight:800; }
+.mini-server,.room-row,.choice-row { width:100%; display:flex; align-items:center; gap:11px; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:16px; padding:12px; margin-bottom:8px; color:var(--ink); }
+.server-icon,.room-icon { width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:13px; background:var(--violet); font-size:19px; font-weight:900; }
+.server-icon.orange { background:#ffe4cd; }.server-icon.green { background:#dceec6; }
+.mini-server span:nth-child(2),.room-row span:nth-child(2),.choice-row span:nth-child(2) { min-width:0; flex:1; }
+.mini-server b,.room-row b,.choice-row b { display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mini-server small,.room-row small,.choice-row small { display:block; color:var(--muted); font-size:11px; margin-top:3px; }
+.chevron { color:#94988f; font-size:22px; }
+.link-card { background:#e9f0dd; border:0; padding:14px; border-radius:17px; width:100%; text-align:left; display:flex; gap:11px; align-items:center; color:var(--forest); }
+.link-card b { display:block; font-size:13px; }.link-card small { display:block; font-size:11px; margin-top:3px; }
+.home-logged .welcome { background:var(--mint); border-radius:24px; padding:20px; margin:9px 0 16px; position:relative; overflow:hidden; }
+.welcome::after { content:'✦'; color:#a3db39; font-size:105px; position:absolute; right:1px; top:-38px; }
+.welcome b { display:block; font-size:23px; letter-spacing:-.05em; position:relative; z-index:1; }
+.welcome small { display:block; font-size:12px; margin-top:4px; position:relative; z-index:1; }
+.quick-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:16px 0; }
+.quick-actions button { min-height:74px; border:0; border-radius:17px; background:var(--forest); color:#fff; text-align:left; padding:14px; font-weight:800; font-size:13px; }
+.quick-actions button:nth-child(2) { background:var(--violet); color:#3d365d; }
+.quick-actions strong { display:block; font-size:21px; line-height:1; margin-bottom:7px; }
+.banner { border-radius:17px; background:#f9e6da; color:#6b3d2a; padding:13px 14px; font-size:12px; line-height:1.5; margin-top:12px; }
+.toolbar { display:flex; gap:7px; overflow:auto; margin:12px 0 16px; padding-bottom:3px; }
+.filter { border:1px solid var(--line); border-radius:99px; background:#fff; padding:7px 12px; white-space:nowrap; font-size:12px; font-weight:800; }
+.filter[aria-pressed="true"] { background:var(--forest); color:#fff; border-color:var(--forest); }
+.room-row { padding:13px; }
+.room-icon { background:#dff0cb; }
+.pill { background:#e7f5db; color:#366a38; border-radius:99px; padding:4px 7px; white-space:nowrap; font-size:10px; font-weight:900; }
+.pill.lock { background:#f1e8db; color:#8a6242; }
+.stack { display:grid; gap:12px; margin-top:22px; }
+.stack label { margin-bottom:-5px; }
+.stack .primary,.stack .secondary { margin-top:2px; }
+.back { display:inline-block; border:0; background:none; color:var(--forest); padding:4px 0 18px; font-size:13px; font-weight:800; }
+.notice { background:#eef3e7; border-radius:17px; padding:14px; font-size:12px; line-height:1.6; color:#506348; }
+.code-dots { display:flex; gap:8px; justify-content:center; margin:19px 0; }
+.code-dots span { width:12px; height:12px; border-radius:50%; background:#afce8a; }
+.waiting { text-align:center; padding:28px 12px; }
+.waiting .big-icon { display:grid; place-items:center; width:88px; height:88px; margin:8px auto 18px; border-radius:25px; background:var(--violet); font-size:39px; }
+.waiting h2 { font-size:24px; margin:0 0 10px; }.waiting p { color:var(--muted); font-size:13px; line-height:1.6; }
+.lobby-hero { border-radius:21px; background:var(--forest); padding:18px; color:#fff; margin:15px 0; }
+.lobby-hero small { color:var(--mint); font-weight:800; }.lobby-hero h2 { margin:6px 0 12px; font-size:21px; }.lobby-hero .primary { min-height:41px; font-size:13px; }
+.participants { display:flex; align-items:center; gap:0; margin:14px 0; }
+.participant { width:32px; height:32px; margin-right:-7px; border:2px solid var(--canvas); display:grid; place-items:center; border-radius:50%; background:var(--violet); font-weight:900; font-size:11px; }
+.participants small { margin-left:17px; color:var(--muted); font-size:11px; }
+.tabbar { flex:none; display:grid; grid-template-columns:repeat(3,1fr); gap:2px; border-top:1px solid var(--line); background:var(--card); padding:7px 8px max(8px,env(safe-area-inset-bottom)); }
+.tabbar button { background:transparent; border:0; border-radius:12px; color:#8a9184; display:grid; justify-items:center; gap:1px; padding:5px 0; font-size:10px; font-weight:800; }
+.tabbar button span { font-size:20px; line-height:1.2; }.tabbar button[aria-current="page"] { color:var(--forest); background:#eef6e1; }
+.toast { position:absolute; bottom:86px; left:22px; right:22px; padding:12px; border-radius:12px; background:#222a22; color:#fff; box-shadow:var(--shadow); font-size:12px; text-align:center; z-index:10; }
+@media(max-width:760px) { body { background:var(--canvas); } .stage { display:block; padding:0; max-width:none; min-height:0; } .intro { display:none; } .device { border:0; border-radius:0; box-shadow:none; width:100%; min-height:0; height:calc(100dvh - 38px); } .device::before { display:none; } .app-head { padding-top:14px; } }
+@media(max-width:370px) { .scroll { padding-inline:14px; } .app-head { padding-inline:16px; } .hero-card { padding:17px; } .form-card { padding:13px; } }
+</style>
+</head>
+<body>
+<div class="mockbar"><strong>7 · 손안의 모임</strong><a href="/main">/main</a><a href="/6">/6</a><a href="/8">/8</a><button class="demo-switch" id="demoSwitch" type="button">로그인 예시 보기</button><span>예시 데이터 · API 없음</span></div>
+<div class="stage">
+  <aside class="intro" aria-hidden="true"><span class="intro-mark">LAMDice / CONCEPT 07</span><h1>모임이<br><em>시작되는</em><br>한 화면.</h1><p>친구와는 이름 하나로 바로 시작하고, 자주 모이는 팀은 서버에서 다시 만나는 작은 앱.</p><span class="hint"><i></i> 오른쪽 화면을 눌러 둘러보세요</span></aside>
+  <div class="device">
+    <header class="app-head"><a class="brand" href="#home" data-nav="home">LAM<b>✳</b>DICE</a><div class="head-right"><button class="tiny-action" type="button" id="authAction">로그인</button><button class="avatar" type="button" id="avatarButton" aria-label="계정" hidden>라</button></div></header>
+    <div class="scroll" id="scroller">
+      <main class="screen" id="home">
+        <div id="guestHome">
+          <p class="eyebrow">QUICK PLAY / 01</p><div class="hero-card"><p class="eyebrow">친구랑 바로 한 판</p><h2>오늘은<br>누가 쏠까요?</h2><p>가입 없이 이름만 적으면 바로 시작해요.</p></div>
+          <form class="form-card" id="quickForm"><span class="label">뭘 걸까요?</span><div class="stake-grid" id="stakes"><button class="stake" type="button" data-stake="커피" aria-pressed="true">☕ 커피</button><button class="stake" type="button" data-stake="점심" aria-pressed="false">🍱 점심</button><button class="stake" type="button" data-stake="야식" aria-pressed="false">🍕 야식</button><button class="stake" type="button" data-stake="설거지" aria-pressed="false">🫧 설거지</button></div><label for="quickName">내 이름</label><input class="text-input" id="quickName" maxlength="12" placeholder="친구들이 부르는 이름" value="라온" required><button class="primary" type="submit">자유 방 시작하기 <span aria-hidden="true">↗</span></button></form>
+          <div class="section-head"><h2>이어서 놀기</h2><button type="button" data-nav="free">자유 로비 보기 →</button></div><button class="link-card" type="button" data-nav="free"><span class="server-icon green">↗</span><span><b>열린 자유 방 둘러보기</b><small>친구가 연 방도 여기서 찾아요</small></span></button>
+          <div class="section-head"><h2>우리 팀은 여기서</h2></div><button class="mini-server" type="button" data-nav="login"><span class="server-icon orange">✦</span><span><b>팀 서버에서 다시 만나기</b><small>로그인하고 기록 이어보기</small></span><span class="chevron">›</span></button>
+        </div>
+        <div class="home-logged" id="loggedHome" hidden>
+          <p class="eyebrow">GOOD TO SEE YOU AGAIN</p><div class="welcome"><b>라온님, 다시 만나요!</b><small>팀이 기다리는 서버로 바로 들어가요.</small></div>
+          <div class="section-head"><h2>내 팀 서버</h2><button type="button" data-nav="servers">모두 보기 →</button></div><div id="homeServerList"></div>
+          <div class="section-head"><h2>지난 서버</h2></div><button class="mini-server" type="button" data-server="lunch"><span class="server-icon orange">🍱</span><span><b>개발2팀 점심조</b><small>어제 마지막 방문 · 점심 내기 1판</small></span><span class="chevron">›</span></button>
+          <div class="quick-actions"><button type="button" data-nav="free"><strong>↗</strong>자유 방 시작</button><button type="button" data-nav="create-server"><strong>＋</strong>서버 만들기</button></div>
+        </div>
+      </main>
+      <main class="screen" id="servers" hidden><p class="eyebrow">MY SPACES</p><h1 class="page-title">어디서 놀까요?</h1><p class="sub">팀 서버는 기록이 쌓이고, 자유 방은 바로 시작돼요.</p><div id="serverList"></div><button class="secondary" type="button" data-nav="join-code">참여코드로 서버 들어가기</button><div class="quick-actions"><button type="button" data-nav="create-server"><strong>＋</strong>새 서버 만들기</button><button type="button" data-nav="free"><strong>↗</strong>자유 로비 가기</button></div></main>
+      <main class="screen" id="free" hidden><p class="eyebrow">OPEN LOBBY</p><h1 class="page-title">자유 로비</h1><p class="sub">링크를 나누고, 오늘의 내기를 시작해요.</p><button class="primary" type="button" data-nav="create-room">＋ 방 만들기</button><div class="toolbar" id="freeFilters"><button class="filter" type="button" data-filter="all" aria-pressed="true">전체</button><button class="filter" type="button" data-filter="horse" aria-pressed="false">🏇 경마</button><button class="filter" type="button" data-filter="dice" aria-pressed="false">🎲 주사위</button><button class="filter" type="button" data-filter="roulette" aria-pressed="false">🎯 룰렛</button></div><div id="freeRooms"></div></main>
+      <main class="screen" id="server-lobby" hidden><button class="back" type="button" data-nav="servers">← 서버 선택</button><p class="eyebrow">TEAM SPACE</p><h1 class="page-title" id="serverTitle">개발2팀 점심조</h1><p class="sub" id="serverSubtitle">멤버 8명 · 오늘도 내기 한 판!</p><div class="lobby-hero"><small>오늘의 한 판</small><h2 id="featuredRoom">점심 메뉴 정하기 · 경마</h2><button class="primary" type="button" id="featuredJoin">이 방 들어가기 ↗</button></div><div class="participants"><span class="participant">라</span><span class="participant">민</span><span class="participant">하</span><small>멤버 3명이 지금 보고 있어요</small></div><div class="section-head"><h2>열린 방</h2><button type="button" data-nav="create-room">방 만들기 ＋</button></div><div id="serverRooms"></div><button class="secondary" type="button" data-copy="server">서버 초대 링크 복사</button></main>
+      <main class="screen" id="login" hidden><button class="back" type="button" data-nav="home">← 홈</button><p class="eyebrow">WELCOME BACK</p><h1 class="page-title">팀으로 돌아오기</h1><p class="sub">데모 로그인으로 팀 서버를 둘러보세요.</p><form class="stack" id="loginForm"><label for="loginId">이름</label><input class="text-input" id="loginId" value="라온" maxlength="20" required><label for="loginPassword">숫자 암호코드</label><input class="text-input" id="loginPassword" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" value="1234" required><button class="primary" type="submit">로그인하고 서버 보기</button></form><button class="ghost" type="button" data-nav="register">처음 왔어요 · 회원가입 →</button><p class="notice">이 화면은 예시입니다. 입력한 내용은 전송하거나 저장하지 않아요.</p></main>
+      <main class="screen" id="register" hidden><button class="back" type="button" data-nav="login">← 로그인</button><p class="eyebrow">JOIN THE TABLE</p><h1 class="page-title">처음 만나요!</h1><p class="sub">이름과 숫자 암호코드를 정하고 내 팀 서버를 찾아보세요.</p><form class="stack" id="registerForm"><label for="registerName">이름</label><input class="text-input" id="registerName" maxlength="20" placeholder="예: 라온" required><label for="registerPassword">숫자 암호코드</label><input class="text-input" id="registerPassword" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" placeholder="4~6자리 숫자" required><label for="registerConfirm">암호코드 확인</label><input class="text-input" id="registerConfirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" placeholder="한 번 더 입력" required><button class="primary" type="submit">가입하고 시작하기</button></form><p class="notice">예시 화면입니다. 계정은 실제로 만들어지지 않아요.</p></main>
+      <main class="screen" id="create-server" hidden><button class="back" type="button" data-nav="servers">← 서버 선택</button><p class="eyebrow">NEW SPACE</p><h1 class="page-title">우리만의 서버</h1><p class="sub">모임 이름을 붙이고 친구를 초대해요.</p><form class="stack" id="serverForm"><label for="newServerName">서버 이름</label><input class="text-input" id="newServerName" maxlength="24" placeholder="예: 금요일 점심 멤버" required><label for="newServerCode">비공개 참여코드</label><input class="text-input" id="newServerCode" maxlength="20" placeholder="예: 2468 (선택)"><p class="notice">참여코드를 넣으면 초대받은 사람이 코드를 입력하고 승인 대기 화면으로 이동해요.</p><button class="primary" type="submit">서버 만들기</button></form></main>
+      <main class="screen" id="join-code" hidden><button class="back" type="button" data-nav="servers">← 서버 선택</button><p class="eyebrow">PRIVATE SPACE</p><h1 class="page-title">참여코드 입력</h1><p class="sub">비공개 서버에 들어가려면 받은 코드를 적어주세요.</p><div class="code-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div><form class="stack" id="codeForm"><label for="joinCode">참여코드</label><input class="text-input" id="joinCode" maxlength="20" placeholder="예: 2468" required><button class="primary" type="submit">참여 요청 보내기</button></form><p class="notice">예시 코드는 2468입니다. 실제 승인 요청은 전송되지 않아요.</p></main>
+      <main class="screen" id="pending" hidden><button class="back" type="button" data-nav="servers">← 서버 선택</button><div class="waiting"><div class="big-icon">⌛</div><p class="eyebrow">REQUEST SENT</p><h2>승인을 기다리고 있어요</h2><p><b id="pendingServer">개발2팀 점심조</b>의 관리자에게 참여 요청이 전달된 예시 화면이에요.</p><button class="secondary" type="button" data-nav="servers">다른 서버 보기</button></div></main>
+      <main class="screen" id="create-room" hidden><button class="back" type="button" id="roomBack">← 로비</button><p class="eyebrow">NEW ROUND</p><h1 class="page-title">방 만들기</h1><p class="sub" id="roomContext">자유 로비에서 친구를 기다려요.</p><form class="stack" id="roomForm"><label for="roomTitle">방 이름</label><input class="text-input" id="roomTitle" maxlength="30" placeholder="예: 오늘 점심 내기" required><label for="roomGame">어떤 게임으로?</label><select class="text-input" id="roomGame"><option value="horse">경마</option><option value="dice">주사위</option><option value="roulette">룰렛</option><option value="marble">데구리</option></select><button class="primary" type="submit">방 열고 링크 받기</button></form></main>
+      <main class="screen" id="room-detail" hidden><button class="back" type="button" id="detailBack">← 로비</button><p class="eyebrow">ROOM READY</p><h1 class="page-title" id="detailTitle">오늘 커피 내기</h1><p class="sub" id="detailMeta">경마 · 자유 방</p><div class="lobby-hero"><small>친구를 기다리는 중</small><h2>링크 하나면<br>다 같이 들어와요.</h2><button class="primary" type="button" data-copy="room">초대 링크 복사 ↗</button></div><div class="participants"><span class="participant" id="detailAvatar">라</span><small id="detailHost">라온님이 방을 열었어요</small></div><p class="notice">게임 진행과 결과는 이 목업에서 시뮬레이션하지 않아요.</p></main>
+    </div>
+    <nav class="tabbar" aria-label="앱 탐색"><button type="button" data-nav="home" aria-current="page"><span>⌂</span>홈</button><button type="button" data-nav="servers"><span>▦</span>서버</button><button type="button" data-nav="free"><span>◈</span>자유 로비</button></nav><div class="toast" id="toast" role="status" hidden></div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const screens = [...document.querySelectorAll('.screen')];
+  const gameNames = { horse:'경마', dice:'주사위', roulette:'룰렛', marble:'데구리' };
+  const rooms = [
+    { id:'R82K', title:'점심은 누가 살까?', game:'horse', host:'서연', scope:'free', count:3 },
+    { id:'D41P', title:'커피 한 잔 내기', game:'dice', host:'하루', scope:'free', count:2 },
+    { id:'T57Q', title:'퇴근 간식 정하기', game:'roulette', host:'민수', scope:'free', count:4 },
+    { id:'S92A', title:'점심 메뉴 정하기', game:'horse', host:'서연', scope:'lunch', count:3 }
+  ];
+  const servers = [
+    { id:'lunch', name:'개발2팀 점심조', note:'멤버 8명 · 어제 방문', icon:'🍱', color:'orange', private:false },
+    { id:'friends', name:'주말 친구들', note:'멤버 6명 · 오늘 새 소식', icon:'✳', color:'green', private:false },
+    { id:'secret', name:'LAMDice 비밀 모임', note:'멤버 4명 · 참여코드 필요', icon:'🔒', color:'', private:true }
+  ];
+  const state = { loggedIn:false, name:'라온', stake:'커피', currentServer:'lunch', roomScope:'free', lastLobby:'free', filter:'all', currentRoom:'R82K', pendingServer:'개발2팀 점심조', roomCounter:0 };
+  let toastTimer;
+  const clean = (value, fallback) => value.trim() || fallback;
+  function toast(message) { const node=$('toast'); node.textContent=message; node.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>node.hidden=true,2800); }
+  function show(id) {
+    screens.forEach(screen => screen.hidden=screen.id!==id);
+    document.querySelectorAll('.tabbar button').forEach(button => {
+      const active=button.dataset.nav===id || (button.dataset.nav==='servers' && ['server-lobby','join-code','pending','create-server'].includes(id)) || (button.dataset.nav==='free' && ['create-room','room-detail'].includes(id) && state.lastLobby==='free');
+      if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
+    });
+    $('scroller').scrollTop=0;
+  }
+  function serverButton(server) {
+    const button=document.createElement('button'); button.type='button'; button.className='mini-server'; button.dataset.server=server.id;
+    const icon=document.createElement('span'); icon.className='server-icon '+server.color; icon.textContent=server.icon;
+    const info=document.createElement('span'); const title=document.createElement('b'); title.textContent=server.name; const detail=document.createElement('small'); detail.textContent=server.note; info.append(title,detail);
+    const arrow=document.createElement('span'); arrow.className='chevron'; arrow.textContent='›'; button.append(icon,info,arrow); return button;
+  }
+  function renderServers() {
+    for (const id of ['serverList','homeServerList']) {
+      const list=$(id); list.replaceChildren();
+      servers.slice(0,id==='homeServerList'?2:undefined).forEach(server=>list.append(serverButton(server)));
+    }
+  }
+  function roomButton(room) {
+    const button=document.createElement('button'); button.type='button'; button.className='room-row'; button.dataset.room=room.id;
+    const icon=document.createElement('span'); icon.className='room-icon'; icon.textContent={horse:'🏇',dice:'🎲',roulette:'🎯',marble:'🐾'}[room.game];
+    const info=document.createElement('span'); const title=document.createElement('b'); title.textContent=room.title; const detail=document.createElement('small'); detail.textContent=gameNames[room.game]+' · '+room.host+' 님 · '+room.count+'명'; info.append(title,detail);
+    const pill=document.createElement('span'); pill.className='pill'; pill.textContent='대기 중'; button.append(icon,info,pill); return button;
+  }
+  function renderRooms() {
+    const free=$('freeRooms'); free.replaceChildren(); rooms.filter(room=>room.scope==='free' && (state.filter==='all'||room.game===state.filter)).forEach(room=>free.append(roomButton(room)));
+    if (!free.children.length) { const empty=document.createElement('p'); empty.className='notice'; empty.textContent='이 게임의 열린 방이 없어요. 첫 방을 만들어 보세요.'; free.append(empty); }
+    const team=$('serverRooms'); team.replaceChildren(); rooms.filter(room=>room.scope===state.currentServer).forEach(room=>team.append(roomButton(room)));
+    if (!team.children.length) { const empty=document.createElement('p'); empty.className='notice'; empty.textContent='아직 열린 방이 없어요. 첫 방을 만들어 보세요.'; team.append(empty); }
+  }
+  function auth(loggedIn) {
+    state.loggedIn=loggedIn; $('guestHome').hidden=loggedIn; $('loggedHome').hidden=!loggedIn; $('authAction').textContent=loggedIn?'로그아웃':'로그인'; $('avatarButton').hidden=!loggedIn;
+    $('demoSwitch').textContent=loggedIn?'비로그인 예시 보기':'로그인 예시 보기';
+    document.querySelector('.welcome b').textContent=state.name+'님, 다시 만나요!'; $('avatarButton').textContent=state.name.slice(0,1); renderServers(); show('home');
+  }
+  function openServer(id, asOwner=false) {
+    const server=servers.find(item=>item.id===id); if (!server) return;
+    if (!state.loggedIn) { show('login'); toast('팀 서버를 보려면 데모 로그인을 눌러주세요.'); return; }
+    if (server.private && !asOwner && !server.owner) { state.pendingServer=server.name; show('join-code'); return; }
+    state.currentServer=id; state.lastLobby='server-lobby'; $('serverTitle').textContent=server.name; $('serverSubtitle').textContent=server.note;
+    const featured=rooms.find(room=>room.scope===id); $('featuredRoom').textContent=featured ? featured.title+' · '+gameNames[featured.game] : '첫 방을 열어보세요'; $('featuredJoin').hidden=!featured; $('featuredJoin').dataset.room=featured?.id||'';
+    renderRooms(); show('server-lobby');
+  }
+  function openRoom(id) {
+    const room=rooms.find(item=>item.id===id); if (!room) return;
+    state.currentRoom=id; state.lastLobby=room.scope==='free'?'free':'server-lobby'; $('detailTitle').textContent=room.title; $('detailMeta').textContent=gameNames[room.game]+' · '+(room.scope==='free'?'자유 방':servers.find(server=>server.id===room.scope)?.name||'팀 서버'); $('detailAvatar').textContent=room.host.slice(0,1); $('detailHost').textContent=room.host+'님이 방을 열었어요'; show('room-detail');
+  }
+  function navigate(id) {
+    if (id==='servers' && !state.loggedIn) { show('login'); return; }
+    if (id==='create-server' && !state.loggedIn) { show('login'); toast('서버를 만들려면 데모 로그인을 눌러주세요.'); return; }
+    if (id==='join-code' && !state.loggedIn) { show('login'); return; }
+    if (id==='join-code') state.pendingServer='LAMDice 비밀 모임';
+    if (id==='create-room') { state.roomScope=state.lastLobby==='server-lobby'?state.currentServer:'free'; $('roomContext').textContent=state.roomScope==='free'?'자유 로비에서 친구를 기다려요.':'팀 서버에서 친구를 기다려요.'; }
+    if (id==='free') { state.lastLobby='free'; renderRooms(); }
+    show(id);
+  }
+  document.addEventListener('click',event=>{
+    const stake=event.target.closest('[data-stake]'); if (stake) { state.stake=stake.dataset.stake; document.querySelectorAll('[data-stake]').forEach(button=>button.setAttribute('aria-pressed',String(button===stake))); return; }
+    const filter=event.target.closest('[data-filter]'); if (filter) { state.filter=filter.dataset.filter; document.querySelectorAll('[data-filter]').forEach(button=>button.setAttribute('aria-pressed',String(button===filter))); renderRooms(); return; }
+    const copy=event.target.closest('[data-copy]'); if (copy) { const value=location.origin+'/7#'+(copy.dataset.copy==='server'?'server-'+state.currentServer:'room-'+state.currentRoom); const fallback=()=>{ const field=document.createElement('textarea'); field.value=value; field.style.position='fixed'; field.style.opacity='0'; document.body.append(field); field.select(); const copied=document.execCommand('copy'); field.remove(); toast(copied?'목업 링크를 복사했어요':value); }; if (navigator.clipboard?.writeText) navigator.clipboard.writeText(value).then(()=>toast('목업 링크를 복사했어요')).catch(fallback); else fallback(); return; }
+    const room=event.target.closest('[data-room]'); if (room) { openRoom(room.dataset.room); return; }
+    const server=event.target.closest('[data-server]'); if (server) { openServer(server.dataset.server); return; }
+    const nav=event.target.closest('[data-nav]'); if (nav) { event.preventDefault(); navigate(nav.dataset.nav); }
+  });
+  $('demoSwitch').addEventListener('click',()=>auth(!state.loggedIn));
+  $('authAction').addEventListener('click',()=>state.loggedIn?auth(false):show('login'));
+  $('avatarButton').addEventListener('click',()=>toast(state.name+'님으로 로그인한 예시 화면입니다.'));
+  $('quickForm').addEventListener('submit',event=>{ event.preventDefault(); state.name=clean($('quickName').value,'라온'); const room={id:'F'+(++state.roomCounter),title:'오늘 '+state.stake+' 내기',game:'horse',host:state.name,scope:'free',count:1}; rooms.unshift(room); state.lastLobby='free'; renderRooms(); openRoom(room.id); });
+  $('loginForm').addEventListener('submit',event=>{ event.preventDefault(); state.name=clean($('loginId').value,'라온'); auth(true); });
+  $('registerForm').addEventListener('submit',event=>{ event.preventDefault(); if($('registerPassword').value!==$('registerConfirm').value){toast('암호코드가 일치하지 않아요.');return;} state.name=clean($('registerName').value,'라온'); auth(true); toast('가입한 상태의 예시 화면이에요.'); });
+  $('serverForm').addEventListener('submit',event=>{ event.preventDefault(); const name=clean($('newServerName').value,'새 서버'); const id='team'+Date.now().toString(36); servers.unshift({id,name,note:'멤버 1명 · 방금 만듦',icon:'✦',color:'green',private:!!$('newServerCode').value.trim(),owner:true}); renderServers(); openServer(id,true); toast('서버가 만들어진 예시예요.'); event.target.reset(); });
+  $('codeForm').addEventListener('submit',event=>{ event.preventDefault(); if ($('joinCode').value.trim()!=='2468') { toast('데모 참여코드는 2468입니다.'); return; } $('pendingServer').textContent=state.pendingServer; show('pending'); });
+  $('roomForm').addEventListener('submit',event=>{ event.preventDefault(); const room={id:'M'+(++state.roomCounter),title:clean($('roomTitle').value,'새 방'),game:$('roomGame').value,host:state.name,scope:state.roomScope,count:1}; rooms.unshift(room); renderRooms(); openRoom(room.id); toast('방이 열린 예시예요.'); event.target.reset(); });
+  $('roomBack').addEventListener('click',()=>navigate(state.roomScope==='free'?'free':'server-lobby'));
+  $('detailBack').addEventListener('click',()=>navigate(state.lastLobby));
+  renderServers(); renderRooms();
+})();
+</script>
+</body>
+</html>

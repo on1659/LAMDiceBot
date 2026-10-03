@@ -145,29 +145,8 @@ const RankingModule = (function () {
 
     const CSS = `
         #ranking-overlay {
-            --rk-bg-start: #1a1a2e;
-            --rk-bg-end: #16213e;
-            --rk-accent: #667eea;
-            --rk-accent-light: #8B9CF7;
-            --rk-accent-purple: #764ba2;
-            --rk-accent-purple2: #9B59B6;
-            --rk-gold: #FFD700;
-            --rk-silver: #C0C0C0;
-            --rk-bronze: #CD7F32;
-            --rk-text: rgba(255,255,255,0.85);
-            --rk-text-dim: rgba(255,255,255,0.5);
-            --rk-text-muted: rgba(255,255,255,0.4);
-            --rk-border: rgba(255,255,255,0.08);
-            --rk-border-light: rgba(255,255,255,0.12);
-            --rk-surface: rgba(255,255,255,0.06);
-            --rk-surface-hover: rgba(255,255,255,0.03);
-            --rk-btn-bg: rgba(255,255,255,0.2);
-            --rk-btn-hover: rgba(255,255,255,0.3);
-            --rk-me-line: rgba(255,215,0,0.6); /* --rk-gold 외곽선 */
-            --rk-me-bg: rgba(255,215,0,0.07);
-
             position: fixed; inset: 0; z-index: 9999;
-            background: rgba(0,0,0,0.8); /* 백드롭 — 구 탈것 통계 모달 패리티, 페이지 라이트/다크 무관 고정 */
+            background: rgba(var(--shadow-rgb),0.8); /* 백드롭 — 구 탈것 통계 모달 패리티, 페이지 라이트/다크 무관 고정 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             opacity: 0; transition: opacity 0.25s ease;
         }
@@ -196,22 +175,22 @@ const RankingModule = (function () {
             display: flex; align-items: center; gap: 12px;
             padding: 18px 16px 14px;
             background: linear-gradient(135deg, var(--rk-accent) 0%, var(--rk-accent-purple) 50%, var(--rk-accent-purple2) 100%);
-            color: white; flex-shrink: 0;
+            color: var(--text-on-accent); flex-shrink: 0;
             position: relative; overflow: hidden;
         }
         .rk-header::before {
             content: ''; position: absolute; top: -20px; right: -20px;
             width: 80px; height: 80px; border-radius: 50%;
-            background: rgba(255,255,255,0.1);
+            background: rgba(var(--highlight-rgb),0.1);
         }
         .rk-header::after {
             content: ''; position: absolute; bottom: -30px; left: 30%;
             width: 60px; height: 60px; border-radius: 50%;
-            background: rgba(255,255,255,0.08);
+            background: rgba(var(--highlight-rgb),0.08);
         }
         .rk-back-btn {
             /* margin-top:0 로 전역 button{margin-top:10px}(horse-race.css) 상쇄 — 안 하면 헤더에서 아래로 밀려 제목과 어긋남 */
-            background: var(--rk-btn-bg); border: none; color: white;
+            background: var(--rk-btn-bg); border: none; color: var(--text-on-accent);
             width: 38px; height: 38px; border-radius: 12px; margin-top: 0;
             font-size: 1.15em; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
@@ -222,7 +201,7 @@ const RankingModule = (function () {
         .rk-header-title {
             font-family: 'Jua', sans-serif;
             font-size: 1.35em; font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            text-shadow: 0 2px 4px rgba(var(--shadow-rgb),0.15);
             z-index: 1;
         }
 
@@ -240,22 +219,22 @@ const RankingModule = (function () {
             border-radius: 14px;
             font-family: 'Jua', sans-serif;
             font-size: 1em; cursor: pointer;
-            border: 2px solid rgba(102,126,234,0.2); /* --rk-accent */
-            background: rgba(255,255,255,0.04);
+            border: 2px solid rgba(var(--rk-accent-rgb),0.2); /* --rk-accent */
+            background: rgba(var(--highlight-rgb),0.04);
             color: var(--rk-text-dim);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
         }
         .rk-tab.active {
             background: linear-gradient(135deg, var(--rk-accent), var(--rk-accent-purple));
-            color: white; border-color: transparent;
-            box-shadow: 0 4px 16px rgba(102,126,234,0.4); /* --rk-accent */
+            color: var(--text-on-accent); border-color: transparent;
+            box-shadow: 0 4px 16px rgba(var(--rk-accent-rgb),0.4); /* --rk-accent */
             transform: scale(1.03);
         }
         .rk-tab:not(.active):hover {
             background: var(--rk-border);
-            color: rgba(255,255,255,0.7);
-            border-color: rgba(102,126,234,0.3); /* --rk-accent */
+            color: rgba(var(--highlight-rgb),0.7);
+            border-color: rgba(var(--rk-accent-rgb),0.3); /* --rk-accent */
         }
         .rk-tab:active { transform: scale(0.97); }
 
@@ -263,8 +242,8 @@ const RankingModule = (function () {
         .rk-game-tabs {
             display: flex; justify-content: center; gap: 6px;
             padding: 8px 16px 12px;
-            background: rgba(255,255,255,0.02);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(var(--highlight-rgb),0.02);
+            border-bottom: 1px solid rgba(var(--highlight-rgb),0.05);
             overflow-x: auto; flex-shrink: 0;
             animation: rkSlideDown 0.25s ease;
             -webkit-overflow-scrolling: touch;
@@ -277,8 +256,8 @@ const RankingModule = (function () {
             font-family: 'Jua', sans-serif;
             font-size: 0.88em; cursor: pointer;
             border: 1.5px solid var(--rk-border-light);
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.45);
+            background: rgba(var(--highlight-rgb),0.04);
+            color: rgba(var(--highlight-rgb),0.45);
             transition: all 0.25s; white-space: nowrap;
         }
         .rk-game-chip:active { transform: scale(0.95); }
@@ -324,7 +303,7 @@ const RankingModule = (function () {
         }
         .rk-section-title::after {
             content: ''; flex: 1; height: 1px;
-            background: linear-gradient(90deg, rgba(102,126,234,0.3), transparent); /* --rk-accent */
+            background: linear-gradient(90deg, rgba(var(--rk-accent-rgb),0.3), transparent); /* --rk-accent */
         }
 
         /* ── 카드 ── */
@@ -341,7 +320,7 @@ const RankingModule = (function () {
         .rk-row {
             display: flex; align-items: center;
             padding: 13px 16px; gap: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(var(--highlight-rgb),0.04);
             transition: background 0.2s;
         }
         .rk-row:last-child { border-bottom: none; }
@@ -354,7 +333,7 @@ const RankingModule = (function () {
             flex: 1; color: var(--rk-text); font-size: 0.93em;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .rk-top3 .rk-name { font-weight: 600; color: rgba(255,255,255,0.95); }
+        .rk-top3 .rk-name { font-weight: 600; color: rgba(var(--highlight-rgb),0.95); }
         /* 내 행 — 남들과 같은 회색 행 사이에서 한눈에 찾히게 */
         .rk-row.rk-me, .rk-cal-drow.rk-me {
             background: var(--rk-me-bg);
@@ -379,33 +358,33 @@ const RankingModule = (function () {
             display: inline-flex; align-items: center; justify-content: center;
             width: 32px; height: 32px; border-radius: 50%;
             font-family: 'Jua', sans-serif;
-            font-size: 0.85em; font-weight: 700; color: white;
+            font-size: 0.85em; font-weight: 700; color: var(--text-on-accent);
         }
         .rk-gold {
-            background: linear-gradient(135deg, var(--rk-gold), #FFA500);
-            box-shadow: 0 0 12px rgba(255,215,0,0.5); /* --rk-gold */
+            background: linear-gradient(135deg, var(--rk-gold), var(--rk-gold-end));
+            box-shadow: 0 0 12px rgba(var(--rk-gold-rgb),0.5); /* --rk-gold */
             animation: rkPulseGold 2.5s ease-in-out infinite;
         }
         .rk-silver {
-            background: linear-gradient(135deg, var(--rk-silver), #A8A8A8);
-            box-shadow: 0 0 8px rgba(192,192,192,0.3); /* --rk-silver */
+            background: linear-gradient(135deg, var(--rk-silver), var(--rk-silver-end));
+            box-shadow: 0 0 8px rgba(var(--rk-silver-rgb),0.3); /* --rk-silver */
         }
         .rk-bronze {
-            background: linear-gradient(135deg, var(--rk-bronze), #B87333);
-            box-shadow: 0 0 8px rgba(205,127,50,0.3); /* --rk-bronze */
+            background: linear-gradient(135deg, var(--rk-bronze), var(--rk-bronze-end));
+            box-shadow: 0 0 8px rgba(var(--rk-bronze-rgb),0.3); /* --rk-bronze */
         }
         .rk-rank-num {
             display: inline-flex; align-items: center; justify-content: center;
             width: 28px; height: 28px; border-radius: 50%;
             font-size: 0.8em; font-weight: 700;
-            color: rgba(255,255,255,0.35);
+            color: rgba(var(--highlight-rgb),0.35);
             background: var(--rk-surface);
         }
 
         /* ── 빈 상태 ── */
         .rk-empty {
             text-align: center; padding: 60px 20px;
-            color: rgba(255,255,255,0.35);
+            color: rgba(var(--highlight-rgb),0.35);
             font-family: 'Jua', sans-serif;
             font-size: 1em;
         }
@@ -426,13 +405,13 @@ const RankingModule = (function () {
         }
         .rk-skeleton-circle {
             width: 32px; height: 32px; border-radius: 50%;
-            background: rgba(255,255,255,0.07);
+            background: rgba(var(--highlight-rgb),0.07);
             animation: rkShimmer 1.5s ease-in-out infinite;
             flex-shrink: 0;
         }
         .rk-skeleton-bar {
             height: 16px; border-radius: 8px;
-            background: rgba(255,255,255,0.07);
+            background: rgba(var(--highlight-rgb),0.07);
             animation: rkShimmer 1.5s ease-in-out infinite;
         }
 
@@ -462,8 +441,8 @@ const RankingModule = (function () {
         .rk-vehicle-table th:first-child { text-align: left; padding-left: 14px; }
         .rk-vehicle-table td {
             padding: 10px 6px; text-align: center;
-            color: rgba(255,255,255,0.6); white-space: nowrap;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: rgba(var(--highlight-rgb),0.6); white-space: nowrap;
+            border-bottom: 1px solid rgba(var(--highlight-rgb),0.04);
         }
         .rk-vehicle-table td:first-child {
             text-align: left; padding-left: 14px;
@@ -476,8 +455,8 @@ const RankingModule = (function () {
             min-width: 26px; height: 22px; border-radius: 6px;
             font-weight: 600; font-size: 0.9em;
         }
-        .rk-rank-1 { background: rgba(255,215,0,0.15); color: var(--rk-gold); }
-        .rk-rank-6 { background: rgba(239,68,68,0.15); color: var(--red-500, #ef4444); } /* --red-500 */
+        .rk-rank-1 { background: rgba(var(--rk-gold-rgb),0.15); color: var(--rk-gold); }
+        .rk-rank-6 { background: rgba(var(--rk-red-rgb),0.15); color: var(--red-500); } /* --red-500 */
         .rk-vehicle-table tr.rk-low-sample td { opacity: 0.5; }
         .rk-low-label {
             display: inline-block; margin-left: 4px;
@@ -500,8 +479,8 @@ const RankingModule = (function () {
             to { opacity: 1; max-height: 60px; }
         }
         @keyframes rkPulseGold {
-            0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.5); } /* --rk-gold */
-            50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); } /* --rk-gold */
+            0%, 100% { box-shadow: 0 0 12px rgba(var(--rk-gold-rgb),0.5); } /* --rk-gold */
+            50% { box-shadow: 0 0 20px rgba(var(--rk-gold-rgb),0.8); } /* --rk-gold */
         }
         @keyframes rkFadeInUp {
             from { opacity: 0; transform: translateY(12px); }
@@ -511,37 +490,37 @@ const RankingModule = (function () {
         /* ── 새 시즌 버튼 ── */
         .rk-reset-btn {
             /* margin-top:0 로 전역 button{margin-top:10px}(horse-race.css) 상쇄 — 헤더 정렬 */
-            background: var(--rk-btn-bg); border: none; color: white;
+            background: var(--rk-btn-bg); border: none; color: var(--text-on-accent);
             width: 38px; height: 38px; border-radius: 12px; margin-top: 0;
             font-size: 1.15em; cursor: pointer;
             display: none; align-items: center; justify-content: center;
             transition: background 0.2s; z-index: 1;
             margin-left: auto;
         }
-        .rk-reset-btn:hover { background: rgba(59,130,246,0.5); } /* --blue-500 */
+        .rk-reset-btn:hover { background: rgba(var(--rk-blue-rgb),0.5); } /* --blue-500 */
         .rk-reset-btn:active { transform: scale(0.95); }
 
         /* ── 확인바 / 피드백바 ── */
         .rk-confirm-bar {
             display: flex; align-items: center; justify-content: center; gap: 12px;
             padding: 10px 16px;
-            background: rgba(59,130,246,0.15); /* --blue-500 */
-            border-bottom: 1px solid rgba(59,130,246,0.3); /* --blue-500 */
+            background: rgba(var(--rk-blue-rgb),0.15); /* --blue-500 */
+            border-bottom: 1px solid rgba(var(--rk-blue-rgb),0.3); /* --blue-500 */
             font-family: 'Jua', sans-serif; font-size: 0.9em;
-            color: rgba(255,255,255,0.9);
+            color: rgba(var(--highlight-rgb),0.9);
             flex-shrink: 0;
             animation: rkSlideDown 0.2s ease;
         }
         .rk-confirm-yes {
             padding: 6px 16px; border: none; border-radius: 8px;
-            background: var(--blue-500); color: white;
+            background: var(--blue-500); color: var(--text-on-accent);
             font-family: 'Jua', sans-serif; font-size: 0.85em;
             cursor: pointer; white-space: nowrap;
         }
         .rk-confirm-yes:active { transform: scale(0.95); }
         .rk-confirm-no {
             padding: 6px 16px; border: none; border-radius: 8px;
-            background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);
+            background: rgba(var(--highlight-rgb),0.1); color: rgba(var(--highlight-rgb),0.8);
             font-family: 'Jua', sans-serif; font-size: 0.85em;
             cursor: pointer; white-space: nowrap;
         }
@@ -550,11 +529,11 @@ const RankingModule = (function () {
             display: flex; align-items: center; justify-content: center;
             padding: 10px 16px;
             font-family: 'Jua', sans-serif; font-size: 0.9em;
-            color: white; flex-shrink: 0;
+            color: var(--text-on-accent); flex-shrink: 0;
             animation: rkSlideDown 0.2s ease;
         }
-        .rk-feedback-bar.success { background: rgba(40,167,69,0.3); /* --green-500 */ }
-        .rk-feedback-bar.error { background: rgba(220,53,69,0.3); /* --red-500 */ }
+        .rk-feedback-bar.success { background: rgba(var(--rk-success-rgb),0.3); /* --green-500 */ }
+        .rk-feedback-bar.error { background: rgba(var(--rk-error-rgb),0.3); /* --red-500 */ }
 
         /* ── 시즌 셀렉터 ── */
         .rk-season-bar {
@@ -563,9 +542,9 @@ const RankingModule = (function () {
             border-bottom: 1px solid var(--rk-surface);
         }
         .rk-season-select {
-            background: var(--gray-900, var(--rk-bg-start));
-            border: 1px solid rgba(255,255,255,0.15);
-            color: white; border-radius: 8px;
+            background: var(--rk-select-bg);
+            border: 1px solid rgba(var(--highlight-rgb),0.15);
+            color: var(--text-on-accent); border-radius: 8px;
             padding: 5px 10px; font-size: 0.85em;
             font-family: 'Jua', sans-serif;
         }
@@ -618,14 +597,14 @@ const RankingModule = (function () {
         .rk-cal-toggle-slider {
             position: relative; display: inline-block;
             width: 36px; height: 20px;
-            background: rgba(255,255,255,0.25);
+            background: rgba(var(--highlight-rgb),0.25);
             border-radius: 999px; transition: background 0.2s;
             flex-shrink: 0;
         }
         .rk-cal-toggle-slider::before {
             content: ""; position: absolute; top: 2px; left: 2px;
             width: 16px; height: 16px;
-            background: white; border-radius: 50%;
+            background: rgb(var(--highlight-rgb)); border-radius: 50%;
             transition: transform 0.2s;
         }
         .rk-cal-toggle input[type="checkbox"]:checked ~ .rk-cal-toggle-slider {
@@ -668,13 +647,13 @@ const RankingModule = (function () {
             text-align: center; font-size: 0.72em;
             color: var(--rk-text-muted); padding: 2px 0;
         }
-        .rk-cal-wd.sun { color: rgba(239,68,68,0.75); } /* --red-500 */
+        .rk-cal-wd.sun { color: rgba(var(--rk-red-rgb),0.75); } /* --red-500 */
         .rk-cal-cell {
             /* 날짜 + 이름 2줄 + "+" 까지 4줄이 들어간다 */
             min-height: 62px; border-radius: 10px;
             padding: 4px 2px 5px;
             display: flex; flex-direction: column; align-items: center; gap: 1px;
-            background: rgba(255,255,255,0.03);
+            background: rgba(var(--highlight-rgb),0.03);
             border: 1px solid transparent;
             overflow: hidden;
         }
@@ -690,10 +669,10 @@ const RankingModule = (function () {
         }
         .rk-cal-has:hover { background: var(--rk-btn-bg); }
         .rk-cal-has .rk-cal-daynum { color: var(--rk-text); }
-        .rk-cal-today { border-color: rgba(102,126,234,0.55); } /* --rk-accent */
+        .rk-cal-today { border-color: rgba(var(--rk-accent-rgb),0.55); } /* --rk-accent */
         .rk-cal-sel {
             border-color: var(--rk-gold);
-            box-shadow: 0 0 10px rgba(255,215,0,0.25); /* --rk-gold */
+            box-shadow: 0 0 10px rgba(var(--rk-gold-rgb),0.25); /* --rk-gold */
         }
         /* 날짜 숫자 아래 남은 높이를 전부 차지하고 그 안에서 세로 가운데 정렬.
            1명이면 칸 가운데, 2명+"+"면 공간이 꽉 차 날짜 바로 아래로 붙는다 */
@@ -723,7 +702,7 @@ const RankingModule = (function () {
         .rk-cal-drow {
             display: flex; align-items: center; gap: 10px;
             padding: 11px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(var(--highlight-rgb),0.04);
         }
         .rk-cal-drow:last-child { border-bottom: none; }
         .rk-cal-seq {
@@ -821,7 +800,7 @@ const RankingModule = (function () {
                 if (isActive && c.dataset.color) {
                     c.style.background = c.dataset.color;
                     c.style.borderColor = c.dataset.color;
-                    c.style.color = 'white';
+                    c.style.color = 'var(--text-on-accent)';
                 } else {
                     c.style.background = '';
                     c.style.borderColor = '';
@@ -843,7 +822,7 @@ const RankingModule = (function () {
             if (isActive) {
                 c.style.background = c.dataset.color;
                 c.style.borderColor = c.dataset.color;
-                c.style.color = 'white';
+                c.style.color = 'var(--text-on-accent)';
             } else {
                 c.style.background = '';
                 c.style.borderColor = '';
@@ -887,7 +866,7 @@ const RankingModule = (function () {
             if (active && c.dataset.color) {
                 c.style.background = c.dataset.color;
                 c.style.borderColor = c.dataset.color;
-                c.style.color = 'white';
+                c.style.color = 'var(--text-on-accent)';
             } else {
                 c.style.background = '';
                 c.style.borderColor = '';
@@ -990,8 +969,8 @@ const RankingModule = (function () {
             overallSubTabsEl.innerHTML = '';
             _currentOverallSubTab = 'rank';
             const overallSubTabs = [
-                { icon: 'medal', text: '순위', key: 'rank', color: '#667eea' },
-                { icon: 'people', text: '참여', key: 'participant', color: '#27ae60' }
+                { icon: 'medal', text: '순위', key: 'rank', color: 'var(--rk-accent)' },
+                { icon: 'people', text: '참여', key: 'participant', color: 'var(--rk-tab-participant)' }
             ];
             overallSubTabs.forEach((t, i) => {
                 const chip = document.createElement('button');
@@ -1003,7 +982,7 @@ const RankingModule = (function () {
                     chip.classList.add('active');
                     chip.style.background = t.color;
                     chip.style.borderColor = t.color;
-                    chip.style.color = 'white';
+                    chip.style.color = 'var(--text-on-accent)';
                 }
                 chip.onclick = () => switchOverallSubTab(t.key);
                 overallSubTabsEl.appendChild(chip);
@@ -1016,15 +995,15 @@ const RankingModule = (function () {
         gameTabsEl.innerHTML = '';
         gameTabsEl.style.display = _currentMainTab === 'games' ? 'flex' : 'none';
         const gameTabs = [
-            { icon: 'dice', text: '주사위', key: 'dice', color: '#667eea' },
-            { icon: 'horse', text: '경마', key: 'horse', color: '#e67e22' },
-            { icon: 'slot', text: '룰렛', key: 'roulette', color: '#7c4dff' },
-            { icon: 'ladder', text: '사다리타기', key: 'ladder', color: '#f59e0b' }
+            { icon: 'dice', text: '주사위', key: 'dice', color: 'var(--rk-accent)' },
+            { icon: 'horse', text: '경마', key: 'horse', color: 'var(--rk-tab-horse)' },
+            { icon: 'slot', text: '룰렛', key: 'roulette', color: 'var(--rk-tab-roulette)' },
+            { icon: 'ladder', text: '사다리타기', key: 'ladder', color: 'var(--rk-tab-ladder)' }
         ];
         // 데구리은 미출시(로비 라벨 devFlags) — 기록이 있거나 데구리 방에서 연 경우에만 탭을 보인다
-        if (marbleTabVisible(data)) gameTabs.push({ icon: 'paw', text: '데구리', key: 'marble', color: '#3fa65b' });
+        if (marbleTabVisible(data)) gameTabs.push({ icon: 'paw', text: '데구리', key: 'marble', color: 'var(--rk-tab-marble)' });
         if (data.orders) {
-            gameTabs.push({ icon: 'burger', text: '주문', key: 'orders', color: '#e91e63' });
+            gameTabs.push({ icon: 'burger', text: '주문', key: 'orders', color: 'var(--rk-tab-orders)' });
         }
         gameTabs.forEach((t) => {
             const chip = document.createElement('button');
@@ -1036,7 +1015,7 @@ const RankingModule = (function () {
                 chip.classList.add('active');
                 chip.style.background = t.color;
                 chip.style.borderColor = t.color;
-                chip.style.color = 'white';
+                chip.style.color = 'var(--text-on-accent)';
             }
             chip.onclick = () => switchGameSubTab(t.key);
             gameTabsEl.appendChild(chip);
@@ -1047,8 +1026,8 @@ const RankingModule = (function () {
         if (horseSubTabsEl) {
             horseSubTabsEl.innerHTML = '';
             const horseSubTabs = [
-                { icon: 'trophy', text: '경마 순위', key: 'rank', color: '#e67e22' },
-                { icon: 'chart', text: '탈것 통계', key: 'vehicles', color: '#e67e22' }
+                { icon: 'trophy', text: '경마 순위', key: 'rank', color: 'var(--rk-tab-horse)' },
+                { icon: 'chart', text: '탈것 통계', key: 'vehicles', color: 'var(--rk-tab-horse)' }
             ];
             horseSubTabs.forEach((t) => {
                 const chip = document.createElement('button');
@@ -1060,7 +1039,7 @@ const RankingModule = (function () {
                     chip.classList.add('active');
                     chip.style.background = t.color;
                     chip.style.borderColor = t.color;
-                    chip.style.color = 'white';
+                    chip.style.color = 'var(--text-on-accent)';
                 }
                 chip.onclick = () => switchHorseSubTab(t.key);
                 horseSubTabsEl.appendChild(chip);

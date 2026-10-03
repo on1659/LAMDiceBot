@@ -14,13 +14,16 @@
     --mgacha-pull-shadow: #b22e27;
     --mgacha-chip-bg: rgba(255, 255, 255, 0.9);
 }
+/* 다크: 패널·글자는 css/marble.css 의 재질 토큰(결과 카드와 같은 어두운 종이)을 따른다. 무대 바탕만 한 톤 가라앉히고, 기계·캡슐 그림과 등급색·뽑기 버튼은 그대로 */
 [data-theme="dark"] {
-    --mgacha-panel: #1f2937;
+    --mgacha-panel: var(--marble-paper);
     --mgacha-stage-top: #2b4a63;
     --mgacha-stage-bottom: #2f5a3a;
-    --mgacha-ink: #f3ede6;
-    --mgacha-sub: #b8aab2;
-    --mgacha-chip-bg: rgba(31, 41, 55, 0.9);
+    --mgacha-ink: var(--marble-ink);
+    --mgacha-sub: var(--marble-muted);
+    --mgacha-chip-bg: rgba(42, 36, 25, 0.9);
+    --mgacha-pull: var(--fill-danger);   /* 흰 글자 4.5:1 — 라이트 #e8483f 는 다크에서 3.9:1 */
+    --mgacha-pull-shadow: #7a2f2d;
 }
 
 .mgacha-overlay {
@@ -35,7 +38,7 @@ body.mgacha-open { overflow: hidden; }
     width: 100%; max-width: 340px; max-height: calc(100vh - 24px); overflow-y: auto;
     background: var(--mgacha-panel); color: var(--mgacha-ink);
     border-radius: 18px; padding: 12px 14px 14px; box-sizing: border-box;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.35);
 }
 .mgacha-head { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 6px; }
 /* 뽑기 아이콘 — 우리 뽑기 기계 그림(유리구+몸통) 34×64. 🎰 이모지 대신(방 화면 뽑기 버튼) */
@@ -48,14 +51,14 @@ body.mgacha-open { overflow: hidden; }
     position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; align-items: center; gap: 3px;
     padding: 4px 9px 4px 6px; border-radius: 999px; background: var(--mgacha-chip-bg); color: var(--mgacha-ink);
     font-size: 12px; font-weight: 800; line-height: 1; white-space: nowrap; pointer-events: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.15);
 }
 /* 확률 안내 ? — 빨간 뽑기 버튼 안 오른쪽. 말풍선은 버튼 위로(모달 크기 불변). PC 는 호버 중에만, 폰(hover: none)은 탭으로 .is-open */
 .mgacha-pull-wrap { position: relative; margin-top: 10px; }
 .mgacha-modal .mgacha-help {
     position: absolute; right: 12px; top: 50%; transform: translateY(calc(-50% - 2px)); z-index: 1;
     width: 22px; height: 22px; margin: 0; padding: 0;
-    border: 1.5px solid rgba(255, 255, 255, 0.85); border-radius: 50%; background: transparent; color: #fff;
+    border: 1.5px solid rgba(var(--highlight-rgb), 0.85); border-radius: 50%; background: transparent; color: var(--text-on-accent);
     font-size: 12px; font-weight: 800; line-height: 1; cursor: help; box-shadow: none;
 }
 .mgacha-tip {
@@ -63,7 +66,7 @@ body.mgacha-open { overflow: hidden; }
     width: 230px; max-width: 100%; padding: 8px 10px; border-radius: 10px; box-sizing: border-box;
     background: var(--mgacha-ink); color: var(--mgacha-panel);
     font-size: 12px; font-weight: 600; line-height: 1.45; text-align: left; white-space: normal; word-break: keep-all;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.25);
     visibility: hidden; opacity: 0; transition: opacity 0.12s; pointer-events: none;
 }
 .mgacha-tip::after {
@@ -75,14 +78,14 @@ body.mgacha-open { overflow: hidden; }
 /* 동물 고르기 제목 줄의 방 지갑 알약(꾸미기·뽑기 버튼 왼쪽) */
 .marble-coin-pill {
     display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; font-size: 11px; font-weight: 700; line-height: 1;
-    color: var(--mgacha-sub); background: var(--bg-secondary, rgba(0, 0, 0, 0.05)); padding: 5px 8px; border-radius: 999px; white-space: nowrap;
+    color: var(--mgacha-sub); background: var(--bg-secondary); padding: 5px 8px; border-radius: 999px; white-space: nowrap;
 }
 .marble-coin-pill[hidden] { display: none; }
 .marble-coin-pill { position: relative; cursor: help; }
 .marble-coin-tip {
     position: absolute; top: calc(100% + 7px); right: 0; z-index: 20; white-space: nowrap;
     padding: 6px 9px; border-radius: 8px; background: var(--mgacha-ink); color: var(--mgacha-panel);
-    font-size: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.2);
     visibility: hidden; opacity: 0; transition: opacity 0.12s; pointer-events: none;
 }
 .marble-coin-tip::before { content: ''; position: absolute; bottom: 100%; right: 14px; border: 5px solid transparent; border-bottom-color: var(--mgacha-ink); }
@@ -93,7 +96,8 @@ body.mgacha-open { overflow: hidden; }
     .marble-pick-head .marble-pick-title { flex: 1 0 100%; }
 }
 @keyframes mgachaGain { 0% { color: var(--mgacha-legend); transform: scale(1.2); } 100% { transform: scale(1); } }
-.mgacha-tip-stay { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+.mgacha-tip-stay { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(var(--highlight-rgb), 0.25); }
+[data-theme="dark"] .mgacha-tip-stay { border-top-color: rgba(var(--shadow-rgb), 0.2); }   /* 다크의 말풍선은 밝은 바탕(반전 칩)이라 흰 구분선이 안 보인다 */
 /* horse-race.css 의 button { width: 100% } 를 이긴다 */
 .mgacha-modal .mgacha-close {
     width: 32px; height: 32px; margin: 0; padding: 0; flex: 0 0 auto;
@@ -118,7 +122,7 @@ body.mgacha-open { overflow: hidden; }
 /* 결과 칸은 늘 자리를 차지한다 — 연출 중·결과 화면의 모달 크기가 같게(사용자 2026-09-24) */
 .mgacha-result[hidden] { display: flex; visibility: hidden; }
 .mgacha-result-line { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 16px; font-weight: 800; }
-.mgacha-badge { font-size: 11px; font-weight: 800; color: #fff; padding: 3px 8px; border-radius: 999px; background: var(--mgacha-rare); }
+.mgacha-badge { font-size: 11px; font-weight: 800; color: var(--text-on-accent); padding: 3px 8px; border-radius: 999px; background: var(--mgacha-rare); }
 .mgacha-badge--epic { background: var(--mgacha-epic); }
 .mgacha-badge--legend { background: var(--mgacha-legend); }
 .mgacha-note { font-size: 12px; color: var(--mgacha-sub); margin: -4px 0 0; }
@@ -132,12 +136,13 @@ body.mgacha-open { overflow: hidden; }
 
 .mgacha-modal .mgacha-pull {
     width: 100%; margin: 0; padding: 12px 40px; border: none; border-radius: 14px;
-    background: var(--mgacha-pull); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer;
+    background: var(--mgacha-pull); color: var(--text-on-accent); font-size: 16px; font-weight: 800; cursor: pointer;
     box-shadow: 0 4px 0 var(--mgacha-pull-shadow);
 }
 .mgacha-modal .mgacha-pull:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--mgacha-pull-shadow); }
 .mgacha-modal .mgacha-pull:disabled { opacity: 0.55; cursor: default; }
 .mgacha-msg { min-height: 16px; margin-top: 6px; font-size: 12px; text-align: center; color: var(--mgacha-pull); }
+[data-theme="dark"] .mgacha-msg { color: var(--red-300); }   /* 뽑기 버튼 빨강은 어두운 패널 위 글자로는 대비가 모자란다 */
 
 @media (max-width: 400px) {
     .mgacha-overlay { padding: 8px; }

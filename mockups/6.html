@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>LAMDice · 로비가 홈</title>
+<style>
+  @font-face { font-family: Galmuri; src: url('/mockups/assets/galmuri11-sub.woff') format('woff'); font-display: swap; }
+  :root { --navy:#122c32; --navy-2:#204249; --teal:#087e77; --mint:#d9f1e9; --cream:#f6f4ec; --paper:#fffdf8; --line:#d9e1db; --muted:#61767a; --coral:#e16d52; --yellow:#f5cf72; --shadow:0 12px 35px rgba(18,44,50,.08); }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--cream); color:var(--navy); font:15px/1.5 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif; }
+  button,input,select { font:inherit; }
+  button { cursor:pointer; }
+  button:disabled { cursor:not-allowed; opacity:.55; }
+  a { color:inherit; text-decoration:none; }
+  img { display:block; max-width:100%; }
+  :focus-visible { outline:3px solid var(--coral); outline-offset:3px; }
+  .pixel { image-rendering:pixelated; }
+  .mockbar { min-height:38px; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:12px; padding:7px 16px; background:#0b2228; color:#e9f8f4; font-size:12px; }
+  .mockbar strong { font-family:Galmuri,monospace; font-size:11px; color:var(--yellow); }
+  .mockbar a { color:#fff; border-bottom:1px solid #80b5af; }
+  .mockbar a:hover { color:var(--yellow); }
+  .app { min-height:calc(100dvh - 38px); display:grid; grid-template-columns:252px minmax(0,1fr); }
+  .rail { background:var(--navy); color:#e9f8f4; padding:26px 18px; display:flex; flex-direction:column; gap:26px; min-height:100%; }
+  .brand { display:flex; gap:11px; align-items:center; padding:0 9px; font-weight:850; font-size:21px; letter-spacing:-.04em; }
+  .brand img { width:30px; height:30px; }
+  .brand small { display:block; font-size:10px; letter-spacing:.18em; color:#97c0bc; font-weight:700; line-height:1; }
+  .rail-label { margin:0 12px 8px; color:#8eafb0; font-size:10px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+  .rail-links { display:grid; gap:5px; }
+  .rail-link { width:100%; border:0; border-radius:12px; padding:11px 12px; display:flex; align-items:center; gap:11px; color:#c5dfdc; background:transparent; text-align:left; font-weight:700; }
+  .rail-link:hover,.rail-link[aria-current="page"] { background:#285057; color:#fff; }
+  .rail-link[aria-current="page"]::after { content:'●'; color:var(--yellow); font-size:8px; margin-left:auto; }
+  .rail-link img { width:20px; height:20px; }
+  .rail-card { margin-top:auto; padding:18px; background:#23444b; border:1px solid #386169; border-radius:18px; }
+  .rail-card b { display:block; font-size:14px; margin-bottom:5px; }
+  .rail-card p { color:#b9d4d1; font-size:12px; margin:0 0 13px; }
+  .rail-card .button { width:100%; }
+  .main { min-width:0; }
+  .top { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px clamp(20px,4vw,54px); background:var(--paper); border-bottom:1px solid var(--line); }
+  .crumb { font-size:13px; color:var(--muted); }
+  .crumb strong { color:var(--navy); font-size:15px; }
+  .top-actions { display:flex; align-items:center; gap:8px; }
+  .account { border:1px solid var(--line); background:#fff; border-radius:999px; padding:7px 12px; display:flex; gap:8px; align-items:center; font-size:13px; font-weight:700; }
+  .account i { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; background:var(--yellow); font-style:normal; }
+  .button { border:1px solid transparent; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:41px; border-radius:11px; padding:0 16px; font-weight:800; white-space:nowrap; background:var(--teal); color:white; }
+  .button:hover { filter:brightness(.95); }
+  .button.dark { background:var(--navy); }
+  .button.light { background:#fff; color:var(--navy); border-color:var(--line); }
+  .button.warm { background:var(--coral); }
+  .button.small { min-height:35px; padding:0 12px; font-size:13px; }
+  .button.wide { width:100%; }
+  .button img { width:19px; height:19px; }
+  .content { max-width:1340px; margin:auto; padding:34px clamp(20px,4vw,54px) 80px; }
+  .eyebrow { color:var(--teal); font:11px Galmuri,monospace; letter-spacing:.05em; }
+  h1,h2,h3,p { margin-top:0; }
+  h1 { font-size:clamp(30px,4vw,48px); line-height:1.17; letter-spacing:-.055em; margin:8px 0 12px; }
+  h2 { font-size:23px; letter-spacing:-.04em; margin:0; }
+  h3 { font-size:17px; letter-spacing:-.03em; }
+  .lead { color:var(--muted); max-width:620px; font-size:15px; margin-bottom:0; }
+  .headrow { display:flex; align-items:end; justify-content:space-between; gap:20px; margin-bottom:25px; }
+  .headrow .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .hero { background:var(--navy); color:#fff; border-radius:24px; padding:clamp(24px,4vw,46px); position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:20px; align-items:center; margin-bottom:30px; }
+  .hero::after { content:''; position:absolute; width:380px; height:380px; right:-140px; top:-170px; border:70px solid #2a6667; border-radius:50%; opacity:.5; }
+  .hero .eyebrow { color:var(--yellow); }
+  .hero h1 { max-width:650px; }
+  .hero p { color:#c9e4df; max-width:500px; margin-bottom:22px; }
+  .hero .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .hero-art { position:relative; z-index:1; display:flex; justify-content:center; align-items:center; min-height:150px; }
+  .hero-art .disc { width:200px; height:200px; border-radius:50%; background:#316b68; display:grid; place-items:center; box-shadow:0 0 0 14px #235256,0 0 0 15px #3d7675; }
+  .hero-art img { width:120px; height:120px; object-fit:contain; filter:drop-shadow(0 14px 4px rgba(0,0,0,.18)); }
+  .section-title { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:0 0 15px; }
+  .section-title p { margin:0; color:var(--muted); font-size:13px; }
+  .space-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:28px; }
+  .space-card { border:1px solid var(--line); border-radius:18px; background:var(--paper); padding:19px; text-align:left; min-width:0; box-shadow:var(--shadow); transition:transform .15s,box-shadow .15s; }
+  .space-card:hover,.room:hover { transform:translateY(-2px); box-shadow:0 18px 40px rgba(18,44,50,.12); }
+  .space-card .icon { width:45px; height:45px; display:grid; place-items:center; border-radius:13px; background:var(--mint); margin-bottom:15px; }
+  .space-card .icon img { width:27px; height:27px; }
+  .space-card h3 { margin:0 0 5px; }
+  .space-card p { margin:0 0 14px; font-size:13px; color:var(--muted); min-height:40px; }
+  .space-card .foot { display:flex; justify-content:space-between; gap:6px; align-items:center; font-size:12px; font-weight:800; color:var(--teal); }
+  .space-card.dashed { background:transparent; border-style:dashed; box-shadow:none; }
+  .room-layout { display:grid; grid-template-columns:minmax(0,1fr) 275px; gap:18px; align-items:start; }
+  .toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; }
+  .filter { border:1px solid var(--line); background:var(--paper); color:var(--muted); border-radius:999px; padding:7px 12px; font-size:12px; font-weight:800; }
+  .filter[aria-pressed="true"] { background:var(--navy); color:white; border-color:var(--navy); }
+  .rooms { list-style:none; margin:0; padding:0; display:grid; gap:9px; }
+  .room { background:var(--paper); border:1px solid var(--line); border-radius:17px; padding:15px; display:grid; grid-template-columns:52px minmax(0,1fr) auto; align-items:center; gap:13px; transition:transform .15s,box-shadow .15s; }
+  .room-icon { width:52px; height:52px; border-radius:14px; display:grid; place-items:center; background:var(--mint); }
+  .room-icon[data-game="dice"] { background:#e4e8ff; }
+  .room-icon[data-game="roulette"] { background:#fdebd9; }
+  .room-icon[data-game="horse"] { background:#e6f0ff; }
+  .room-icon[data-game="deguri"] { background:#f3e7fa; }
+  .room-icon img { width:34px; height:34px; object-fit:contain; }
+  .room-title { display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-size:15px; font-weight:800; }
+  .room-sub { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-top:3px; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; background:var(--mint); color:#056e62; }
+  .badge.playing { background:#fff1d4; color:#805700; }
+  .badge.lock { background:#f4e7e4; color:#974e3a; }
+  .room-tail { display:flex; align-items:center; gap:10px; }
+  .room-tail span { font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .side-stack { display:grid; gap:12px; }
+  .note-card { background:var(--mint); border-radius:18px; padding:19px; }
+  .note-card.cream { background:#fff0d6; }
+  .note-card h3 { margin:0 0 7px; }
+  .note-card p { color:#426468; font-size:13px; margin:0 0 14px; }
+  .empty { background:var(--paper); border:1px dashed var(--line); border-radius:17px; color:var(--muted); padding:35px 20px; text-align:center; }
+  .server-banner { display:flex; gap:16px; align-items:center; padding:22px; border-radius:20px; background:var(--mint); margin-bottom:25px; }
+  .server-banner .mark { width:62px; height:62px; border-radius:16px; background:var(--teal); color:white; display:grid; place-items:center; font:28px Galmuri,monospace; flex:none; }
+  .server-banner p { margin:0; font-size:13px; color:#426468; }
+  .server-banner .button { margin-left:auto; }
+  .select-intro { max-width:610px; margin-bottom:24px; }
+  .select-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .pending-box { background:#fff0d6; border:1px solid #ebd5a7; border-radius:18px; padding:20px; margin:20px 0; }
+  .pending-box h3 { margin:0 0 5px; }
+  .pending-box p { margin:0 0 12px; color:#6d624c; font-size:13px; }
+  .mobile-nav { display:none; }
+  dialog { border:0; padding:0; border-radius:22px; width:min(450px,calc(100vw - 24px)); max-height:min(90dvh,730px); box-shadow:0 30px 80px rgba(0,0,0,.3); color:var(--navy); background:var(--paper); }
+  dialog::backdrop { background:rgba(9,29,35,.6); }
+  .dialog-body { padding:25px; }
+  .dialog-head { display:flex; justify-content:space-between; align-items:start; gap:10px; margin-bottom:18px; }
+  .dialog-head h2 { font-size:24px; }
+  .close { width:32px; height:32px; border:0; border-radius:50%; background:#edf1eb; font-size:20px; line-height:1; }
+  .form { display:grid; gap:13px; }
+  .field { display:grid; gap:5px; font-size:13px; font-weight:800; }
+  .field input,.field select { width:100%; min-height:43px; padding:0 12px; background:#fff; color:var(--navy); border:1px solid #bdcec7; border-radius:10px; outline-color:var(--teal); }
+  .fine { margin:0; font-size:12px; color:var(--muted); }
+  .form-links { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  .text-button { border:0; background:transparent; padding:4px 0; font-weight:800; color:var(--teal); text-decoration:underline; }
+  .form-error { color:#b34330; font-size:12px; font-weight:700; margin:0; }
+  .choice-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .choice-row label { flex:1; padding:9px; text-align:center; border:1px solid var(--line); border-radius:10px; background:#fff; font-size:12px; cursor:pointer; }
+  .choice-row input { accent-color:var(--teal); }
+  .success-pane { text-align:center; display:grid; justify-items:center; gap:10px; }
+  .success-pane img { width:46px; height:46px; }
+  .success-pane h2 { margin:0; }
+  .success-pane p { margin:0 0 8px; color:var(--muted); }
+  .copyline { width:100%; display:flex; gap:8px; align-items:center; background:#edf5f0; border-radius:11px; padding:7px; }
+  .copyline code { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; text-align:left; padding-left:6px; }
+  .toast { position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:100; background:var(--navy); color:white; padding:10px 15px; border-radius:999px; font-size:13px; font-weight:800; box-shadow:var(--shadow); max-width:calc(100vw - 24px); text-align:center; }
+  @media (max-width:1050px) { .app { grid-template-columns:205px minmax(0,1fr); } .space-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .room-layout { grid-template-columns:minmax(0,1fr); } .side-stack { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:720px) { .app { display:block; } .rail { display:none; } .top { min-height:58px; padding:9px 16px; } .top .button { min-height:34px; padding:0 10px; font-size:12px; } .account { padding:5px 8px; } .content { padding:25px 16px 95px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { position:absolute; right:-10px; bottom:-25px; min-height:0; opacity:.38; } .hero-art .disc { width:145px; height:145px; } .hero-art img { width:88px; height:88px; } .hero > div:first-child { position:relative; z-index:2; } .headrow { align-items:start; flex-direction:column; } .mobile-nav { position:fixed; bottom:0; left:0; right:0; z-index:20; display:grid; grid-template-columns:repeat(4,1fr); padding:5px 5px calc(5px + env(safe-area-inset-bottom)); background:var(--paper); border-top:1px solid var(--line); box-shadow:0 -8px 25px rgba(18,44,50,.07); } .mobile-nav button { display:grid; justify-items:center; gap:1px; border:0; background:transparent; color:var(--muted); padding:4px 2px; font-size:10px; font-weight:800; } .mobile-nav button[aria-current="page"] { color:var(--teal); } .mobile-nav img { width:21px; height:21px; } .server-banner { flex-wrap:wrap; } .server-banner .button { margin-left:0; } }
+  @media (max-width:510px) { .space-grid,.side-stack { grid-template-columns:1fr; } .space-card p { min-height:0; } .room { grid-template-columns:43px minmax(0,1fr); gap:10px; } .room-icon { width:43px; height:43px; } .room-icon img { width:29px; height:29px; } .room-tail { grid-column:2; justify-content:space-between; } .top .crumb { display:none; } .top-actions { width:100%; justify-content:flex-end; } .button.small { font-size:12px; } }
+  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+</style>
+</head>
+<body>
+<div class="mockbar"><strong>MOCKUP 06 · 로비가 홈</strong><span>화면과 데이터는 데모입니다</span><a href="/main">/main 목록</a><a href="/5">/5 이전</a><a href="/7">/7 다음</a></div>
+<div class="app">
+  <aside class="rail">
+    <a class="brand" href="#home" data-view-link="home"><img class="pixel" src="/mockups/assets/ic-dice.png" alt=""><span>LAMDice<small>PLAY TOGETHER</small></span></a>
+    <div><p class="rail-label">공간</p><nav class="rail-links" aria-label="화면 이동">
+      <button class="rail-link" type="button" data-view="home"><img class="pixel" src="/mockups/assets/ic-home.png" alt="">홈</button>
+      <button class="rail-link" type="button" data-view="select"><img class="pixel" src="/mockups/assets/ic-people.png" alt="">서버 선택</button>
+      <button class="rail-link" type="button" data-view="free"><img class="pixel" src="/mockups/assets/ic-gamepad.png" alt="">자유 로비</button>
+      <button class="rail-link" type="button" data-view="server"><img class="pixel" src="/mockups/assets/ic-key.png" alt="">서버 로비</button>
+    </nav></div>
+    <div class="rail-card"><b>친구를 데려오세요</b><p>방을 만들면 초대 링크가 생겨요. 복사해 공유해 보세요.</p><button class="button light small" type="button" data-action="create-room">+ 방 만들기</button></div>
+  </aside>
+  <div class="main">
+    <header class="top"><div class="crumb">LAMDice <span aria-hidden="true">/</span> <strong id="crumbName">홈</strong></div><div class="top-actions"><span id="accountBadge" class="account" hidden><i>나</i><span id="accountName">플레이어</span></span><button id="authButton" class="button light small" type="button" data-action="login">로그인</button><button id="signupButton" class="button dark small" type="button" data-action="signup">회원가입</button><button id="logoutButton" class="button light small" type="button" data-action="logout" hidden>로그아웃</button></div></header>
+    <main class="content">
+      <section id="homeView" data-screen="home">
+        <div class="headrow"><div><span class="eyebrow">YOUR LOBBY, YOUR HOME</span><h1>지금 열린 방</h1><p class="lead">방을 고르면 바로 시작해요. 자유 방은 로그인 없이 들어갑니다.</p></div><div class="actions"><button class="button warm" type="button" data-action="create-room">+ 방 만들기</button><button class="button light" type="button" data-view="select">서버 고르기</button></div></div>
+        <div class="room-layout"><div><div class="toolbar"><div class="filters" data-filter-group="home"></div><span id="homeRoomCount" class="fine"></span></div><ul id="homeRooms" class="rooms"></ul></div><aside class="side-stack"><div class="note-card"><h3>빠르게 방 열기</h3><p>게임과 방 이름을 정하고 친구에게 링크를 보내세요.</p><button class="button dark small wide" type="button" data-action="create-room">+ 새 방 만들기</button></div><div class="note-card cream"><h3>초대 코드가 있나요?</h3><p>서버 참여 코드를 입력하고 합류 신청을 보낼 수 있어요.</p><button class="button light small wide" type="button" data-action="join">참여 코드 입력</button></div></aside></div>
+        <div class="section-title" style="margin-top:32px"><h2>어디서 놀까요?</h2><p>로그인 후에는 서버 선택이 첫 화면입니다</p></div>
+        <div class="space-grid">
+          <button class="space-card" type="button" data-view="free"><span class="icon"><img class="pixel" src="/mockups/assets/ic-gamepad.png" alt=""></span><h3>자유 로비</h3><p>누구나 들어갈 수 있는 공개 방을 둘러보세요.</p><span class="foot"><span>현재 열린 방 <span id="homeFreeCount">0</span>개</span><span>들어가기 ↗</span></span></button>
+          <button class="space-card" type="button" data-view="server"><span class="icon"><img class="pixel" src="/mockups/assets/ic-people.png" alt=""></span><h3 id="homeServerName">민수네 아지트</h3><p>친구들과 모여 만드는 우리만의 로비.</p><span class="foot"><span>서버 방 <span id="homeServerCount">0</span>개</span><span>들어가기 ↗</span></span></button>
+          <button class="space-card dashed" type="button" data-view="select"><span class="icon"><img class="pixel" src="/mockups/assets/ic-door.png" alt=""></span><h3>다른 서버 찾기</h3><p>초대 코드로 합류하거나 새 서버를 만드세요.</p><span class="foot"><span>내 서버 선택</span><span>이동 ↗</span></span></button>
+        </div>
+      </section>
+      <section id="selectView" data-screen="select" hidden>
+        <div class="select-intro"><span class="eyebrow">CHOOSE YOUR SPACE</span><h1>오늘은 어디서 놀까요?</h1><p class="lead" id="selectLead">로그인하고 내 서버를 고르거나 자유 로비로 들어가세요.</p><div class="select-actions"><button class="button dark" type="button" data-action="new-server">+ 새 서버</button><button class="button light" type="button" data-action="join">참여 코드 입력</button></div></div>
+        <div id="pendingBox" class="pending-box" hidden><h3>승인 대기 중</h3><p><strong id="pendingServerName"></strong> 관리자에게 참여 요청을 보냈어요. 승인되면 서버 목록에 표시됩니다.</p><button class="button light small" type="button" data-action="pending">상태 자세히 보기</button></div>
+        <div class="section-title"><h2>내 서버</h2><p id="serverSelectHint">데모 서버를 선택해 보세요</p></div>
+        <div id="serverCards" class="space-grid"></div>
+      </section>
+      <section id="freeView" data-screen="free" hidden>
+        <div class="headrow"><div><span class="eyebrow">OPEN LOBBY</span><h1>자유 로비</h1><p class="lead">누구든 들어와 같이 놀 수 있는 방이에요. 마음에 드는 방에 바로 참가하세요.</p></div><div class="actions"><button class="button light" type="button" data-view="home">홈으로</button> <button class="button dark" type="button" data-action="create-room">+ 방 만들기</button></div></div>
+        <div class="room-layout"><div><div class="toolbar"><div class="filters" data-filter-group="free"></div><span id="freeRoomCount" class="fine"></span></div><ul id="freeRooms" class="rooms"></ul></div><aside class="side-stack"><div class="note-card"><h3>함께할 사람이 없다면</h3><p>방을 만든 뒤 초대 링크를 복사해 친구에게 보내세요.</p><button class="button dark small wide" type="button" data-action="create-room">방 만들고 초대하기</button></div></aside></div>
+      </section>
+      <section id="serverView" data-screen="server" hidden>
+        <div class="headrow"><div><span class="eyebrow">PRIVATE LOBBY</span><h1 id="serverHeading">민수네 아지트</h1><p class="lead">같은 서버 사람들과 방을 만들고 함께 플레이해요.</p></div><div class="actions"><button class="button light" type="button" data-view="select">서버 바꾸기</button> <button class="button dark" type="button" data-action="create-room">+ 방 만들기</button></div></div>
+        <div class="server-banner"><div class="mark" id="serverMark">민</div><div><h3 id="serverBannerName">민수네 아지트</h3><p id="serverDescription">친구들끼리 가볍게 한 판!</p></div><button class="button light small" type="button" data-action="copy-server">초대 링크 복사</button></div>
+        <div class="room-layout"><div><div class="toolbar"><div class="filters" data-filter-group="server"></div><span id="serverRoomCount" class="fine"></span></div><ul id="serverRooms" class="rooms"></ul></div><aside class="side-stack"><div class="note-card cream"><h3>서버 멤버</h3><p id="memberSummary">민수 · 지우 · 하루 · 나</p><button class="button light small wide" type="button" data-action="copy-server">서버 초대하기</button></div><div class="note-card"><h3>첫 방을 열어볼까요?</h3><p>서버 안에서 만든 방은 이 로비에 표시돼요.</p><button class="button dark small wide" type="button" data-action="create-room">+ 새 방</button></div></aside></div>
+      </section>
+    </main>
+  </div>
+</div>
+<nav class="mobile-nav" aria-label="모바일 화면 이동"><button type="button" data-view="home"><img class="pixel" src="/mockups/assets/ic-home.png" alt="">홈</button><button type="button" data-view="select"><img class="pixel" src="/mockups/assets/ic-people.png" alt="">서버 선택</button><button type="button" data-view="free"><img class="pixel" src="/mockups/assets/ic-gamepad.png" alt="">자유 로비</button><button type="button" data-view="server"><img class="pixel" src="/mockups/assets/ic-key.png" alt="">서버 로비</button></nav>
+
+<dialog id="authDialog" aria-labelledby="authTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">WELCOME BACK</span><h2 id="authTitle">로그인</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><form id="authForm" class="form"><label class="field">이름<input id="authName" type="text" maxlength="20" autocomplete="username" placeholder="친구에게 보일 이름" required></label><label class="field">숫자 암호코드<input id="authPassword" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="current-password" placeholder="4~6자리 숫자" required></label><label id="confirmField" class="field" hidden>암호코드 확인<input id="authConfirm" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="new-password" placeholder="한 번 더 입력"></label><p class="fine">목업 데모입니다. 입력 내용은 서버로 전송하거나 저장하지 않습니다.</p><p id="authError" class="form-error" role="alert" hidden></p><button id="authSubmit" class="button dark wide" type="submit">로그인하고 서버 선택</button><div class="form-links"><button id="authSwitch" class="text-button" type="button">계정이 없나요? 회원가입</button><button class="text-button" type="button" data-close>나중에 할게요</button></div></form></div></dialog>
+<dialog id="newServerDialog" aria-labelledby="newServerTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">NEW SPACE</span><h2 id="newServerTitle">새 서버 만들기</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><form id="newServerForm" class="form"><label class="field">서버 이름<input id="newServerName" type="text" maxlength="24" placeholder="예: 금요일 게임 모임" required></label><label class="field">한 줄 소개<input id="newServerDescription" type="text" maxlength="60" placeholder="우리 서버를 소개해 주세요"></label><p class="fine">데모 서버가 내 서버 목록에 추가됩니다.</p><button class="button dark wide" type="submit">서버 만들기</button></form></div></dialog>
+<dialog id="joinDialog" aria-labelledby="joinTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">JOIN A SPACE</span><h2 id="joinTitle">참여 코드 입력</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><form id="joinForm" class="form"><label class="field">참여 코드 (4~20자 영문/숫자)<input id="joinCode" type="text" maxlength="20" pattern="[A-Za-z0-9]{4,20}" placeholder="예: PARTY6" required></label><p class="fine">데모 코드 <strong>PARTY6</strong>을 입력하면 승인 대기 흐름을 볼 수 있어요.</p><p id="joinError" class="form-error" role="alert" hidden></p><button class="button dark wide" type="submit">참여 요청 보내기</button></form></div></dialog>
+<dialog id="pendingDialog" aria-labelledby="pendingTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">REQUEST SENT</span><h2 id="pendingTitle">승인 대기 중</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><div class="success-pane"><img class="pixel" src="/mockups/assets/ic-clock.png" alt=""><p><strong id="pendingDialogName">금요일 게임 모임</strong> 참여 요청이 접수됐어요.<br>관리자가 승인하면 서버에 들어갈 수 있습니다.</p><p class="fine">목업에서는 아래 버튼으로 승인 후 화면도 체험할 수 있어요.</p><button class="button dark wide" type="button" data-action="approve">데모 승인하기</button><button class="text-button" type="button" data-close>서버 선택으로 돌아가기</button></div></div></dialog>
+<dialog id="roomDialog" aria-labelledby="roomTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">LET'S PLAY</span><h2 id="roomTitle">방 만들기</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><form id="roomForm" class="form"><label class="field">게임<select id="roomGame"><option value="horse">경마</option><option value="dice">주사위</option><option value="roulette">룰렛</option><option value="deguri">데구리</option></select></label><label class="field">방 이름<input id="roomName" type="text" maxlength="30" placeholder="친구들 모여라" required></label><div class="field">만들 위치<div class="choice-row"><label><input type="radio" name="roomScope" value="free" checked> 자유 로비</label><label><input type="radio" name="roomScope" value="server"> 현재 서버</label></div></div><p id="roomScopeNote" class="fine">서버 방은 로그인 후 만들 수 있어요.</p><button class="button dark wide" type="submit">방 만들고 링크 받기</button></form></div></dialog>
+<dialog id="inviteDialog" aria-labelledby="inviteTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">ROOM IS READY</span><h2 id="inviteTitle">방이 만들어졌어요!</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><div class="success-pane"><img class="pixel" src="/mockups/assets/ic-confetti.png" alt=""><p><strong id="inviteRoomName"></strong> 방으로 친구를 초대해 보세요.</p><div class="copyline"><code id="inviteUrl"></code><button class="button small" type="button" data-action="copy-room">복사</button></div><button class="button dark wide" type="button" data-action="view-created">로비에서 방 보기</button></div></div></dialog>
+<dialog id="roomDetailDialog" aria-labelledby="roomDetailTitle"><div class="dialog-body"><div class="dialog-head"><div><span class="eyebrow">ROOM PREVIEW</span><h2 id="roomDetailTitle">방 미리보기</h2></div><button class="close" type="button" data-close aria-label="닫기">×</button></div><div class="success-pane"><img id="detailIcon" class="pixel" src="/mockups/assets/ic-horse.png" alt=""><h3 id="detailName"></h3><p id="detailInfo"></p><p class="fine">이 목업에서는 실제 게임 서버에 접속하지 않습니다.</p><button class="button dark wide" type="button" data-close>로비로 돌아가기</button></div></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+(() => {
+  'use strict';
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => [...document.querySelectorAll(selector)];
+  const gameInfo = {
+    horse: { label: '경마', icon: '/mockups/assets/ic-horse.png' },
+    dice: { label: '주사위', icon: '/mockups/assets/ic-dice.png' },
+    roulette: { label: '룰렛', icon: '/mockups/assets/ic-slot.png' },
+    deguri: { label: '데구리', icon: '/mockups/assets/ic-paw.png' }
+  };
+  const state = {
+    view: 'home', user: '', authMode: 'login', filter: { home: 'all', free: 'all', server: 'all' },
+    serverId: 'mins', pending: false, pendingName: '금요일 게임 모임', lastRoom: null, nextRoomId: 1,
+    servers: [
+      { id: 'mins', name: '민수네 아지트', description: '친구들끼리 가볍게 한 판!', members: '민수 · 지우 · 하루 · 나', code: 'MINS24' },
+      { id: 'night', name: '밤샘 플레이단', description: '퇴근 후 모여서 게임 한 판', members: '유나 · 도윤 · 하린 · 나', code: 'NIGHT8' }
+    ],
+    rooms: [
+      { id: 'H7K2', scope: 'free', serverId: '', name: '경마 한 판 달려요', game: 'horse', host: '지우', players: 3, limit: 6, status: 'waiting' },
+      { id: 'D4P9', scope: 'free', serverId: '', name: '주사위 실력 겨뤄요', game: 'dice', host: '모모', players: 2, limit: 4, status: 'waiting' },
+      { id: 'R8A3', scope: 'free', serverId: '', name: '오늘의 룰렛', game: 'roulette', host: '하루', players: 5, limit: 8, status: 'playing' },
+      { id: 'G2M5', scope: 'free', serverId: '', name: '데구리 연습방', game: 'deguri', host: '구름', players: 1, limit: 6, status: 'waiting' },
+      { id: 'S6L1', scope: 'server', serverId: 'mins', name: '우리끼리 경마', game: 'horse', host: '민수', players: 4, limit: 6, status: 'waiting' },
+      { id: 'S2D8', scope: 'server', serverId: 'mins', name: '퇴근 후 주사위', game: 'dice', host: '하루', players: 2, limit: 4, status: 'playing' },
+      { id: 'N3R7', scope: 'server', serverId: 'night', name: '심야 룰렛', game: 'roulette', host: '유나', players: 3, limit: 8, status: 'waiting' }
+    ]
+  };
+  const currentServer = () => state.servers.find((server) => server.id === state.serverId) || state.servers[0];
+  const el = (tag, className, content) => { const node = document.createElement(tag); if (className) node.className = className; if (content !== undefined) node.textContent = content; return node; };
+  const toast = (message) => { const node = $('#toast'); node.textContent = message; node.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 2800); };
+  const closeDialog = (dialog) => { if (dialog.open) dialog.close(); };
+  const openDialog = (dialog) => { $$('.dialog-body .form-error').forEach((error) => { error.hidden = true; }); if (!dialog.open) dialog.showModal(); };
+  const requireLogin = (next) => { if (state.user) return true; state.afterLogin = next; setAuthMode('login'); openDialog($('#authDialog')); toast('로그인 후 이용할 수 있어요.'); return false; };
+
+  function roomList(scope, filter) {
+    return state.rooms.filter((room) => room.scope === scope && (scope !== 'server' || room.serverId === state.serverId) && (filter === 'all' || room.game === filter));
+  }
+  function renderFilters(group) {
+    const target = document.querySelector('[data-filter-group="' + group + '"]');
+    target.replaceChildren();
+    [['all', '전체'], ...Object.entries(gameInfo).map(([id, game]) => [id, game.label])].forEach(([id, label]) => {
+      const button = el('button', 'filter', label); button.type = 'button'; button.dataset.filter = id; button.dataset.group = group; button.setAttribute('aria-pressed', String(state.filter[group] === id)); target.append(button);
+    });
+  }
+  function renderRooms(targetId, scope, group) {
+    const target = $('#' + targetId); target.replaceChildren();
+    const rooms = roomList(scope, state.filter[group]);
+    if (!rooms.length) { target.append(el('li', 'empty', '아직 방이 없어요. 첫 방을 만들어 보세요!')); return; }
+    rooms.forEach((room) => {
+      const item = el('li', 'room');
+      const iconWrap = el('span', 'room-icon'); iconWrap.dataset.game = room.game;
+      const icon = el('img', 'pixel'); icon.src = gameInfo[room.game].icon; icon.alt = ''; iconWrap.append(icon);
+      const body = el('div'); const title = el('div', 'room-title', room.name);
+      const badge = el('span', 'badge' + (room.status === 'playing' ? ' playing' : ''), room.status === 'playing' ? '진행 중' : '대기 중'); title.append(badge);
+      const sub = el('div', 'room-sub'); [gameInfo[room.game].label, '방장 ' + room.host, room.scope === 'server' ? '서버 전용' : '자유 입장'].forEach((piece) => sub.append(el('span', '', piece))); body.append(title, sub);
+      const tail = el('div', 'room-tail'); tail.append(el('span', '', room.players + '/' + room.limit + '명'));
+      const action = el('button', 'button small ' + (room.status === 'playing' ? 'light' : 'dark'), room.status === 'playing' ? '구경하기' : '들어가기'); action.type = 'button'; action.dataset.roomId = room.id; tail.append(action);
+      item.append(iconWrap, body, tail); target.append(item);
+    });
+  }
+  function renderServerCards() {
+    const target = $('#serverCards'); target.replaceChildren();
+    state.servers.forEach((server) => {
+      const button = el('button', 'space-card'); button.type = 'button'; button.dataset.serverId = server.id;
+      const icon = el('span', 'icon'); const image = el('img', 'pixel'); image.src = '/mockups/assets/ic-people.png'; image.alt = ''; icon.append(image);
+      const foot = el('span', 'foot'); foot.append(el('span', '', server.members.split(' · ').length + '명 참여'), el('span', '', '로비 열기 ↗'));
+      button.append(icon, el('h3', '', server.name), el('p', '', server.description), foot); target.append(button);
+    });
+    const create = el('button', 'space-card dashed'); create.type = 'button'; create.dataset.action = 'new-server';
+    const icon = el('span', 'icon'); const image = el('img', 'pixel'); image.src = '/mockups/assets/ic-door.png'; image.alt = ''; icon.append(image);
+    const foot = el('span', 'foot'); foot.append(el('span', '', '새 공간'), el('span', '', '만들기 ↗'));
+    create.append(icon, el('h3', '', '새 서버 만들기'), el('p', '', '친구들만의 공간을 직접 열어보세요.'), foot); target.append(create);
+  }
+  function render() {
+    const server = currentServer();
+    $$('#accountBadge, #logoutButton').forEach((node) => { node.hidden = !state.user; });
+    $$('#authButton, #signupButton').forEach((node) => { node.hidden = Boolean(state.user); });
+    $('#accountName').textContent = state.user || '플레이어';
+    $('#homeServerName').textContent = server.name; $('#serverHeading').textContent = server.name; $('#serverBannerName').textContent = server.name;
+    $('#serverDescription').textContent = server.description; $('#serverMark').textContent = server.name.charAt(0); $('#memberSummary').textContent = server.members;
+    $('#homeFreeCount').textContent = state.rooms.filter((room) => room.scope === 'free').length;
+    $('#homeServerCount').textContent = state.rooms.filter((room) => room.scope === 'server' && room.serverId === state.serverId).length;
+    $('#pendingBox').hidden = !state.pending; $('#pendingServerName').textContent = state.pendingName;
+    $('#serverSelectHint').textContent = state.user ? '함께할 서버를 선택해 주세요' : '로그인하면 내 서버를 선택할 수 있어요';
+    $('#selectLead').textContent = state.user ? '내 서버를 고르거나 자유 로비로 들어가세요.' : '로그인하고 내 서버를 고르거나 자유 로비로 들어가세요.';
+    ['home', 'free', 'server'].forEach((group) => { renderFilters(group); renderRooms(group + 'Rooms', group === 'home' ? 'free' : group, group); });
+    $('#homeRoomCount').textContent = roomList('free', state.filter.home).length + '개 방';
+    $('#freeRoomCount').textContent = roomList('free', state.filter.free).length + '개 방';
+    $('#serverRoomCount').textContent = roomList('server', state.filter.server).length + '개 방';
+    renderServerCards();
+    $$('[data-screen]').forEach((section) => { section.hidden = section.dataset.screen !== state.view; });
+    $$('[data-view]').forEach((button) => { if (button.classList.contains('rail-link') || button.closest('.mobile-nav')) { if (button.dataset.view === state.view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); } });
+    $('#crumbName').textContent = ({ home: '홈', select: '서버 선택', free: '자유 로비', server: server.name })[state.view];
+  }
+  function navigate(view) { if (view === 'server' && !requireLogin('select')) return; state.view = view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function setAuthMode(mode) {
+    state.authMode = mode; const signup = mode === 'signup';
+    $('#authTitle').textContent = signup ? '회원가입' : '로그인'; $('#confirmField').hidden = !signup; $('#authConfirm').required = signup;
+    $('#authPassword').autocomplete = signup ? 'new-password' : 'current-password';
+    $('#authSubmit').textContent = signup ? '가입하고 서버 선택' : '로그인하고 서버 선택';
+    $('#authSwitch').textContent = signup ? '이미 계정이 있나요? 로그인' : '계정이 없나요? 회원가입';
+  }
+  function openRoomForm() {
+    const scope = state.view === 'server' && state.user ? 'server' : 'free';
+    $('#roomForm').reset(); $('#roomName').value = ''; $('#roomForm').elements.roomScope.value = scope; openDialog($('#roomDialog'));
+  }
+  async function copyText(value) {
+    try { await navigator.clipboard.writeText(value); toast('링크를 복사했어요.'); }
+    catch { toast('복사할 수 없어요. 표시된 링크를 직접 복사해 주세요.'); }
+  }
+  function action(name) {
+    if (name === 'login' || name === 'signup') { state.afterLogin = 'select'; setAuthMode(name); openDialog($('#authDialog')); }
+    if (name === 'logout') { state.user = ''; navigate('home'); toast('데모 로그아웃했어요.'); }
+    if (name === 'new-server' && requireLogin('new-server')) openDialog($('#newServerDialog'));
+    if (name === 'join' && requireLogin('join')) openDialog($('#joinDialog'));
+    if (name === 'pending') { $('#pendingDialogName').textContent = state.pendingName; openDialog($('#pendingDialog')); }
+    if (name === 'approve') {
+      const existing = state.servers.find((server) => server.id === 'party');
+      if (!existing) state.servers.push({ id: 'party', name: state.pendingName, description: '초대 코드로 들어온 새 서버', members: (state.user || '나') + ' · 친구들', code: 'PARTY6' });
+      state.pending = false; state.serverId = 'party'; closeDialog($('#pendingDialog')); navigate('server'); toast('데모 승인 완료! 서버에 들어왔어요.');
+    }
+    if (name === 'create-room') openRoomForm();
+    if (name === 'copy-server') copyText(location.origin + '/6#server-' + currentServer().code);
+    if (name === 'copy-room' && state.lastRoom) copyText(location.origin + '/6#room-' + state.lastRoom.id);
+    if (name === 'view-created' && state.lastRoom) { closeDialog($('#inviteDialog')); navigate(state.lastRoom.scope); }
+  }
+  document.addEventListener('click', (event) => {
+    const close = event.target.closest('[data-close]'); if (close) { closeDialog(close.closest('dialog')); return; }
+    const view = event.target.closest('[data-view]'); if (view) { navigate(view.dataset.view); return; }
+    const link = event.target.closest('[data-view-link]'); if (link) { event.preventDefault(); navigate(link.dataset.viewLink); return; }
+    const server = event.target.closest('[data-server-id]'); if (server) { if (!requireLogin('select')) return; state.serverId = server.dataset.serverId; navigate('server'); return; }
+    const room = event.target.closest('[data-room-id]'); if (room) {
+      const data = state.rooms.find((item) => item.id === room.dataset.roomId); if (!data) return;
+      $('#roomDetailTitle').textContent = data.status === 'playing' ? '진행 중인 방' : '입장 준비';
+      $('#detailName').textContent = data.name; $('#detailInfo').textContent = gameInfo[data.game].label + ' · ' + data.players + '/' + data.limit + '명 · 방장 ' + data.host;
+      $('#detailIcon').src = gameInfo[data.game].icon; openDialog($('#roomDetailDialog')); return;
+    }
+    const filter = event.target.closest('[data-filter]'); if (filter) { state.filter[filter.dataset.group] = filter.dataset.filter; render(); return; }
+    const trigger = event.target.closest('[data-action]'); if (trigger) action(trigger.dataset.action);
+  });
+  $$('#authDialog, #newServerDialog, #joinDialog, #pendingDialog, #roomDialog, #inviteDialog, #roomDetailDialog').forEach((dialog) => {
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) closeDialog(dialog); });
+  });
+  $('#authSwitch').addEventListener('click', () => { setAuthMode(state.authMode === 'login' ? 'signup' : 'login'); });
+  $('#authForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = $('#authName').value.trim();
+    if (state.authMode === 'signup' && $('#authPassword').value !== $('#authConfirm').value) { $('#authError').textContent = '암호코드가 일치하지 않아요.'; $('#authError').hidden = false; return; }
+    state.user = name;
+    if (!state.user) { $('#authError').textContent = '이름을 입력해 주세요.'; $('#authError').hidden = false; return; }
+    closeDialog($('#authDialog')); $('#authForm').reset(); navigate('select'); toast(state.user + '님, 환영해요!');
+    const next = state.afterLogin; state.afterLogin = '';
+    if (next === 'join') openDialog($('#joinDialog')); else if (next === 'new-server') openDialog($('#newServerDialog'));
+  });
+  $('#newServerForm').addEventListener('submit', (event) => {
+    event.preventDefault(); const name = $('#newServerName').value.trim(); if (!name) return;
+    const id = 'custom' + Date.now().toString(36); const description = $('#newServerDescription').value.trim() || '새로 만든 우리 서버';
+    state.servers.push({ id, name, description, members: state.user, code: id.slice(-6).toUpperCase() }); state.serverId = id;
+    closeDialog($('#newServerDialog')); $('#newServerForm').reset(); navigate('server'); toast('서버를 만들었어요.');
+  });
+  $('#joinForm').addEventListener('submit', (event) => {
+    event.preventDefault(); const code = $('#joinCode').value.trim().toUpperCase();
+    if (code !== 'PARTY6') { $('#joinError').textContent = '데모 코드 PARTY6을 입력해 주세요.'; $('#joinError').hidden = false; return; }
+    state.pending = true; closeDialog($('#joinDialog')); $('#joinForm').reset(); $('#pendingDialogName').textContent = state.pendingName;
+    navigate('select'); openDialog($('#pendingDialog'));
+  });
+  $('#roomForm').addEventListener('submit', (event) => {
+    event.preventDefault(); const name = $('#roomName').value.trim(); if (!name) return;
+    const scope = $('#roomForm').elements.roomScope.value;
+    if (scope === 'server' && !state.user) { closeDialog($('#roomDialog')); requireLogin('select'); return; }
+    const room = { id: 'MOCK' + state.nextRoomId++, scope, serverId: scope === 'server' ? state.serverId : '', name, game: $('#roomGame').value, host: state.user || '나', players: 1, limit: 6, status: 'waiting' };
+    state.rooms.unshift(room); state.lastRoom = room; closeDialog($('#roomDialog')); $('#roomForm').reset();
+    $('#inviteRoomName').textContent = room.name; $('#inviteUrl').textContent = location.origin + '/6#room-' + room.id;
+    render(); openDialog($('#inviteDialog'));
+  });
+  render();
+})();
+</script>
+</body>
+</html>

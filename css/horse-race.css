@@ -20,6 +20,8 @@
 
   --result-silver-light: #f5f5f5;  /* 2등 배경 밝은색 */
   --result-silver-dark: #e8e8e8;   /* 2등 배경 어두운색 */
+  --result-silver-text: #495057;   /* 2등 텍스트 (은색 카드는 스킨과 무관하게 밝다 — 고정) */
+  --result-silver-subtext: #adb5bd;/* 2등 서브텍스트 */
   --result-silver-border: #bdc3c7; /* 2등 테두리 */
 
   --result-bronze-light: #fae5d3;  /* 3등 배경 밝은색 */
@@ -36,6 +38,66 @@
   /* 경마 그라디언트 & 악센트 */
   --horse-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
   --horse-accent: var(--horse-500);
+  --horse-ink: var(--horse-600);   /* 600 을 글자색으로 쓸 때 (가격·당첨자) — 600 자체는 버튼 바탕이라 다크에서도 그대로 */
+
+  /* ── 스킨과 무관하게 고정인 글자색 (그림·늘 어두운 패널 위) ──
+     --gray-* / --bg-white 는 다크에서 뒤집히므로 이런 자리에 쓰면 안 된다 */
+  --race-on-dark: #e9ecef;         /* 꼴등 카드(어두운 바탕) 위 글자 */
+  --race-on-dark-soft: #ced4da;    /* 어두운 바탕 위 흐린 글자 */
+  --race-on-dark-muted: #adb5bd;   /* 실시간 순위 패널의 남은 거리 */
+  --race-tomb-text: #495057;       /* 트랙 위 비석 등수 */
+
+  /* 순위별 줄 바탕 (게임 기록) — 다크에서는 어두운 틴트로 바뀐다 */
+  --history-rank1-bg: var(--result-gold-light);
+  --history-rank2-bg: var(--result-silver-light);
+  --history-rank3-bg: var(--result-bronze-light);
+
+  /* 트랙 길이 칩 (js/horse-race.js) — 라이트에서도 어두운 칩이라 다크에서 뒤집히지 않게 따로 둔다 */
+  --track-chip-bg: var(--gray-800);
+  --track-chip-text: var(--gray-300);
+  --track-chip-border: var(--gray-600);
+  --track-chip-label: var(--gray-300);
+
+  /* 알림·확인 팝업 (js/horse-race.js showCustomAlert, horse-race-multiplayer.html showCustomConfirm) */
+  --horse-dialog-text: rgb(17, 24, 39);
+  --horse-dialog-cancel-bg: rgb(243, 244, 246);
+  --horse-dialog-cancel-text: rgb(107, 114, 128);
+  --horse-dialog-cancel-border: rgb(209, 213, 219);
+
+  /* 노랑 버튼(주문받기 시작, 경고 팝업의 확인) 위 글자 — 라이트는 흰색 유지, 다크는 진한 글자 */
+  --horse-warning-btn-text: #ffffff;
+}
+
+/* ============================================
+   다크 스킨 — 경마 전용 토큰
+   :root 가 --horse-accent 를 다시 선언하므로(theme.css 다크 값을 덮음) 여기서 또 정한다.
+   --horse-500/600 은 흰 글자 버튼·헤더 바탕이라 그대로 두고, 글자·테두리용만 밝힌다.
+   사다리·데구리는 자기 CSS :root 의 --horse-* alias 가 뒤에 로드돼 이 값을 다시 덮는다.
+============================================ */
+[data-theme="dark"] {
+  --horse-50: #2e2822;             /* 접속자·준비 패널 면 — 주황 기를 빼고 카드보다 한 단계 밝게 */
+  --horse-accent: #bd9a7c;         /* 어두운 면 위 글자·테두리 — 채도 낮춘 모래색 (주황이 번쩍이지 않게) */
+  /* 흰 글자가 올라가는 바탕(이름표·준비 버튼·그라디언트): 라이트의 #8B4513·#a0522d 는 다크에서 주황이 튄다 → 채도 낮춘 갈색 */
+  --horse-500: #73492f;
+  --horse-600: #80553a;
+  --horse-700: #6b4530;
+  --horse-ink: var(--horse-accent);
+
+  --history-rank1-bg: #3a3015;
+  --history-rank2-bg: #30323d;
+  --history-rank3-bg: #3a2a1f;
+
+  --track-chip-bg: var(--gray-200);
+  --track-chip-text: var(--text-secondary);
+  --track-chip-border: var(--border-color);
+  --track-chip-label: var(--text-tertiary);
+
+  --horse-dialog-text: var(--text-primary);
+  --horse-dialog-cancel-bg: var(--gray-100);
+  --horse-dialog-cancel-text: var(--text-secondary);
+  --horse-dialog-cancel-border: var(--border-color);
+
+  --horse-warning-btn-text: var(--text-on-light);
 }
 
 /* 게임 상태 바 (3게임 공통 패턴) */
@@ -75,10 +137,16 @@ body {
     overflow-x: hidden; /* 모바일 수평 스크롤 방지 */
 }
 
+/* 다크: 페이지 바닥은 따로 (--horse-gradient 는 버튼·헤더 바탕으로 계속 쓴다).
+   이 시트를 같이 쓰는 사다리·데구리는 자기 CSS 에서 같은 셀렉터로 자기 바닥을 다시 정한다 */
+[data-theme="dark"] body {
+    background: var(--dark-ground-horse);
+}
+
 .container {
     background: var(--bg-white);
     border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(var(--shadow-rgb), 0.3);
     padding: 40px;
     max-width: 800px;
     width: 100%;
@@ -88,7 +156,8 @@ body {
 }
 
 body.game-active .container {
-    margin-left: calc((100vw - 1140px) / 2 + 160px);
+    /* 기록 패널(오른쪽 고정 320px + 20px)과 40px 이상 떨어지도록 상한을 둔다 — 없으면 1201~1460px 폭에서 패널이 컨트롤 바를 덮는다 */
+    margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
     margin-right: auto;
     max-width: 800px;
 }
@@ -134,16 +203,16 @@ button {
     margin-top: 0;
     font-size: 10px;
     border-radius: 4px;
-    background: rgba(0,0,0,0.65);
-    color: var(--bg-white);
-    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(var(--shadow-rgb), 0.65);
+    color: var(--text-on-accent);
+    border: 1px solid rgba(var(--highlight-rgb), 0.3);
     font-weight: normal;
     top: 6px; bottom: auto;
 }
 
 button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(139, 69, 19, 0.3);
+    box-shadow: 0 5px 20px rgba(var(--game-type-horse-rgb), 0.3);
 }
 
 button:disabled {
@@ -212,7 +281,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     transition: background 0.2s;
 }
 .volume-btn:hover {
-    background: rgba(0,0,0,0.1);
+    background: rgba(var(--shadow-rgb), 0.1);
 }
 .volume-slider {
     width: 60px;
@@ -778,7 +847,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .horse-selection-button:hover:not(:disabled) {
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
+    box-shadow: 0 5px 15px rgba(var(--game-type-horse-rgb), 0.3);
     border-color: var(--horse-600);
 }
 
@@ -808,7 +877,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     transform: translateX(-50%);
     font-size: 11px;
     color: var(--text-secondary);
-    background: rgba(255,255,255,0.9);
+    background: var(--horse-taken-badge-bg);
     padding: 2px 8px;
     border-radius: 10px;
 }
@@ -828,7 +897,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 #readyButton:hover {
     background: linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%) !important;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+    box-shadow: 0 4px 8px rgba(var(--game-type-horse-rgb), 0.3);
 }
 
 .users-list {
@@ -867,7 +936,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .user-tag.me {
     background: var(--horse-500);
-    color: white;
+    color: var(--text-on-accent);
 }
 
 /* 주문받기 섹션 스타일 */
@@ -945,7 +1014,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin-top: 4px;
     max-height: 200px;
     overflow-y: auto;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 5px 15px rgba(var(--shadow-rgb), 0.2);
     z-index: 10;
 }
 
@@ -1085,7 +1154,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .sort-button.active {
     background: var(--horse-500);
-    color: white;
+    color: var(--text-on-accent);
 }
 
 .not-ordered-section {
@@ -1128,7 +1197,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
     background: var(--bg-white);
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.2);
     padding: 20px;
     overflow-y: auto;
     display: none;
@@ -1197,7 +1266,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin-bottom: 10px;
     padding: 12px;
     background: var(--horse-gradient);
-    color: white;
+    color: var(--text-on-accent);
     text-align: center;
     font-weight: bold;
     border-radius: 8px;
@@ -1205,7 +1274,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .chat-message.winner {
     background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
-    color: var(--text-primary);
+    color: var(--text-on-light);
     text-align: center;
     font-weight: bold;
     font-size: 18px;
@@ -1232,10 +1301,10 @@ input[type="text"]:focus, input[type="password"]:focus {
     pointer-events: none;
 }
 #raceChatOverlay .race-chat-msg {
-    color: rgba(255,255,255,0.95);
+    color: rgba(var(--highlight-rgb), 0.95);
     padding: 1px 0;
     margin-bottom: 1px;
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    text-shadow: -1px -1px 0 rgb(var(--shadow-rgb)), 1px -1px 0 rgb(var(--shadow-rgb)), -1px 1px 0 rgb(var(--shadow-rgb)), 1px 1px 0 rgb(var(--shadow-rgb));
     font-size: 12px;
     font-weight: 600;
     line-height: 1.3;
@@ -1290,7 +1359,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .host-badge {
     display: none;
     background: var(--host-badge-bg);
-    color: var(--text-primary);
+    color: var(--host-badge-text);
     padding: 4px 12px;
     border-radius: 20px;
     font-size: 12px;
@@ -1310,8 +1379,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .start-button {
-    background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);
+    color: var(--text-on-accent);
     font-size: 20px;
     padding: 15px 30px;
     font-weight: 600;
@@ -1323,8 +1392,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .end-button {
-    background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
-    color: var(--bg-white);
+    background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%);
+    color: var(--text-on-accent);
     font-weight: 600;
     font-size: 16px;
     padding: 15px 30px;
@@ -1337,7 +1406,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(var(--shadow-rgb), 0.8);
     display: none;
     justify-content: center;
     align-items: center;
@@ -1393,8 +1462,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 @keyframes finishGlow {
-    0%, 100% { text-shadow: 0 0 10px gold, 0 0 20px gold, 2px 2px 4px rgba(0,0,0,0.5); }
-    50% { text-shadow: 0 0 20px gold, 0 0 40px gold, 0 0 60px gold, 2px 2px 4px rgba(0,0,0,0.5); }
+    0%, 100% { text-shadow: 0 0 10px rgb(var(--horse-gold-rgb)), 0 0 20px rgb(var(--horse-gold-rgb)), 2px 2px 4px rgba(var(--shadow-rgb), 0.5); }
+    50% { text-shadow: 0 0 20px rgb(var(--horse-gold-rgb)), 0 0 40px rgb(var(--horse-gold-rgb)), 0 0 60px rgb(var(--horse-gold-rgb)), 2px 2px 4px rgba(var(--shadow-rgb), 0.5); }
 }
 
 @keyframes finishFade {
@@ -1465,8 +1534,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 .result-rank-2 { animation: resultRankBounce 0.5s ease-out 0.1s both; }
 .result-rank-3 { animation: resultRankBounce 0.5s ease-out 0.2s both; }
 @keyframes resultRankPulse {
-    0%, 100% { box-shadow: 0 4px 15px rgba(255,215,0,0.4); }
-    50% { box-shadow: 0 6px 25px rgba(255,215,0,0.6); }
+    0%, 100% { box-shadow: 0 4px 15px rgba(var(--horse-gold-rgb), 0.4); }
+    50% { box-shadow: 0 6px 25px rgba(var(--horse-gold-rgb), 0.6); }
 }
 
 /* 방 폭파 카운트다운 */
@@ -1572,7 +1641,7 @@ input[type="text"]:focus, input[type="password"]:focus {
         width: 100% !important;
         border-radius: 0 0 8px 8px !important;
         padding: 6px 12px !important;
-        background: rgba(0,0,0,0.85) !important;
+        background: rgba(var(--shadow-rgb), 0.85) !important;
     }
 
     /* [권장8] 카메라 버튼 터치 타겟 확대 */
@@ -1665,8 +1734,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     top: 8px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
+    background: rgba(var(--shadow-rgb), 0.7);
+    color: var(--text-on-accent);
     padding: 6px 16px;
     border-radius: 20px;
     font-size: 13px;
@@ -1686,7 +1755,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     top: 40px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(var(--shadow-rgb), 0.8);
     color: var(--yellow-500);
     padding: 8px 20px;
     border-radius: 8px;
@@ -1712,7 +1781,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     font-weight: bold;
     z-index: 200;
     animation: indicatorPulse 2s ease-out forwards;
-    text-shadow: 0 0 4px rgba(0,0,0,0.5);
+    text-shadow: 0 0 4px rgba(var(--shadow-rgb), 0.5);
 }
 .weather-buff {
     color: var(--blue-500);
@@ -1774,14 +1843,14 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin-top: 14px;
     padding: 14px 14px 16px;
     background:
-        linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,250,240,0.88) 100%),
+        linear-gradient(180deg, rgba(var(--highlight-rgb), 0.85) 0%, rgba(var(--horse-vote-cream-rgb), 0.88) 100%),
         linear-gradient(135deg, var(--horse-50) 0%, var(--horse-100) 100%);
     border: 2px solid var(--horse-accent);
     border-radius: 14px;
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.75),
-        inset 0 -2px 0 rgba(139,94,60,0.15),
-        0 4px 14px rgba(139,94,60,0.18);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.75),
+        inset 0 -2px 0 rgba(var(--horse-vote-shadow-rgb), 0.15),
+        0 4px 14px rgba(var(--horse-vote-shadow-rgb), 0.18);
     position: relative;
     overflow: hidden;
 }
@@ -1791,19 +1860,19 @@ input[type="text"]:focus, input[type="password"]:focus {
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(ellipse at top, rgba(255,215,0,0.08), transparent 60%);
+        radial-gradient(ellipse at top, rgba(var(--horse-gold-rgb), 0.08), transparent 60%);
 }
 .rank-vote-title {
     font-size: 16px;
     font-weight: 800;
-    background: linear-gradient(135deg, var(--horse-accent) 0%, #c9881f 60%, #8b6914 100%);
+    background: linear-gradient(135deg, var(--horse-accent) 0%, var(--horse-vote-title-mid) 60%, var(--result-gold-text) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     text-align: center;
     margin-bottom: 4px;
     letter-spacing: 0.5px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    text-shadow: 0 1px 0 rgba(var(--highlight-rgb), 0.5);
     position: relative;
 }
 .rank-vote-hint {
@@ -1816,11 +1885,11 @@ input[type="text"]:focus, input[type="password"]:focus {
 .rank-vote-warn {
     margin-top: 10px;
     padding: 8px 10px;
-    background: rgba(255, 152, 0, 0.12);
-    border: 1px solid rgba(255, 152, 0, 0.45);
+    background: rgba(var(--horse-warn-rgb), 0.12);
+    border: 1px solid rgba(var(--horse-warn-rgb), 0.45);
     border-radius: 6px;
     font-size: 11px;
-    color: #b87a00;
+    color: var(--horse-warn-text);
     text-align: center;
     line-height: 1.4;
 }
@@ -1828,13 +1897,13 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin: 8px 0;
     padding: 10px 14px;
     background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     border-radius: 8px;
     text-align: center;
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1852,33 +1921,37 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin: 4px auto 8px;
     padding: 8px 14px;
     max-width: 480px;
-    background: rgba(255, 250, 230, 0.96);
-    border: 1px solid var(--horse-300, #d4a574);
+    background: rgba(var(--horse-cream-rgb), 0.96);
+    border: 1px solid var(--horse-vote-border);
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
     color: var(--horse-accent);
     text-align: center;
     line-height: 1.45;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.12);
+}
+/* 다크: 본문 안 사유 글 — 크림 바탕 대신 어두운 틴트 (캔버스 위 .on-canvas 크림 카드는 그대로) */
+[data-theme="dark"] .target-rank-reason:not(.on-canvas) {
+    background: var(--horse-50);
 }
 .target-rank-reason.on-canvas {
     margin: 8px auto 0;
     padding: 12px 22px;
     background:
-        linear-gradient(180deg, rgba(255, 250, 230, 0.96) 0%, rgba(252, 228, 180, 0.95) 100%);
+        linear-gradient(180deg, rgba(var(--horse-cream-rgb), 0.96) 0%, rgba(var(--horse-cream-deep-rgb), 0.95) 100%);
     border: 2px solid var(--horse-accent);
     border-radius: 14px;
-    color: #5d3a24;
+    color: var(--horse-reason-text);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.5;
     text-align: center;
     max-width: 92vw;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.85),
-        0 0 0 2px rgba(255, 215, 0, 0.4),
-        0 8px 28px rgba(0, 0, 0, 0.55);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.85),
+        0 0 0 2px rgba(var(--horse-gold-rgb), 0.4),
+        0 8px 28px rgba(var(--shadow-rgb), 0.55);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     pointer-events: auto;
@@ -1943,13 +2016,13 @@ input[type="text"]:focus, input[type="password"]:focus {
 .target-rank-banner.on-canvas .trb-text { font-size: 14px; }
 .rank-vote-section.on-canvas {
     background:
-        linear-gradient(180deg, rgba(255,250,230,0.96) 0%, rgba(252,228,180,0.95) 100%);
+        linear-gradient(180deg, rgba(var(--horse-cream-rgb), 0.96) 0%, rgba(var(--horse-cream-deep-rgb), 0.95) 100%);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.85),
-        0 0 0 2px rgba(255, 215, 0, 0.4),
-        0 8px 28px rgba(0, 0, 0, 0.55);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.85),
+        0 0 0 2px rgba(var(--horse-gold-rgb), 0.4),
+        0 8px 28px rgba(var(--shadow-rgb), 0.55);
     border: 2px solid var(--horse-accent);
     padding: 14px 18px 16px;
 }
@@ -1975,7 +2048,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    outline: 2px solid #ffd700;
+    outline: 2px solid rgb(var(--horse-gold-rgb));
     outline-offset: -1px;
     animation: targetRowPulse 1.6s ease-in-out infinite;
     z-index: 0;
@@ -1991,9 +2064,9 @@ input[type="text"]:focus, input[type="password"]:focus {
     background: linear-gradient(
         100deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.55) 45%,
-        rgba(255, 245, 160, 0.85) 50%,
-        rgba(255, 255, 255, 0.55) 55%,
+        rgba(var(--highlight-rgb), 0.55) 45%,
+        rgba(var(--horse-sheen-rgb), 0.85) 50%,
+        rgba(var(--highlight-rgb), 0.55) 55%,
         transparent 100%
     );
     animation: targetSheen 2s linear infinite;
@@ -2016,15 +2089,15 @@ input[type="text"]:focus, input[type="password"]:focus {
     100% { left: 110%; }
 }
 @keyframes targetCornerLight {
-    0%   { box-shadow: inset  0  -3px 16px 2px rgba(255, 215, 0, 0.85); }
-    25%  { box-shadow: inset -3px  0   16px 2px rgba(255, 215, 0, 0.85); }
-    50%  { box-shadow: inset  0   3px 16px 2px rgba(255, 215, 0, 0.85); }
-    75%  { box-shadow: inset  3px  0   16px 2px rgba(255, 215, 0, 0.85); }
-    100% { box-shadow: inset  0  -3px 16px 2px rgba(255, 215, 0, 0.85); }
+    0%   { box-shadow: inset  0  -3px 16px 2px rgba(var(--horse-gold-rgb), 0.85); }
+    25%  { box-shadow: inset -3px  0   16px 2px rgba(var(--horse-gold-rgb), 0.85); }
+    50%  { box-shadow: inset  0   3px 16px 2px rgba(var(--horse-gold-rgb), 0.85); }
+    75%  { box-shadow: inset  3px  0   16px 2px rgba(var(--horse-gold-rgb), 0.85); }
+    100% { box-shadow: inset  0  -3px 16px 2px rgba(var(--horse-gold-rgb), 0.85); }
 }
 @keyframes targetRowPulse {
-    0%, 100% { box-shadow: 0 0 14px 2px rgba(255, 215, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.18); }
-    50%      { box-shadow: 0 0 28px 4px rgba(255, 215, 0, 0.85), 0 3px 12px rgba(0, 0, 0, 0.22); }
+    0%, 100% { box-shadow: 0 0 14px 2px rgba(var(--horse-gold-rgb), 0.55), 0 2px 8px rgba(var(--shadow-rgb), 0.18); }
+    50%      { box-shadow: 0 0 28px 4px rgba(var(--horse-gold-rgb), 0.85), 0 3px 12px rgba(var(--shadow-rgb), 0.22); }
 }
 
 /* 결과창 당첨자 칩 */
@@ -2039,18 +2112,18 @@ input[type="text"]:focus, input[type="password"]:focus {
     display: inline-flex;
     align-items: center;
     padding: 6px 14px;
-    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
-    color: #1a1a1a;
+    background: linear-gradient(135deg, rgb(var(--horse-gold-rgb)) 0%, var(--horse-gold-deep) 100%);
+    color: var(--horse-winner-chip-text);
     font-size: 16px;
     font-weight: 800;
     border-radius: 999px;
-    box-shadow: 0 3px 12px rgba(255, 200, 0, 0.55), 0 0 0 2px rgba(255, 255, 255, 0.4) inset;
+    box-shadow: 0 3px 12px rgba(var(--horse-gold-warm-rgb), 0.55), 0 0 0 2px rgba(var(--highlight-rgb), 0.4) inset;
     letter-spacing: 0.3px;
     animation: winnerChipPop 0.45s cubic-bezier(0.2, 1.4, 0.6, 1) backwards;
 }
 .winner-chip.empty {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--gray-300, #aaa);
+    background: rgba(var(--highlight-rgb), 0.12);
+    color: var(--race-on-dark-soft);
     font-weight: 600;
     font-size: 13px;
     box-shadow: none;
@@ -2084,17 +2157,17 @@ input[type="text"]:focus, input[type="password"]:focus {
     max-width: 96px;
     padding: 8px 6px 10px;
     background:
-        linear-gradient(180deg, #ffffff 0%, #fff8ec 100%);
-    border: 2px solid var(--horse-300, #d4a574);
+        linear-gradient(180deg, rgb(var(--highlight-rgb)) 0%, var(--horse-vote-box-bottom) 100%);
+    border: 2px solid var(--horse-vote-border);
     border-radius: 12px;
     cursor: pointer;
     transition: transform 0.18s cubic-bezier(0.2, 1.4, 0.6, 1), border-color 0.18s, background 0.18s, box-shadow 0.18s;
     text-align: center;
     user-select: none;
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.9),
-        inset 0 -2px 0 rgba(139,94,60,0.12),
-        0 2px 6px rgba(139,94,60,0.15);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.9),
+        inset 0 -2px 0 rgba(var(--horse-vote-shadow-rgb), 0.12),
+        0 2px 6px rgba(var(--horse-vote-shadow-rgb), 0.15);
 }
 .rank-vote-box::before {
     content: '';
@@ -2102,22 +2175,22 @@ input[type="text"]:focus, input[type="password"]:focus {
     top: 4px; left: 4px; right: 4px;
     height: 30%;
     border-radius: 8px 8px 50% 50%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.45), transparent);
+    background: linear-gradient(180deg, rgba(var(--highlight-rgb), 0.45), transparent);
     pointer-events: none;
 }
 .rank-vote-box:hover {
     transform: translateY(-3px);
     border-color: var(--horse-500);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.9),
-        inset 0 -2px 0 rgba(139,94,60,0.18),
-        0 6px 14px rgba(139,94,60,0.28);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.9),
+        inset 0 -2px 0 rgba(var(--horse-vote-shadow-rgb), 0.18),
+        0 6px 14px rgba(var(--horse-vote-shadow-rgb), 0.28);
 }
 .rank-vote-box .rank-vote-rank {
     font-size: 15px;
     font-weight: 800;
     color: var(--horse-accent);
-    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    text-shadow: 0 1px 0 rgba(var(--highlight-rgb), 0.6);
     letter-spacing: -0.3px;
     position: relative;
     white-space: nowrap;
@@ -2140,35 +2213,35 @@ input[type="text"]:focus, input[type="password"]:focus {
 .rank-vote-bar {
     width: 6px;
     height: 18px;
-    background: linear-gradient(180deg, var(--horse-500, #8b5e3c) 0%, var(--horse-600, #6b4530) 100%);
+    background: linear-gradient(180deg, var(--horse-500) 0%, var(--horse-600) 100%);
     border-radius: 3px;
     opacity: 0.7;
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.25),
-        0 1px 2px rgba(0,0,0,0.15);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.25),
+        0 1px 2px rgba(var(--shadow-rgb), 0.15);
     transition: transform 0.08s, opacity 0.08s, background 0.08s, box-shadow 0.08s;
 }
 .rank-vote-bar.active {
     opacity: 1;
-    background: linear-gradient(180deg, #ffe06a 0%, #ffb938 100%);
+    background: linear-gradient(180deg, var(--horse-vote-bar-active-top) 0%, var(--horse-vote-bar-active-bottom) 100%);
     transform: scaleY(1.35) translateY(-1px);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.6),
-        0 0 10px rgba(255, 213, 74, 0.95);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.6),
+        0 0 10px rgba(var(--horse-vote-bar-active-glow-rgb), 0.95);
 }
 .rank-vote-bar.winner {
     opacity: 1;
-    background: linear-gradient(180deg, #fff3a0 0%, #ffd700 40%, #ffa000 100%);
+    background: linear-gradient(180deg, var(--horse-vote-bar-winner-top) 0%, rgb(var(--horse-gold-rgb)) 40%, var(--horse-gold-orange) 100%);
     transform: scaleY(1.6) translateY(-2px);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.85),
-        0 0 14px rgba(255, 200, 0, 0.95),
-        0 0 0 1.5px #fff8d8;
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.85),
+        0 0 14px rgba(var(--horse-gold-warm-rgb), 0.95),
+        0 0 0 1.5px var(--horse-vote-bar-winner-ring);
     animation: rankBarWinnerPulse 1.4s ease-in-out infinite;
 }
 @keyframes rankBarWinnerPulse {
-    0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 0 14px rgba(255, 200, 0, 0.95), 0 0 0 1.5px #fff8d8; }
-    50%      { box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 0 24px rgba(255, 220, 80, 1),    0 0 0 2px   #ffffff; }
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(var(--highlight-rgb), 0.85), 0 0 14px rgba(var(--horse-gold-warm-rgb), 0.95), 0 0 0 1.5px var(--horse-vote-bar-winner-ring); }
+    50%      { box-shadow: inset 0 1px 0 rgba(var(--highlight-rgb), 0.95), 0 0 24px rgba(var(--horse-vote-bar-winner-glow-rgb), 1),    0 0 0 2px   rgb(var(--highlight-rgb)); }
 }
 .rank-vote-box .rank-vote-voters {
     font-size: 10px;
@@ -2183,14 +2256,14 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 .rank-vote-box.selected {
     /* 사이즈/위치 변경 없이 보더+글로우로 선택 강조 */
-    border-color: #d4a017;
-    outline: 2px solid #ffd700;
+    border-color: var(--horse-vote-selected-border);
+    outline: 2px solid rgb(var(--horse-gold-rgb));
     outline-offset: 1px;
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.9),
-        inset 0 -2px 0 rgba(180, 130, 30, 0.18),
-        0 0 12px rgba(255, 200, 0, 0.55),
-        0 2px 6px rgba(139, 94, 60, 0.18);
+        inset 0 1px 0 rgba(var(--highlight-rgb), 0.9),
+        inset 0 -2px 0 rgba(var(--horse-vote-selected-inset-rgb), 0.18),
+        0 0 12px rgba(var(--horse-gold-warm-rgb), 0.55),
+        0 2px 6px rgba(var(--horse-vote-shadow-rgb), 0.18);
 }
 .rank-vote-box.selected::after {
     content: '✓';
@@ -2199,14 +2272,14 @@ input[type="text"]:focus, input[type="password"]:focus {
     right: -6px;
     width: 18px;
     height: 18px;
-    background: linear-gradient(135deg, #ffd700 0%, #ffa000 100%);
-    color: #fff;
+    background: linear-gradient(135deg, rgb(var(--horse-gold-rgb)) 0%, var(--horse-gold-orange) 100%);
+    color: var(--text-on-accent);
     border-radius: 50%;
     font-size: 11px;
     font-weight: 900;
     line-height: 18px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.25), inset 0 1px 0 rgba(var(--highlight-rgb), 0.5);
     animation: voteCheckPop 0.35s cubic-bezier(0.2, 1.5, 0.6, 1);
 }
 @keyframes voteCheckPop {
@@ -2215,8 +2288,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     100% { transform: scale(1); }
 }
 .rank-vote-box.selected .rank-vote-rank {
-    color: #8b6914;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.85);
+    color: var(--result-gold-text);
+    text-shadow: 0 1px 0 rgba(var(--highlight-rgb), 0.85);
 }
 .rank-vote-box.invalid {
     opacity: 0.5;
@@ -2228,12 +2301,54 @@ input[type="text"]:focus, input[type="password"]:focus {
     position: absolute;
     top: -6px;
     right: -6px;
-    background: var(--red-400);
-    color: var(--bg-white);
+    background: var(--fill-danger-soft);
+    color: var(--text-on-accent);
     font-size: 9px;
     padding: 1px 5px;
     border-radius: 6px;
     font-weight: bold;
+}
+
+/* 다크: 본문 안 투표 영역 — 흰 칸·흰 광택을 어두운 면으로.
+   캔버스 위(.on-canvas) 크림 카드는 그림 위 연출이라 두 스킨에서 같다 */
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) {
+    background: var(--horse-50);
+    box-shadow: 0 4px 14px rgba(var(--shadow-rgb), 0.3);
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-title {
+    background-image: linear-gradient(135deg, var(--horse-accent) 0%, var(--yellow-800) 100%);
+    text-shadow: none;
+}
+[data-theme="dark"] .rank-vote-hint {
+    color: var(--text-tertiary);
+}
+[data-theme="dark"] .rank-vote-warn {
+    color: var(--yellow-800);
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-box {
+    background: linear-gradient(180deg, var(--gray-200) 0%, var(--gray-100) 100%);
+    box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.3);
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-box::before {
+    opacity: 0.15;
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-box.selected {
+    box-shadow: 0 0 12px rgba(var(--horse-gold-warm-rgb), 0.55), 0 2px 6px rgba(var(--shadow-rgb), 0.3);
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-rank {
+    text-shadow: none;
+}
+/* 표 막대 — 진한 갈색은 어두운 칸에 묻혀서 밝은 악센트로 (룰렛 중 금색 .active/.winner 는 그대로) */
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-bar:not(.active):not(.winner) {
+    background: var(--horse-accent);
+}
+[data-theme="dark"] .rank-vote-section:not(.on-canvas) .rank-vote-box.selected .rank-vote-rank {
+    color: var(--yellow-500);
+}
+/* 캔버스 위 크림 카드 안 글자 — --horse-accent 가 다크에서 밝아지므로 진한 색으로 되돌린다 */
+[data-theme="dark"] .rank-vote-section.on-canvas .rank-vote-rank,
+[data-theme="dark"] .rank-vote-section.on-canvas .rank-vote-voters {
+    color: var(--horse-700);
 }
 
 /* ─── 룰렛 오버레이 ─── */
@@ -2243,7 +2358,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.78);
+    background: rgba(var(--shadow-rgb), 0.78);
     /* debugLogSection(z-index 10000) 위에 떠야 화살표/strip이 가려지지 않음 */
     z-index: 10001;
     justify-content: center;
@@ -2257,21 +2372,21 @@ input[type="text"]:focus, input[type="password"]:focus {
     background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
     padding: 20px 22px;
     border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.5);
     max-width: 92vw;
     width: 460px;
-    color: var(--bg-white);
+    color: var(--text-on-accent);
     text-align: center;
 }
 .roulette-title {
     font-size: 22px;
     font-weight: bold;
     margin-bottom: 4px;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.4);
 }
 .roulette-subtitle {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(var(--highlight-rgb), 0.85);
     margin-bottom: 14px;
 }
 .roulette-track-wrap {
@@ -2287,8 +2402,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     transform: translateX(-50%);
     font-size: 22px;
     line-height: 1;
-    color: var(--yellow-300, #ffd700);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    color: var(--yellow-300);
+    text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.6);
     pointer-events: none;
     z-index: 2;
 }
@@ -2296,10 +2411,10 @@ input[type="text"]:focus, input[type="password"]:focus {
     position: relative;
     width: 100%;
     height: 56px;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(var(--shadow-rgb), 0.35);
     border-radius: 10px;
     overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.25);
+    border: 2px solid rgba(var(--highlight-rgb), 0.25);
 }
 .roulette-strip {
     position: absolute;
@@ -2317,28 +2432,28 @@ input[type="text"]:focus, input[type="password"]:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid rgba(255, 255, 255, 0.18);
+    border-right: 1px solid rgba(var(--highlight-rgb), 0.18);
     font-weight: bold;
-    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.15) 100%);
+    background: linear-gradient(180deg, rgba(var(--highlight-rgb), 0.08) 0%, rgba(var(--shadow-rgb), 0.15) 100%);
 }
 .roulette-segment.r-odd {
-    background: linear-gradient(180deg, rgba(255, 215, 0, 0.18) 0%, rgba(255, 215, 0, 0.05) 100%);
+    background: linear-gradient(180deg, rgba(var(--horse-gold-rgb), 0.18) 0%, rgba(var(--horse-gold-rgb), 0.05) 100%);
 }
 .roulette-segment .seg-rank {
     font-size: 16px;
-    color: var(--bg-white);
+    color: var(--text-on-accent);
 }
 .roulette-segment .seg-count {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(var(--highlight-rgb), 0.85);
     margin-top: 2px;
 }
 .roulette-result {
     font-size: 16px;
     font-weight: bold;
     min-height: 22px;
-    color: var(--yellow-300, #ffd700);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    color: var(--yellow-300);
+    text-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.5);
 }
 @media (max-width: 480px) {
     .roulette-card { padding: 16px 14px; }
@@ -2390,9 +2505,14 @@ input[type="text"]:focus, input[type="password"]:focus {
     left: 2px;
     width: 16px;
     height: 16px;
-    background: white;
+    background: rgb(var(--highlight-rgb));
     border-radius: 50%;
     transition: transform 0.2s;
+}
+
+/* 다크: 꺼진 스위치 바탕이 밝게 뒤집혀 흰 손잡이가 묻힌다 → 어두운 회색으로 */
+[data-theme="dark"] .auto-select-toggle-slider {
+    background: var(--gray-300);
 }
 
 .auto-select-toggle input[type="checkbox"]:checked ~ .auto-select-toggle-slider {
@@ -2431,9 +2551,9 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin: 0;
     padding: 4px 10px;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background: rgba(0, 0, 0, 0.65);
-    color: var(--bg-white);
+    border: 1px solid rgba(var(--highlight-rgb), 0.3);
+    background: rgba(var(--shadow-rgb), 0.65);
+    color: var(--text-on-accent);
     font-size: 11px;
     font-weight: normal;
     cursor: pointer;
@@ -2474,6 +2594,12 @@ input[type="text"]:focus, input[type="password"]:focus {
     overflow: hidden;
 }
 
+/* 다크: 전체화면 바닥도 페이지 바닥과 같은 톤 */
+[data-theme="dark"] .race-fs-stage.race-fs-api:fullscreen,
+[data-theme="dark"] .race-fs-stage.race-fs-css {
+    background: var(--dark-ground-horse);
+}
+
 /* 스케일 루트 — 래퍼(+이식 결과 UI)를 담아 fit transform을 받는 고정폭 박스.
    폭은 JS가 자연폭으로 고정하고, 스테이지의 flex가 수평 중앙 정렬을 담당 */
 .race-fs-scale-root {
@@ -2491,8 +2617,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     z-index: 10001;
     padding: 8px 16px;
     border-radius: 16px;
-    background: rgba(0, 0, 0, 0.75);
-    color: var(--bg-white);
+    background: rgba(var(--shadow-rgb), 0.75);
+    color: var(--text-on-accent);
     font-size: 13px;
     font-family: 'Jua', sans-serif;
     white-space: nowrap;
@@ -2505,9 +2631,9 @@ input[type="text"]:focus, input[type="password"]:focus {
     margin: 0;
     padding: 4px 10px;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background: rgba(0, 0, 0, 0.65);
-    color: var(--bg-white);
+    border: 1px solid rgba(var(--highlight-rgb), 0.3);
+    background: rgba(var(--shadow-rgb), 0.65);
+    color: var(--text-on-accent);
     font-size: 11px;
     font-weight: normal;
     cursor: pointer;

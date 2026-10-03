@@ -1374,12 +1374,19 @@ socket.on('scheduledStartError', function (message) {
     showCustomAlert((typeof message === 'string' && message) ? message : '예약에 실패했어요.', 'error');
 });
 
+// 컨트롤 바 제목 — 설정하지 않으면 자리 표시 글자("방 제목")가 그대로 보인다
+function marbleShowRoomName(roomName) {
+    var roomNameDisplay = document.getElementById('roomNameDisplay');
+    if (roomNameDisplay) roomNameDisplay.textContent = roomName || '데구리 방';
+}
+
 // ============================================
 // 소켓 이벤트 — 공통
 // ============================================
 socket.on('roomCreated', function (data) {
     currentRoomId = data.roomId;
     currentUser = data.userName || '';
+    marbleShowRoomName(data.roomName);
     window.isHost = true; isHost = true;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
@@ -1397,6 +1404,7 @@ socket.on('roomJoined', function (data) {
     var globalInput = document.getElementById('globalUserNameInput');
     currentUser = data.userName || (globalInput && globalInput.value) || '';
     if (globalInput) globalInput.value = currentUser;
+    marbleShowRoomName(data.roomName);
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
@@ -1536,9 +1544,9 @@ function showPlayerActionDialog(playerName) {
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'marblePlayerActionDialog';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:10002;display:flex;justify-content:center;align-items:center;';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(var(--shadow-rgb),0.4);z-index:10002;display:flex;justify-content:center;align-items:center;';
         var content = document.createElement('div');
-        content.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(0,0,0,0.2);border:2px solid var(--marble-accent);';
+        content.style.cssText = 'background:var(--bg-white);border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(var(--shadow-rgb),0.2);border:2px solid var(--marble-accent);';
         var msg = document.createElement('div');
         msg.style.cssText = 'font-size:18px;line-height:1.6;color:var(--text-primary);text-align:center;margin-bottom:25px;font-weight:600;';
         msg.innerHTML = '<i class="mi mi-person" style="font-size:24px;margin-right:8px;"></i>' + escapeHtml(playerName) + '님에게 어떤 행동을 하시겠습니까?';
@@ -1548,18 +1556,18 @@ function showPlayerActionDialog(playerName) {
         function mkBtn(text, bg, val) {
             var b = document.createElement('button');
             b.textContent = text;
-            b.style.cssText = 'padding:12px 25px;background:' + bg + ';color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;';
+            b.style.cssText = 'padding:12px 25px;background:' + bg + ';color:var(--text-on-accent);border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;';
             b.onclick = function () { overlay.remove(); document.removeEventListener('keydown', esc); resolve(val); };
             return b;
         }
         var cancel = document.createElement('button');
         cancel.textContent = '취소';
-        cancel.style.cssText = 'padding:12px 25px;background:var(--gray-100,#f3f4f6);color:var(--text-secondary);border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;';
+        cancel.style.cssText = 'padding:12px 25px;background:var(--gray-100);color:var(--text-secondary);border:1px solid var(--gray-300);border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;';
         cancel.onclick = function () { overlay.remove(); document.removeEventListener('keydown', esc); resolve('cancel'); };
         document.addEventListener('keydown', esc);
         overlay.onclick = function (e) { if (e.target === overlay) { overlay.remove(); document.removeEventListener('keydown', esc); resolve('cancel'); } };
-        box.appendChild(mkBtn('호스트임명', 'var(--brand-gradient, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))', 'host'));
-        box.appendChild(mkBtn('제외시키기', 'linear-gradient(135deg, var(--red-300, #fca5a5) 0%, var(--red-400, #f87171) 100%)', 'kick'));
+        box.appendChild(mkBtn('호스트임명', 'var(--brand-gradient)', 'host'));
+        box.appendChild(mkBtn('제외시키기', 'linear-gradient(135deg, var(--red-300) 0%, var(--red-400) 100%)', 'kick'));
         box.appendChild(cancel);
         content.appendChild(msg); content.appendChild(box); overlay.appendChild(content);
         document.body.appendChild(overlay);

@@ -22,13 +22,8 @@
     <meta property="og:locale" content="ko_KR">
     <link rel="canonical" href="https://lamdice.com/roulette">
 
-    <!-- FOUC Prevention: Always use light theme -->
-    <script>
-      (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
-      })();
-    </script>
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -45,6 +40,13 @@
             box-sizing: border-box;
         }
 
+        /* 룰렛 전용 색 — 라이트 값은 바꾸기 전 값과 같다. 버튼 바탕·중계 판 등 나머지 룰렛 토큰은 css/theme.css [tokens:roulette] */
+        :root {
+            /* 돌림판 그림(테두리·구분선·칸 위 이름·가운데 손잡이)은 스킨과 무관하게 고정 */
+            --roulette-wheel-ink: #212529;
+            --roulette-wheel-ink-soft: #495057;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: var(--roulette-gradient);
@@ -54,10 +56,14 @@
             position: relative;
         }
 
+        [data-theme="dark"] body {
+            background: var(--dark-ground-roulette);
+        }
+
         .container {
             background: var(--bg-white);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(var(--shadow-rgb), 0.3);
             padding: 40px;
             max-width: 800px;
             width: 100%;
@@ -67,7 +73,8 @@
         }
         
         body.game-active .container {
-            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            /* 기록 패널(오른쪽 고정 320px + 20px)과 40px 이상 떨어지도록 상한을 둔다 — 없으면 1201~1460px 폭에서 패널이 컨트롤 바를 덮는다 */
+            margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
             margin-right: auto;
             max-width: 800px;
         }
@@ -93,8 +100,8 @@
         }
 
         button {
-            background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--roulette-600) 100%);
-            color: white;
+            background: var(--roulette-btn-gradient);
+            color: var(--text-on-accent);
             border: none;
             padding: 12px 25px;
             border-radius: 8px;
@@ -189,7 +196,7 @@
             border-radius: 50%;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 30px rgba(var(--shadow-rgb), 0.3), inset 0 0 20px rgba(var(--shadow-rgb), 0.2);
             border: 8px solid var(--text-primary);
             transition: transform 0.1s ease-out;
         }
@@ -202,10 +209,10 @@
             transform: translate(-50%, -50%);
             width: 60px;
             height: 60px;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            background: linear-gradient(135deg, var(--roulette-wheel-ink) 0%, var(--roulette-wheel-ink-soft) 100%);
             border-radius: 50%;
             z-index: 10;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 15px rgba(var(--shadow-rgb), 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -224,7 +231,7 @@
             border-right: 20px solid transparent;
             border-top: 35px solid var(--roulette-pointer);
             z-index: 20;
-            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+            filter: drop-shadow(0 4px 6px rgba(var(--shadow-rgb), 0.3));
         }
 
         .roulette-wrapper::after {
@@ -232,8 +239,8 @@
             position: absolute;
             inset: -14px;
             border-radius: 50%;
-            border: 2px solid rgba(255, 214, 10, 0.7);
-            box-shadow: 0 0 0 rgba(255, 214, 10, 0);
+            border: 2px solid rgba(var(--roulette-suspense-rgb), 0.7);
+            box-shadow: 0 0 0 rgba(var(--roulette-suspense-rgb), 0);
             opacity: 0;
             pointer-events: none;
             z-index: 1;
@@ -254,22 +261,23 @@
 
         .roulette-wheel.suspense-glow {
             box-shadow:
-                0 0 42px rgba(255, 214, 10, 0.45),
-                0 0 18px rgba(233, 69, 96, 0.35),
-                inset 0 0 24px rgba(0, 0, 0, 0.26);
+                0 0 42px rgba(var(--roulette-suspense-rgb), 0.45),
+                0 0 18px rgba(var(--roulette-tension-rgb), 0.35),
+                inset 0 0 24px rgba(var(--shadow-rgb), 0.26);
         }
 
         .roulette-live-commentary {
             display: none;
             width: min(92vw, 520px);
+            max-width: 100%;
             height: 86px;
             margin: 2px auto 0;
             padding: 9px 16px;
             border-radius: 8px;
-            background: var(--gray-900);
-            color: var(--bg-white);
+            background: var(--roulette-commentary-bg);
+            color: var(--text-on-accent);
             text-align: center;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+            box-shadow: 0 8px 18px rgba(var(--shadow-rgb), 0.18);
             box-sizing: border-box;
         }
 
@@ -282,11 +290,11 @@
 
         .roulette-live-commentary.winner {
             background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
-            color: var(--text-primary);
+            color: var(--text-on-light);
         }
 
         .roulette-live-commentary.tension {
-            background: linear-gradient(135deg, var(--gray-900) 0%, var(--red-500) 100%);
+            background: linear-gradient(135deg, var(--roulette-commentary-bg) 0%, var(--fill-danger) 100%);
             animation: rouletteCommentaryPulse 0.8s ease-in-out infinite alternate;
         }
 
@@ -316,22 +324,22 @@
         @keyframes rouletteCommentaryPulse {
             from {
                 transform: scale(1);
-                box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+                box-shadow: 0 8px 18px rgba(var(--shadow-rgb), 0.18);
             }
             to {
                 transform: scale(1.015);
-                box-shadow: 0 10px 24px rgba(233, 69, 96, 0.28);
+                box-shadow: 0 10px 24px rgba(var(--roulette-tension-rgb), 0.28);
             }
         }
 
         @keyframes rouletteSuspenseRing {
             0%, 100% {
                 transform: scale(0.98);
-                box-shadow: 0 0 0 rgba(255, 214, 10, 0);
+                box-shadow: 0 0 0 rgba(var(--roulette-suspense-rgb), 0);
             }
             50% {
                 transform: scale(1.03);
-                box-shadow: 0 0 26px rgba(255, 214, 10, 0.6);
+                box-shadow: 0 0 26px rgba(var(--roulette-suspense-rgb), 0.6);
             }
         }
 
@@ -377,7 +385,7 @@
             font-size: 14px;
             font-weight: bold;
             color: var(--bg-white);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            text-shadow: 1px 1px 2px rgba(var(--shadow-rgb), 0.5);
             white-space: nowrap;
             max-width: 80px;
             overflow: hidden;
@@ -417,8 +425,8 @@
         }
 
         .user-tag.host {
-            background: var(--dice-accent);
-            color: white;
+            background: var(--fill-brand);
+            color: var(--text-on-accent);
         }
 
         /* 게임 기록 */
@@ -431,7 +439,7 @@
             max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
             background: var(--bg-white);
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.2);
             padding: 20px;
             overflow-y: auto;
             z-index: 100;
@@ -497,8 +505,8 @@
         .chat-message.system {
             margin-bottom: 10px;
             padding: 12px;
-            background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--roulette-600) 100%);
-            color: white;
+            background: var(--roulette-btn-gradient);
+            color: var(--text-on-accent);
             text-align: center;
             font-weight: bold;
             border-radius: 8px;
@@ -506,7 +514,7 @@
 
         .chat-message.winner {
             background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
-            color: var(--text-primary);
+            color: var(--text-on-light);
             text-align: center;
             font-weight: bold;
             font-size: 18px;
@@ -560,7 +568,7 @@
         }
 
         .start-button {
-            background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
+            background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);
             font-size: 20px;
             padding: 15px 30px;
         }
@@ -594,8 +602,8 @@
         }
 
         .schedule-open-button.is-armed {
-            border-color: var(--btn-danger);
-            color: var(--btn-danger);
+            border-color: var(--red-500);
+            color: var(--red-500);
         }
 
         .schedule-preset-row {
@@ -684,7 +692,7 @@
         }
 
         .end-button {
-            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
+            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%);
         }
 
         /* 결과 오버레이 */
@@ -694,7 +702,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(var(--shadow-rgb), 0.8);
             display: none;
             justify-content: center;
             align-items: center;
@@ -827,12 +835,12 @@
     </noscript>
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dice-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <div style="text-align: center; color: white;">
+        <div style="text-align: center; color: var(--text-on-accent);">
             <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;"><i class="ui ui-hero ui-slot"></i></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
-                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(var(--highlight-rgb), 0.3); border-top: 4px solid var(--text-on-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
             </div>
         </div>
     </div>
@@ -909,7 +917,7 @@
             margin-top: 4px;
             max-height: 200px;
             overflow-y: auto;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 5px 15px rgba(var(--shadow-rgb), 0.2);
             z-index: 10;
         }
 
@@ -1014,8 +1022,8 @@
         }
         .menu-tag {
             display: inline-block;
-            background: var(--roulette-accent);
-            color: white;
+            background: var(--roulette-fill);
+            color: var(--text-on-accent);
             padding: 4px 10px;
             border-radius: 15px;
             font-size: 14px;
@@ -1041,9 +1049,9 @@
             cursor: pointer;
         }
         .sort-button.active {
-            background: var(--roulette-accent);
-            color: white;
-            border-color: var(--roulette-accent);
+            background: var(--roulette-fill);
+            color: var(--text-on-accent);
+            border-color: var(--roulette-fill);
         }
         .not-ordered-section {
             margin-top: 15px;
@@ -1107,7 +1115,7 @@
                     volumeKey: 'rouletteSoundVolume',
                     onLeave: function() { leaveRoom(); },
                     extraBadges: [
-                        { id: 'turboBadge', html: '<i class="ui ui-rocket"></i> 터보', className: 'turbo-badge', style: 'background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;' }
+                        { id: 'turboBadge', html: '<i class="ui ui-rocket"></i> 터보', className: 'turbo-badge', style: 'background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: var(--text-on-accent); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;' }
                     ]
                 });
             </script>
@@ -1164,7 +1172,7 @@
                 <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
                     <i class="ui ui-slot"></i> 룰렛 시작 (최소 2명 준비 필요)
                 </button>
-                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">주문받기 시작</button>
+                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--fill-success-light) 100%);">주문받기 시작</button>
                 <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">주문받기 종료</button>
             </div>
 
@@ -1173,7 +1181,7 @@
                 <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-fill) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -1198,7 +1206,7 @@
                             <span>내 주문</span>
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
-                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
                         <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--roulette-accent); border: 1px solid var(--roulette-accent); flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
@@ -1206,7 +1214,7 @@
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
                             <span><i class="ui ui-list"></i> 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
                             <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
@@ -1259,7 +1267,7 @@
             </div>
 
             <!-- 터보 애니메이션 설정 (호스트 전용) -->
-            <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(124, 77, 255, 0.1); border-radius: 8px;">
+            <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(var(--roulette-500-rgb), 0.1); border-radius: 8px;">
                 <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
                     <span style="font-weight: bold; color: var(--roulette-accent);"><i class="ui ui-rocket"></i> 터보 애니메이션</span>
@@ -1273,11 +1281,11 @@
             </div>
 
             <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
-                <div style="color: white; margin-bottom: 12px; font-size: 14px;">
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(var(--dice-500-rgb), 0.4);">
+                <div style="color: var(--text-on-accent); margin-bottom: 12px; font-size: 14px;">
                     <i class="ui ui-clapper"></i> 화면을 보지 않는 동안 룰렛이 진행되었습니다
                 </div>
-                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-primary); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-on-light); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(var(--roulette-danger-glow-rgb), 0.4);">
                     <i class="ui ui-refresh"></i> 다시보기
                 </button>
             </div>
@@ -1325,12 +1333,12 @@
 
     <!-- 비밀번호 입력 모달 -->
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
-    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
             <h3 style="margin-bottom: 6px;"><i class="ui ui-clock"></i> 시작 시간 예약</h3>
             <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
 
-            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle); text-align: center;">
                 <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
             </div>
@@ -1361,7 +1369,7 @@
         </div>
     </div>
 
-    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--roulette-accent); margin-bottom: 15px;"><i class="ui ui-lock"></i> 비공개 방</h3>
             <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
@@ -1374,12 +1382,12 @@
     </div>
 
     <!-- 디버그 로그 섹션 -->
-    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
-            <div style="font-weight: bold; color: #0f0;">🎰 룰렛 디버그 로그</div>
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(var(--shadow-rgb), 0.9); color: var(--roulette-debug-ink); border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--roulette-debug-ink); padding-bottom: 5px;">
+            <div style="font-weight: bold; color: var(--roulette-debug-ink);">🎰 룰렛 디버그 로그</div>
             <div style="display: flex; gap: 5px;">
-                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
-                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+                <button onclick="clearDebugLog()" style="background: var(--roulette-debug-btn-bg); color: var(--roulette-debug-ink); border: 1px solid var(--roulette-debug-ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: var(--roulette-debug-btn-bg); color: var(--roulette-debug-ink); border: 1px solid var(--roulette-debug-ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
             </div>
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
@@ -1429,6 +1437,10 @@
                 input.select();
 
                 function finishEdit() {
+                    // Enter 로 확정하면 입력칸이 빠지는 순간(replaceWith 안에서) blur 가 또 온다 — 먼저 플래그를 내려 두 번째 호출을 건너뛴다
+                    // (안 그러면 replaceWith 오류 + 제목 변경 이중 전송)
+                    if (!isEditingRoomName) return;
+                    isEditingRoomName = false;
                     const newName = input.value.trim();
                     const newDisplay = document.createElement('span');
                     newDisplay.id = 'roomNameDisplay';
@@ -1436,10 +1448,9 @@
 
                     input.replaceWith(newDisplay);
                     if (editIcon) editIcon.style.display = '';
-                    isEditingRoomName = false;
 
-                    if (newName && newName !== currentName && window.socket) {
-                        window.socket.emit('updateRoomName', { roomName: newName });
+                    if (newName && newName !== currentName) {
+                        socket.emit('updateRoomName', { roomName: newName });
                     }
                 }
 
@@ -1449,14 +1460,6 @@
                 });
             });
         });
-
-        // Update room title on server broadcast
-        if (window.socket) {
-            window.socket.on('roomNameUpdated', (data) => {
-                const display = document.getElementById('roomNameDisplay');
-                if (display) display.textContent = data.roomName;
-            });
-        }
 
         // Show/hide UI elements based on host status
         function updateControlBarUI(isHostUser) {
@@ -1553,17 +1556,17 @@
             
             const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
             const colors = {
-                'info': '#0f0',
-                'warn': '#ff0',
-                'error': '#f00',
-                'animation': '#0ff',
-                'gameEnd': '#f0f',
-                'visibility': '#ffa500'
+                'info': 'var(--roulette-debug-ink)',
+                'warn': 'var(--roulette-debug-warn)',
+                'error': 'var(--roulette-debug-error)',
+                'animation': 'var(--roulette-debug-animation)',
+                'gameEnd': 'var(--roulette-debug-game-end)',
+                'visibility': 'var(--roulette-debug-visibility)'
             };
             const color = colors[type] || colors['info'];
             
             const logLine = document.createElement('div');
-            logLine.innerHTML = `<span style="color: #888;">[${timestamp}]</span> <span style="color: ${color};">${message}</span>`;
+            logLine.innerHTML = `<span style="color: var(--roulette-debug-time);">[${timestamp}]</span> <span style="color: ${color};">${message}</span>`;
             logContent.appendChild(logLine);
             
             // 최대 줄 수 제한
@@ -1635,7 +1638,7 @@
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.4);
+                background: rgba(var(--shadow-rgb), 0.4);
                 z-index: 10001;
                 display: flex;
                 justify-content: center;
@@ -1651,7 +1654,7 @@
                 padding: 20px;
                 max-width: 450px;
                 width: calc(100vw - 40px);
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                 border: 2px solid ${borderColor};
                 animation: slideDown 0.3s ease-out;
                 box-sizing: border-box;
@@ -1679,7 +1682,7 @@
             confirmButton.style.cssText = `
                 padding: 10px 30px;
                 background: ${borderColor};
-                color: white;
+                color: var(--text-on-accent);
                 border: none;
                 border-radius: 8px;
                 font-size: 16px;
@@ -1690,7 +1693,7 @@
             `;
             confirmButton.onmouseenter = () => {
                 confirmButton.style.transform = 'scale(1.02)';
-                confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)';
             };
             confirmButton.onmouseleave = () => {
                 confirmButton.style.transform = 'scale(1)';
@@ -1775,7 +1778,7 @@
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.4);
+                    background: rgba(var(--shadow-rgb), 0.4);
                     z-index: 10002;
                     display: flex;
                     justify-content: center;
@@ -1791,7 +1794,7 @@
                     padding: 20px;
                     max-width: 450px;
                     width: calc(100vw - 40px);
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                     border: 2px solid ${borderColor};
                     animation: slideDown 0.3s ease-out;
                     box-sizing: border-box;
@@ -1838,7 +1841,7 @@
                 `;
                 cancelButton.onmouseenter = () => {
                     cancelButton.style.transform = 'scale(1.02)';
-                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.1)';
                 };
                 cancelButton.onmouseleave = () => {
                     cancelButton.style.transform = 'scale(1)';
@@ -1858,7 +1861,7 @@
                 confirmButton.style.cssText = `
                     padding: 10px 25px;
                     background: ${borderColor};
-                    color: white;
+                    color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -1869,7 +1872,7 @@
                 `;
                 confirmButton.onmouseenter = () => {
                     confirmButton.style.transform = 'scale(1.02)';
-                    confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    confirmButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.2)';
                 };
                 confirmButton.onmouseleave = () => {
                     confirmButton.style.transform = 'scale(1)';
@@ -1938,7 +1941,7 @@
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.4);
+                    background: rgba(var(--shadow-rgb), 0.4);
                     z-index: 10002;
                     display: flex;
                     justify-content: center;
@@ -1954,7 +1957,7 @@
                     padding: 25px 30px;
                     max-width: 500px;
                     width: 90vw;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2);
                     border: 2px solid var(--yellow-600);
                     animation: slideDown 0.3s ease-out;
                 `;
@@ -1987,7 +1990,7 @@
                 hostButton.style.cssText = `
                     padding: 12px 25px;
                     background: var(--dice-gradient);
-                    color: white;
+                    color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -1997,7 +2000,7 @@
                 `;
                 hostButton.onmouseenter = () => {
                     hostButton.style.transform = 'scale(1.02)';
-                    hostButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                    hostButton.style.boxShadow = '0 4px 12px rgba(var(--dice-500-rgb), 0.3)';
                 };
                 hostButton.onmouseleave = () => {
                     hostButton.style.transform = 'scale(1)';
@@ -2017,8 +2020,8 @@
                 kickButton.textContent = '제외시키기';
                 kickButton.style.cssText = `
                     padding: 12px 25px;
-                    background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
-                    color: white;
+                    background: linear-gradient(135deg, var(--fill-danger-soft) 0%, var(--fill-danger-soft) 100%);
+                    color: var(--text-on-accent);
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -2028,7 +2031,7 @@
                 `;
                 kickButton.onmouseenter = () => {
                     kickButton.style.transform = 'scale(1.02)';
-                    kickButton.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                    kickButton.style.boxShadow = '0 4px 12px rgba(var(--roulette-danger-glow-rgb), 0.3)';
                 };
                 kickButton.onmouseleave = () => {
                     kickButton.style.transform = 'scale(1)';
@@ -2059,7 +2062,7 @@
                 `;
                 cancelButton.onmouseenter = () => {
                     cancelButton.style.transform = 'scale(1.02)';
-                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(var(--shadow-rgb), 0.1)';
                 };
                 cancelButton.onmouseleave = () => {
                     cancelButton.style.transform = 'scale(1)';
@@ -2120,6 +2123,12 @@
         });
         let currentServerId = null;
         let currentServerName = null;
+
+        // 방 제목 변경 수신 (방장이 제목을 누르고 고치면 전원에게 반영)
+        socket.on('roomNameUpdated', (data) => {
+            const display = document.getElementById('roomNameDisplay');
+            if (display) display.textContent = data.roomName;
+        });
 
         // 직접 URL 접속 차단 + 새로고침 시 재입장 지원
         (function() {
@@ -3064,7 +3073,7 @@
                 gradientParts.push(`${participantColors[idx]} ${startAngle}deg ${endAngle}deg`);
             });
             wheel.style.background = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
-            wheel.style.border = '4px solid var(--gray-900)';
+            wheel.style.border = '4px solid var(--roulette-wheel-ink)';
             wheel.dataset.segmentCount = String(participants.length);
             
             // 구분선과 이름 추가
@@ -3077,10 +3086,10 @@
                     top: 50%;
                     width: 3px;
                     height: 50%;
-                    background: var(--gray-900);
+                    background: var(--roulette-wheel-ink);
                     transform-origin: 0 0;
                     transform: rotate(${index * segmentAngle}deg) translateY(-100%);
-                    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+                    box-shadow: 0 0 3px rgba(var(--shadow-rgb), 0.5);
                     z-index: 5;
                 `;
                 wheel.appendChild(divider);
@@ -3100,8 +3109,8 @@
                     transform: translate(-50%, -50%);
                     font-size: 16px;
                     font-weight: 700;
-                    color: var(--text-primary);
-                    text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+                    color: var(--roulette-wheel-ink);
+                    text-shadow: 0 0 3px rgba(var(--highlight-rgb), 0.3);
                     white-space: nowrap;
                     text-align: center;
                     z-index: 6;
@@ -3481,7 +3490,7 @@
             // 드롭 영역 설정 (준비 목록)
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                readyUsersList.style.backgroundColor = 'rgba(124, 77, 255, 0.1)';
+                readyUsersList.style.backgroundColor = 'rgba(var(--roulette-500-rgb), 0.1)';
                 readyUsersList.style.border = '2px dashed var(--roulette-accent)';
             });
             
@@ -3774,7 +3783,9 @@
 
         // 게임 화면 초기화
         function initializeGameScreen(data) {
-            document.getElementById('roomTitle').textContent = data.roomName || '룰렛 방';
+            // #roomTitle 에는 제목 span 외에 호스트 배지·터보 배지가 같이 들어 있다 — 통째로 덮어쓰면 전부 사라지고 제목 편집도 깨진다
+            const roomNameDisplay = document.getElementById('roomNameDisplay');
+            if (roomNameDisplay) roomNameDisplay.textContent = data.roomName || '룰렛 방';
             
             if (data.createdAt && data.expiryHours) {
                 startRoomExpiryCountdown(data.createdAt, data.expiryHours);

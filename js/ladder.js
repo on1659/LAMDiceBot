@@ -386,6 +386,9 @@ function ladderEnterRoom(data, asHost) {
     isHost = window.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
+    // 컨트롤 바 제목 — 설정하지 않으면 자리 표시 글자("방 제목")가 그대로 보인다
+    const roomNameDisplay = document.getElementById('roomNameDisplay');
+    if (roomNameDisplay) roomNameDisplay.textContent = data.roomName || '사다리 방';
 
     sessionStorage.setItem('ladderActiveRoom', JSON.stringify({
         roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName

@@ -24,8 +24,8 @@
         const overlay = document.createElement('div');
         overlay.id = 'countdownOverlay';
         overlay.style.cssText = container
-            ? 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:100;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;'
-            : 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:10000;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;';
+            ? 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(var(--shadow-rgb),0.75);z-index:100;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;'
+            : 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(var(--shadow-rgb),0.75);z-index:10000;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;';
 
         if (container) {
             container.style.position = 'relative';

@@ -11,20 +11,7 @@
     --marble-200: rgba(var(--marble-500-rgb), 0.24);
     --marble-sky: #bfe7ff;
 
-    /* 게임 재질(데구리 eca74cb 역반영, 24): 캔버스(픽셀 초원·나무 울타리·금색 HUD 배지)와 같은 재료 — '내 동물 고르기'·캔버스 틀·결과 카드에만 쓴다. 공용 부품(ControlBar·채팅·주문·준비·상점 모달)은 손대지 않는다 */
-    --marble-ink: #2b2416;
-    --marble-muted: #6e6350;
-    --marble-wood-line: #d9b27f;
-    --marble-wood-edge: #d3b184;
-    --marble-wood-soft: #eadbbd;
-    --marble-cream: #fff8e6;
-    --marble-paper: #fffdf5;
-    --marble-gold: #ffd166;
-    --marble-gold-deep: #e0a93a;
-    --marble-gold-ink: #3a2a00;
-    --marble-gold-soft: #fff3cc;
-    --marble-gold-soft-ink: #3a2a00;
-    --marble-gold-ring: #ffe7a8;
+    /* 게임 재질(--marble-ink·paper·cream·wood-·gold- 계열)·고정색(--marble-hud-cream/win-ink)은 css/theme.css [tokens:marble] 섹션으로 옮겼다. 공용 부품(ControlBar·채팅·주문·준비·상점 모달)은 손대지 않는다 */
 
     /* horse-race.css가 사용하는 var(--horse-*)를 marble 색으로 alias (C-4) */
     --horse-500: var(--marble-500);
@@ -96,16 +83,20 @@
 
 /* 다크 모드(theme.css [data-theme="dark"]) — 재질 색을 어둡게 뒤집어 글자 대비 4.5:1 이상을 지킨다(밝은 크림 위 진한 글자 → 어두운 나무 위 밝은 글자) */
 [data-theme="dark"] {
-    --marble-ink: #f3e9d2;
-    --marble-muted: #cdbfa3;
-    --marble-wood-line: #8a6a3a;
-    --marble-wood-edge: #5a4322;
-    --marble-wood-soft: #4a3a24;
-    --marble-cream: #33291b;
-    --marble-paper: #2a2419;
-    --marble-gold-soft: #4d3d14;
-    --marble-gold-soft-ink: #ffe7a8;
-    --marble-gold-ring: #8a6a3a;
+    /* 나무·종이 재질의 다크 값(무채 면)은 css/theme.css [tokens:marble:dark] 섹션에 있다 */
+
+    /* 흰(밝은) 글자가 올라가는 바탕 — theme.css 다크의 --marble-500(#5fc47a)은 어두운 면 위 글자·테두리용으로 밝아져 흰 글자가 안 읽힌다.
+       horse-race.css·horse-shop.css 의 --horse-500/600(내 이름표·상점 탭·장착 버튼·타깃 배너)과 --marble-gradient(버튼)는 진한 초록으로 따로 둔다.
+       --horse-700 은 캔버스 위 크림 카드(.rank-vote-section.on-canvas) 안 글자색이라 같이 진하게. :root 뒤에 있어야 위 alias 를 덮는다 */
+    --horse-500: #3a7a4f;
+    --horse-600: #336c46;
+    --horse-700: var(--horse-600);
+    --marble-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
+}
+
+/* 다크: 페이지 바닥 (--marble-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
+[data-theme="dark"] body {
+    background: var(--dark-ground-marble);
 }
 
 /* ===== 동물 선택 (대기 중) — 나무 테두리 팻말(두꺼운 아래 모서리) 위 크림색 카드 ===== */
@@ -116,7 +107,7 @@
     color: var(--marble-ink);
     border: 3px solid var(--marble-wood-line);
     border-radius: 18px;
-    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(90, 60, 20, 0.10);
+    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(var(--marble-wood-shadow-rgb), 0.10);
 }
 
 .marble-pick-title {
@@ -144,13 +135,14 @@
     font-weight: 700; font-size: 12px; line-height: 1; padding: 5px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap;
     box-shadow: none;
 }
-.marble-pick-head .marble-shop-btn:hover { background: rgba(0, 0, 0, 0.04); }
+.marble-pick-head .marble-shop-btn:hover { background: rgba(var(--shadow-rgb), 0.04); }
+[data-theme="dark"] .marble-pick-head .marble-shop-btn:hover { background: var(--gray-100); }
 .mshop-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; }
 .mshop-icon { width: 56px; height: 56px; image-rendering: pixelated; }
 .mshop-glyph { font-size: 30px; line-height: 1; }
 .marble-creature-btn .skin-badge {
     position: absolute; top: -8px; left: -8px; padding: 0 6px; height: 20px; line-height: 20px; border-radius: 10px;
-    background: #e0435c; color: #fff; font-size: 11px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    background: var(--marble-skin-badge-bg); color: var(--text-on-accent); font-size: 11px; font-weight: bold; box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.25);
 }
 
 .marble-creature-btn {
@@ -220,12 +212,12 @@
     padding: 0 6px;
     border-radius: 11px;
     background: var(--marble-accent);
-    color: var(--bg-white);
+    color: var(--horse-warning-btn-text);   /* 금색 바탕 위 글자 — 라이트 흰색, 다크 진한 글자 (horse-race.css) */
     font-size: 12px;
     font-weight: bold;
     line-height: 22px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.25);
 }
 
 .marble-pick-status {
@@ -291,6 +283,10 @@
     width: 7px;
     height: 20px;
 }
+/* 다크: 캔버스 위 크림 카드는 두 스킨에서 같은 그림 위 연출 — 제목 그라데이션·테두리가 쓰는 --horse-accent 가 다크에서 밝아져(#ffc857) 크림 위에서 흐려지므로 카드 안에서만 진한 금색으로 되돌린다 */
+[data-theme="dark"] #rankVoteSection.on-canvas {
+    --horse-accent: var(--marble-gold-deep);
+}
 #targetRankBanner.on-canvas {
     margin: 0 0 8px;
 }
@@ -299,9 +295,9 @@
 }
 /* 룰렛이 표 없는 빈 칸을 스쳐 지나갈 때 — 막대 .active 와 같은 금빛 */
 #rankVoteSection .rank-vote-box.spin-active {
-    border-color: #ffd700;
-    background: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
-    box-shadow: 0 0 12px rgba(255, 213, 74, 0.9);
+    border-color: var(--marble-spin-border);
+    background: var(--marble-spin-bg);
+    box-shadow: 0 0 12px rgba(var(--marble-spin-glow-rgb), 0.9);
     transform: translateY(-2px);
 }
 #targetRankBanner {
@@ -363,7 +359,7 @@
 .marble-crowd-btn.selected {
     border-color: var(--marble-500);
     background: var(--marble-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
 }
 .marble-crowd-btn:disabled {
     opacity: 0.6;
@@ -437,7 +433,7 @@
 }
 .marble-after-btn-host {
     background: var(--marble-gradient);
-    color: var(--bg-white);
+    color: var(--text-on-accent);
 }
 /* 다시 보기 배지 — 캔버스 하단 가운데, 클릭은 통과 */
 #marbleReplayBadge {
@@ -447,8 +443,8 @@
     transform: translateX(-50%);
     padding: 6px 14px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.55);
-    color: var(--bg-white);
+    background: rgba(var(--shadow-rgb), 0.55);
+    color: var(--text-on-accent);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
     white-space: nowrap;
@@ -463,7 +459,7 @@
     border: 3px solid var(--marble-wood-line);
     border-radius: 18px;
     background: var(--marble-sky);
-    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(90, 60, 20, 0.10);
+    box-shadow: 0 5px 0 var(--marble-wood-edge), 0 14px 30px rgba(var(--marble-wood-shadow-rgb), 0.10);
 }
 
 #marbleCanvas {
@@ -492,14 +488,14 @@
     padding: 0;
     border: 2px solid var(--marble-gold-deep);
     border-radius: 8px;
-    background: rgba(43, 36, 22, 0.88);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+    background: rgba(var(--marble-hud-rgb), 0.88);
+    box-shadow: 0 3px 10px rgba(var(--shadow-rgb), 0.25);
     cursor: pointer;
 }
 .marble-cam-btn[hidden] { display: none; }
 .marble-cam-btn.is-manual {
-    border-color: var(--marble-cream);
-    background: rgba(90, 61, 30, 0.92);
+    border-color: var(--marble-hud-cream);
+    background: rgba(var(--marble-hud-manual-rgb), 0.92);
 }
 .marble-cam-btn__icon {
     display: block;
@@ -508,7 +504,7 @@
     flex: 0 0 auto;
     image-rendering: pixelated;
 }
-.marble-cam-btn:hover { background: rgba(43, 36, 22, 0.96); }
+.marble-cam-btn:hover { background: rgba(var(--marble-hud-rgb), 0.96); }
 .marble-cam-btn:focus-visible { outline: 3px solid var(--marble-gold); outline-offset: 2px; }
 
 /* 캔버스 위 HUD (JS가 채움) — 클릭은 캔버스로 통과 */
@@ -519,8 +515,8 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    color: var(--bg-white);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    color: var(--text-on-accent);
+    text-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.6);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -536,8 +532,8 @@
     margin: 0;
     border: none;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
+    background: rgba(var(--shadow-rgb), 0.45);
+    color: var(--text-on-accent);
     font-size: 18px;
     line-height: 36px;
     text-align: center;
@@ -546,7 +542,7 @@
     transition: background 0.15s ease;
 }
 #marbleFullscreenBtn:hover {
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(var(--shadow-rgb), 0.65);
 }
 #marbleFullscreenBtn:focus-visible {
     outline: 2px solid var(--marble-accent);
@@ -556,7 +552,7 @@
 #marbleCanvasBox:fullscreen {
     width: 100vw;
     height: 100vh;
-    background: #000;
+    background: var(--marble-fullscreen-bg);
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -580,7 +576,7 @@
 #marbleCanvasBox:-webkit-full-screen {
     width: 100vw;
     height: 100vh;
-    background: #000;
+    background: var(--marble-fullscreen-bg);
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -604,7 +600,7 @@
     right: 0;
     bottom: 0;
     z-index: 10000;
-    background: #000;
+    background: var(--marble-fullscreen-bg);
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -696,7 +692,7 @@ body.marble-pseudo-fs {
     border-radius: 18px;
     background: var(--marble-paper);
     color: var(--marble-ink);
-    box-shadow: 0 6px 0 var(--marble-wood-edge), 0 24px 80px rgba(0, 0, 0, 0.32);
+    box-shadow: 0 6px 0 var(--marble-wood-edge), 0 24px 80px rgba(var(--shadow-rgb), 0.32);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 .marble-result-card .result-title {
@@ -715,8 +711,8 @@ body.marble-pseudo-fs {
     margin: 0 0 12px;
     padding: 12px 10px 10px;
     border-radius: 14px;
-    background: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
-    color: #2b2416;
+    background: var(--marble-result-head-bg);
+    color: var(--marble-result-head-ink);
     font-size: 16px;
     font-weight: 800;
 }
@@ -724,8 +720,8 @@ body.marble-pseudo-fs {
     width: 84px;
     height: 84px;
     border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 0 0 3px var(--marble-wood-line), 0 6px 0 rgba(138, 90, 43, 0.25), 0 8px 18px rgba(90, 60, 20, 0.14);
+    background: var(--marble-result-sprite-bg);
+    box-shadow: 0 0 0 3px var(--marble-wood-line), 0 6px 0 rgba(var(--marble-result-sprite-shadow-rgb), 0.25), 0 8px 18px rgba(var(--marble-wood-shadow-rgb), 0.14);
     image-rendering: pixelated;
 }
 .marble-result-selected-name {
@@ -736,11 +732,11 @@ body.marble-pseudo-fs {
 }
 .marble-result-selected-name span {
     font-size: 22px;
-    color: var(--red-500);
+    color: var(--marble-win-ink);
 }
 .marble-result-selected-name small {
     font-size: 12px;
-    color: #4f5f3a;
+    color: var(--marble-result-head-sub);
 }
 .marble-result-ranks {
     list-style: none;
@@ -844,8 +840,8 @@ body.marble-pseudo-fs {
     padding: 6px 10px;
     border-radius: 9px;
     color: var(--marble-gold);
-    background: rgba(43, 36, 22, 0.94);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    background: rgba(var(--marble-hud-rgb), 0.94);
+    box-shadow: 0 3px 8px rgba(var(--shadow-rgb), 0.2);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
     line-height: 1;
@@ -862,7 +858,7 @@ body.marble-pseudo-fs {
     bottom: calc(100% + 2px);
     left: 50%;
     border: 6px solid transparent;
-    border-top-color: rgba(43, 36, 22, 0.94);
+    border-top-color: rgba(var(--marble-hud-rgb), 0.94);
     border-bottom: 0;
     opacity: 0;
     pointer-events: none;
@@ -893,7 +889,7 @@ body.marble-pseudo-fs {
     margin: 0 0 10px;
     overflow: hidden;
     border-radius: 10px;
-    background: linear-gradient(180deg, rgba(111, 180, 90, 0) 0%, rgba(111, 180, 90, 0.16) 100%);
+    background: linear-gradient(180deg, rgba(var(--marble-yard-grass-rgb), 0) 0%, rgba(var(--marble-yard-grass-rgb), 0.16) 100%);
 }
 .marble-yard.is-empty {   /* 방에 나온 동물이 없으면 띠도 숨김 — JS 가 동물을 넣기 전에 클래스를 벗겨 폭을 잰다 */
     display: none;
@@ -928,7 +924,7 @@ body.marble-pseudo-fs {
     width: 24px;
     height: 5px;
     border-radius: 50%;
-    background: rgba(60, 45, 20, 0.18);
+    background: rgba(var(--marble-yard-shadow-rgb), 0.18);
 }
 .marble-yard-critter__body {
     position: absolute;
@@ -942,7 +938,7 @@ body.marble-pseudo-fs {
     position: absolute;
     top: 4px;
     right: 2px;
-    color: #6d7fb8;
+    color: var(--marble-yard-zz);
     font: bold 12px/1 'Jua', sans-serif;
     animation: marble-yard-zz 1.4s ease-out infinite;
 }
