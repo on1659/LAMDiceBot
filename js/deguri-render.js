@@ -108,6 +108,10 @@ var DeguriRender = (function () {
     var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
     var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
+    var SKY_TILE_W = 400;            // 하늘 그림(1920×1080) 한 장의 표시 폭 — 초원 위 하늘 띠(110px)에 구름·노을·먼 산이 다 들어오는 크기. 가로로 이어 붙인다(그림 좌우가 이어짐)
+    var SKY_GROUND_ROW = 0.93;       // 하늘 그림 세로의 이 지점을 초원 윗선에 맞춘다 — 여기부터 아래는 덤불 한 색(SKY_GROUND_RGB)뿐이라, 그 색을 초원 위에 풀면 경계선 없이 이어진다
+    var SKY_GROUND_RGB = '123,156,107';   // 하늘 그림 맨 아래 덤불 색
+    var SKY_BLEND_H = 80;            // 초원 윗선에서 이 높이만큼 덤불 색이 옅어지며 잔디로 넘어간다
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
     var STAND_MAX_ROWS = 3;          // 스탠드에 보여줄 최대 줄 수 (넘치면 첫 줄 + 마지막 줄들) — socket/deguri-sim.js STAND_ROWS_MAX 와 동일
@@ -939,23 +943,22 @@ var DeguriRender = (function () {
 
         // ─── 배경 ───
         function drawBackground(t) {
-            var sky = img('stage', 'sky-far');
-            if (sky) {
-                // 1920×1080 을 뷰 폭에 맞춰, 카메라의 10% 만 따라감
-                var sc = view.w / 1920 * 1.0; var dh = 1080 * sc;
-                var off = -((cam.y * 0.08) % dh);
-                ctx.drawImage(sky, -view.w, off - dh, view.w * 3, dh * 3); ctx.drawImage(sky, -view.w, off + dh * 2, view.w * 3, dh * 3);
-            } else {
-                var g = ctx.createLinearGradient(0, 0, 0, view.h);
-                g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#dff3ff');
-                ctx.fillStyle = g; ctx.fillRect(-view.w, -view.h, view.w * 3, view.h * 3);
-            }
-            // 초원은 출발대 위 80px 부터 — 그 위로는 하늘·먼 산이 보인다
+            // 초원은 출발대 위 30px 부터 — 그 위로는 하늘·먼 산이 보인다
             var tile = img('stage', 'meadow-tile');
             var ts = 1024 * SRC_SCALE;
             var topY = toScreenY(data.track.startY - 30);
             // 줌아웃(zoom<1)이면 화면이 논리 뷰보다 넓다 — 덮어야 할 범위를 줌으로 늘린다
             var padX = (view.w / cam.zoom - view.w) / 2 + ts, padY = (view.h / cam.zoom - view.h) / 2 + ts;
+            var sky = img('stage', 'sky-far');
+            if (!sky) {
+                var g = ctx.createLinearGradient(0, 0, 0, view.h);
+                g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#dff3ff');
+                ctx.fillStyle = g; ctx.fillRect(-view.w, -view.h, view.w * 3, view.h * 3);
+            } else if (topY > -padY) {   // 초원 윗선이 화면에 걸릴 때만(출발 무렵) — 내려가면 초원이 화면을 다 덮는다
+                // 하늘 그림을 줄여 초원 윗선에 붙이고 가로로 이어 붙인다 — 화면 폭의 3배로 늘려 그리면 구름도 산도 없는 빈 하늘만 걸려 그림이 잘린 것처럼 보인다(사용자 2026-10-04)
+                var sh = SKY_TILE_W * sky.height / sky.width, sy = topY - sh * SKY_GROUND_ROW;
+                for (var sx = Math.floor(-padX / SKY_TILE_W) * SKY_TILE_W; sx < view.w + padX; sx += SKY_TILE_W) ctx.drawImage(sky, sx, sy, SKY_TILE_W + 1, sh);   // +1: 이음새 방지
+            }
             // 줌 시 가로 초점이 움직여도 빈 곳이 없도록 트랙 폭 밖으로 한 타일씩 더 깐다
             // 첫 줄은 화면 위 끝(월드 cam.y - view.h/2/zoom)보다 위에서 — padY 로 잡으면 폰 세로(view.h 1120)에서 위쪽 띠가 비어 하늘이 비친다
             var y0 = toScreenY(Math.floor((cam.y - view.h / 2 / cam.zoom) / ts) * ts - ts);
@@ -966,6 +969,11 @@ var DeguriRender = (function () {
                 ctx.fillStyle = '#8fd07a'; ctx.fillRect(-ts, 0, view.w + ts * 2, view.h);
             }
             ctx.restore();
+            if (sky && topY > -padY) {   // 하늘 그림의 덤불 색을 초원 위쪽에 옅어지게 덮어 잇는다 — 초원이 직선으로 시작하면 그림이 잘린 것처럼 보인다
+                var bg = ctx.createLinearGradient(0, topY, 0, topY + SKY_BLEND_H);
+                bg.addColorStop(0, 'rgba(' + SKY_GROUND_RGB + ',1)'); bg.addColorStop(1, 'rgba(' + SKY_GROUND_RGB + ',0)');
+                ctx.fillStyle = bg; ctx.fillRect(-padX, topY, view.w + padX * 2, SKY_BLEND_H);
+            }
         }
 
         // ─── 트랙 조각 ───
