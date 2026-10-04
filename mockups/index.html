@@ -30,14 +30,21 @@
   .foot { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
   .foot a { color: var(--ink-2); }
   @media (max-width: 600px) { .item { grid-template-columns: 44px minmax(0, 1fr); } .no { width: 44px; height: 44px; font-size: 18px; } .open { grid-column: 2; justify-self: start; } }
+
+.latest-title{font-size:32px;letter-spacing:-1px;margin:0 0 8px}.latest-note{font-size:14px;color:var(--ink-2);margin:0 0 28px}.concept-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:24px}.concept{display:block;border:1px solid var(--line);border-radius:16px;overflow:hidden;color:inherit;text-decoration:none;transition:transform .15s,box-shadow .15s}.concept:hover{transform:translateY(-3px);box-shadow:0 10px 30px #191f2812}.concept img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top;background:var(--surface);border-bottom:1px solid var(--line)}.concept-body{padding:18px}.concept-kicker{font-size:12px;color:var(--ink-2);font-weight:700}.concept h2{font-size:22px;margin:5px 0 7px;letter-spacing:-.5px}.concept p{font-size:14px;color:var(--ink-2);margin:0 0 16px;line-height:1.55}.common-features{font-size:14px;color:var(--ink-2);padding:16px 0 24px;line-height:1.7}.archive{margin-top:16px;border-top:1px solid var(--line);padding-top:24px}.archive>summary{cursor:pointer;color:var(--ink-2);padding:10px 0;margin-bottom:12px}.wrap{max-width:1160px}.archive .list{max-width:880px} @media(max-width:760px){.concept-grid{grid-template-columns:1fr}.concept{display:grid;grid-template-columns:minmax(120px,42%) 1fr}.concept img{height:100%;min-height:210px;aspect-ratio:auto;object-fit:cover;object-position:left top;border-bottom:0;border-right:1px solid var(--line)}.concept-body{padding:16px}.concept h2{font-size:21px}.latest-title{font-size:28px}.wrap{padding-top:28px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>LAMDice 홈 목업 모음</h1>
-  <p class="sub">홈·서버 선택·로비를 서로 다른 방향으로 그린 목업 모음입니다. 번호를 누르면 열려요.</p>
-  <p class="note">12~14번은 11번의 간결한 흐름에 현재 기능의 진입점을 더한 비교안입니다. 숫자·방 목록·결과는 예시입니다. 1~5번은 같은 기본 흐름의 시각 비교, 6~9번은 첫 화면 구조 자체가 다른 안입니다. 10번은 "적게 읽고, 스텝을 늘리지 않는다"는 기준에 맞춰 줄인 안입니다. 로그인 후에는 서버를 첫 화면에서 고를 수 있습니다.</p>
-
+  <h1 class="latest-title">같은 기능, 다른 사용감.</h1>
+  <p class="latest-note">15–17번 · 서버를 먼저 고르고, 한 로비에서 방·랭킹·기록·멤버를 봅니다.</p>
+  <section class="concept-grid" aria-label="새 목업 비교">
+<a class="concept" href="/15"><img src="/mockups/assets/preview-15.png" alt="모임 작업대 로비 미리보기"><div class="concept-body"><span class="concept-kicker">15 / 빠르게 오가기</span><h2>모임 작업대</h2><p>서버, 열린 방, 모임 정보를 나란히. 필요한 곳을 바로 짚는 작업대.</p><span class="open">직접 써보기 →</span></div></a>
+<a class="concept" href="/16"><img src="/mockups/assets/preview-16.png" alt="모임 보드 로비 미리보기"><div class="concept-body"><span class="concept-kicker">16 / 한눈에 보기</span><h2>모임 보드</h2><p>방·순위·친구·소식을 한 장에. 따뜻한 색과 크기가 다른 정보판.</p><span class="open">직접 써보기 →</span></div></a>
+<a class="concept" href="/17"><img src="/mockups/assets/preview-17.png" alt="접이식 리스트 로비 미리보기"><div class="concept-body"><span class="concept-kicker">17 / 가볍게 펼치기</span><h2>접이식 리스트</h2><p>짧은 목록에서 원하는 내용만 펼칩니다. 적은 장식, 가까운 버튼.</p><span class="open">직접 써보기 →</span></div></a>
+  </section>
+  <div class="common-features">세 안 모두 같은 기능을 갖췄어요.<br>게임 만들기 · 랭킹·달력 · 기록 · 멤버 · 업데이트 · 계정·서버 관리 · 화면·소리 · 방 도구</div>
+  <details class="archive"><summary>이전 목업 1–14 보기</summary>
   <div class="list">
     <a class="item base" href="/12"><span class="no">12</span><div><b>상단 바로가기 <span class="tag base">새 비교안</span></b><p>서버를 고른 뒤 랭킹·기록·방 찾기를 바로 누릅니다. 나머지 기능은 상단 메뉴에 모았습니다.</p><div class="meta"><span>익숙한 상단 메뉴 · 첫 화면 56자 / 조작 6개</span><span>랭킹·업데이트·계정·서버 관리·6스킨·방 도구</span></div></div><span class="open">열기 →</span></a>
     <a class="item base" href="/13"><span class="no">13</span><div><b>하단 내비 <span class="tag base">새 비교안</span></b><p>서버·랭킹·메뉴를 하단에 고정했습니다. 한 손으로 이동하기 쉬운 모바일 중심 안입니다.</p><div class="meta"><span>하단 고정 탐색 · 첫 화면 56자 / 조작 6개</span><span>랭킹·업데이트·계정·서버 관리·6스킨·방 도구</span></div></div><span class="open">열기 →</span></a>
@@ -143,7 +150,8 @@
     </a>
   </div>
 
-  <div class="foot"><span>기준 문서: 저장소 DESIGN.md · 2026-09-29</span><a href="https://lamdice.com/">지금 실서버 보기 →</a></div>
+  </details>
+  <div class="foot"><span>화면 비교용 목업 · 예시 데이터 · 2026-10-05</span><a href="https://lamdice.com/">지금 실서버 보기 →</a></div>
 </div>
 </body>
 </html>
