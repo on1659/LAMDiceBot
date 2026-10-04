@@ -3861,6 +3861,7 @@
             if (data.chatHistory) {
                 document.getElementById('chatMessages').innerHTML = '';
                 window.rouletteChatHistory = [];
+                ChatModule.resetHistory();
                 data.chatHistory.forEach(msg => addChatMessage(msg));
                 ChatModule.recalculatePins();
             }

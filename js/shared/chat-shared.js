@@ -210,10 +210,15 @@ const ChatModule = (function () {
         reactionBtn.appendChild(emojiSpan);
         reactionBtn.appendChild(countSpan);
         reactionBtn.title = emojiConfig[emoji] || emoji;
-        reactionBtn.onclick = () => {
-            _socket.emit('toggleReaction', { messageIndex, emoji });
-        };
+        reactionBtn.onclick = () => toggleReaction(messageIndex, emoji);
         return reactionBtn;
+    }
+
+    // 반응 토글 — 화면 순번(messageIndex)은 이 화면에서만 맞으므로 서버에는 메시지 고유 번호(id)로 보낸다
+    function toggleReaction(messageIndex, emoji) {
+        const msg = chatHistory[messageIndex];
+        if (!msg || msg.id === undefined) return;
+        _socket.emit('toggleReaction', { messageId: msg.id, emoji });
     }
 
     // 호버 반응 버튼 생성
@@ -238,9 +243,7 @@ const ChatModule = (function () {
         `;
         reactionBtn.textContent = emoji;
         reactionBtn.title = emojiConfig[emoji] || emoji;
-        reactionBtn.onclick = () => {
-            _socket.emit('toggleReaction', { messageIndex, emoji });
-        };
+        reactionBtn.onclick = () => toggleReaction(messageIndex, emoji);
         return reactionBtn;
     }
 
@@ -551,6 +554,14 @@ const ChatModule = (function () {
         return idx;
     }
 
+    // 재입장 때 서버 채팅 기록을 다시 그리기 전에 비운다 — 안 비우면 같은 메시지가 두 벌 쌓이고 순번이 밀린다
+    function resetHistory() {
+        chatHistory = [];
+        _pinnedMessages = [];
+        _messageReactionTimestamps = {};
+        updatePinnedMessagesDisplay();
+    }
+
     // ========== 공통 메시지 표시 ==========
 
     function displayChatMessage(chatMessage, forceScroll) {
@@ -833,11 +844,12 @@ const ChatModule = (function () {
     // ========== 반응 업데이트 핸들러 ==========
 
     function handleReactionUpdated(data) {
-        const { messageIndex, message } = data;
+        const { messageId, message } = data;
 
-        if (chatHistory[messageIndex]) {
-            chatHistory[messageIndex].reactions = message.reactions || {};
-        }
+        // 서버 고유 번호 → 이 화면의 순번
+        const messageIndex = chatHistory.findIndex(m => m && m.id === messageId);
+        if (messageIndex === -1) return;
+        chatHistory[messageIndex].reactions = message.reactions || {};
 
         const chatMessages = document.getElementById('chatMessages');
         if (!chatMessages) return;
@@ -1674,6 +1686,8 @@ const ChatModule = (function () {
         getEmojiConfig: () => emojiConfig,
         getChatHistory: () => chatHistory,
         addToHistory,
+        resetHistory,
+        toggleReaction,
         loadEmojiConfig,
         createReactionsArea,
         createTimeReactionsContainer,
