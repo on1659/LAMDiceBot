@@ -1716,6 +1716,11 @@ input, select, textarea {
   transition: background 0.2s, color 0.2s;
 }
 
+/* 방 컨트롤 바 안에서는 볼륨 조절의 일부로 보이지 않게 간격을 더 둔다 (바의 gap 8px + 8px) */
+.control-bar-meta .theme-switcher-btn {
+  margin-left: 8px;
+}
+
 .theme-switcher-btn:hover,
 .theme-switcher-btn:active {
   background: var(--gray-100);
