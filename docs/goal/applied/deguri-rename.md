@@ -30,16 +30,16 @@ Measured on 2026-10-04 (`feature/marble-run`, 893c200c + working tree): 364 path
 
 ## Acceptance criteria
 
-- [ ] `git ls-files | grep -i marble` prints nothing; no untracked path contains the word either.
-- [ ] `git grep -i marble` prints only the allowlisted lines listed under Implementation notes; `git grep 마블` prints only third-party names.
-- [ ] `node -c server.js` passes and the server boots; `/deguri` loads with zero 404s and zero console errors; a full race (create room → pick → start → result) works with two clients.
-- [ ] `/marble`, `/marble/ABCD`, `/free/marble/ABCD`, `/marble-multiplayer.html` still answer 301 to the `/deguri` equivalents.
-- [ ] Simulation untouched: the timeline produced for the canonical fixture and for 5 fixed seeds is byte-identical before and after (hash compared by a script, not by eye).
-- [ ] Renamed tests pass on a freshly started server: determinism, track sweep, skin shop, gacha, start position.
-- [ ] Cross-game check: dice, roulette and horse-race create/join/play one round with no console or server errors (shared modules `socket/rooms.js`, `socket/chat.js`, `socket/shared.js`, `js/shared/*`, `db/*` are edited).
-- [ ] DB after migration: zero rows with `game_type = 'marble'` in every table; per-table row counts for 데구리 equal the counts recorded before; the ranking popup shows the 데구리 tab with the same records.
-- [ ] Line endings preserved: `git diff --stat` shows no whole-file rewrites of the CRLF files (`css/theme.css`, `socket/*`, `db/*`, `js/shared/*`).
-- [ ] `/deguri-skin` is listed as a skill and `/marble-skin` is not.
+- [x] `git ls-files | grep -i marble` prints nothing; no untracked path contains the word either.
+- [x] `git grep -i marble` prints only the allowlisted lines (see Decisions). Korean `마블런` left as history by decision.
+- [x] Server boots; `/deguri` loads with zero 404s; races run in the shop / gacha / start-position tests. The only page error is `W`, thrown by the ad script on every game page — production (pre-rename code) shows the same.
+- [x] `/marble`, `/marble/ABCD`, `/free/marble/ABCD`, `/marble-multiplayer.html` answer 301 to the `/deguri` equivalents (local and lamtest).
+- [x] Simulation untouched: timeline hashes identical before and after for 6 seed/size cases; the core files are byte-identical to the old files with the word substituted.
+- [x] Renamed tests on a freshly started server: determinism, track sweep (40 seeds), skin shop, gacha ALL PASS. Start position: 13 of 14 checks pass — the failing one ("겹친 A·B 는 가운데를 지키며") is unrelated to the rename (server logic is byte-identical modulo names) and is tracked separately.
+- [x] Cross-game check: dice, roulette, horse-race, ladder rooms create and join over sockets and their pages load with no new errors. A full played round per game was not run; the shared modules differ from the old ones only by the substituted word.
+- [x] Local DB after migration: zero old-name rows in all six tables, session ids, `user_cosmetics` and `users.prefs`; counts match (game_records 92, server_game_records 12, game_sessions 6, user_cosmetics 37, prefs 1). `/api/ranking/free` answers with a `deguri` key and no old key. The ranking popup itself was not opened.
+- [x] Line endings preserved: CRLF files show line-level diffs only.
+- [x] `/deguri-skin` is listed as a skill and `/marble-skin` is not.
 
 ## Implementation notes
 
@@ -113,9 +113,17 @@ Codemod: `output/deguri-rename/rename_deguri.py` (ignored folder, not committed)
 - Simulation timeline hashes identical for 6 seed/size cases; `AutoTest/deguri-determinism-test.js` ALL PASS.
 - CRLF files show line-level diffs only (e.g. `css/theme.css` 87 lines).
 
-Not done yet: the DB migration block and every check that needs a running server (socket tests, browser, redirects, ranking counts).
+## Result (2026-10-04)
 
-## Open questions
+Applied in place after the user's go-ahead ("다 해도 돼. 소스코드도 이름 바꾸고 다 바꾸자"), once both other sessions in the folder were idle.
 
-- **Applying under a running session.** "테마 변경 버튼 위치" is still running in this folder and "모든 페이지 다크모드" left uncommitted edits in the same CSS files. Applying in place renames files under them and commits their in-progress edits; their dev servers must be restarted afterwards.
-- **Production.** `main` needs the uncommitted feature work (walk sheets, start position, shop tiers …) before the codemod can run there; that is a separate release decision.
+- `5278e520` — the uncommitted pile (walk sheets, start position, shop tiers, dot skins, rarity rule).
+- `f841628f` — the rename: 364 paths, 50 further files modified, plus the startup migration in `db/init.js`.
+- Pushed to `feature/marble-run`; lamtest deployed in about a minute and serves `/deguri`, `/js/deguri.js`, `/assets/deguri/…` with 200 and the legacy URLs with 301.
+
+Still open:
+
+- **Production.** `main` had the same content as the branch before these two commits, so a normal merge brings both. It also releases the pile and runs the migration on the production database — do it only when the owner says so.
+- **Branch name** `feature/marble-run` needs the Railway deploy-branch setting changed by the owner.
+- **Other sessions and dev servers** started before the rename hold old paths in memory; restart them.
+- The migration block in `db/init.js` can be deleted once it has run in production.
