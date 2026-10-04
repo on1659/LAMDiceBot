@@ -74,3 +74,4 @@ assets/backgrounds/vehicle-generated/
 
 # 옛 경마 React 빌드 잔재(소스 없음, dist+node_modules 126MB) — 2026-04-11 audit: 운영 대상 아님
 /horse-app/
+mockups/.shots/

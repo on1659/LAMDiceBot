@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>LAMDice 그림 네 개</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+<style>
+/*
+  목업 10 — 그림 네 개
+  기준: 적게 읽고 직관적으로. 꾸밈은 탭이나 읽을 글을 늘리지 않는 곳에만.
+  목표: 첫 화면 글자 60자 이하 · 조작 요소 6개 이하 · 방까지 1탭(다시 온 사람).
+  뺀 것: 부제·안내문·통계·노는 법·걸 것 고르기·방 만들기 시트. 방 이름·비공개는 방 안에서.
+*/
+@font-face { font-family: 'Galmuri11'; src: url(/mockups/assets/galmuri11-sub.woff) format('woff'); font-display: swap; }
+:root {
+  color-scheme: light;
+  --display: 'Bagel Fat One', 'Apple SD Gothic Neo', sans-serif;
+  --body: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --num: 'Galmuri11', ui-monospace, monospace;
+  --paper: #FBF8F1; --counter: #ECE6D8; --ink: #14110F; --ink-2: #6B6455; --ink-3: #9A9283; --line: #D9D2C2;
+  --stamp: #C8281A; --pen: #1F5FE0;
+  --horse-soft: #F8E6D8; --dice-soft: #E9ECFC; --roulette-soft: #DFF3E7; --deguri-soft: #E1F5E6;
+  --off: 4px 4px 0 var(--ink);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--counter); color: var(--ink); font: 500 16px/1.4 var(--body); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+img { display: block; max-width: 100%; }
+.px { image-rendering: pixelated; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+
+/* 목업 전용 바 — 한 줄, 작게 */
+.mock { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 5px 10px; background: var(--ink); color: var(--paper); font-size: 12px; }
+.mock a { color: inherit; opacity: .8; }
+.mock button { border: 1px solid rgba(255,255,255,.5); background: transparent; color: inherit; padding: 2px 8px; font-size: 12px; }
+.mock button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+
+.app { max-width: 880px; margin: 0 auto; min-height: calc(100vh - 30px); background: var(--paper); border-inline: 2px solid var(--ink); padding: 0 20px 28px; }
+.top { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 22px; }
+.logo img { width: 26px; height: 26px; }
+.acct { border: 2px solid var(--ink); background: #fff; height: 36px; padding: 0 12px; font-weight: 700; font-size: 14px; box-shadow: 2px 2px 0 var(--ink); }
+
+h1 { margin: 14px 0 16px; font: 400 clamp(34px, 9vw, 52px)/1.05 var(--display); letter-spacing: -.01em; }
+.where { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; border: 2px solid var(--ink); background: #fff; height: 34px; padding: 0 10px; font-weight: 700; font-size: 14px; }
+
+/* 그림 네 개 = 버튼 네 개. 누르면 바로 방. */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tile { position: relative; display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; gap: 6px; height: clamp(150px, 26vh, 210px); padding: 14px 10px 12px; border: 2px solid var(--ink); background: var(--soft); box-shadow: var(--off); transition: transform .1s, box-shadow .1s; }
+.tile:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.tile:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.tile b { font: 400 24px/1 var(--display); }
+.tile .ic { width: 86px; height: 86px; }
+.tile[data-game="horse"] { --soft: var(--horse-soft); }
+.tile[data-game="dice"] { --soft: var(--dice-soft); }
+.tile[data-game="roulette"] { --soft: var(--roulette-soft); }
+.tile[data-game="deguri"] { --soft: var(--deguri-soft); }
+.veh { width: 128px; height: 96px; background: url(/mockups/assets/veh-horse-1.webp) center / contain no-repeat; animation: gallop .34s steps(1) infinite; }
+@keyframes gallop { 50% { background-image: url(/mockups/assets/veh-horse-2.webp); } }
+.mb { width: 100px; height: 100px; background: url(/mockups/assets/mb-hedgehog-idle.webp) 0 0 / 400% 100% no-repeat; animation: idle .58s steps(4) infinite; }
+@keyframes idle { to { background-position: 133.34% 0; } }
+.tile:hover .ic { animation: wob .4s ease; }
+@keyframes wob { 30% { transform: rotate(-8deg); } 60% { transform: rotate(6deg); } }
+
+.rooms-link { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 16px; height: 48px; padding: 0 14px; border: 2px solid var(--ink); background: #fff; font-weight: 700; }
+.rooms-link span, .n { font-family: var(--num); font-weight: 400; }
+
+/* 방 */
+.back { border: 0; background: transparent; font-size: 28px; line-height: 1; padding: 6px 10px 6px 0; }
+.room-art { display: grid; place-items: center; height: 150px; border: 2px solid var(--ink); background: var(--soft, var(--horse-soft)); margin-bottom: 14px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 54px; border: 2px solid var(--ink); background: #fff; font-weight: 800; font-size: 17px; box-shadow: var(--off); transition: transform .1s, box-shadow .1s; }
+.btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn.ink { background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: .35; box-shadow: none; cursor: not-allowed; }
+.btn img { width: 20px; height: 20px; }
+.seats { display: flex; gap: 4px; align-items: center; margin: 16px 0; }
+.seats i { width: 26px; height: 26px; border: 2px solid var(--ink); background: #fff; display: grid; place-items: center; font: 400 12px/1 var(--display); font-style: normal; }
+.seats i.on { background: var(--ink); color: var(--paper); }
+.seats .n { margin-left: auto; font-size: 14px; }
+details { margin-top: 14px; border-top: 2px dashed var(--line); padding-top: 10px; }
+summary { font-weight: 700; cursor: pointer; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; font-weight: 700; }
+input.txt { width: 100%; height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: #fff; font: 700 16px var(--body); color: var(--ink); }
+input.txt:focus { outline: none; box-shadow: 0 0 0 3px #DCE6FB; border-color: var(--pen); }
+.tog { width: 46px; height: 26px; border: 2px solid var(--ink); background: #fff; position: relative; padding: 0; flex: none; }
+.tog::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--ink); transition: left .12s; }
+.tog[aria-checked="true"]::after { left: 22px; background: var(--pen); }
+
+/* 목록 (열린 방 · 서버) — 줄 전체가 버튼 */
+.list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: #fff; text-align: left; font-weight: 700; box-shadow: 3px 3px 0 var(--ink); }
+.item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.item .sq { width: 44px; height: 44px; border: 2px solid var(--ink); display: grid; place-items: center; background: var(--soft, #fff); font: 400 18px var(--display); }
+.item .sq img { width: 30px; height: 30px; }
+.item .r { font-family: var(--num); font-weight: 400; font-size: 14px; white-space: nowrap; }
+.item .r.live { color: var(--stamp); } .item .r.ok { color: var(--pen); }
+.item.dash { border-style: dashed; box-shadow: none; }
+
+/* 시트 */
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(20,17,15,.5); display: grid; place-items: end center; }
+.panel { width: min(480px, 100%); background: var(--paper); border: 2px solid var(--ink); border-bottom: 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; animation: up .18s ease; }
+@keyframes up { from { transform: translateY(20px); opacity: 0; } }
+.panel h2 { margin: 0; font: 400 24px var(--display); }
+.panel .alt { border: 0; background: transparent; text-decoration: underline; font-size: 14px; color: var(--ink-2); justify-self: center; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; background: var(--ink); color: var(--paper); padding: 10px 14px; font-weight: 700; font-size: 14px; border: 2px solid var(--paper); box-shadow: 3px 3px 0 var(--stamp); white-space: nowrap; animation: up .18s ease; }
+
+@media (min-width: 721px) {
+  .app { margin-top: 18px; border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); min-height: 0; padding: 0 32px 36px; }
+  .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sheet { place-items: center; }
+  .panel { border-bottom: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+  .narrow { max-width: 520px; }
+}
+@media (prefers-reduced-motion: reduce) { .veh, .mb, .tile:hover .ic { animation: none; } .tile, .btn, .item { transition: none; } }
+</style>
+</head>
+<body>
+
+<!-- 목업 전용 바 (실제 화면 아님) -->
+<div class="mock" id="mockBar">
+  <span>10</span><a href="/main">목록</a><a href="/9">이전</a>
+  <button type="button" data-who="new" aria-pressed="false">처음</button>
+  <button type="button" data-who="back" aria-pressed="true">단골</button>
+  <button type="button" data-who="member" aria-pressed="false">로그인</button>
+</div>
+
+<div class="app">
+  <header class="top">
+    <span class="logo"><img class="px" src="/mockups/assets/ic-dice.png" alt="">LAMDice</span>
+    <button type="button" class="acct" id="acct">라온</button>
+  </header>
+
+  <!-- 홈: 그림 네 개 -->
+  <main id="s-home">
+    <button type="button" class="where" id="where" hidden><span id="whereName">LAMDice :)</span> ▾</button>
+    <h1>뭘로 정할까?</h1>
+    <div class="tiles">
+      <button type="button" class="tile" data-game="horse"><i class="veh px"></i><b>경마</b></button>
+      <button type="button" class="tile" data-game="dice"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""><b>주사위</b></button>
+      <button type="button" class="tile" data-game="roulette"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""><b>룰렛</b></button>
+      <button type="button" class="tile" data-game="deguri"><i class="mb px"></i><b>데구리</b></button>
+    </div>
+    <button type="button" class="rooms-link" id="toRooms">열린 방 <span id="roomCount">3 ›</span></button>
+  </main>
+
+  <!-- 방: 그림을 누르면 바로 여기 -->
+  <main id="s-room" class="narrow" hidden>
+    <button type="button" class="back" data-go="home" aria-label="뒤로">‹</button>
+    <div class="room-art" id="roomArt"></div>
+    <h1 id="roomName" style="margin:0 0 14px;font-size:32px">경마</h1>
+    <button type="button" class="btn ink" id="copyBtn"><img class="px" src="/mockups/assets/ic-link.png" alt=""><span id="copyLabel">링크 복사됨</span></button>
+    <div class="seats" id="seats"></div>
+    <button type="button" class="btn" id="startBtn" disabled>시작</button>
+    <details>
+      <summary>방 설정</summary>
+      <div class="row"><input class="txt" id="roomTitle" maxlength="20" aria-label="방 이름"></div>
+      <div class="row"><span>비공개</span><button type="button" class="tog" id="privTog" role="switch" aria-checked="false" aria-label="비공개"></button></div>
+    </details>
+  </main>
+
+  <!-- 열린 방: 줄을 누르면 들어감 -->
+  <main id="s-rooms" class="narrow" hidden>
+    <button type="button" class="back" data-go="home" aria-label="뒤로">‹</button>
+    <h1 style="margin-top:0">열린 방</h1>
+    <ul class="list" id="roomList"></ul>
+  </main>
+</div>
+
+<!-- 이름: 처음 온 사람에게만 한 번 -->
+<div class="sheet" id="nameSheet" hidden>
+  <form class="panel" id="nameForm">
+    <h2>이름</h2>
+    <input class="txt" id="nameInput" maxlength="8" autocomplete="off" aria-label="이름">
+    <button type="submit" class="btn ink">들어가기</button>
+  </form>
+</div>
+
+<!-- 계정: 이름 바꾸기 · 로그인 -->
+<div class="sheet" id="acctSheet" hidden>
+  <form class="panel" id="acctForm">
+    <h2 id="acctTitle">로그인</h2>
+    <input class="txt" id="acctName" maxlength="20" placeholder="이름" autocomplete="off" aria-label="이름">
+    <input class="txt" id="acctPin" type="password" inputmode="numeric" maxlength="6" placeholder="숫자 암호 4~6자리" aria-label="암호코드">
+    <button type="submit" class="btn ink" id="acctGo">로그인</button>
+    <button type="button" class="alt" id="acctAlt">처음이면 회원가입</button>
+  </form>
+</div>
+
+<!-- 서버 바꾸기: 화면이 아니라 목록 한 장 -->
+<div class="sheet" id="srvSheet" hidden>
+  <div class="panel">
+    <h2>어디서?</h2>
+    <ul class="list" id="srvList"></ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var A = '/mockups/assets/';
+  var GAMES = {
+    horse:    { name: '경마',   soft: 'var(--horse-soft)',    art: '<i class="veh px"></i>', icon: A + 'ic-horse.png', max: 10 },
+    dice:     { name: '주사위', soft: 'var(--dice-soft)',     art: '<img class="px" style="width:96px;height:96px" src="' + A + 'ic-dice.png" alt="">', icon: A + 'ic-dice.png', max: 10 },
+    roulette: { name: '룰렛',   soft: 'var(--roulette-soft)', art: '<img class="px" style="width:96px;height:96px" src="' + A + 'ic-slot.png" alt="">', icon: A + 'ic-slot.png', max: 10 },
+    deguri:   { name: '데구리', soft: 'var(--deguri-soft)',   art: '<i class="mb px"></i>', icon: A + 'ic-paw.png', max: 8 }
+  };
+  // 예시 데이터
+  var rooms = [
+    { title: '점심 내기', game: 'horse', n: 3, live: false },
+    { title: '커피 한 판', game: 'dice', n: 5, live: true },
+    { title: '야식 정하기', game: 'deguri', n: 2, live: false }
+  ];
+  var servers = [
+    { id: 's1', name: 'LAMDice :)', state: 'joined' },
+    { id: 's2', name: '개발2팀 점심조', state: 'open' },
+    { id: 's3', name: '디자인팀 야식회', state: 'code' },
+    { id: 's4', name: '헬스장 5시', state: 'pending' }
+  ];
+  var who = 'back', name = '라온', server = null, pendingGame = null, register = false;
+  var SUGGEST = ['토끼', '거북이', '고슴도치', '판다', '로켓'];
+
+  function show(id) { ['home', 'room', 'rooms'].forEach(function (k) { $('#s-' + k).hidden = k !== id; }); window.scrollTo(0, 0); }
+  function toast(msg) { var o = $('.toast'); if (o) o.remove(); var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2000); }
+  function closeSheets() { $$('.sheet').forEach(function (s) { s.hidden = true; }); }
+  $$('.sheet').forEach(function (s) { s.addEventListener('click', function (e) { if (e.target === s) closeSheets(); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheets(); });
+
+  function syncTop() {
+    $('#acct').textContent = who === 'new' ? '로그인' : name;
+    $('#where').hidden = who !== 'member';
+    $('#whereName').textContent = server ? server.name : '자유 방';
+    $('#roomCount').textContent = (who === 'member' && server ? 1 : rooms.length) + ' ›';
+  }
+
+  // 그림 = 버튼. 이름이 있으면 바로 방, 없으면 이름만 한 번 묻는다.
+  function openRoom(game, title, n) {
+    var g = GAMES[game];
+    $('#roomArt').style.setProperty('--soft', g.soft); $('#roomArt').innerHTML = g.art;
+    $('#roomName').textContent = g.name;
+    $('#roomTitle').value = title || (name + '님의 ' + g.name);
+    var seats = $('#seats'); seats.textContent = '';
+    var count = n || 1;
+    for (var i = 0; i < g.max; i++) { var s = document.createElement('i'); if (i < count) { s.className = 'on'; s.textContent = i === count - 1 ? name.charAt(0) : ''; } seats.appendChild(s); }
+    var num = document.createElement('span'); num.className = 'n'; num.textContent = count + '/' + g.max; seats.appendChild(num);
+    $('#startBtn').disabled = count < 2;
+    $('#copyLabel').textContent = '링크 복사됨';
+    show('room');
+  }
+  function start(game) {
+    if (who === 'new') { pendingGame = game; $('#nameInput').value = SUGGEST[game.length % SUGGEST.length] + (10 + game.length * 7); $('#nameSheet').hidden = false; setTimeout(function () { $('#nameInput').select(); }, 50); return; }
+    openRoom(game); toast('링크 복사됨');
+  }
+  $$('.tile').forEach(function (t) { t.addEventListener('click', function () { start(t.dataset.game); }); });
+  $('#nameForm').addEventListener('submit', function (e) {
+    e.preventDefault(); name = $('#nameInput').value.trim() || $('#nameInput').value || '손님';
+    setWho('back'); closeSheets(); openRoom(pendingGame); toast('링크 복사됨');
+  });
+  $('#copyBtn').addEventListener('click', function () {
+    var url = 'https://lamdice.com/free/horse/7QK3';
+    try { if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {}); } catch (e) {}
+    $('#copyLabel').textContent = '링크 복사됨'; toast('링크 복사됨');
+  });
+  $('#privTog').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); });
+  $$('[data-go]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.go); }); });
+
+  // 열린 방
+  function renderRooms() {
+    var ul = $('#roomList'); ul.textContent = '';
+    rooms.forEach(function (r) {
+      var g = GAMES[r.game], li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'item'; b.style.setProperty('--soft', g.soft);
+      var sq = document.createElement('span'); sq.className = 'sq'; var im = document.createElement('img'); im.className = 'px'; im.src = g.icon; im.alt = ''; sq.appendChild(im);
+      var nm = document.createElement('span'); nm.textContent = r.title;
+      var rt = document.createElement('span'); rt.className = 'r' + (r.live ? ' live' : ''); rt.textContent = r.n + '/' + g.max + (r.live ? ' 진행' : '');
+      b.appendChild(sq); b.appendChild(nm); b.appendChild(rt);
+      b.addEventListener('click', function () { if (who === 'new') { pendingGame = r.game; start(r.game); return; } openRoom(r.game, r.title, r.n + 1); });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $('#toRooms').addEventListener('click', function () { renderRooms(); show('rooms'); });
+
+  // 계정: 처음·단골은 로그인, 로그인 상태는 로그아웃
+  $('#acct').addEventListener('click', function () {
+    if (who === 'member') { setWho('back'); toast('로그아웃'); return; }
+    register = false; $('#acctTitle').textContent = '로그인'; $('#acctGo').textContent = '로그인'; $('#acctAlt').textContent = '처음이면 회원가입';
+    $('#acctName').value = who === 'new' ? '' : name; $('#acctPin').value = '';
+    $('#acctSheet').hidden = false; setTimeout(function () { $('#acctName').focus(); }, 50);
+  });
+  $('#acctAlt').addEventListener('click', function () {
+    register = !register; $('#acctTitle').textContent = register ? '회원가입' : '로그인'; $('#acctGo').textContent = register ? '가입' : '로그인'; $('#acctAlt').textContent = register ? '이미 있으면 로그인' : '처음이면 회원가입';
+  });
+  $('#acctForm').addEventListener('submit', function (e) {
+    e.preventDefault(); var n = $('#acctName').value.trim(), p = $('#acctPin').value.trim();
+    if (!n) { $('#acctName').focus(); return; }
+    if (!/^\d{4,6}$/.test(p)) { $('#acctPin').focus(); toast('숫자 4~6자리'); return; }
+    name = n; closeSheets(); setWho('member');
+  });
+
+  // 서버 바꾸기: 줄을 누르면 끝
+  var LABEL = { joined: '', open: '가입 신청', code: '코드', pending: '대기 중' };
+  function renderServers() {
+    var ul = $('#srvList'); ul.textContent = '';
+    servers.forEach(function (s) {
+      var li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+      var sq = document.createElement('span'); sq.className = 'sq'; sq.textContent = s.name.charAt(0);
+      var nm = document.createElement('span'); nm.textContent = s.name;
+      var rt = document.createElement('span'); rt.className = 'r' + (s.state === 'pending' ? ' live' : ' ok'); rt.textContent = server && server.id === s.id ? '지금' : LABEL[s.state];
+      b.appendChild(sq); b.appendChild(nm); b.appendChild(rt);
+      b.addEventListener('click', function () {
+        if (s.state === 'pending') { toast('방장 승인 대기 중'); return; }
+        if (s.state === 'open') { s.state = 'pending'; renderServers(); toast('가입 신청함'); return; }
+        if (s.state === 'code') { s.state = 'joined'; toast('코드 확인됨'); }
+        server = s; closeSheets(); syncTop();
+      });
+      li.appendChild(b); ul.appendChild(li);
+    });
+    [['자유 방', '기록 없음', function () { server = null; closeSheets(); syncTop(); }], ['새 서버', '+', function () { var s = { id: 's' + Date.now(), name: name + '네 서버', state: 'joined' }; servers.unshift(s); server = s; closeSheets(); syncTop(); toast('서버 만듦'); }]].forEach(function (x) {
+      var li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.className = 'item dash';
+      var sq = document.createElement('span'); sq.className = 'sq'; sq.textContent = x[1] === '+' ? '+' : '';
+      var nm = document.createElement('span'); nm.textContent = x[0];
+      var rt = document.createElement('span'); rt.className = 'r'; rt.textContent = x[1] === '+' ? '' : x[1];
+      b.appendChild(sq); b.appendChild(nm); b.appendChild(rt); b.addEventListener('click', x[2]); li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $('#where').addEventListener('click', function () { renderServers(); $('#srvSheet').hidden = false; });
+
+  // 목업 바: 처음 / 단골 / 로그인
+  function setWho(w) {
+    who = w; if (w === 'new') { name = ''; server = null; } if (w === 'back' && !name) name = '라온'; if (w === 'back') server = null;
+    if (w === 'member') { if (!name) name = '라온'; server = servers[0]; }   // 서버가 있으면 지난번 서버로 바로
+    $$('#mockBar [data-who]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.who === w)); });
+    syncTop(); show('home');
+  }
+  $$('#mockBar [data-who]').forEach(function (b) { b.addEventListener('click', function () { setWho(b.dataset.who); }); });
+  setWho('back');
+})();
+</script>
+</body>
+</html>
