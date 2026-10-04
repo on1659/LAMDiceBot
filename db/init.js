@@ -431,15 +431,17 @@ async function initDatabase() {
 
         // 게임 이름 변경(2026-10-04, docs/goal/deguri-rename.md) — 옛 이름으로 저장된 값을 deguri 로. 한 번 돌고 나면 바꿀 행이 없다
         const LEGACY_GAME_NAME = 'marble';
+        // 하나가 실패해도(오래된 DB 에 그 열이 없는 경우 등) 아래 catch 의 "연결 실패 → DB 없이 진행"으로 떨어지지 않게 따로 잡는다
+        const renameQuery = (sql, params) => pool.query(sql, params).catch(e => console.warn('⚠️  이름 변경 마이그레이션 한 건 건너뜀:', e.message));
         for (const table of ['game_records', 'ad_impression', 'server_game_records', 'season_archives', 'game_sessions', 'order_history']) {
-            await pool.query(`UPDATE ${table} SET game_type = 'deguri' WHERE game_type = $1`, [LEGACY_GAME_NAME]);
+            await renameQuery(`UPDATE ${table} SET game_type = 'deguri' WHERE game_type = $1`, [LEGACY_GAME_NAME]);
         }
         // 세션 id(`<게임>_<서버>_<시각>`)·코인 상점 항목 id·장착 기록의 접두어 — 옛 이름과 글자 수가 같아 자리만 바꾼다
         const legacyPrefix = LEGACY_GAME_NAME + '\\_%';
         for (const [table, column] of [['game_sessions', 'session_id'], ['server_game_records', 'game_session_id'], ['season_archives', 'game_session_id'], ['user_cosmetics', 'cosmetic_id']]) {
-            await pool.query(`UPDATE ${table} SET ${column} = 'deguri' || substr(${column}, ${LEGACY_GAME_NAME.length + 1}) WHERE ${column} LIKE $1`, [legacyPrefix]);
+            await renameQuery(`UPDATE ${table} SET ${column} = 'deguri' || substr(${column}, ${LEGACY_GAME_NAME.length + 1}) WHERE ${column} LIKE $1`, [legacyPrefix]);
         }
-        await pool.query(`UPDATE users SET prefs = replace(prefs::text, $1::text, 'deguri_')::jsonb WHERE prefs::text LIKE $2`, [LEGACY_GAME_NAME + '_', '%' + legacyPrefix]);
+        await renameQuery(`UPDATE users SET prefs = replace(prefs::text, $1::text, 'deguri_')::jsonb WHERE prefs::text LIKE $2`, [LEGACY_GAME_NAME + '_', '%' + legacyPrefix]);
 
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
