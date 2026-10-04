@@ -7,8 +7,8 @@
     turtle-gpu     블랙   — 그대로(이 스크립트가 안 건드림)
 
 원본은 SpriteMake 배치의 final/creatures/*.png(검은 판, GPT 생성본을 리팩한 것). 결과는 pickup-skin.py 와 같은 길
-(pngquant --nofs → cwebp 무손실, alpha>=8 마스크 불변 확인)로 assets/marble/creatures/ 에 덮어쓰고 manifest md5 를 갱신한다.
-같은 이름 교체이므로 실행 뒤 js/marble-render.js ASSET_VER 을 올린다.
+(pngquant --nofs → cwebp 무손실, alpha>=8 마스크 불변 확인)로 assets/deguri/creatures/ 에 덮어쓰고 manifest md5 를 갱신한다.
+같은 이름 교체이므로 실행 뒤 js/deguri-render.js ASSET_VER 을 올린다.
 
 usage:
   /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-gpu-editions.py            # 두 스킨 × 시트 3장 교체 + manifest
@@ -21,8 +21,8 @@ from PIL import Image
 
 OUT = Path('/Users/radar/Work/SpriteMake/output')
 GAME = Path(__file__).resolve().parents[2]
-DEST = GAME / 'assets' / 'marble' / 'creatures'
-MAN = GAME / 'assets' / 'marble' / 'marble-run.manifest.json'
+DEST = GAME / 'assets' / 'deguri' / 'creatures'
+MAN = GAME / 'assets' / 'deguri' / 'deguri.manifest.json'
 KINDS = ['', '-sleep', '-scuffle']
 CELL = 160
 ALPHA_MIN = 8
@@ -151,7 +151,7 @@ def main():
             man[section]['note'] += NOTE.format(label=label)
     if man:
         MAN.write_text(json.dumps(man, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        print('manifest md5 updated — js/marble-render.js ASSET_VER 을 올릴 것')
+        print('manifest md5 updated — js/deguri-render.js ASSET_VER 을 올릴 것')
 
 
 main()

@@ -68,7 +68,7 @@
         'bridge':     '/bridge-cross',
         'ladder':     '/ladder',
         'spin-arena': '/spin-arena',
-        'marble':     '/deguri'   // gameType 은 marble, 공개 경로는 /deguri(2026-09-29)
+        'deguri':     '/deguri'   // gameType 은 deguri, 공개 경로는 /deguri(2026-09-29)
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
@@ -76,7 +76,7 @@
         'bridge':     'pendingBridgeJoin',
         'ladder':     'pendingLadderJoin',
         'spin-arena': 'pendingSpinArenaJoin',
-        'marble':     'pendingMarbleJoin'
+        'deguri':     'pendingDeguriJoin'
         // dice는 sessionStorage.diceActiveRoom을 사용 (게임 페이지 IIFE가 자동 joinRoom)
     };
     // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
@@ -87,7 +87,7 @@
         'bridge':     'bridgeActiveRoom',
         'ladder':     'ladderActiveRoom',
         'spin-arena': 'spinArenaActiveRoom',
-        'marble':     'marbleActiveRoom'
+        'deguri':     'deguriActiveRoom'
     };
 
     // ─── DOM ──────────────────────────────────

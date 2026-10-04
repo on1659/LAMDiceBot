@@ -257,7 +257,7 @@ footer a { color: var(--ink-2); text-decoration: none; margin: 0 4px; }
     <button type="button" class="gline gchip" data-game="horse"><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""><span>경마</span><span class="dots"></span><span class="r hot">2분 · 인기</span></button>
     <button type="button" class="gline gchip" data-game="dice"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""><span>주사위</span><span class="dots"></span><span class="r">1분</span></button>
     <button type="button" class="gline gchip" data-game="roulette"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""><span>룰렛</span><span class="dots"></span><span class="r">30초</span></button>
-    <button type="button" class="gline gchip" data-game="marble"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""><span>데구리</span><span class="dots"></span><span class="r">3분 · 베타</span></button>
+    <button type="button" class="gline gchip" data-game="deguri"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""><span>데구리</span><span class="dots"></span><span class="r">3분 · 베타</span></button>
     <div class="gline soon" data-game="ladder"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""><span>사다리</span><span class="dots"></span><span class="r">준비 중</span></div>
 
     <hr class="dash">
@@ -313,7 +313,7 @@ footer a { color: var(--ink-2); text-decoration: none; margin: 0 4px; }
       <button type="button" class="fbtn" data-f="dice" aria-pressed="false">주사위</button>
       <button type="button" class="fbtn" data-f="roulette" aria-pressed="false">룰렛</button>
       <button type="button" class="fbtn" data-f="horse" aria-pressed="false">경마</button>
-      <button type="button" class="fbtn" data-f="marble" aria-pressed="false">데구리</button>
+      <button type="button" class="fbtn" data-f="deguri" aria-pressed="false">데구리</button>
     </div>
     <hr class="solid">
     <ul class="rooms" id="rooms"></ul>
@@ -388,7 +388,7 @@ footer a { color: var(--ink-2); text-decoration: none; margin: 0 4px; }
       <button type="button" data-game="horse" aria-pressed="true"><span class="sq"><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""></span>경마 (2분)</button>
       <button type="button" data-game="dice" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""></span>주사위 (1분)</button>
       <button type="button" data-game="roulette" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""></span>룰렛 (30초)</button>
-      <button type="button" data-game="marble" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리 (베타)</button>
+      <button type="button" data-game="deguri" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리 (베타)</button>
       <button type="button" data-game="ladder" aria-pressed="false" disabled><span class="sq"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""></span>사다리 (준비 중)</button>
     </div>
     <div class="sign"><label for="roomTitle">항목 (방 제목)</label><input class="txt" id="roomTitle" maxlength="20" value="라온님의 커피 내기" style="font-size:18px"></div>
@@ -446,11 +446,11 @@ footer a { color: var(--ink-2); text-decoration: none; margin: 0 4px; }
 
 <script>
 (function () {
-  var GAMES = { dice: { name: '주사위', icon: '/mockups/assets/ic-dice.png' }, roulette: { name: '룰렛', icon: '/mockups/assets/ic-slot.png' }, horse: { name: '경마', icon: '/mockups/assets/ic-horse.png' }, marble: { name: '데구리', icon: '/mockups/assets/ic-paw.png' } };
+  var GAMES = { dice: { name: '주사위', icon: '/mockups/assets/ic-dice.png' }, roulette: { name: '룰렛', icon: '/mockups/assets/ic-slot.png' }, horse: { name: '경마', icon: '/mockups/assets/ic-horse.png' }, deguri: { name: '데구리', icon: '/mockups/assets/ic-paw.png' } };
   var rooms = [
     { title: '점심 내기',   game: 'horse',    host: '민수', n: 3, max: 10, live: false, code: '7QK3' },
     { title: '커피 한 판',  game: 'dice',     host: '지우', n: 5, max: 10, live: true,  code: 'B2XD' },
-    { title: '야식 정하기', game: 'marble',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
+    { title: '야식 정하기', game: 'deguri',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
     { title: '회식 룰렛',   game: 'roulette', host: '서연', n: 6, max: 10, live: true,  code: 'R4WT' }
   ];
   var filter = 'all', stake = '커피', picked = 'horse';
@@ -496,7 +496,7 @@ footer a { color: var(--ink-2); text-decoration: none; margin: 0 4px; }
   $('.tog').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); });
   $('#btnCreate').addEventListener('click', function () {
     var name = $('#sheetName').value.trim() || '라온'; var title = $('#roomTitle').value.trim() || (name + '님의 ' + stake + ' 내기');
-    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'marble' ? 8 : 10, live: false, code: 'NEW1' });
+    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'deguri' ? 8 : 10, live: false, code: 'NEW1' });
     $('#meName').textContent = name;
     filter = 'all'; $$('#filters .fbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.f === 'all')); });
     renderRooms(); closeSheet(); setScreen('lobby'); toast('계산서가 생겼어요. 링크를 복사했어요. 카톡에 붙여넣어 보세요');

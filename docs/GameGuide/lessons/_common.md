@@ -464,7 +464,7 @@ socket.on('updateUsers', (data) => {
   ```bash
   lsof -nP -iTCP -sTCP:LISTEN | grep node                         # 어떤 포트에 뭐가 떠 있나
   for p in $(pgrep -f "node server.js"); do ps -o pid,lstart= -p $p; lsof -p $p | awk '$4=="cwd"{print $9}'; done   # 시작 시각 + 작업 폴더(워크트리)
-  stat -f '%Sm' socket/marble.js                                   # 고친 파일의 mtime — 프로세스 시작 시각보다 늦으면 그 서버는 옛 코드
+  stat -f '%Sm' socket/deguri.js                                   # 고친 파일의 mtime — 프로세스 시작 시각보다 늦으면 그 서버는 옛 코드
   ```
   시작 시각 < 파일 mtime 이면 그 프로세스는 옛 코드다. 확실한 증거는 socket.io 클라이언트로 새 이벤트를 쏴서 응답이 오는지 보는 것(Playwright 2탭 스크립트 30초).
 - 다른 세션의 서버를 내릴 땐 그 세션의 인메모리 방이 초기화된다는 걸 알리고, 같은 포트로 현재 코드를 다시 올려라. 내 검증은 별도 포트로 하되, 사용자가 실제로 보는 포트가 어느 것인지 먼저 물어보거나 위 명령으로 확인해라.
@@ -561,9 +561,9 @@ socket.on('updateUsers', (data) => {
 
 ## C-54. 색 토큰을 옮기거나 만들 때의 함정 (2026-10-03 하드코딩 색 전체 정리)
 
-- **같은 이름을 페이지 `:root`에 다시 정의하면 다크가 깨진다.** `:root`와 `[data-theme="dark"]`는 우선순위가 같아 나중에 로드된 파일이 이긴다. 게임 CSS(`css/free.css`, `css/marble.css` …)는 theme.css 뒤에 오므로, theme.css로 옮긴 토큰을 원래 자리에 남기면 다크 값이 라이트로 덮인다. 옮기면 원래 정의는 **지운다**. 게임 CSS에는 별칭(`--horse-500: var(--ladder-fill)`)만.
+- **같은 이름을 페이지 `:root`에 다시 정의하면 다크가 깨진다.** `:root`와 `[data-theme="dark"]`는 우선순위가 같아 나중에 로드된 파일이 이긴다. 게임 CSS(`css/free.css`, `css/deguri.css` …)는 theme.css 뒤에 오므로, theme.css로 옮긴 토큰을 원래 자리에 남기면 다크 값이 라이트로 덮인다. 옮기면 원래 정의는 **지운다**. 게임 CSS에는 별칭(`--horse-500: var(--ladder-fill)`)만.
 - **게임 CSS의 다크 별칭 덮어쓰기**(`[data-theme="dark"] { --horse-500: #리터럴 }`)를 theme.css로 그대로 옮기면, 게임 CSS `:root`의 별칭(`--horse-500: var(--ladder-500)`)에 진다. 라이트·다크 값을 가진 새 토큰(`--ladder-fill`)을 만들고 별칭이 그것을 가리키게 한다.
-- **CSS 주석 안의 `*/`**: 주석에 `--marble-wood-*/gold-*`처럼 쓰면 `*/`에서 주석이 닫히고 뒤 선언이 조용히 버려진다(데구리 초록이 경마 갈색으로 바뀜 — 계산된 색 비교로 잡음).
+- **CSS 주석 안의 `*/`**: 주석에 `--deguri-wood-*/gold-*`처럼 쓰면 `*/`에서 주석이 닫히고 뒤 선언이 조용히 버려진다(데구리 초록이 경마 갈색으로 바뀜 — 계산된 색 비교로 잡음).
 - **`var(--x, 예비값)`은 미정의 토큰을 숨긴다.** `--bg-subtle`(라이트 미정의), `--horse-100`(경마 미정의)이 예비값·무효 선언으로 버티고 있었다. 예비값을 지우기 전에 `:root` 정의를 grep. 일괄 정규식은 예비값 안 리터럴까지 바꿔 `var(--x, rgb(var(--y)))`를 만들 수 있다 — 변환 뒤 `var(--[^,)]*,`를 다시 grep.
 - **hex에 투명도 문자열을 붙이는 `${color}15`·`colors[i] + '40'`** 꼴은 토큰(`var(...)`)을 넣는 순간 무효 값이 된다 → `--x-rgb` 토큰 + `rgba(var(--x-rgb), 0.082)`.
 - **여러 게임이 같은 색을 따로 토큰화하기 쉽다**(주문 꺼진 별·예약 칸·알림 색이 게임마다 4벌 생김). 공통이면 `common`에 하나만.

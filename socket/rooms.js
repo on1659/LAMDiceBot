@@ -169,10 +169,10 @@ module.exports = (socket, io, ctx) => {
                 pirate: gameState.pirate
                     ? { phase: gameState.pirate.phase, claims: gameState.pirate.claims, holeCount: gameState.pirate.holeCount, participants: gameState.pirate.participants, timeLimitSec: gameState.pirate.timeLimitSec, deadlineTs: gameState.pirate.deadlineTs, round: gameState.pirate.round, history: gameState.pirate.history }
                     : undefined,
-                // 보안: marble.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
+                // 보안: deguri.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
-                marble: gameState.marble
-                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, crowd: gameState.marble.crowd, randomTrack: gameState.marble.randomTrack !== false, round: gameState.marble.round, history: gameState.marble.history }
+                deguri: gameState.deguri
+                    ? { phase: gameState.deguri.phase, picks: gameState.deguri.picks, crowd: gameState.deguri.crowd, randomTrack: gameState.deguri.randomTrack !== false, round: gameState.deguri.round, history: gameState.deguri.history }
                     : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
@@ -249,7 +249,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'marble'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'deguri'].includes(gameType) ? gameType : 'dice';
 
         // 미출시 게임(사다리타기·데구리)은 로컬 개발 서버 또는 DEV_GAMES=1 서비스에서만 방을 만들 수 있다
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
@@ -1271,23 +1271,23 @@ module.exports = (socket, io, ctx) => {
                     io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
                 }
             }
-            // 퇴장한 사용자의 데구리 방 장착(스킨·풍선) 삭제 — 장착은 그 방에서만 유지(socket/marble.js marble:equip), 재입장하면 다시 골라야 한다
-            if (gameState.marble && gameState.marble.equip) delete gameState.marble.equip[socket.userName];
-            if (gameState.marble && gameState.marble.wallets) delete gameState.marble.wallets[socket.userName];   // 방 지갑(코인·산 스킨)도 함께 소멸 — 1회용
+            // 퇴장한 사용자의 데구리 방 장착(스킨·풍선) 삭제 — 장착은 그 방에서만 유지(socket/deguri.js deguri:equip), 재입장하면 다시 골라야 한다
+            if (gameState.deguri && gameState.deguri.equip) delete gameState.deguri.equip[socket.userName];
+            if (gameState.deguri && gameState.deguri.wallets) delete gameState.deguri.wallets[socket.userName];   // 방 지갑(코인·산 스킨)도 함께 소멸 — 1회용
             // 🔧 퇴장한 사용자의 데구리 동물 선택 삭제 + idle이면 동기화 재emit
-            if (gameState.marble && gameState.marble.picks &&
-                gameState.marble.picks[socket.userName] !== undefined) {
-                delete gameState.marble.picks[socket.userName];
-                if (gameState.marble.phase === 'idle') {
-                    io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, crowd: gameState.marble.crowd });
+            if (gameState.deguri && gameState.deguri.picks &&
+                gameState.deguri.picks[socket.userName] !== undefined) {
+                delete gameState.deguri.picks[socket.userName];
+                if (gameState.deguri.phase === 'idle') {
+                    io.to(roomId).emit('deguri:stateUpdated', { picks: { ...gameState.deguri.picks }, crowd: gameState.deguri.crowd });
                 }
             }
             // 퇴장한 사용자의 데구리 당첨 순위 투표 삭제 (막대가 남지 않게 — 시작 시 집계는 참가자 표만 세므로 결과엔 영향 없음)
-            if (gameState.marble && gameState.marble.rankVotes &&
-                gameState.marble.rankVotes[socket.userName] !== undefined) {
-                delete gameState.marble.rankVotes[socket.userName];
-                if (gameState.marble.phase !== 'playing') {
-                    io.to(roomId).emit('marble:rankVotesUpdated', { votes: { ...gameState.marble.rankVotes } });
+            if (gameState.deguri && gameState.deguri.rankVotes &&
+                gameState.deguri.rankVotes[socket.userName] !== undefined) {
+                delete gameState.deguri.rankVotes[socket.userName];
+                if (gameState.deguri.phase !== 'playing') {
+                    io.to(roomId).emit('deguri:rankVotesUpdated', { votes: { ...gameState.deguri.rankVotes } });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

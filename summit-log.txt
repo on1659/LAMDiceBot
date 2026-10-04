@@ -25,12 +25,12 @@
 - css/theme.css: 다크 강조색 채도 낮춤(보라·초록·빨강·파랑·노랑 300~900, fill-*/btn-* 바탕, 브랜드 그라디언트, 링크·제목, 사다리·데구리 액센트), --fill-ready-end 신설, 게임 방 무채화 규칙 블록(host-controls·room-expiry·ready/chat/탈것/투표 칸 테두리·users-list·섹션 밑줄·주문받기 시작·트랙 칩·랭킹/예약/상점 버튼 테두리)
 - css/horse-race.css: 다크 --horse-50/-accent/-500/-600/-700 을 채도 낮춘 갈색·모래색으로
 - css/ladder.css: 다크 흰 글자 바탕 --horse-500/600 채도 낮춤, 다크 사다리 보드 종이 한 톤 낮춤(#d9d3c6) + 무채 테두리
-- css/marble.css: 다크 나무·종이 재질 토큰을 무채 면(gray/bg-white/border-color)으로, 흰 글자 바탕 초록 채도 낮춤
+- css/deguri.css: 다크 나무·종이 재질 토큰을 무채 면(gray/bg-white/border-color)으로, 흰 글자 바탕 초록 채도 낮춤
 - css/horse-shop.css: 다크 장착·광고·코인 글자색 채도 낮춤
 - js/shared/ready-shared.js: 준비/준비 취소 버튼의 하드코딩 그라디언트(#dc3545→#c82333, #28a745→#20c997)를 토큰으로 — 라이트 값 동일
 - js/shared/server-select-shared.js: 다크에서 ? 도움 버튼 보라 발광 끔(주목 애니메이션 중 제외)
 - roulette-game-multiplayer.html: 다크 --roulette-fill / --roulette-btn-gradient 를 채도 낮춘 보라로
-- marble-multiplayer.html: marble.css v33, horse-shop.css v5
+- deguri-multiplayer.html: deguri.css v33, horse-shop.css v5
 
 ## 상세 변경 내역
 
@@ -56,15 +56,15 @@
 ========================================
 
 ## 변경 파일
-- config/marble/cosmetics.json: marble_balloon_gpu(5090 그래픽카드, rare 50) + marble_skin_{pillbug,armadillo,turtle}_gpu(legend 150) 추가
-- assets/marble/accessories/balloon-gpu.webp: 풍선(야식 슬롯) 스프라이트 1장
-- assets/marble/creatures/{pillbug,armadillo,turtle}-gpu{,-sleep,-scuffle}.webp: 스킨 시트 9장
-- assets/marble/marble-run.manifest.json: accessories.balloon-gpu, skinPillbugGpu·skinArmadilloGpu·skinTurtleGpu 섹션
+- config/deguri/cosmetics.json: deguri_balloon_gpu(5090 그래픽카드, rare 50) + deguri_skin_{pillbug,armadillo,turtle}_gpu(legend 150) 추가
+- assets/deguri/accessories/balloon-gpu.webp: 풍선(야식 슬롯) 스프라이트 1장
+- assets/deguri/creatures/{pillbug,armadillo,turtle}-gpu{,-sleep,-scuffle}.webp: 스킨 시트 9장
+- assets/deguri/deguri.manifest.json: accessories.balloon-gpu, skinPillbugGpu·skinArmadilloGpu·skinTurtleGpu 섹션
 - AutoTest/spritemake/make-balloons.py: gpu() 추가(기존 7종 webp 는 재생성해도 바이트 동일)
 - AutoTest/spritemake/scaffold-skin-batch.py: TEMPLATE/ROWS 에 pillbug·turtle·armadillo 추가, CODEX 경로 갱신
 - AutoTest/spritemake/recolor-gpu-editions.py: 신규 — 5090 스킨을 색으로 가르는 결정론 변환(화이트·LED)
-- js/marble-render.js: ASSET_VER v5 → v6 (공벌레·아르마딜로 5090 시트 같은 이름 교체)
-- docs/goal/applied/marble-5090-edition.md, docs/spritemake-request/applied/2026-10-01-marble-skin-5090.md: 명세·의뢰서
+- js/deguri-render.js: ASSET_VER v5 → v6 (공벌레·아르마딜로 5090 시트 같은 이름 교체)
+- docs/goal/applied/deguri-5090-edition.md, docs/spritemake-request/applied/2026-10-01-deguri-skin-5090.md: 명세·의뢰서
 
 ## 상세 변경 내역
 
@@ -74,7 +74,7 @@
 
 ### [풍선]
 - 기존 야식 7종과 같은 PIL 생성기·같은 스프라이트 계약(96×128, 매듭 48,106). 옆으로 긴 판 + 팬 둘 + 왼쪽 브래킷 + 초록 LED 띠 + 금색 단자
-- 뽑기에서는 다른 야식처럼 rare 로 나온다(socket/marble.js gachaPool 이 야식을 rare 로 고정 — 변경 없음)
+- 뽑기에서는 다른 야식처럼 rare 로 나온다(socket/deguri.js gachaPool 이 야식을 rare 로 고정 — 변경 없음)
 
 ### [스킨 3종]
 - GPT(Codex exec) 생성 → 원본 직접 판정 → 리팩·QA → 인수. 세 배치 모두 QA PASS, verify-creature ALL_OK, ball-round ROUND_OK(보정 없음)
@@ -90,8 +90,8 @@
 - 상점 이름: 공벌레 5090 LED 에디션 / 아르마딜로 5090 화이트 에디션 / 거북이 5090 블랙 에디션
 
 ### [검증]
-- node AutoTest/qa-marble-skin-shop-test.js 5174 → ALL PASS (풍선 8종·스킨 시트 존재 포함)
-- game-lab/marble-preview.html 에서 세 스킨 + 풍선 렌더, ?v=6 200, −4000~6000ms 렌더 예외 0건
+- node AutoTest/qa-deguri-skin-shop-test.js 5174 → ALL PASS (풍선 8종·스킨 시트 존재 포함)
+- game-lab/deguri-preview.html 에서 세 스킨 + 풍선 렌더, ?v=6 200, −4000~6000ms 렌더 예외 0건
 
 ### [알려진 것]
 - 폰(375px)에서 상점 2열 그리드의 오른쪽 열이 화면 밖으로 잘린다(이번에 발견, 원인 미확인 — 긴 이름일 수 있음). 상점 정리 작업(작은 카드 3열)에서 같이 고칠 예정
@@ -103,11 +103,11 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: drawOrder(deck, rng, prev) 추가·export, buildTrack 이 opts.order(모듈 이름 순서)를 받음(없으면 새 덱 한 벌에서), SECTION_WEIGHT(등반 컵 가중치, 09-30) 삭제
-- socket/marble.js: ensureTrackSeed 가 시드를 새로 뽑을 때 방의 덱(mb.trackDeck)에서 한 판 분량을 꺼내 mb.trackOrder 에 둠, buildTrack 두 호출(대기 화면 미리보기·경주)에 order 전달
-- utils/room-helpers.js: marble 상태에 trackDeck·trackOrder 추가, spinArena 블록에 잘못 들어가 있던 trackSeed 초기값을 marble 블록으로 이동(동작 영향 없음 — 없어도 !undefined 로 뽑혔음)
-- AutoTest/marble-determinism-test.js: 6번 케이스(deck) — 방 20개×20판 중복 없음·오래 빠지는 모듈 없음·같은 덱·시드 → 같은 결과·opts.order 그대로 쌓음
-- docs/GameGuide/lessons/marble.md: lesson 추가(판마다 독립 셔플의 몰림 → 덱)
+- socket/deguri-sim.js: drawOrder(deck, rng, prev) 추가·export, buildTrack 이 opts.order(모듈 이름 순서)를 받음(없으면 새 덱 한 벌에서), SECTION_WEIGHT(등반 컵 가중치, 09-30) 삭제
+- socket/deguri.js: ensureTrackSeed 가 시드를 새로 뽑을 때 방의 덱(mb.trackDeck)에서 한 판 분량을 꺼내 mb.trackOrder 에 둠, buildTrack 두 호출(대기 화면 미리보기·경주)에 order 전달
+- utils/room-helpers.js: deguri 상태에 trackDeck·trackOrder 추가, spinArena 블록에 잘못 들어가 있던 trackSeed 초기값을 deguri 블록으로 이동(동작 영향 없음 — 없어도 !undefined 로 뽑혔음)
+- AutoTest/deguri-determinism-test.js: 6번 케이스(deck) — 방 20개×20판 중복 없음·오래 빠지는 모듈 없음·같은 덱·시드 → 같은 결과·opts.order 그대로 쌓음
+- docs/GameGuide/lessons/deguri.md: lesson 추가(판마다 독립 셔플의 몰림 → 덱)
 
 ## 상세 변경 내역
 
@@ -124,8 +124,8 @@
 - 등반 컵 가중치는 덱에서 의미가 없어 삭제(모든 모듈이 한 벌에 한 번)
 
 ## 검증
-- node AutoTest/marble-determinism-test.js ALL PASS(6번 deck: 400판 중복 0·최장 미등장 3판)
-- node AutoTest/marble-track-sweep.js 100 PASS — 캡 0·경계 이탈 0·중앙값 −7/−6/−4%(2/8/50명), 기믹<2 인 판 0
+- node AutoTest/deguri-determinism-test.js ALL PASS(6번 deck: 400판 중복 0·최장 미등장 3판)
+- node AutoTest/deguri-track-sweep.js 100 PASS — 캡 0·경계 이탈 0·중앙값 −7/−6/−4%(2/8/50명), 기믹<2 인 판 0
 - 로컬 서버(5174) 실제 흐름 3판: 매 판 대기 화면 맵 = 경주 맵, 1→2·2→3판 겹침 없음, 3판 안에 19개 전부 등장
 
 ========================================
@@ -133,10 +133,10 @@
 ========================================
 
 ## 변경 파일
-- assets/marble/creatures/ribbonpig-pilot{,-sleep,-scuffle}.webp(신규): 두 발로 서는 신사 돼지 시트 3장
-- config/marble/cosmetics.json: marble_skin_ribbonpig_pilot(legend 150, 🕶️, "빨간 마후라") 추가 / marble_skin_ribbonpig_red 의 name·displayName "레드 돼지" → "고추장불고기"(id·시트 그대로 — 이미 산 사람 영향 없음)
-- assets/marble/marble-run.manifest.json: skinRibbonpigPilot 섹션(배치·md5·노트)
-- docs/spritemake-request/applied/2026-09-30-marble-skin-pig-3.md: 진행 기록
+- assets/deguri/creatures/ribbonpig-pilot{,-sleep,-scuffle}.webp(신규): 두 발로 서는 신사 돼지 시트 3장
+- config/deguri/cosmetics.json: deguri_skin_ribbonpig_pilot(legend 150, 🕶️, "빨간 마후라") 추가 / deguri_skin_ribbonpig_red 의 name·displayName "레드 돼지" → "고추장불고기"(id·시트 그대로 — 이미 산 사람 영향 없음)
+- assets/deguri/deguri.manifest.json: skinRibbonpigPilot 섹션(배치·md5·노트)
+- docs/spritemake-request/applied/2026-09-30-deguri-skin-pig-3.md: 진행 기록
 
 ## 상세 변경 내역
 
@@ -152,8 +152,8 @@
 
 ## 검증
 - 배치 repack·qa PASS(main·sleep·scuffle), verify-creature ALL_OK(게임 webp 재검증 포함), ball-round ROUND_OK(최소 반지름 46)
-- node AutoTest/qa-marble-skin-shop-test.js 5174 ALL PASS(스킨 27종)
-- game-lab/marble-preview.html 출발대에서 두 발 서기·이름표 위치·시트 3장 200 로드 확인
+- node AutoTest/qa-deguri-skin-shop-test.js 5174 ALL PASS(스킨 27종)
+- game-lab/deguri-preview.html 출발대에서 두 발 서기·이름표 위치·시트 3장 200 로드 확인
 
 ========================================
 
@@ -162,7 +162,7 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: SECTION_WEIGHT = { climb: 2 } 추가, buildTrack 의 풀 셔플을 Fisher–Yates → 가중 셔플(모듈마다 키 = rng()^(1/가중치), 키 큰 순)
+- socket/deguri-sim.js: SECTION_WEIGHT = { climb: 2 } 추가, buildTrack 의 풀 셔플을 Fisher–Yates → 가중 셔플(모듈마다 키 = rng()^(1/가중치), 키 큰 순)
 
 ## 상세 변경 내역
 
@@ -175,18 +175,18 @@
 - 고정 맵(트랙 A)·rng 없는 캐노니컬 경로는 셔플을 안 타므로 불변. 소켓 계약·타임라인 형식 변화 없음
 
 ## 검증
-- node AutoTest/marble-determinism-test.js PASS(트랙 A 고정본 구조 동일)
-- node AutoTest/marble-track-sweep.js 40 PASS — 캡 0·경계 이탈 0·중앙값 −0/−4/−8%(2/8/50명), 전 모듈 등장, 기믹<2 인 판 0
+- node AutoTest/deguri-determinism-test.js PASS(트랙 A 고정본 구조 동일)
+- node AutoTest/deguri-track-sweep.js 40 PASS — 캡 0·경계 이탈 0·중앙값 −0/−4/−8%(2/8/50명), 전 모듈 등장, 기믹<2 인 판 0
 
 ========================================
 📋 Summit Log - 2026-09-30 (데구리 스프링 널빤지 40% 축소)
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: SPRING_LEN 60 → 24(40%), SPRING_ARM_DELAY_MS 120 → 48, 경첩 주석을 상수 이름 기준으로
-- js/marble-render.js: 스프링 스프라이트를 조각의 len 에 비례해 그림(폭 = sp.len, 높이 = 셀 비율 240:64 유지) — 예전엔 셀 크기(60×16) 고정
-- marble-multiplayer.html: 렌더러 캐시 태그 v87 → v88
-- AutoTest/marble-track-a.canonical.json: 트랙 A 고정본 재캡처(스프링 len 24 반영)
+- socket/deguri-sim.js: SPRING_LEN 60 → 24(40%), SPRING_ARM_DELAY_MS 120 → 48, 경첩 주석을 상수 이름 기준으로
+- js/deguri-render.js: 스프링 스프라이트를 조각의 len 에 비례해 그림(폭 = sp.len, 높이 = 셀 비율 240:64 유지) — 예전엔 셀 크기(60×16) 고정
+- deguri-multiplayer.html: 렌더러 캐시 태그 v87 → v88
+- AutoTest/deguri-track-a.canonical.json: 트랙 A 고정본 재캡처(스프링 len 24 반영)
 
 ## 상세 변경 내역
 
@@ -197,25 +197,25 @@
 - 영향 범위: 스프링이 들어가는 모듈(variety·springfield)만. 소켓 계약·타임라인 형식 변화 없음
 
 ## 검증
-- node AutoTest/marble-determinism-test.js PASS(5번 = 고정본 구조 비교는 재캡처본 기준)
-- node AutoTest/marble-track-sweep.js 40 PASS — 캡 0·경계 이탈 0·중앙값 −8/−5/−7%(2/8/50명, ±15% 이내)
-- game-lab/marble-preview.html 확대 화면에서 판 크기·발사 모션 확인
+- node AutoTest/deguri-determinism-test.js PASS(5번 = 고정본 구조 비교는 재캡처본 기준)
+- node AutoTest/deguri-track-sweep.js 40 PASS — 캡 0·경계 이탈 0·중앙값 −8/−5/−7%(2/8/50명, ±15% 이내)
+- game-lab/deguri-preview.html 확대 화면에서 판 크기·발사 모션 확인
 
 ========================================
-📋 Summit Log - 2026-09-30 (데구리 돼지 스킨 5종 + 스킨 추가 스킬 /marble-skin) · 2026-09-29 분 소급(수영복 6종·배경 깨짐·너구리 공 원형화)
+📋 Summit Log - 2026-09-30 (데구리 돼지 스킨 5종 + 스킨 추가 스킬 /deguri-skin) · 2026-09-29 분 소급(수영복 6종·배경 깨짐·너구리 공 원형화)
 ========================================
 
 ## 변경 파일
-- config/marble/cosmetics.json: marble_skin 11개 추가 — 09-29 raccoon swimcap(rare 50)·tube(epic 100)·aloha(legend 150), panda trunks(rare)·snorkel(epic)·lifeguard(legend) / 09-30 ribbonpig red(rare)·iron(epic)·gold(epic)·zhu(legend)·angry(legend). 상점·뽑기는 카탈로그 자동 반영(코드 수정 없음)
-- assets/marble/creatures/*.webp: 위 스킨 시트 각 3장(main·sleep·scuffle) + 너구리 5시트(raccoon·ninja·swimcap·tube·aloha) 공 칸 원형화 교체
-- assets/marble/marble-run.manifest.json: 생성 스킨마다 섹션(batch·note·md5) — 런타임 미사용 기록
-- js/marble-render.js: ① drawBackground 초원 타일 첫 줄을 화면 위 끝(cam.y - view.h/2/zoom) 기준으로(폰 세로 view.h 1120 에서 위쪽 띠가 비어 하늘이 비치던 것) ② imageSmoothingEnabled 를 항상 true(정수 배율 = PC 줌 1 에서 꺼져 4배 원본 잔디가 스크롤마다 지글거림 — 사용자가 PC 에서 본 "배경 깨짐") ③ ASSET_VER v2 → v5(같은 이름 시트 교체: 너구리 원형화 v3, 강철·레드 v4, 앵그리 아이언 v5)
+- config/deguri/cosmetics.json: deguri_skin 11개 추가 — 09-29 raccoon swimcap(rare 50)·tube(epic 100)·aloha(legend 150), panda trunks(rare)·snorkel(epic)·lifeguard(legend) / 09-30 ribbonpig red(rare)·iron(epic)·gold(epic)·zhu(legend)·angry(legend). 상점·뽑기는 카탈로그 자동 반영(코드 수정 없음)
+- assets/deguri/creatures/*.webp: 위 스킨 시트 각 3장(main·sleep·scuffle) + 너구리 5시트(raccoon·ninja·swimcap·tube·aloha) 공 칸 원형화 교체
+- assets/deguri/deguri.manifest.json: 생성 스킨마다 섹션(batch·note·md5) — 런타임 미사용 기록
+- js/deguri-render.js: ① drawBackground 초원 타일 첫 줄을 화면 위 끝(cam.y - view.h/2/zoom) 기준으로(폰 세로 view.h 1120 에서 위쪽 띠가 비어 하늘이 비치던 것) ② imageSmoothingEnabled 를 항상 true(정수 배율 = PC 줌 1 에서 꺼져 4배 원본 잔디가 스크롤마다 지글거림 — 사용자가 PC 에서 본 "배경 깨짐") ③ ASSET_VER v2 → v5(같은 이름 시트 교체: 너구리 원형화 v3, 강철·레드 v4, 앵그리 아이언 v5)
 - AutoTest/spritemake/scaffold-skin-batch.py(신규): SpriteMake 생성 스킨 배치 스캐폴드 — 기존 스킨 배치의 계약·리팩 JS 를 시트 이름만 치환 복사, Codex 브리프(생성만, 투명 배경 OK·배경 재시도 금지, main 먼저 → sleep·scuffle 은 main 을 두 번째 입력), 기준 칸 아닌 칸 안전 축소 156×148, --ref=<시트> 로 기존 스킨 위 덧그리기
 - AutoTest/spritemake/ball-round.py(신규): 공 칸 원형 check(72방향 반지름: 최소 ≥46·52 미만 ≤20) / fix(타원 세로 늘림·작은 공 균등 확대·4px 부스러기 제거) / fix --recenter(소품 튀어나온 공: 오른쪽·아래 가장자리 원 맞춤으로 몸통 지름 112·중심 80,80, 칸 밖 잘림 경고)
 - AutoTest/spritemake/pickup-skin.py: pngquant --nofs(디더링이 알파<8 픽셀을 ≥8 로 만들어 발바닥선 151·공 복제 칸 불일치) + 알파 마스크 불변 확인, 배치 QA 불합격 거부(--allow-fail=<assetId> 로 오탐만 허용)
 - AutoTest/spritemake/recolor-creature.py: PRESETS.ribbonpig.red(연분홍 → 빨강, 볼터치·발굽·진흙·하이라이트 보호) — 레드 돼지 불꽃 판의 바탕
-- .claude/skills/marble-skin/SKILL.md(신규): 스킨 추가 절차 스킬(디자인 → 리컬러/GPT 생성 → 원본 판정 → 리팩·검증·공 원형 → 인수 → 카탈로그 → 테스트 → 커밋·main)
-- docs/spritemake-request/applied/2026-09-29-marble-skin-swimsuit.md, 2026-09-30-marble-skin-pig-3.md: 의뢰서·진행 기록(채택 attempt·예외·보정)
+- .claude/skills/deguri-skin/SKILL.md(신규): 스킨 추가 절차 스킬(디자인 → 리컬러/GPT 생성 → 원본 판정 → 리팩·검증·공 원형 → 인수 → 카탈로그 → 테스트 → 커밋·main)
+- docs/spritemake-request/applied/2026-09-29-deguri-skin-swimsuit.md, 2026-09-30-deguri-skin-pig-3.md: 의뢰서·진행 기록(채택 attempt·예외·보정)
 
 ## 상세 변경 내역
 
@@ -239,20 +239,20 @@
 
 ## 검증
 - 매 스킨: 배치 repack·qa PASS(예외는 위), verify-creature.py(게임 webp 를 dwebp 로 풀어 재검증), ball-round.py check
-- node AutoTest/qa-marble-skin-shop-test.js 5174 ALL PASS(스킨 26종 카탈로그·시트 존재)
-- game-lab/marble-preview.html 에서 새 시트 200 로드·렌더 확인, 배경 수정은 폰 세로(375×812) 20시점 타일 덮음 검사 + PC 줌 1 에서 smoothing true 확인
+- node AutoTest/qa-deguri-skin-shop-test.js 5174 ALL PASS(스킨 26종 카탈로그·시트 존재)
+- game-lab/deguri-preview.html 에서 새 시트 200 로드·렌더 확인, 배경 수정은 폰 세로(375×812) 20시점 타일 덮음 검사 + PC 줌 1 에서 smoothing true 확인
 - 09-29 분(수영복·배경·너구리)은 이미 main 25a94c3f 로 배포됨 — 이번 서밋에서 로그만 소급
 
 ========================================
 
 ========================================
-📋 Summit Log - 2026-09-29 (데구리 공개 경로·직링크 슬러그 marble → deguri)
+📋 Summit Log - 2026-09-29 (데구리 공개 경로·직링크 슬러그 deguri → deguri)
 ========================================
 
 ## 변경 파일
-- routes/api.js: 페이지 라우트 `/marble` → `/deguri`(marble-multiplayer.html 서빙), 옛 `/marble`·`/marble/:code`·`/free/marble/:code` 는 301(req.originalUrl 치환 — 쿼리 유지). `/free/:game/:shortcode` 일반 라우트보다 먼저 등록(FREE_GAME_SLUGS 검사에 안 걸리게). FREE_GAME_SLUGS·SERVER_ROOM_DIRECT_PATHS 의 슬러그 'marble' → 'deguri', legacy `/marble-multiplayer.html` 리다이렉트 대상 `/deguri`
-- utils/og-meta.js: GAME_LABELS 키 marble → deguri(링크 미리보기 라벨은 슬러그 키)
-- js/free.js: GAME_LABELS·GAME_ICON·GAME_GRADIENT(슬러그 키) deguri, GAME_PATH_TO_SLUG 'deguri', GAME_PATH_BY_TYPE(gameType 키 'marble') 값 '/deguri'
+- routes/api.js: 페이지 라우트 `/marble` → `/deguri`(deguri-multiplayer.html 서빙), 옛 `/marble`·`/marble/:code`·`/free/marble/:code` 는 301(req.originalUrl 치환 — 쿼리 유지). `/free/:game/:shortcode` 일반 라우트보다 먼저 등록(FREE_GAME_SLUGS 검사에 안 걸리게). FREE_GAME_SLUGS·SERVER_ROOM_DIRECT_PATHS 의 슬러그 'deguri' → 'deguri', legacy `/deguri-multiplayer.html` 리다이렉트 대상 `/deguri`
+- utils/og-meta.js: GAME_LABELS 키 deguri → deguri(링크 미리보기 라벨은 슬러그 키)
+- js/free.js: GAME_LABELS·GAME_ICON·GAME_GRADIENT(슬러그 키) deguri, GAME_PATH_TO_SLUG 'deguri', GAME_PATH_BY_TYPE(gameType 키 'deguri') 값 '/deguri'
 - js/shared/free-invite.js: GAME_PATH_TO_SLUG '/deguri' → 'deguri', SLUG_TO_GAME_PATH 'deguri' → '/deguri'(주소창 교체·초대 링크 텍스트)
 - dice-game-multiplayer.html: 로비 → 데구리 이동 href 3개 `/deguri?createRoom|joinRoom=true`
 - docs/GameGuide/NEW-GAME.md: routes 체크리스트 ④⑤ 행에 "공개 슬러그 ≠ gameType 가능(데구리)" 메모 + 슬러그 변경 세트 목록
@@ -260,9 +260,9 @@
 ## 상세 변경 내역
 
 ### [경로/슬러그]
-- 사용자 2026-09-29: "데구리 다이렉트링크 보니 marble 이네 deguri 로 바꿔". 유저에게 보이는 URL 슬러그만 바꾸고 내부 gameType 'marble'(gameState.marble·파일 이름·DB 통계·소켓 이벤트)은 그대로 — gameType 까지 바꾸면 통계·저장 키가 갈라진다
+- 사용자 2026-09-29: "데구리 다이렉트링크 보니 deguri 이네 deguri 로 바꿔". 유저에게 보이는 URL 슬러그만 바꾸고 내부 gameType 'deguri'(gameState.deguri·파일 이름·DB 통계·소켓 이벤트)은 그대로 — gameType 까지 바꾸면 통계·저장 키가 갈라진다
 - 옛 링크 호환: 방은 인메모리라 오래 살지 않지만 이미 보낸 링크·북마크를 위해 301 유지
-- 발견(안 고침): `/marble-multiplayer.html` 301 라우트는 정적 파일 미들웨어(app.use(staticFiles))가 먼저 잡아 200 으로 그대로 서빙된다(전부터 그랬음, AutoTest 들이 이 URL 을 쓴다)
+- 발견(안 고침): `/deguri-multiplayer.html` 301 라우트는 정적 파일 미들웨어(app.use(staticFiles))가 먼저 잡아 200 으로 그대로 서빙된다(전부터 그랬음, AutoTest 들이 이 URL 을 쓴다)
 - js/free.js·free-invite.js 는 html 에 ?v= 캐시버스터가 원래 없어 추가하지 않음
 
 ## 검증
@@ -282,7 +282,7 @@
 
 ## 원인
 - 게임 종료 처리는 ctx.triggerAutoOrder(gameState, room) 로 주문을 켠다. 이 함수는 socket/shared.js setupSharedHandlers 안(소켓 연결마다)에서만 ctx 에 붙었다.
-- 예약 시각에 서버가 대신 시작하는 경로(socket/scheduled-start.js fire → mod.start)는 socket/index.js 가 넘기는 스케줄러 ctx { rooms, updateRoomsList } 를 받는다 → triggerAutoOrder 가 없어 marble.js:406 / roulette.js:120 / horse.js:1269 의 `if (ctx.triggerAutoOrder)` 검사에서 조용히 건너뜀(에러·로그 없음).
+- 예약 시각에 서버가 대신 시작하는 경로(socket/scheduled-start.js fire → mod.start)는 socket/index.js 가 넘기는 스케줄러 ctx { rooms, updateRoomsList } 를 받는다 → triggerAutoOrder 가 없어 deguri.js:406 / roulette.js:120 / horse.js:1269 의 `if (ctx.triggerAutoOrder)` 검사에서 조용히 건너뜀(에러·로그 없음).
 - 영향: 예약 시작으로 끝난 데구리·룰렛·경마 판 전부. 방장이 직접 시작한 판은 정상.
 
 ## 변경 파일
@@ -291,7 +291,7 @@
 
 ## 검증
 - worktree 서버(PORT 5177, SCHEDULE_MIN_LEAD_MS=1000)에서 소켓 E2E: 데구리 방 → 다음 분 예약 → 발화 +44s reveal → +100s gameEnd → orderStarted 수신 PASS
-- 수동 시작(marble:start) 판도 종료 후 orderStarted PASS(소켓 ctx 경로 회귀 없음)
+- 수동 시작(deguri:start) 판도 종료 후 orderStarted PASS(소켓 ctx 경로 회귀 없음)
 - node -c server.js·socket/shared.js·socket/index.js
 📋 Summit Log - 2026-09-29 (경마 탈것 상태별 행동 — 15종 7상태·넘어짐 그림·꼴찌 재의뢰)
 ========================================
@@ -399,7 +399,7 @@
 - js/horse-race.js: startRaceAnimation 첫 줄 preloadVehicleSprites. setVehicleState·animateVehicleVariantSwap 이 dataset.vehicleState 기록. 예전 그림 스위치 바인딩 + 전환 장면(collectVehicleArtTargets·playVehicleArtSwap·buildVehicleArtRunner, 상수 VEHICLE_ART_*·VEHICLE_ART_GAIT). 선택 카드 .vehicle-display 에 data-vehicle-id. 꾸미기 상점 버튼 노출 코드 삭제
 - horse-race-multiplayer.html: 탈것 선택 헤더 = [자동선택][예전 그림] 스위치(.horse-selection-header-right), 꾸미기 상점 버튼(localhost 전용이던 것) 삭제, 스위치 CSS(position:relative — 숨긴 체크박스 포커스 스크롤 방지)
 - server.js·package.json·package-lock.json: compression 미들웨어(limiter 뒤, 정적·라우트 앞). webp/png/mp3 는 기본 필터가 건너뜀, socket.io 는 http 단에서 먼저 처리돼 무관
-- routes/api.js: assets/horse-race/vehicles/ 에 marble 과 같은 장기 캐시(MARBLE_ASSET_MAX_AGE_S)
+- routes/api.js: assets/horse-race/vehicles/ 에 deguri 과 같은 장기 캐시(DEGURI_ASSET_MAX_AGE_S)
 - AutoTest/horse-vehicle-sprite-preview.html: 15종 × 구/신 × 기본형/진화형 × 8상태 비교(크기·배경·프레임 고정) — 신규
 - docs/GameGuide/04-ops/image-assets.md: 탈것 프레임 압축 규칙·용량
 
@@ -440,14 +440,14 @@
 - 커밋 dd03fb0(feature/marble-run) → main 병합 805ed9b(worktree 에서, 공유 작업트리 안 건드림).
 
 ## 변경 파일
-- assets/marble/pieces/: pendulum-log(192×240, 나이테 원 중심 (96,144))·pendulum-pivot(도르래 중심 = 칸 가운데)·piston-head(96×256, 오른쪽 면이 앞면)·piston-shaft(128×96 타일, 좌우 이음 섞기)·trampoline(교체, 384×48 3칸)·trampoline-post·wind-vane(128×192 ×4) — 신규
-- assets/marble/fx/: gust-band(256×128 ×4)·ground-crack(512×256)·quake-warn(64×64 ×2) — 신규
-- assets/marble/gacha/: machine(gacha-machine 교체·globe-empty·globe-balls·rail-front 재오림·chute-front 신규), capsule(3등급 닫힘·open 256×240 ×6·cup·lid 교체, lidflip 신규), fx(rays 3·sparkle 교체, gacha-coin 96×96 ×8 신규), icon-gacha 재생성, gacha-anchors.json
-- js/marble-render.js: ASSETS 에 N차 이름 등록, ASSET_VER ?v=2(trampoline 같은 이름 교체). 진자 = 로그를 -th 회전(쇠고리가 축을 봄)+도르래, 밀대 = 자루 32px 타일·머리(dir<0 좌우 반전), 트램펄린 = 평상 무늬 8px 조각 + 눌림(+5)·튕김(−3)을 띠 전체 sin 곡선으로(칸마다 휜 프레임을 이으면 물결), 양 끝 기둥(오른쪽 반전), 돌풍 = gust-band 줄 140·칸 112 간격으로 흘림(구역 clip, 켜짐·꺼짐 알파) + 풍향계(부는 중 회전, 쉬는 동안 다음 방향), 지진 예고 = 흔들리기 QUAKE_WARN_MS 700 전부터 깜빡(구역에 구르는 공 있을 때만 — 서버도 그때만 흔듦). 캐시 v87
-- js/marble-gacha.js: ASSET_VER 13→14. 코인 = 스트립 프레임(3/4 바퀴 → 옆 칸으로 슬롯 진입, 없으면 옛 아이콘 가로 누르기), 관 앞 층(chuteFront)을 유리구 공 뒤가 아니라 앞에 그림, 경첩 뚜껑이 −90° 넘으면 lidflip 을 flipPivot 기준 deg+180 으로. 캐시 v44
-- css/marble-gacha.css: 아이콘 ?v=2 / marble-multiplayer.html: 캐시버스터(marble-gacha.css v19·js v44·render v87)
-- assets/marble/marble-run.manifest.json: movingGimmicksN·gachaRedrawO 섹션(md5)
-- docs/spritemake-request: 2026-09-26-marble-moving-gimmicks-n.md·2026-09-26-marble-gacha-redraw-o.md(실행본)·2026-09-26-marble-gacha-o.md(다른 세션 초안, 대체됨 표기) / docs/goal/marble-deguri-backport-2.md(다른 세션, 역반영 2차 — 미구현)
+- assets/deguri/pieces/: pendulum-log(192×240, 나이테 원 중심 (96,144))·pendulum-pivot(도르래 중심 = 칸 가운데)·piston-head(96×256, 오른쪽 면이 앞면)·piston-shaft(128×96 타일, 좌우 이음 섞기)·trampoline(교체, 384×48 3칸)·trampoline-post·wind-vane(128×192 ×4) — 신규
+- assets/deguri/fx/: gust-band(256×128 ×4)·ground-crack(512×256)·quake-warn(64×64 ×2) — 신규
+- assets/deguri/gacha/: machine(gacha-machine 교체·globe-empty·globe-balls·rail-front 재오림·chute-front 신규), capsule(3등급 닫힘·open 256×240 ×6·cup·lid 교체, lidflip 신규), fx(rays 3·sparkle 교체, gacha-coin 96×96 ×8 신규), icon-gacha 재생성, gacha-anchors.json
+- js/deguri-render.js: ASSETS 에 N차 이름 등록, ASSET_VER ?v=2(trampoline 같은 이름 교체). 진자 = 로그를 -th 회전(쇠고리가 축을 봄)+도르래, 밀대 = 자루 32px 타일·머리(dir<0 좌우 반전), 트램펄린 = 평상 무늬 8px 조각 + 눌림(+5)·튕김(−3)을 띠 전체 sin 곡선으로(칸마다 휜 프레임을 이으면 물결), 양 끝 기둥(오른쪽 반전), 돌풍 = gust-band 줄 140·칸 112 간격으로 흘림(구역 clip, 켜짐·꺼짐 알파) + 풍향계(부는 중 회전, 쉬는 동안 다음 방향), 지진 예고 = 흔들리기 QUAKE_WARN_MS 700 전부터 깜빡(구역에 구르는 공 있을 때만 — 서버도 그때만 흔듦). 캐시 v87
+- js/deguri-gacha.js: ASSET_VER 13→14. 코인 = 스트립 프레임(3/4 바퀴 → 옆 칸으로 슬롯 진입, 없으면 옛 아이콘 가로 누르기), 관 앞 층(chuteFront)을 유리구 공 뒤가 아니라 앞에 그림, 경첩 뚜껑이 −90° 넘으면 lidflip 을 flipPivot 기준 deg+180 으로. 캐시 v44
+- css/deguri-gacha.css: 아이콘 ?v=2 / deguri-multiplayer.html: 캐시버스터(deguri-gacha.css v19·js v44·render v87)
+- assets/deguri/deguri.manifest.json: movingGimmicksN·gachaRedrawO 섹션(md5)
+- docs/spritemake-request: 2026-09-26-deguri-moving-gimmicks-n.md·2026-09-26-deguri-gacha-redraw-o.md(실행본)·2026-09-26-deguri-gacha-o.md(다른 세션 초안, 대체됨 표기) / docs/goal/deguri-backport-2.md(다른 세션, 역반영 2차 — 미구현)
 
 ## 상세 변경 내역
 
@@ -461,7 +461,7 @@
 - 삭제 없음: "열기 6칸은 안 씀"은 잘못 — 칸 0~4 는 열리는 0.92초에 재생, 5칸만 경첩 컵·뚜껑이 대신 그림
 
 ### [검증]
-- marble-determinism-test ALL PASS, node -c, qa-marble-gacha-test ALL PASS(잔고 부족 검사는 내부 코인 200만이라 SKIP)
+- deguri-determinism-test ALL PASS, node -c, qa-deguri-gacha-test ALL PASS(잔고 부족 검사는 내부 코인 200만이라 SKIP)
 - playwright 로 HEAD 에셋·js 를 route 로 바꿔 끼워 같은 시각 이전/이후 캡처(랜덤 맵 6장면·전설 뽑기 7장면) 사용자 확인
 
 ### [확인만, 이번에 넣지 않음]
@@ -474,19 +474,19 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: buildTrack 모듈화 — 고정 머리(출발대·깔때기) + 가운데 풀 19개(트랙 A 7 stakes/beehive/sun/dam/windmill/device/variety + 재조합 slalom/windhall/molefield/springfield/warproulette + shutter(3토막 단차) + climb(등반 컵 _/ \_) + 움직이는 pendulums/pistons/trampolines/gust/quake) + 고정 꼬리(범퍼·시소·진흙·구멍밭·통로·스탠드). 선택 = Fisher–Yates 셔플 → 기믹군 최소 GIMMICK_MIN 먼저 → 높이 예산 MIDDLE_H_MIN~MAX 그리디, 모듈별 50% 좌우반전(mirrorPiece/mirrorBound). 마스터 rng 소비 순서 고정(독수리 수 → 순서 → 반전 → 모듈 서브시드). assembleTrack 공용, buildTrackFrom(지정 배치, 테스트·덤프용), track.layout {order, mirror}. 새 kind: shutter·pendulum·piston·trampoline·gust·quake, collideMovingCircle·collideSegmentVel, 벨트 물리 일반형(기울기·주기). 결승 GOAL_X 600·LANE_END_X 650·맨 오른쪽 문 HOLE_PERIOD_LAST_MS 9000. **buildTrack(ballCount, rng, crowd, opts) — opts.fixed 면 가운데 = 트랙 A 순서·무반전(모듈 안 랜덤·독수리 수만 rng)**
-- socket/marble.js: ensureTrackSeed(mb) — 방의 trackSeed 로 대기 미리보기(idlePreview)와 경주(startMarble)가 같은 맵, resetMarble 이 0 으로. **marble:setRandomTrack { on:boolean } (방장·경주 중 아님·rateOk, 타입 아니면 무시) → mb.randomTrack, emitState 에 randomTrack 실음.** MARBLE_MIN_PLAYERS = IS_LOCAL_DEV ? 1 : 2, stateUpdated.minPlayers
-- utils/room-helpers.js: marble.trackSeed 0, marble.randomTrack true(기본 랜덤)
-- socket/rooms.js: 재입장 마스킹에 marble.randomTrack
+- socket/deguri-sim.js: buildTrack 모듈화 — 고정 머리(출발대·깔때기) + 가운데 풀 19개(트랙 A 7 stakes/beehive/sun/dam/windmill/device/variety + 재조합 slalom/windhall/molefield/springfield/warproulette + shutter(3토막 단차) + climb(등반 컵 _/ \_) + 움직이는 pendulums/pistons/trampolines/gust/quake) + 고정 꼬리(범퍼·시소·진흙·구멍밭·통로·스탠드). 선택 = Fisher–Yates 셔플 → 기믹군 최소 GIMMICK_MIN 먼저 → 높이 예산 MIDDLE_H_MIN~MAX 그리디, 모듈별 50% 좌우반전(mirrorPiece/mirrorBound). 마스터 rng 소비 순서 고정(독수리 수 → 순서 → 반전 → 모듈 서브시드). assembleTrack 공용, buildTrackFrom(지정 배치, 테스트·덤프용), track.layout {order, mirror}. 새 kind: shutter·pendulum·piston·trampoline·gust·quake, collideMovingCircle·collideSegmentVel, 벨트 물리 일반형(기울기·주기). 결승 GOAL_X 600·LANE_END_X 650·맨 오른쪽 문 HOLE_PERIOD_LAST_MS 9000. **buildTrack(ballCount, rng, crowd, opts) — opts.fixed 면 가운데 = 트랙 A 순서·무반전(모듈 안 랜덤·독수리 수만 rng)**
+- socket/deguri.js: ensureTrackSeed(mb) — 방의 trackSeed 로 대기 미리보기(idlePreview)와 경주(startDeguri)가 같은 맵, resetDeguri 이 0 으로. **deguri:setRandomTrack { on:boolean } (방장·경주 중 아님·rateOk, 타입 아니면 무시) → mb.randomTrack, emitState 에 randomTrack 실음.** DEGURI_MIN_PLAYERS = IS_LOCAL_DEV ? 1 : 2, stateUpdated.minPlayers
+- utils/room-helpers.js: deguri.trackSeed 0, deguri.randomTrack true(기본 랜덤)
+- socket/rooms.js: 재입장 마스킹에 deguri.randomTrack
 - config/index.js: IS_LOCAL_DEV export
-- js/marble.js: 맵 버튼(setMarbleRandomTrack, marbleState.randomTrack, syncBallsControl 에서 .marble-map-btn selected), 동물수 버튼 셀렉터를 [data-crowd] 로 좁힘(맵 버튼과 클래스 공유), minPlayers 반영, 상태 줄(#gameStatus) 평소엔 접음(예외 안내만). marble.js v47
-- marble-multiplayer.html: 방장 설정 「맵」 줄(랜덤 맵 / 고정 맵), #gameStatus hidden, 캐시버스터 marble.css v27 / marble-render.js v86 / marble.js v47
-- css/marble.css: .marble-host-settings label min-width 3.2em(동물수·맵 버튼 시작선 맞춤)
-- js/marble-render.js: 새 장애물 그리기(셔터·진자·피스톤·트램펄린·돌풍·지진 흔들림 quakeShake, 등반 벨트 drawClimber/onClimbBelt), 대기 화면에도 미니맵(다음 판 맵), 미니맵 누르기/끌기 = 카메라 점프(minimapHitAt/jumpTo), 순위표 공 단위, **수동 카메라 무입력 자동 복귀: MANUAL_IDLE_RETURN_MS 3000, manual.lastInput(panBy/zoomBy/jumpTo/setManual 에서 갱신)·manual.held(포인터 누르는 중엔 복귀 안 함, 손 뗀 때부터 3초), updateCamera 에서 follow 아닌 수동만 setManual(false)**
-- assets/marble/pieces/trampoline.webp: 트램펄린 천 3프레임(fence-mid HSV 리컬러, 새 그림 아님)
-- AutoTest: marble-determinism-test.js 4) 랜덤 결정론 5) 트랙 A 고정본 비교, marble-track-a.canonical.json(신규), marble-track-sweep.js(신규 — 40시드×{2,8,50}명 캡0·이탈0·중앙값 ±15%), marble-sim-dump.js layout 인자(new/newm/moving/movingm/old/all/이름 목록)
-- game-lab/marble-preview.html: 배치 프리셋 select
-- docs/goal/applied: marble-random-track.md·marble-gimmick-pool.md·marble-moving-gimmicks.md
+- js/deguri.js: 맵 버튼(setDeguriRandomTrack, deguriState.randomTrack, syncBallsControl 에서 .deguri-map-btn selected), 동물수 버튼 셀렉터를 [data-crowd] 로 좁힘(맵 버튼과 클래스 공유), minPlayers 반영, 상태 줄(#gameStatus) 평소엔 접음(예외 안내만). deguri.js v47
+- deguri-multiplayer.html: 방장 설정 「맵」 줄(랜덤 맵 / 고정 맵), #gameStatus hidden, 캐시버스터 deguri.css v27 / deguri-render.js v86 / deguri.js v47
+- css/deguri.css: .deguri-host-settings label min-width 3.2em(동물수·맵 버튼 시작선 맞춤)
+- js/deguri-render.js: 새 장애물 그리기(셔터·진자·피스톤·트램펄린·돌풍·지진 흔들림 quakeShake, 등반 벨트 drawClimber/onClimbBelt), 대기 화면에도 미니맵(다음 판 맵), 미니맵 누르기/끌기 = 카메라 점프(minimapHitAt/jumpTo), 순위표 공 단위, **수동 카메라 무입력 자동 복귀: MANUAL_IDLE_RETURN_MS 3000, manual.lastInput(panBy/zoomBy/jumpTo/setManual 에서 갱신)·manual.held(포인터 누르는 중엔 복귀 안 함, 손 뗀 때부터 3초), updateCamera 에서 follow 아닌 수동만 setManual(false)**
+- assets/deguri/pieces/trampoline.webp: 트램펄린 천 3프레임(fence-mid HSV 리컬러, 새 그림 아님)
+- AutoTest: deguri-determinism-test.js 4) 랜덤 결정론 5) 트랙 A 고정본 비교, deguri-track-a.canonical.json(신규), deguri-track-sweep.js(신규 — 40시드×{2,8,50}명 캡0·이탈0·중앙값 ±15%), deguri-sim-dump.js layout 인자(new/newm/moving/movingm/old/all/이름 목록)
+- game-lab/deguri-preview.html: 배치 프리셋 select
+- docs/goal/applied: deguri-random-track.md·deguri-gimmick-pool.md·deguri-moving-gimmicks.md
 
 ## 상세 변경 내역
 
@@ -503,7 +503,7 @@
 - 영향: 보는 사람 화면 상태만(소켓 없음)
 
 ### [검증]
-- node -c 전 파일, marble-determinism-test ALL PASS(랜덤 결정론·트랙 A 고정본 포함), 고정 맵 시뮬 1회
+- node -c 전 파일, deguri-determinism-test ALL PASS(랜덤 결정론·트랙 A 고정본 포함), 고정 맵 시뮬 1회
 - 소켓 스크립트: setRandomTrack on → 랜덤 배치 / off → stakes,beehive,sun,dam,windmill,device,variety·반전 없음 / 잘못된 값 무시
 - 브라우저(localhost:5174): 방장 「맵」 버튼 전환·새로고침 후 유지, 경주 중 드래그 → 수동 → 3.25초 뒤 자동
 
@@ -514,27 +514,27 @@
 ========================================
 
 ## 변경 파일
-- socket/marble.js: marble:gacha:pull(60코인, 등급 60/30/10 → 등급 안 균등, 중복 30 환급, 전설이면 방 채팅 gachaNotice), drawGacha/gachaPool 순수 함수 export, 머문 시간 보상 accrueStay/userWallet(STAY_COIN 10 / STAY_COIN_MS 5분, 타이머 없이 지갑 접근 때 joinTime 기준 누적, stayNextMs 응답), ROOM_SEED_COINS = DEV_GAMES_ENABLED ? 2,000,000 : 200(ROOM_SEED_COINS_LIVE/TEST export), walletView 가 stay 반영
-- socket/marble-sim.js: 플립플롭 갈림길 — 팔(56px, 35°) → 축을 지나는 젖힘판(FF_LEN 85 양쪽, 45°, 축 y +190, 갈림 벽 +280). 옛 팔은 깔때기 왼쪽 벽에서 오른쪽 속도를 얻은 공이 스치지도 않아 20시드 92% 오른쪽행. 젖힘은 판 구역(FF_ZONE_TOP_PAD)에 공이 없는 스텝에 홀수 통과분만 적용(ffPending/ffTouched) — 타고 내려가는 공 밑에서 뒤집히지 않게. 40시드 보통 55%·우르르 50%·솔로 50%. LAND_REST_MS 800: 파이프 착지 뒤 전원 0.8초 숨 고르기(stallKind 'rest', 몸싸움 기절은 그 위에 SCUFFLE_DIZZY_MS 추가)
-- js/marble-gacha.js(신규)·css/marble-gacha.css(신규): 뽑기 모달 + 캔버스 연출. 전부 drawAt(t) 순수 함수, 스킵 = t0 를 timeline(tier).end 로. 오늘 마무리: 타임라인을 timeline(tier) 절대 시각으로 재구성(coin0/crank0/crank1/pick/roll0/roll1/rise0/rise1/shake0/open0/pop/open5/end); ① 코인 넣기 T_COIN 900 — 무대 오른쪽 아래 밖(COIN_FROM)에서 올라와 투입구(anchors machine.coinSlot 실측 (297,467))로 오른쪽에서 진입, 한 바퀴 반 뒤집혀 모로 서서 슬릿 안으로(짧아지고 어두워짐) → 쨍그랑 흔들림·반짝, 잔고 감소는 이 순간(payShown; 스킵·닫기는 showResult) ② 손잡이(섞기) 등급별 TIER_FX.crank/turns 레어 3120(옛 2400×1.3)·4바퀴 / 에픽 3700·5 / 전설 4400·6 ③ 바람 drawWindCone(공 뒤 빛기둥)+drawWind(공 앞 lighter 갈매기 6·줄기 5·시동 고리 2, boundary 클립) — 물리보다 먼저 120ms 부터, 첫 0.7초 돌풍 1.8× ④ 레일 구르기 T_ROLL 1000 → 1350. 유리구 시뮬(simulateGlobe: 중력·충돌·유리벽·바람 기둥·난류, 시드 난수)은 crankMs 를 받아 pickMs/airEnd 를 돌려주고 그리기는 손잡이 기준 tc. 열린 캡슐 = 컵+경첩 뚜껑(왼쪽, 상시 흔들림), 두근두근·섬광·눈부심·반짝이 폭발은 TIER_FX 표. 코인 그림 = 공용 아틀라스 UIIcons.draw('coin')
-- assets/marble/gacha/(신규, 의뢰서 docs/spritemake-request/2026-09-23-marble-gacha-machine.md): machine(휴지·빈 유리·공 6색 시트·램프 4칸·크랭크·레일 앞판)·capsule(닫힘/열림/컵/뚜껑 × 3등급)·fx(빛살 3·반짝이)·icon-gacha·gacha-anchors.json(실측 원본: 유리 boundary 72방향, chute, coinSlot, 캡슐 경첩 pivot 등). ASSET_VER 12
-- config/marble/cosmetics.json: 스킨 등급·가격 재편 — 레어(색만) 50 / 에픽(새 무늬) 100 / 전설(소품) 150, 야식 7종 50(옛 전부 rare 80). 리본돼지·스카프 리본돼지·닌자 너구리·기사 고슴도치·신사 토끼 = legend, 무지개 공벌레·수박 거북이·레서판다·쿠키 햄스터 = epic
-- js/marble.js(+379): 수동 카메라 버튼 연동·순위표 행 클릭 따라가기, 동물 누르면 반응, 동물 마당 MarbleYard('내 동물 고르기' 아래 띠: 서성임·구르기·낮잠·몸싸움·장애물, 시드 PRNG, 소켓 없음), 결과 오버레이 재작성(당첨 동물 크게·순위 줄 동물 idle 스프라이트·꼴등 룰 당첨 줄 스크롤·이름 6자), 동물수 버튼 말풍선 updateCrowdTips(서버 값), 경주 시작 스크롤, MarbleGacha.connect/onRoomEntered 연결
-- js/marble-render.js(+602): 데구리 단독판 역반영 — 축하 카메라 X 클램프 해제(cam.mode celebrate), 줌 반영 세로 클램프, finalK 상한(2~3마리 rear 금지), 폰 순위표 42%·미니맵 70% 상한, 폰 결승 프레임(MOBILE_FRAME_ABOVE_PX 280, 캔버스 비율 1.25→1.4, 줌 하한 1.25), 수동 카메라(드래그·핀치·ctrl+휠, 6px 임계, 더블클릭·꼴찌 확정·새 경주에 자동 복귀, touchAction none, 카메라 버튼 assets/ui/camera-auto/manual.png), 반응(reacts 결정론 해시), 카운트다운 준비!→3→2→1→START!, 조기 확정 판 비석 연기 alpha 음수 버그, 독수리 운반 이름표 중복(noTag), 이름표 높이 통일·「N번」은 한 사람 여러 마리일 때만, 출발대 동물 판자 위(+4)·좌우로만 서성임, 비석 빛 맥박·2.4초 들썩, 대기 화면 미니맵 생략, 순위표·미니맵 얼굴 확대(머리 영역 잘라 그리기), 상태 문구 2배속 구간에만, 야식 줄 30→21, 시트 지연 로드(방에 나온 동물만·sleep/scuffle 시트)
-- css/marble.css(+467): 게임 재질(나무·크림) — '내 동물 고르기'·캔버스 틀·결과 카드(.marble-result-card 300px, 공용 .result-card 는 그대로), 동물 마당·장애물, 카메라 버튼, 동물수 말풍선, 코인 알약
-- js/marble-shop.js·js/shared/shop-shared.js: 공유 셸에 hooks.sortItems(items, {slot, view, groupFilter}) 정렬 훅 + getGroupFilter 추가(데구리만 사용 — '전체' 탭에서 고른 동물 스킨을 기본 모습 카드 뒤로), '전부 기본 모습' 카드에 동물 기본 모습 그리기(baseCreatureForPreview). shop-shared v6·marble-shop v12
+- socket/deguri.js: deguri:gacha:pull(60코인, 등급 60/30/10 → 등급 안 균등, 중복 30 환급, 전설이면 방 채팅 gachaNotice), drawGacha/gachaPool 순수 함수 export, 머문 시간 보상 accrueStay/userWallet(STAY_COIN 10 / STAY_COIN_MS 5분, 타이머 없이 지갑 접근 때 joinTime 기준 누적, stayNextMs 응답), ROOM_SEED_COINS = DEV_GAMES_ENABLED ? 2,000,000 : 200(ROOM_SEED_COINS_LIVE/TEST export), walletView 가 stay 반영
+- socket/deguri-sim.js: 플립플롭 갈림길 — 팔(56px, 35°) → 축을 지나는 젖힘판(FF_LEN 85 양쪽, 45°, 축 y +190, 갈림 벽 +280). 옛 팔은 깔때기 왼쪽 벽에서 오른쪽 속도를 얻은 공이 스치지도 않아 20시드 92% 오른쪽행. 젖힘은 판 구역(FF_ZONE_TOP_PAD)에 공이 없는 스텝에 홀수 통과분만 적용(ffPending/ffTouched) — 타고 내려가는 공 밑에서 뒤집히지 않게. 40시드 보통 55%·우르르 50%·솔로 50%. LAND_REST_MS 800: 파이프 착지 뒤 전원 0.8초 숨 고르기(stallKind 'rest', 몸싸움 기절은 그 위에 SCUFFLE_DIZZY_MS 추가)
+- js/deguri-gacha.js(신규)·css/deguri-gacha.css(신규): 뽑기 모달 + 캔버스 연출. 전부 drawAt(t) 순수 함수, 스킵 = t0 를 timeline(tier).end 로. 오늘 마무리: 타임라인을 timeline(tier) 절대 시각으로 재구성(coin0/crank0/crank1/pick/roll0/roll1/rise0/rise1/shake0/open0/pop/open5/end); ① 코인 넣기 T_COIN 900 — 무대 오른쪽 아래 밖(COIN_FROM)에서 올라와 투입구(anchors machine.coinSlot 실측 (297,467))로 오른쪽에서 진입, 한 바퀴 반 뒤집혀 모로 서서 슬릿 안으로(짧아지고 어두워짐) → 쨍그랑 흔들림·반짝, 잔고 감소는 이 순간(payShown; 스킵·닫기는 showResult) ② 손잡이(섞기) 등급별 TIER_FX.crank/turns 레어 3120(옛 2400×1.3)·4바퀴 / 에픽 3700·5 / 전설 4400·6 ③ 바람 drawWindCone(공 뒤 빛기둥)+drawWind(공 앞 lighter 갈매기 6·줄기 5·시동 고리 2, boundary 클립) — 물리보다 먼저 120ms 부터, 첫 0.7초 돌풍 1.8× ④ 레일 구르기 T_ROLL 1000 → 1350. 유리구 시뮬(simulateGlobe: 중력·충돌·유리벽·바람 기둥·난류, 시드 난수)은 crankMs 를 받아 pickMs/airEnd 를 돌려주고 그리기는 손잡이 기준 tc. 열린 캡슐 = 컵+경첩 뚜껑(왼쪽, 상시 흔들림), 두근두근·섬광·눈부심·반짝이 폭발은 TIER_FX 표. 코인 그림 = 공용 아틀라스 UIIcons.draw('coin')
+- assets/deguri/gacha/(신규, 의뢰서 docs/spritemake-request/2026-09-23-deguri-gacha-machine.md): machine(휴지·빈 유리·공 6색 시트·램프 4칸·크랭크·레일 앞판)·capsule(닫힘/열림/컵/뚜껑 × 3등급)·fx(빛살 3·반짝이)·icon-gacha·gacha-anchors.json(실측 원본: 유리 boundary 72방향, chute, coinSlot, 캡슐 경첩 pivot 등). ASSET_VER 12
+- config/deguri/cosmetics.json: 스킨 등급·가격 재편 — 레어(색만) 50 / 에픽(새 무늬) 100 / 전설(소품) 150, 야식 7종 50(옛 전부 rare 80). 리본돼지·스카프 리본돼지·닌자 너구리·기사 고슴도치·신사 토끼 = legend, 무지개 공벌레·수박 거북이·레서판다·쿠키 햄스터 = epic
+- js/deguri.js(+379): 수동 카메라 버튼 연동·순위표 행 클릭 따라가기, 동물 누르면 반응, 동물 마당 DeguriYard('내 동물 고르기' 아래 띠: 서성임·구르기·낮잠·몸싸움·장애물, 시드 PRNG, 소켓 없음), 결과 오버레이 재작성(당첨 동물 크게·순위 줄 동물 idle 스프라이트·꼴등 룰 당첨 줄 스크롤·이름 6자), 동물수 버튼 말풍선 updateCrowdTips(서버 값), 경주 시작 스크롤, DeguriGacha.connect/onRoomEntered 연결
+- js/deguri-render.js(+602): 데구리 단독판 역반영 — 축하 카메라 X 클램프 해제(cam.mode celebrate), 줌 반영 세로 클램프, finalK 상한(2~3마리 rear 금지), 폰 순위표 42%·미니맵 70% 상한, 폰 결승 프레임(MOBILE_FRAME_ABOVE_PX 280, 캔버스 비율 1.25→1.4, 줌 하한 1.25), 수동 카메라(드래그·핀치·ctrl+휠, 6px 임계, 더블클릭·꼴찌 확정·새 경주에 자동 복귀, touchAction none, 카메라 버튼 assets/ui/camera-auto/manual.png), 반응(reacts 결정론 해시), 카운트다운 준비!→3→2→1→START!, 조기 확정 판 비석 연기 alpha 음수 버그, 독수리 운반 이름표 중복(noTag), 이름표 높이 통일·「N번」은 한 사람 여러 마리일 때만, 출발대 동물 판자 위(+4)·좌우로만 서성임, 비석 빛 맥박·2.4초 들썩, 대기 화면 미니맵 생략, 순위표·미니맵 얼굴 확대(머리 영역 잘라 그리기), 상태 문구 2배속 구간에만, 야식 줄 30→21, 시트 지연 로드(방에 나온 동물만·sleep/scuffle 시트)
+- css/deguri.css(+467): 게임 재질(나무·크림) — '내 동물 고르기'·캔버스 틀·결과 카드(.deguri-result-card 300px, 공용 .result-card 는 그대로), 동물 마당·장애물, 카메라 버튼, 동물수 말풍선, 코인 알약
+- js/deguri-shop.js·js/shared/shop-shared.js: 공유 셸에 hooks.sortItems(items, {slot, view, groupFilter}) 정렬 훅 + getGroupFilter 추가(데구리만 사용 — '전체' 탭에서 고른 동물 스킨을 기본 모습 카드 뒤로), '전부 기본 모습' 카드에 동물 기본 모습 그리기(baseCreatureForPreview). shop-shared v6·deguri-shop v12
 - js/shared/ui-icons.js·css/ui-icons.css·dice-game-multiplayer.html: 공용 아이콘 아틀라스 icons.png → icons.webp(무손실) ?v=3. assets/ui/icons.webp 추가
 - css/horse-shop.css: .hshop-thumb--legend 도 어두운 썸 배경(경마 상점 공용 셸이 데구리 legend 등급을 그릴 때)
-- marble-multiplayer.html: 뽑기 버튼·코인 알약(#marbleCoinPill)·동물 마당(#marbleYard)·결과 카드 marble 전용 클래스·동물수 버튼 data-tip, 캐시버스터 marble.css v26 / marble-gacha.css v18 / marble-gacha.js v42 / marble-render.js v72 / marble.js v44
-- assets/marble: 옛 beaver.webp·mole.webp·fx/dam-burst.webp·pieces/ramp.png 삭제(5차 v2 시트로 대체, 런타임 참조 없음), stage/meadow-tile.webp 손실 압축(226KB → 164KB), marble-run.manifest.json 인수 기록 갱신
-- AutoTest: qa-marble-gacha-test.js(신규 — 풀=살 수 있는 스킨+야식, 2만 회 추첨 60/30/10 ±2%p, 소켓 e2e pull·잔고·중복·장착, 에셋 존재), qa-marble-skin-shop-test.js(등급별 가격·내부 테스트 200만 코인 SKIP 분기)
-- docs: goal 5개 applied(marble-gacha, marble-deguri-backport — camera-finale-fixes·manual-camera·mobile-finish-frame 셋을 대체), spritemake-request 뽑기 기계 의뢰서 + ref/marble-pieces-wood.png
+- deguri-multiplayer.html: 뽑기 버튼·코인 알약(#deguriCoinPill)·동물 마당(#deguriYard)·결과 카드 deguri 전용 클래스·동물수 버튼 data-tip, 캐시버스터 deguri.css v26 / deguri-gacha.css v18 / deguri-gacha.js v42 / deguri-render.js v72 / deguri.js v44
+- assets/deguri: 옛 beaver.webp·mole.webp·fx/dam-burst.webp·pieces/ramp.png 삭제(5차 v2 시트로 대체, 런타임 참조 없음), stage/meadow-tile.webp 손실 압축(226KB → 164KB), deguri.manifest.json 인수 기록 갱신
+- AutoTest: qa-deguri-gacha-test.js(신규 — 풀=살 수 있는 스킨+야식, 2만 회 추첨 60/30/10 ±2%p, 소켓 e2e pull·잔고·중복·장착, 에셋 존재), qa-deguri-skin-shop-test.js(등급별 가격·내부 테스트 200만 코인 SKIP 분기)
+- docs: goal 5개 applied(deguri-gacha, deguri-backport — camera-finale-fixes·manual-camera·mobile-finish-frame 셋을 대체), spritemake-request 뽑기 기계 의뢰서 + ref/deguri-pieces-wood.png
 - update-log.md: 2026-09-24 항목에 뽑기·코인·상점·경주 추가
 
 ## 상세 변경 내역
 
 ### [뽑기 — 서버 권위]
-- 추첨·가격·환급·소유 전부 socket/marble.js. 클라는 응답(tier·cosmeticId·balance·dupe)을 받은 뒤 연출만 튼다 → 스킵이 네트워크를 기다리지 않는다
+- 추첨·가격·환급·소유 전부 socket/deguri.js. 클라는 응답(tier·cosmeticId·balance·dupe)을 받은 뒤 연출만 튼다 → 스킵이 네트워크를 기다리지 않는다
 - 풀은 서버 시작 때 카탈로그에서 한 번 계산(gachaPool): 데구리 슬롯의 가격 있는 항목 전부, 야식은 rare. 빈 등급은 가중치에서 빠짐
 - 전설 결과는 chatHistory + newMessage 로 방 전체 알림(CHAT_HISTORY_MAX 100)
 
@@ -547,7 +547,7 @@
 - anchors json 이 좌표 원본. anchors·그림이 바뀌면 ASSET_VER 를 올려야 옛 캐시(7일)로 연출이 멈추지 않는다(2026-09-24 사고)
 
 ## 검증
-- node --check: server.js·socket/marble.js·marble-sim.js·js/marble.js·marble-render.js·marble-shop.js·marble-gacha.js·shared/shop-shared.js·ui-icons.js·AutoTest 2개 통과
+- node --check: server.js·socket/deguri.js·deguri-sim.js·js/deguri.js·deguri-render.js·deguri-shop.js·deguri-gacha.js·shared/shop-shared.js·ui-icons.js·AutoTest 2개 통과
 - 뽑기 연출: 헤드리스 크롬(가짜 시계)으로 레어·전설 프레임 격자 + 전설 12초 GIF 확인(코인 진입·바람·찜·구르기·열림), 코인 단계 스킵 시 잔고·결과 반영 확인
 - 삭제한 에셋 4장의 런타임 참조 없음(grep). 원본 branch 는 origin/feature/marble-run 의 경마 WebP 커밋(acebfe2) 1개 뒤 — 커밋 후 병합
 
@@ -558,12 +558,12 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: EAGLE_MISS_P = 0.5 — 잡기 판정 때 헛발톱이면 eagleMiss 이벤트(동물 상태 그대로, eagleGrab 과 같은 x·y·tx·ty·dur). 출격 예산·쉬는 시간·그 독수리 재도전 금지는 잡은 것과 같이 친다
-- socket/marble-sim.js: EAGLES_BY_CROWD(고정 1/1/2) → EAGLE_COUNT_WEIGHTS — 판마다 1~3마리 가중 랜덤(solo 70/20/10, normal 30/50/20, many 15/35/50). buildTrack 맨 끝에서 rng 를 뽑아 트랙 모양 rng 순서는 불변
-- socket/marble-sim.js: b.eagled — 한 번 채인 동물은 어느 독수리도 다시 안 잡음(헛발톱 친 놈은 그 독수리만 제외 — eagledBy 유지)
-- socket/marble-sim.js: 낙하 y 랜덤 — 위 = 기존 자리(시소 y − 70), 아래 = 구멍밭 윗변 − EAGLE_DROP_MIN_ABOVE_HF(40). 낮은 정도 = 진행도(finishedCount/(n−1)) × EAGLE_DROP_LATE_W(0.6) + rng × 0.4 → 후반일수록 낮게
-- js/marble-render.js: eagleMiss 처리 — drawEagleFree 가 eagleGrab·eagleMiss 둘 다 급강하/복귀 대상으로 보고, 헛발톱 구간은 잡은 것과 같은 곡선(EAGLE_ARC)으로 빈 발 비행. fx 'eaglemiss'(먼지 + '놓쳤다!')
-- marble-multiplayer.html: marble-render.js v69 → v70
+- socket/deguri-sim.js: EAGLE_MISS_P = 0.5 — 잡기 판정 때 헛발톱이면 eagleMiss 이벤트(동물 상태 그대로, eagleGrab 과 같은 x·y·tx·ty·dur). 출격 예산·쉬는 시간·그 독수리 재도전 금지는 잡은 것과 같이 친다
+- socket/deguri-sim.js: EAGLES_BY_CROWD(고정 1/1/2) → EAGLE_COUNT_WEIGHTS — 판마다 1~3마리 가중 랜덤(solo 70/20/10, normal 30/50/20, many 15/35/50). buildTrack 맨 끝에서 rng 를 뽑아 트랙 모양 rng 순서는 불변
+- socket/deguri-sim.js: b.eagled — 한 번 채인 동물은 어느 독수리도 다시 안 잡음(헛발톱 친 놈은 그 독수리만 제외 — eagledBy 유지)
+- socket/deguri-sim.js: 낙하 y 랜덤 — 위 = 기존 자리(시소 y − 70), 아래 = 구멍밭 윗변 − EAGLE_DROP_MIN_ABOVE_HF(40). 낮은 정도 = 진행도(finishedCount/(n−1)) × EAGLE_DROP_LATE_W(0.6) + rng × 0.4 → 후반일수록 낮게
+- js/deguri-render.js: eagleMiss 처리 — drawEagleFree 가 eagleGrab·eagleMiss 둘 다 급강하/복귀 대상으로 보고, 헛발톱 구간은 잡은 것과 같은 곡선(EAGLE_ARC)으로 빈 발 비행. fx 'eaglemiss'(먼지 + '놓쳤다!')
+- deguri-multiplayer.html: deguri-render.js v69 → v70
 
 ## 상세
 - 이유: 사용자 제보 "독수리가 너무 킹받는다" — 채 가는 빈도·손해를 줄인다. 급강하·날아오르는 연출은 유지
@@ -583,9 +583,9 @@
 ========================================
 
 ## 변경 파일
-- js/marble-render.js: idlePose 마지막 구간 col 에 % 4, 몸싸움 짝에 res.fight = true, IDLE_SCUF_REACH = 2 상수(다가감 7 → 2, 물러남 -6 → -8, 끝 구간 이긴 놈 4 → 1)
-- js/marble-render.js: drawBalls — t < 0 && phase === 'idle' 일 때만 idlePose 결과로 재정렬(fight 맨 앞 → 실제 y+dy → x+dx → id)
-- marble-multiplayer.html: marble-render.js v68 → v69
+- js/deguri-render.js: idlePose 마지막 구간 col 에 % 4, 몸싸움 짝에 res.fight = true, IDLE_SCUF_REACH = 2 상수(다가감 7 → 2, 물러남 -6 → -8, 끝 구간 이긴 놈 4 → 1)
+- js/deguri-render.js: drawBalls — t < 0 && phase === 'idle' 일 때만 idlePose 결과로 재정렬(fight 맨 앞 → 실제 y+dy → x+dx → id)
+- deguri-multiplayer.html: deguri-render.js v68 → v69
 
 ## 상세
 - 이긴 놈 사라짐: ph >= 0.85 에서 col = floor(ic/220) 가 감싸지지 않아 pose 'walk' 인 이긴 놈이 시트 밖 빈 셀을 그렸다(~0.8초). 진 놈은 dizzy 쪽에서 2 + col % 2 로 감싸져 멀쩡했음
@@ -605,12 +605,12 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: rankPlayers — target 'first' 면 owner 별 finishOrder 첫 idx 만 기록(덮어쓰지 않음), 'last' 는 기존대로 마지막 idx. rankings·selected·successionList 모두 이 기준
-- js/marble-render.js: updateHud — 'first' 면 한 마리라도 골인한 사람을 done 으로(그 동물 finishIdx 순), 미골인자는 선두 동물 진행도 순·행 동물 = 선두 동물. 'last' 불변
-- js/marble-render.js: celebration — 왕관 동물 비교 finishIdx > → < (1등의 첫 도착 동물)
-- js/marble-render.js: 1등 판은 비석 "꼴찌 확정!" 라벨·비석 각인 "꼴찌"·HUD 마지막 행 "꼴찌" 표기 생략(등수만)
-- js/marble.js: 결과 오버레이 isLast 에 target !== 'first' 조건, 출발 안내 문구 "제일 먼저 도착한 동물의 주인(1등)이 당첨", 주석 갱신
-- marble-multiplayer.html: marble-render.js v67 → v68, marble.js v38 → v39
+- socket/deguri-sim.js: rankPlayers — target 'first' 면 owner 별 finishOrder 첫 idx 만 기록(덮어쓰지 않음), 'last' 는 기존대로 마지막 idx. rankings·selected·successionList 모두 이 기준
+- js/deguri-render.js: updateHud — 'first' 면 한 마리라도 골인한 사람을 done 으로(그 동물 finishIdx 순), 미골인자는 선두 동물 진행도 순·행 동물 = 선두 동물. 'last' 불변
+- js/deguri-render.js: celebration — 왕관 동물 비교 finishIdx > → < (1등의 첫 도착 동물)
+- js/deguri-render.js: 1등 판은 비석 "꼴찌 확정!" 라벨·비석 각인 "꼴찌"·HUD 마지막 행 "꼴찌" 표기 생략(등수만)
+- js/deguri.js: 결과 오버레이 isLast 에 target !== 'first' 조건, 출발 안내 문구 "제일 먼저 도착한 동물의 주인(1등)이 당첨", 주석 갱신
+- deguri-multiplayer.html: deguri-render.js v67 → v68, deguri.js v38 → v39
 
 ## 상세
 - 사용자 2026-09-23: "1등 룰이면 1등으로 들어온 동물이 1등인 거지? 등수 총합이 아니라". 기존은 각자 "가장 늦은 동물" 기준이라
@@ -623,7 +623,7 @@
 ## 검증
 - 스크래치 스크립트: 4명×2마리, 시드 5개. first → selected = finishOrder[0] 주인, rankings = 각자 첫 도착 순, successionList[0] = selected 전부 true
   (5판 중 4판은 옛 규칙이면 당첨자가 달랐음). last·target 없음 → 변경 전 코드(HEAD)와 결과 JSON 완전 일치
-- node -c: socket/marble-sim.js, js/marble-render.js, js/marble.js, server.js 통과
+- node -c: socket/deguri-sim.js, js/deguri-render.js, js/deguri.js, server.js 통과
 - 미검증: 브라우저에서 1등 판 순위표·왕관·비석 표기 육안 확인
 
 ========================================
@@ -633,24 +633,24 @@
 ========================================
 
 ## 변경 파일
-- socket/marble.js: decideTarget 이 roulette.skipAnim(segments 1개) 을 싣는다. 시작 흐름 holdMs = skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS
-- js/marble.js: playRouletteAnimation 이 skipAnim 이면 틱 없이 당첨 막대 winner + 배너로 점프. 상태 문구 '당첨 순위 확정'
-- marble-multiplayer.html: marble.js 캐시 v37 → v38
+- socket/deguri.js: decideTarget 이 roulette.skipAnim(segments 1개) 을 싣는다. 시작 흐름 holdMs = skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS
+- js/deguri.js: playRouletteAnimation 이 skipAnim 이면 틱 없이 당첨 막대 winner + 배너로 점프. 상태 문구 '당첨 순위 확정'
+- deguri-multiplayer.html: deguri.js 캐시 v37 → v38
 
 ## 상세
 - 사용자 2026-09-23 요청: "투표할 때 한 표나 몰표면 연출 없이 정답으로 바로".
   2026-09-21 결정("선택지가 둘뿐이라 몰려도 항상 돌린다")을 뒤집은 것 — 코드 주석에 경위를 남김.
 - 레퍼런스(경마 socket/horse.js skipRouletteAnim · js/horse-race.js skipAnim)와 같은 방식: 스핀만 건너뛰고,
   결과를 읽을 FALLBACK_HOLD_MS(3초)는 둔다. 0초로 하면 배너가 한 프레임 뜨고 바로 카운트다운이라 결과를 못 읽는다.
-- 이벤트는 그대로 marble:rouletteStart — 필드 skipAnim 만 추가(없으면 undefined → 기존 스핀). 새 이벤트 없음.
+- 이벤트는 그대로 deguri:rouletteStart — 필드 skipAnim 만 추가(없으면 undefined → 기존 스핀). 새 이벤트 없음.
 - 사유 문구를 한 표/몰표로 갈랐다: "한 표뿐이라 1등 확정" / "투표가 1등에만 몰려 1등 확정". 투표는 익명이라 이름은 안 넣는다.
-- 투표 0 표(기본 꼴등, marble:reasonHold) 경로는 원래부터 스핀이 없어 변경 없음.
+- 투표 0 표(기본 꼴등, deguri:reasonHold) 경로는 원래부터 스핀이 없어 변경 없음.
 - 결과 결정(서버 RNG 가중 추첨)은 그대로 — 몰표면 원래도 확정이었다. 연출·대기 시간만 바뀐다.
 
 ## 검증
 - 소켓 3케이스(스크래치 스크립트): 몰표 skipAnim=true 룰렛→reveal 3.0s / 한 표 true 3.0s / 갈린 표 false 8.5s, 당첨=reveal.target 일치
 - 브라우저: 몰표로 시작 → 0.9초 뒤 1등 막대 winner + 배너 + 사유 카드, 스핀 틱 0회
-- qa-marble-skin-shop-test ALL PASS, marble-determinism-test ALL PASS
+- qa-deguri-skin-shop-test ALL PASS, deguri-determinism-test ALL PASS
 
 ========================================
 
@@ -659,30 +659,30 @@
 ========================================
 
 ## 변경 파일
-- config/marble/cosmetics.json: marble_balloon 슬롯 8항목 신규(none + 야식 7종, 80코인 rare). marble_skin_none 이름을 "전부 기본 모습"으로
-- socket/marble.js: mb.skins → mb.equip 슬롯 맵. marble:equipSkin → marble:equip { slot, cosmeticId, creature? }. 스킨은 동물별 맵, 야식은 값 하나
+- config/deguri/cosmetics.json: deguri_balloon 슬롯 8항목 신규(none + 야식 7종, 80코인 rare). deguri_skin_none 이름을 "전부 기본 모습"으로
+- socket/deguri.js: mb.skins → mb.equip 슬롯 맵. deguri:equipSkin → deguri:equip { slot, cosmeticId, creature? }. 스킨은 동물별 맵, 야식은 값 하나
 - socket/shop.js: getCatalogEntry(id) → { slot, item, game } export 추가
 - socket/rooms.js, socket/chat.js: 방 나가기 정리 필드명 변경(equip)
-- utils/room-helpers.js: gameState.marble.skins → equip
-- js/marble-render.js: ensureBalloon 지연 로더, drawBalloon 오버레이, viewTopY, R.drawBalloonIcon, 공 payload 에 balloon
-- js/marble-shop.js: 슬롯 2개 탭, _roomEquip, getEquippedSkinFor(creature), autoEquipOnBuy
+- utils/room-helpers.js: gameState.deguri.skins → equip
+- js/deguri-render.js: ensureBalloon 지연 로더, drawBalloon 오버레이, viewTopY, R.drawBalloonIcon, 공 payload 에 balloon
+- js/deguri-shop.js: 슬롯 2개 탭, _roomEquip, getEquippedSkinFor(creature), autoEquipOnBuy
 - js/shared/shop-shared.js: hasGroups(slotKey) 슬롯 인식, slotHas() 로 한 슬롯 다중 장착 허용, doBuy(slot,item,btn) + autoEquipOnBuy, equipRequest 에 item 인자
-- js/marble.js: getEquippedSkin → getEquippedSkinFor, mySkin → myEquip
+- js/deguri.js: getEquippedSkin → getEquippedSkinFor, mySkin → myEquip
 - css/horse-shop.css: .hshop-grid:not(.hshop-inv-grid) margin-top 10px
-- marble-multiplayer.html: 버튼 라벨 "🎀 꾸미기", 캐시 버전 5개 상향
-- assets/marble/accessories/*.webp (신규 7): PIL 생성 임시본
+- deguri-multiplayer.html: 버튼 라벨 "🎀 꾸미기", 캐시 버전 5개 상향
+- assets/deguri/accessories/*.webp (신규 7): PIL 생성 임시본
 - AutoTest/spritemake/make-balloons.py (신규): 결정론 생성기 + contract_check + --verify
-- AutoTest/qa-marble-skin-shop-test.js: 43 → 56 항목
-- docs/goal/applied/marble-balloon-accessory.md, docs/spritemake-request/2026-09-23-marble-balloon-yasik.md + ref/ (신규)
+- AutoTest/qa-deguri-skin-shop-test.js: 43 → 56 항목
+- docs/goal/applied/deguri-balloon-accessory.md, docs/spritemake-request/2026-09-23-deguri-balloon-yasik.md + ref/ (신규)
 
 ## 상세 변경 내역
 
 ### [슬롯 구조] mb.skins → mb.equip
-- 슬롯이 둘이 되면서 맵을 하나씩 늘리는 대신 equip[name] = { marble_skin, marble_balloon } 으로 일반화.
-- marble_skin 은 { creature: {...} } 맵 — 동물마다 따로 장착된다(사용자 2026-09-23 "고슴도치 장착했다고 돼지 스킨이 빠지면안돼").
-  해제는 어느 칸을 비울지 알아야 해서 클라가 creature 를 같이 보낸다. marble_skin_none 은 전 칸 비우기.
-- marble_balloon 은 값 하나 — 공용이라 하나만(사용자 2026-09-23 "야식은 공용이라 하나씩").
-- equippedIds 는 marble_skin 을 배열로, marble_balloon 을 문자열로 준다. ShopModule 은 slotHas() 로 둘 다 처리.
+- 슬롯이 둘이 되면서 맵을 하나씩 늘리는 대신 equip[name] = { deguri_skin, deguri_balloon } 으로 일반화.
+- deguri_skin 은 { creature: {...} } 맵 — 동물마다 따로 장착된다(사용자 2026-09-23 "고슴도치 장착했다고 돼지 스킨이 빠지면안돼").
+  해제는 어느 칸을 비울지 알아야 해서 클라가 creature 를 같이 보낸다. deguri_skin_none 은 전 칸 비우기.
+- deguri_balloon 은 값 하나 — 공용이라 하나만(사용자 2026-09-23 "야식은 공용이라 하나씩").
+- equippedIds 는 deguri_skin 을 배열로, deguri_balloon 을 문자열로 준다. ShopModule 은 slotHas() 로 둘 다 처리.
 
 ### [렌더러] 야식 오버레이
 - drawBadge/drawRing 두 곳에서만 부른다(포즈 17곳 호출부 불변). overlayQ 가 살아 있을 때만 = 경주 화면 한정, 응원석·비석 제외.
@@ -697,8 +697,8 @@
 
 ### [검증에서 나온 수정] Fable 서브에이전트 2대
 - socket/chat.js 가 CRLF → LF 로 통째 재작성돼 2줄 변경이 1450줄 유령 diff가 될 뻔함 → CRLF 복구. 전 파일 --ignore-cr-at-eol 대조 통과.
-- marble:equip 이 슬롯 불일치 id 를 ok:true 로 받고 그 슬롯을 비웠다(equipFromItem 의 null 이 "불일치"와 "해제" 두 뜻). getCatalogEntry 로 슬롯 확인 후 notfound.
-  같은 확인을 marble:shop:buy 에도 걸어, 다른 게임 항목이 sprite 키를 얻으면 데구리 코인으로 팔리던 잠재 구멍 차단.
+- deguri:equip 이 슬롯 불일치 id 를 ok:true 로 받고 그 슬롯을 비웠다(equipFromItem 의 null 이 "불일치"와 "해제" 두 뜻). getCatalogEntry 로 슬롯 확인 후 notfound.
+  같은 확인을 deguri:shop:buy 에도 걸어, 다른 게임 항목이 sprite 키를 얻으면 데구리 코인으로 팔리던 잠재 구멍 차단.
 - QA 테스트 "재입장 → 풍선 장착 없음" 이 풍선을 산 적 없는 방장 기준이라 항상 통과하는 공허한 검사였다 → 손님 기준으로 재작성.
 
 ### [UI] 상점
@@ -708,8 +708,8 @@
   옷장 섹션 안쪽 그리드(.hshop-inv-grid)는 스크롤 영역이 아니라 제외.
 
 ## 검증
-- node AutoTest/qa-marble-skin-shop-test.js: 56/56 PASS
-- node AutoTest/marble-determinism-test.js: ALL PASS
+- node AutoTest/qa-deguri-skin-shop-test.js: 56/56 PASS
+- node AutoTest/deguri-determinism-test.js: ALL PASS
 - 브라우저: 실제 2인 경주 완주(렌더러 에러 0), 375px, 구매→즉시장착, 동물 2종 동시 장착, 선택 버튼 배지
 - 출고 webp 7장 계약 독립 측정 통과
 
@@ -720,8 +720,8 @@
 ========================================
 
 ## 변경 파일
-- js/marble.js (v36): 아래 상세. 같은 파일의 다른 세션 풍선(marble_balloon) 작업 헝크 2개는 이 커밋에서 제외
-- marble-multiplayer.html: marble.js 캐시 버전 v31 → v36 (그 줄만)
+- js/deguri.js (v36): 아래 상세. 같은 파일의 다른 세션 풍선(deguri_balloon) 작업 헝크 2개는 이 커밋에서 제외
+- deguri-multiplayer.html: deguri.js 캐시 버전 v31 → v36 (그 줄만)
 
 ## 원인 (2026-09-22 실서버 Railway 로그, 방 추석전데구리 13명·3판)
 - 방 안 끊김 32건 중 17건이 순간 끊김(transport close/ping timeout, 전부 15초 미만·16건은 5초 미만). socket.io 는 재연결하지만
@@ -731,11 +731,11 @@
 - 경마(js/horse-race.js:6418, 2026-02-27 962602d)만 connect 시 자동 재입장이 있었고 데구리는 해적(pirate)을 베껴 만들어 그 수정이 없었다.
   해적·회전칼날은 방 만들기에서 display:none 인 죽은 게임 — 레퍼런스로 쓰지 말 것. 살아 있는 다리건너기(bridge-cross)에 같은 구멍 남아 있음(이번 범위 밖).
 
-## 상세 변경 내역 (js/marble.js)
+## 상세 변경 내역 (js/deguri.js)
 
 ### [재접속] connect 시 자동 재입장 (경마 패턴)
-- socket.on('connect'): currentRoomId 가 있고 sessionStorage.marbleActiveRoom 이 남아 있으면 setServerId + joinRoom 재발신. 첫 연결은 currentRoomId 가 null 이라 진입 IIFE 와 안 겹침.
-  나가기·강퇴·방 삭제·roomError·sessionTakenOver 는 모두 marbleActiveRoom 을 지우므로 떠난 방엔 안 들어감.
+- socket.on('connect'): currentRoomId 가 있고 sessionStorage.deguriActiveRoom 이 남아 있으면 setServerId + joinRoom 재발신. 첫 연결은 currentRoomId 가 null 이라 진입 IIFE 와 안 겹침.
+  나가기·강퇴·방 삭제·roomError·sessionTakenOver 는 모두 deguriActiveRoom 을 지우므로 떠난 방엔 안 들어감.
 - joinRoom 이 방 기준 멤버십을 재검증하므로 setServerId 스테일 문제(메모리 setserverid-async-contract) 없음. 서버는 재연결 분기에서 user.isHost 를 쓰고 클라 isHost:false 는 무시(방장 유지 확인).
 
 ### [재접속] 재연결 포기 후 소생
@@ -744,11 +744,11 @@
 
 ### [재접속] 비밀번호 방
 - 서버 joinRoom 은 재연결 분기(existingUser)보다 먼저 room.isPrivate 비밀번호를 검사(socket/rooms.js:686). 클라 재입장·새로고침이 password:'' 를 보내 비공개 방에선 매번 '비밀번호가 일치하지 않습니다!' → 로비 강제 이동(기존 새로고침 경로도 같은 병).
-- currentRoomPassword(방 생성 pending 의 password / submitPassword 입력값)를 marbleActiveRoom 에 저장, 재입장·새로고침 joinRoom 에 다시 보냄. sessionStorage 는 탭 단위·떠나는 경로 전부에서 삭제. 로비는 이미 localStorage pendingMarbleRoom 에 같은 값을 더 오래 보관.
+- currentRoomPassword(방 생성 pending 의 password / submitPassword 입력값)를 deguriActiveRoom 에 저장, 재입장·새로고침 joinRoom 에 다시 보냄. sessionStorage 는 탭 단위·떠나는 경로 전부에서 삭제. 로비는 이미 localStorage pendingDeguriRoom 에 같은 값을 더 오래 보관.
 
 ### [회귀 방지] 경주 중 재입장이 리플레이를 덮지 않게
 - roomJoined 의 phase==='playing' 분기가 showStage/setGameStatus('경주가 진행 중이에요…')/renderer.drawIdle 로 보던 경주를 지웠다(자동 재입장 전엔 재입장이 새 진입에서만 일어나 문제 없었음).
-- renderer.isPlaying() 이면 isMarbleActive 만 유지하고 화면은 안 건드림. 리플레이 시계는 performance.now 기준이라 끊긴 동안에도 정확히 흐름(경마의 "같은 라운드면 로컬 레이스 유지" 판별과 같은 목적, 더 단순).
+- renderer.isPlaying() 이면 isDeguriActive 만 유지하고 화면은 안 건드림. 리플레이 시계는 performance.now 기준이라 끊긴 동안에도 정확히 흐름(경마의 "같은 라운드면 로컬 레이스 유지" 판별과 같은 목적, 더 단순).
 - 실측: 봇 호스트 + 브라우저, 51초 경주 중 engine.close() 2회 → roomJoined 수신·리플레이 유지·상태 문구 불변·정상 종료·참가자 유지.
 
 ### [회귀 방지] 주문 모듈 리스너 겹침
@@ -757,8 +757,8 @@
 - 경마 initOrderModule 도 가드 없음(2월부터 자동 재입장 있어 경마 유저는 순단마다 겹치는 중) — 근본 수정은 order-shared.js 공유 모듈(크로스게임 검증 필요, 미착수).
 
 ### [버그] roomDeleted 미청취
-- 클라가 듣던 roomDestroyed 는 서버 어디서도 emit 안 함(0곳). 서버가 보내는 이름은 roomDeleted(rooms.js·chat.js·server.js 4곳) → 전원 이탈·유지시간 만료로 방이 사라져도 화면 좀비 + marbleActiveRoom 미삭제.
-- roomDeleted 핸들러로 교체: marbleActiveRoom 삭제·예약 해제·안내·returnToLobby·1.5초 뒤 /game. forceLeave·joinError 죽은 리스너는 그대로 둠(무해).
+- 클라가 듣던 roomDestroyed 는 서버 어디서도 emit 안 함(0곳). 서버가 보내는 이름은 roomDeleted(rooms.js·chat.js·server.js 4곳) → 전원 이탈·유지시간 만료로 방이 사라져도 화면 좀비 + deguriActiveRoom 미삭제.
+- roomDeleted 핸들러로 교체: deguriActiveRoom 삭제·예약 해제·안내·returnToLobby·1.5초 뒤 /game. forceLeave·joinError 죽은 리스너는 그대로 둠(무해).
 
 ## 검증
 - 로컬 5173/5174, 봇 호스트(socket.io-client) + 인앱 브라우저. 순단 → 즉시 roomJoined(ready 유지), 20초 뒤 서버 playerCount 1(수정 전 0·화면은 "준비한 사람 1명" 유령).
@@ -774,18 +774,18 @@
 ========================================
 
 ## 변경 파일
-- assets/marble/**: creatures 75장·pieces 36장·fx 15장·stage 장식 8장 → pngquant(256색, quality 80-100; pillbug-rainbow·fx/cheer 만 60-100) 후 cwebp -lossless -z 9 → .webp (PNG 삭제). 배경 sky-far·meadow-tile 은 알파 없는 RGB 라 WebP q92. 총 22MB → 7.2MB(파일) / 진입 시 2.9MB. pieces/ramp.png 는 미참조라 손 안 댐.
-- assets/ui/icons.png: pngquant 1.18MB → 309KB (alpha 변화 0픽셀). 참조 4곳 ?v=1→?v=2 (css/ui-icons.css·css/marble.css·js/shared/ui-icons.js·dice-game-multiplayer.html)
-- js/marble-render.js (v64): ASSETS 경로 .webp; 스킨 시트 지연 로드 ensureSkin(group,key,onLoad) — sheet() 가 b.skin 을 보고 처음 필요할 때 '{creature}-{skin}[-sleep|-scuffle].webp' 요청, 로드 전엔 기본 시트 폴백(기존 동작), drawCreatureIcon 은 로드 뒤 그 캔버스 재그리기. 카탈로그 fetch·registerSkins·loadKicked·SKIN_GROUPS 제거(export 에서도). 4차 미도착 자리표시 gravestone·gap-mark·lane-dirt·suck-swirl ASSETS 에서 제거(404 4개). ASSET_VER '?v=1' + withVer() — 마블 에셋 URL 에만(ui 아틀라스 제외). HUD 순위표·룰 배지(아래 별도 항목).
-- routes/api.js(CRLF 유지): MARBLE_ASSET_MAX_AGE_S = 7일. express.static setHeaders 에서 assets/marble/** 만 Cache-Control public, max-age=604800. 다른 경로는 기존 max-age=0.
-- js/marble.js, marble-multiplayer.html: HUD 순위표·룰 배지(d68b9a3), marble-render v64
-- js/marble-shop.js: 주석 경로 .webp
+- assets/deguri/**: creatures 75장·pieces 36장·fx 15장·stage 장식 8장 → pngquant(256색, quality 80-100; pillbug-rainbow·fx/cheer 만 60-100) 후 cwebp -lossless -z 9 → .webp (PNG 삭제). 배경 sky-far·meadow-tile 은 알파 없는 RGB 라 WebP q92. 총 22MB → 7.2MB(파일) / 진입 시 2.9MB. pieces/ramp.png 는 미참조라 손 안 댐.
+- assets/ui/icons.png: pngquant 1.18MB → 309KB (alpha 변화 0픽셀). 참조 4곳 ?v=1→?v=2 (css/ui-icons.css·css/deguri.css·js/shared/ui-icons.js·dice-game-multiplayer.html)
+- js/deguri-render.js (v64): ASSETS 경로 .webp; 스킨 시트 지연 로드 ensureSkin(group,key,onLoad) — sheet() 가 b.skin 을 보고 처음 필요할 때 '{creature}-{skin}[-sleep|-scuffle].webp' 요청, 로드 전엔 기본 시트 폴백(기존 동작), drawCreatureIcon 은 로드 뒤 그 캔버스 재그리기. 카탈로그 fetch·registerSkins·loadKicked·SKIN_GROUPS 제거(export 에서도). 4차 미도착 자리표시 gravestone·gap-mark·lane-dirt·suck-swirl ASSETS 에서 제거(404 4개). ASSET_VER '?v=1' + withVer() — 마블 에셋 URL 에만(ui 아틀라스 제외). HUD 순위표·룰 배지(아래 별도 항목).
+- routes/api.js(CRLF 유지): DEGURI_ASSET_MAX_AGE_S = 7일. express.static setHeaders 에서 assets/deguri/** 만 Cache-Control public, max-age=604800. 다른 경로는 기존 max-age=0.
+- js/deguri.js, deguri-multiplayer.html: HUD 순위표·룰 배지(d68b9a3), deguri-render v64
+- js/deguri-shop.js: 주석 경로 .webp
 - AutoTest/spritemake/pickup-skin.py: PNG 복사 → pngquant→cwebp 로 creatures/{n}.webp 생성(md5 는 배치 원본 PNG 기준), targetGamePath .webp, 끝에 ASSET_VER 상기 문구. recolor-creature.py: .webp 입출력(Pillow lossless=True)
 - docs/GameGuide/04-ops/image-assets.md(신설)·deploy.md 체크리스트·lessons/_common.md C-46·.claude/commands/spritemake-pickup.md: 이미지 추가/교체 시 커밋 전 최적화 규칙(pngquant/WebP, 200KB 초과 의심, 검증 5항목, 캐시 ?v=, Railway !assets/** 트리거)
-- docs/GameGuide/lessons/marble.md: game-lab 프리뷰 phase idle 요령(d68b9a3)
+- docs/GameGuide/lessons/deguri.md: game-lab 프리뷰 phase idle 요령(d68b9a3)
 - AGENTS.md, .agents/skills/*, .codex/hooks*: Codex 용 미러(CLAUDE.md·커맨드 스킬·가드 훅). 비밀값 없음(텔레그램 토큰은 env 참조)
-- docs/analysis/marble-random-track-2026-09-21/: 데구리 랜덤 트랙 분석 산출물(README·baseline)
-- .gitignore: .DS_Store, /game-lab/marble-timeline*.json(생성 fixture), /horse-app/(소스 없이 dist+node_modules 만 남은 옛 잔재 126MB — 2026-04-11 audit 에서 운영 대상 아님)
+- docs/analysis/deguri-random-track-2026-09-21/: 데구리 랜덤 트랙 분석 산출물(README·baseline)
+- .gitignore: .DS_Store, /game-lab/deguri-timeline*.json(생성 fixture), /horse-app/(소스 없이 dist+node_modules 만 남은 옛 잔재 126MB — 2026-04-11 audit 에서 운영 대상 아님)
 
 ## 상세 변경 내역
 
@@ -809,11 +809,11 @@
 ========================================
 
 ## 변경 파일
-- socket/marble.js: mb.wallets[name]={balance,owned}, ROOM_SEED_COINS 200·COIN_RACE_JOIN 10. 신규 marble:shop:get / marble:shop:buy(카탈로그 가격 권위, owned·insufficient·notfound 거절). marble:equipSkin 소유 확인 = ownsInRoom(defaultOwned 또는 이 방에서 구매), 인증 불필요(손님 포함). attachSkins 동기·방 소유 기준. awardRaceCoins → 방 지갑 +10 → wallet:updated. DB(coins/cosmetics) 의존 전부 제거(getOwned·grant·coinRef).
-- utils/room-helpers.js(CRLF): marble.wallets {}. socket/rooms.js, socket/chat.js(CRLF): leaveRoom/disconnect 에서 skins 와 함께 wallets 삭제(C-19 짝).
+- socket/deguri.js: mb.wallets[name]={balance,owned}, ROOM_SEED_COINS 200·COIN_RACE_JOIN 10. 신규 deguri:shop:get / deguri:shop:buy(카탈로그 가격 권위, owned·insufficient·notfound 거절). deguri:equipSkin 소유 확인 = ownsInRoom(defaultOwned 또는 이 방에서 구매), 인증 불필요(손님 포함). attachSkins 동기·방 소유 기준. awardRaceCoins → 방 지갑 +10 → wallet:updated. DB(coins/cosmetics) 의존 전부 제거(getOwned·grant·coinRef).
+- utils/room-helpers.js(CRLF): deguri.wallets {}. socket/rooms.js, socket/chat.js(CRLF): leaveRoom/disconnect 에서 skins 와 함께 wallets 삭제(C-19 짝).
 - js/shared/shop-shared.js: config.roomWallet — openView 가 인증 없이 hooks.walletRequest 로 지갑(못 받으면 '방에 들어온 뒤에 열 수 있어요'), refreshWallet 도 같은 훅, doBuy 는 hooks.buyRequest(응답 {ok,balance,owned,reason} 형식 동일). 다른 게임(roomWallet 없음)은 기존 경로.
-- js/marble-shop.js: roomWallet:true, walletRequest→marble:shop:get, buyRequest→marble:shop:buy, applyRoomSkin 은 서버 equipped 를 그대로 채택(onWalletSynced 제거). (v9)
-- AutoTest/qa-marble-skin-shop-test.js: DB 없이 방 경제 검증 31항목 — 방 밖 거절, 200→80×2→부족, 중복·미소유 거절, 손님 지갑 별개, 해제, mySkin, +10, 재입장 초기화.
+- js/deguri-shop.js: roomWallet:true, walletRequest→deguri:shop:get, buyRequest→deguri:shop:buy, applyRoomSkin 은 서버 equipped 를 그대로 채택(onWalletSynced 제거). (v9)
+- AutoTest/qa-deguri-skin-shop-test.js: DB 없이 방 경제 검증 31항목 — 방 밖 거절, 200→80×2→부족, 중복·미소유 거절, 손님 지갑 별개, 해제, mySkin, +10, 재입장 초기화.
 - update-log.md: 2026-09-22 항목의 코인 문구를 방 단위로 정정(첫 지갑 150/계정 영구 → 방 입장 200·1회용).
 
 ## 상세 변경 내역
@@ -824,14 +824,14 @@
 - 계정 지갑 SEED_COINS 는 200 으로 남음(이제 경마만 사용, 데구리 무관).
 
 ### [실서버 DB 리셋 2026-09-22]
-- 옛 계정 지갑 방식으로 산 4명(김영태 3개·배재후·변영화·안성훈 각 1개): user_cosmetics 6행 삭제, prefs.equipped.marble_skin 1명 제거, 쓴 코인 환불(250/80/80/80, coin_ledger reason 'marble_skin_reset' ref 'reset-2026-09-22' — 멱등). 스크립트는 Railway GraphQL(workspace→DiceBot→Postgres DATABASE_PUBLIC_URL)로 접속, 토큰·URL 미출력.
+- 옛 계정 지갑 방식으로 산 4명(김영태 3개·배재후·변영화·안성훈 각 1개): user_cosmetics 6행 삭제, prefs.equipped.deguri_skin 1명 제거, 쓴 코인 환불(250/80/80/80, coin_ledger reason 'deguri_skin_reset' ref 'reset-2026-09-22' — 멱등). 스크립트는 Railway GraphQL(workspace→DiceBot→Postgres DATABASE_PUBLIC_URL)로 접속, 토큰·URL 미출력.
 
 ### [검증]
 - 소켓 테스트 31 PASS, 결정론 ALL PASS, node -c OK. 브라우저(dev-5174) 손님 계정: 상점 200 → 구매 120 → 토스트 → 옷장 장착중 → 출발대 리본돼지.
 - 배포: main d080548 (다른 세션 fbff1e3 위), feature/marble-run 동일 커밋.
 
 ### [주의]
-- 옛 페이지를 열어둔 사람은 새로고침 필요(구 shop-shared/marble-shop 캐시). 장착 실패 토스트가 원인(연결 끊김/미소유)을 말해준다.
+- 옛 페이지를 열어둔 사람은 새로고침 필요(구 shop-shared/deguri-shop 캐시). 장착 실패 토스트가 원인(연결 끊김/미소유)을 말해준다.
 ========================================
 
 ========================================
@@ -843,11 +843,11 @@
   renderViewTabs()[🛍 상점 | 👗 옷장] 헤더 아래(두 뷰 공통); renderCard: 상점 뷰에서 소유 아이템은 장착 버튼 대신 비활성 '보유 중/기본 제공', 미소유는 .hshop-namerow(이름 좌·가격 우, setIconValue coin) + 버튼 '구매'(priceInline 이면 '(80)' 생략, 아래 가격 노드 없음);
   buildClosetBody(): 소유(defaultOwned 포함) 아이템만 슬롯별 카드, 산 게 없으면(anyBought=false) 안내 + [상점 가기](_view='shop'); 그룹 필터 hasGroups()/passesGroup()/renderGroupChips()(hooks.groups()/itemGroup()/groupIcon(), 그룹 없는 아이템은 항상 표시, 빈 결과 '이 동물의 스킨은 아직 없어요');
   noticeFor → hooks.noticeText(slot, _view); refreshWallet 뒤 hooks.onWalletRefreshed(_wallet); 구매 토스트 '구매했어요 — 옷장에서 장착하세요'; exports openCloset. closet 없는 게임은 분기 진입 없음(경마 '내 아이템' 인벤토리 그대로)
-- js/marble-shop.js: closet:true, title '스킨 상점'/closetTitle '옷장', 뷰별 noticeText, groups(MARBLE_CREATURES 순 × CREATURE_NAMES)/itemGroup(item.creature)/groupIcon(drawCreatureIcon 기본 시트 얼굴 40px 캔버스), onWalletRefreshed→applyRoomSkin(모달 재오픈 시 방 장착값 유지 — 없으면 옷장에 '장착중'이 안 보임), openCloset (v6)
+- js/deguri-shop.js: closet:true, title '스킨 상점'/closetTitle '옷장', 뷰별 noticeText, groups(DEGURI_CREATURES 순 × CREATURE_NAMES)/itemGroup(item.creature)/groupIcon(drawCreatureIcon 기본 시트 얼굴 40px 캔버스), onWalletRefreshed→applyRoomSkin(모달 재오픈 시 방 장착값 유지 — 없으면 옷장에 '장착중'이 안 보임), openCloset (v6)
 - css/horse-shop.css: .hshop-owned, .hshop-goto-shop, .hshop-namerow/.hshop-price--inline, .hshop-viewtabs, .hshop-inv-chips.hshop-groupchips(flex-wrap·justify-content center·padding 12px 16px 0 — 뒤 선언 .hshop-inv-chips 와 특이성 동률로 밀리던 것을 두 클래스로), .hshop-groupchip(width:auto — 게임 css button{width:100%} 상쇄, 22px 캔버스)
-- marble-multiplayer.html: 진입 버튼 [🎀 동물 스킨] 하나(중간에 알약 2개였다가 탭으로 통합), marble.css v23, marble-shop v6, horse-shop.css ?v=2(캐시 파라미터 처음 부여)
-- css/marble.css: 알약 2개용 .marble-pick-actions 규칙 제거(추가 후 되돌림)
-- docs/goal/marble-shop-closet-split.md(명세, applied 큐), update-log.md, summit-log.txt
+- deguri-multiplayer.html: 진입 버튼 [🎀 동물 스킨] 하나(중간에 알약 2개였다가 탭으로 통합), deguri.css v23, deguri-shop v6, horse-shop.css ?v=2(캐시 파라미터 처음 부여)
+- css/deguri.css: 알약 2개용 .deguri-pick-actions 규칙 제거(추가 후 되돌림)
+- docs/goal/deguri-shop-closet-split.md(명세, applied 큐), update-log.md, summit-log.txt
 
 ## 상세 변경 내역
 
@@ -859,7 +859,7 @@
 
 ### [검증]
 - 브라우저(dev-5174, 로그인 계정 qa브라우저스킨): 상점 16카드에 장착 버튼 0·소유 '보유 중'·미소유 이름줄 가격+'구매'; 옷장 소유만·장착/✓장착중(재오픈·새로고침 후 유지); 구매 토스트 → 옷장에 즉시 노출; 빈 옷장(신규 계정) 안내+[상점 가기] 동작; 필터 칩 11개 전부 보이고 '돼지' 클릭 시 돼지 스킨 3개만; 옷장·상점 간격/정렬 동일; 모바일 375px 칩 3줄.
-- 서버 무변경 → qa-marble-skin-shop-test.js ALL PASS 유지. node -c 전 파일 OK.
+- 서버 무변경 → qa-deguri-skin-shop-test.js ALL PASS 유지. node -c 전 파일 OK.
 
 ### [주의]
 - horse-shop.css 는 다른 게임 페이지에 ?v 없이 링크됨 — 이번 클래스는 데구리 전용이라 다른 페이지의 캐시는 무해. 공용 규칙을 고칠 땐 각 페이지 ?v 필요.
@@ -871,29 +871,29 @@
 ========================================
 
 ## 변경 파일
-- socket/marble.js: prefs 기반 resolveSkin/marble:refreshSkin 삭제 → marble:equipSkin { cosmeticId|null } (ack {ok, skin}); skinFromItem/skinFields(skin+skinName); attachSkins 가 skinName 도 얹음; startMarble 에 mb.coinRef(generateSessionId 1회); endGame 뒤 awardRaceCoins(+COIN_RACE_JOIN=10, 인증 참가자, 멱등, wallet:updated); requestState 응답에만 mySkin; exports awardRaceCoins/COIN_RACE_JOIN(테스트용)
+- socket/deguri.js: prefs 기반 resolveSkin/deguri:refreshSkin 삭제 → deguri:equipSkin { cosmeticId|null } (ack {ok, skin}); skinFromItem/skinFields(skin+skinName); attachSkins 가 skinName 도 얹음; startDeguri 에 mb.coinRef(generateSessionId 1회); endGame 뒤 awardRaceCoins(+COIN_RACE_JOIN=10, 인증 참가자, 멱등, wallet:updated); requestState 응답에만 mySkin; exports awardRaceCoins/COIN_RACE_JOIN(테스트용)
 - socket/rooms.js, socket/chat.js(CRLF 유지): leaveRoom/disconnect 에서 mb.skins[name] 삭제(C-19 짝)
 - db/coins.js: SEED_COINS 100 → 150
 - js/shared/shop-shared.js: doEquip 에 hooks.equipRequest(slot,id,done) 추가 — 어댑터가 shop:equip 대신 다른 경로. 다른 게임 무영향(훅 없음)
-- js/marble-shop.js: equipRequest→marble:equipSkin, _roomSkinId, onWalletSynced 에서 prefs 장착값을 방 값으로 덮음(applyRoomSkin), syncRoomSkin(mySkin), getEquippedSkin 은 방 값 기준
-- js/marble.js: stateUpdated.mySkin → MarbleShop.syncRoomSkin; 주석 갱신 (v30)
-- js/marble-render.js: 스킨 시트 자동 등록 — loadAll 이 /config/marble/cosmetics.json fetch → registerSkins 가 '{creature}-{skin}[-sleep|-scuffle]' 3장 ASSETS 에 추가(loadOne, loadKicked 로 중복 요청 방지); 하드코딩 'ribbonpig-scarf' 항목 제거; setTimeline 이 skinName 복사; 비석 라벨 b.skinName || CREATURE_NAMES; export registerSkins (v60)
-- marble-multiplayer.html: ?v 범프(marble-shop 3, marble-render 60, marble 30)
-- config/marble/cosmetics.json: 스킨 15개(전부 rare·80코인·displayName) + marble_skin_none. 스카프 90→80
-- assets/marble/creatures/: 신규 42장 — ribbonpig*(기본 교체, 리본 없음) / ribbonpig-ribbon*(옛 v2 이동) / 리컬러 6종×3 / 생성 7종×3
-- assets/marble/marble-run.manifest.json: creaturesI 키 ribbonpig→ribbonpig-ribbon(파일 이동 기록), skinPigBase, creaturesR(리컬러 18장 base/skin md5), skinPillbugRainbow·skinTurtleMelon·skinPandaRed·skinHamsterCookie·skinRaccoonNinja·skinHedgehogKnight·skinRabbitTophat
+- js/deguri-shop.js: equipRequest→deguri:equipSkin, _roomSkinId, onWalletSynced 에서 prefs 장착값을 방 값으로 덮음(applyRoomSkin), syncRoomSkin(mySkin), getEquippedSkin 은 방 값 기준
+- js/deguri.js: stateUpdated.mySkin → DeguriShop.syncRoomSkin; 주석 갱신 (v30)
+- js/deguri-render.js: 스킨 시트 자동 등록 — loadAll 이 /config/deguri/cosmetics.json fetch → registerSkins 가 '{creature}-{skin}[-sleep|-scuffle]' 3장 ASSETS 에 추가(loadOne, loadKicked 로 중복 요청 방지); 하드코딩 'ribbonpig-scarf' 항목 제거; setTimeline 이 skinName 복사; 비석 라벨 b.skinName || CREATURE_NAMES; export registerSkins (v60)
+- deguri-multiplayer.html: ?v 범프(deguri-shop 3, deguri-render 60, deguri 30)
+- config/deguri/cosmetics.json: 스킨 15개(전부 rare·80코인·displayName) + deguri_skin_none. 스카프 90→80
+- assets/deguri/creatures/: 신규 42장 — ribbonpig*(기본 교체, 리본 없음) / ribbonpig-ribbon*(옛 v2 이동) / 리컬러 6종×3 / 생성 7종×3
+- assets/deguri/deguri.manifest.json: creaturesI 키 ribbonpig→ribbonpig-ribbon(파일 이동 기록), skinPigBase, creaturesR(리컬러 18장 base/skin md5), skinPillbugRainbow·skinTurtleMelon·skinPandaRed·skinHamsterCookie·skinRaccoonNinja·skinHedgehogKnight·skinRabbitTophat
 - AutoTest/spritemake/recolor-creature.py(신규): HSV 규칙 리컬러(analyze/make/compare), PRESETS 6종, 알파 동일 assert
 - AutoTest/spritemake/pickup-skin.py(신규): 배치 final → assets + manifest 섹션(md5 대조, 덮어쓰기 거부)
-- AutoTest/qa-marble-skin-shop-test.js: 카탈로그 전 스킨 buy→equipSkin→pick→skin/skinName, picks 불변, 게스트 auth 거절, 해제, mySkin, 재입장 초기화, awardRaceCoins 멱등, SEED 150 (29+ PASS)
-- docs/goal/marble-skins-all-creatures.md(명세, 영문) / docs/spritemake-request/2026-09-22-marble-skin-*.md(의뢰서 8개 → applied/)
+- AutoTest/qa-deguri-skin-shop-test.js: 카탈로그 전 스킨 buy→equipSkin→pick→skin/skinName, picks 불변, 게스트 auth 거절, 해제, mySkin, 재입장 초기화, awardRaceCoins 멱등, SEED 150 (29+ PASS)
+- docs/goal/deguri-skins-all-creatures.md(명세, 영문) / docs/spritemake-request/2026-09-22-deguri-skin-*.md(의뢰서 8개 → applied/)
 - update-log.md, summit-log.txt
 
 ## 상세 변경 내역
 
 ### [결정·해석 — 아침에 확인할 것]
 - "돈지급을 매 게임당 150원" → 첫 지갑 150(SEED_COINS)으로 해석(게임당은 +10). 프롬프트 문서 §1 그대로.
-- 돼지: 명세대로 기본 = 리본 없는 새 돼지(Codex 배치 marble-run-skin-ribbonpig-base, K 규격), 옛 v2 머리리본 시트 = 스킨 marble_skin_ribbonpig_ribbon("리본돼지"). CREATURE_NAMES.ribbonpig='돼지'(다른 세션 dfde3b6 이 먼저 커밋).
-  ※ 새벽 01:2x 메시지 "work/deguri 일반돼지로 바꾸고 작은 리본돼지는 스킨으로": ~/Documents/Codex/2026-09-21/new-chat-2/work/deguri 의 ribbonpig.png(md5 383d27d2…)는 **현 게임 리본돼지와 같은 그림의 9차 원본(K 규격 이전, 서기 150폭)** 이라 리본 있음 — "일반돼지"로 보신 건 착오로 판단하고 명세(B)로 진행. 큰 리본돼지를 기본으로 원하시면 그 3장을 assets/marble/creatures/ribbonpig*.png 로 덮고 manifest 만 갱신하면 됨(코드 무관).
+- 돼지: 명세대로 기본 = 리본 없는 새 돼지(Codex 배치 deguri-skin-ribbonpig-base, K 규격), 옛 v2 머리리본 시트 = 스킨 deguri_skin_ribbonpig_ribbon("리본돼지"). CREATURE_NAMES.ribbonpig='돼지'(다른 세션 dfde3b6 이 먼저 커밋).
+  ※ 새벽 01:2x 메시지 "work/deguri 일반돼지로 바꾸고 작은 리본돼지는 스킨으로": ~/Documents/Codex/2026-09-21/new-chat-2/work/deguri 의 ribbonpig.png(md5 383d27d2…)는 **현 게임 리본돼지와 같은 그림의 9차 원본(K 규격 이전, 서기 150폭)** 이라 리본 있음 — "일반돼지"로 보신 건 착오로 판단하고 명세(B)로 진행. 큰 리본돼지를 기본으로 원하시면 그 3장을 assets/deguri/creatures/ribbonpig*.png 로 덮고 manifest 만 갱신하면 됨(코드 무관).
 - 장착 = 방 단위: prefs 저장 X. shop-shared.js 에 훅 1개 추가한 것은 프롬프트 §3 파일 목록 밖이지만 "prefs 저장 X" 를 지키려면 불가피(공유 셸이 shop:equip 을 하드코딩).
 - 이름 표시: 렌더러에서 동물 이름이 실제로 보이는 곳은 비석 라벨뿐(이름표·HUD 후보는 주인 이름만) → 비석만 skinName 적용. 상점 카드 name = displayName.
 
@@ -907,22 +907,22 @@
 | rabbit | black | 검정 토끼 | 리컬러 | 〃 | eef4e58 |
 | turtle | ocean | 바다 거북이 | 리컬러(외곽선까지 회전) | 〃 | eef4e58 |
 | hamster | grey | 회색 햄스터 | 리컬러 | 〃 | eef4e58 |
-| pillbug | rainbow | 무지개 공벌레 | 생성 | marble-run-skin-pillbug-rainbow | 8a9db88 |
-| turtle | melon | 수박 거북이 | 생성 | marble-run-skin-turtle-melon | 8381230 |
-| panda | red | 레서판다 | 생성 | marble-run-skin-panda-red | 0196051 |
-| hamster | cookie | 쿠키 햄스터 | 생성 | marble-run-skin-hamster-cookie | 65c235b |
-| raccoon | ninja | 닌자 너구리 | 생성 | marble-run-skin-raccoon-ninja | d1bd689 |
-| hedgehog | knight | 기사 고슴도치 | 생성 | marble-run-skin-hedgehog-knight | 3af36ce |
-| rabbit | tophat | 신사 토끼 | 생성 | marble-run-skin-rabbit-tophat | edfd9f4 |
-+ 기본 돼지 시트 교체(배치 marble-run-skin-ribbonpig-base, md5 3e46586e…/dc53b06f…/1c6955ff…) — 6a800c7
+| pillbug | rainbow | 무지개 공벌레 | 생성 | deguri-skin-pillbug-rainbow | 8a9db88 |
+| turtle | melon | 수박 거북이 | 생성 | deguri-skin-turtle-melon | 8381230 |
+| panda | red | 레서판다 | 생성 | deguri-skin-panda-red | 0196051 |
+| hamster | cookie | 쿠키 햄스터 | 생성 | deguri-skin-hamster-cookie | 65c235b |
+| raccoon | ninja | 닌자 너구리 | 생성 | deguri-skin-raccoon-ninja | d1bd689 |
+| hedgehog | knight | 기사 고슴도치 | 생성 | deguri-skin-hedgehog-knight | 3af36ce |
+| rabbit | tophat | 신사 토끼 | 생성 | deguri-skin-rabbit-tophat | edfd9f4 |
++ 기본 돼지 시트 교체(배치 deguri-skin-ribbonpig-base, md5 3e46586e…/dc53b06f…/1c6955ff…) — 6a800c7
 
 ### [검증]
-- node -c 전체 OK, AutoTest/marble-determinism-test.js ALL PASS(스킨은 시뮬 입력 아님)
+- node -c 전체 OK, AutoTest/deguri-determinism-test.js ALL PASS(스킨은 시뮬 입력 아님)
 - 생성 시트 verify-creature.py: 전부 림 0%·공 OK·서기 ≤134×130. 예외로 허용한 것: 돼지 기본 r3c2 폭 136(2px), 닌자 r2c3 별 마크 y-run, 기사 r0c2 높이 136·r4c0 x-run('!!' 마크) — 모두 위성 마크
 - 리컬러: 알파 채널이 기본과 100% 동일(스크립트 assert). 기본 시트가 1차 배치(고슴도치 등)라 verify 의 위성 run 게이트는 기본과 같이 FAIL — 리컬러 판정 기준은 "알파==기본"
-- qa-marble-skin-shop-test.js 5174: ALL PASS(스킨 15종 buy/equip/pick/skinName, picks 불변, 게스트 거절, 해제, 재입장 초기화, 코인 멱등)
+- qa-deguri-skin-shop-test.js 5174: ALL PASS(스킨 15종 buy/equip/pick/skinName, picks 불변, 게스트 거절, 해제, 재입장 초기화, 코인 멱등)
 - 실제 한 판 e2e(스크래치 스크립트): reveal balls 에 skin/skinName, 종료 후 wallet:updated +10 (로컬 방장 wallet:get 은 1,000,000 top-up 이라 이벤트로 확인)
-- 브라우저(dev-5174): 상점 카드 15개 캔버스 미리보기, 리본돼지 구매→장착→출발대 반영(머리 리본), 해제→민머리 돼지, 선택 버튼 '돼지 1명'·'스킨' 배지, 모바일 375px 모달 2열 정상. game-lab 프리뷰 스킨 주입 스크린샷(스크래치 marble-skins-preview-2026-09-22.jpg, 사용자에게 전송)
+- 브라우저(dev-5174): 상점 카드 15개 캔버스 미리보기, 리본돼지 구매→장착→출발대 반영(머리 리본), 해제→민머리 돼지, 선택 버튼 '돼지 1명'·'스킨' 배지, 모바일 375px 모달 2열 정상. game-lab 프리뷰 스킨 주입 스크린샷(스크래치 deguri-skins-preview-2026-09-22.jpg, 사용자에게 전송)
 - 콘솔 404(gravestone/gap-mark/lane-dirt/suck-swirl)와 문서 폭 380px(.container)은 기존 이슈
 
 ### [알려진 약점·미결]
@@ -932,41 +932,41 @@
 ========================================
 
 ========================================
-📋 Summit Log - 2026-09-22 (데구리 동물 스킨 상점 — marble_skin 슬롯 + 스카프 리본돼지 스킨, 배치 L)
+📋 Summit Log - 2026-09-22 (데구리 동물 스킨 상점 — deguri_skin 슬롯 + 스카프 리본돼지 스킨, 배치 L)
 ========================================
 
 ## 변경 파일
-- config/marble/cosmetics.json: 신규 카탈로그 — marble_skin 슬롯 { marble_skin_none(defaultOwned), marble_skin_ribbonpig_scarf(rare 90, creature:'ribbonpig', skin:'scarf') }. socket/shop.js 가 자동 enumerate
-- db/cosmetics.js: EQUIP_SLOTS += 'marble_skin' (PUBLIC_HORSE_SLOTS/AD_EQUIP_SLOTS 무관)
+- config/deguri/cosmetics.json: 신규 카탈로그 — deguri_skin 슬롯 { deguri_skin_none(defaultOwned), deguri_skin_ribbonpig_scarf(rare 90, creature:'ribbonpig', skin:'scarf') }. socket/shop.js 가 자동 enumerate
+- db/cosmetics.js: EQUIP_SLOTS += 'deguri_skin' (PUBLIC_HORSE_SLOTS/AD_EQUIP_SLOTS 무관)
 - socket/shop.js: module.exports.getCatalogItem(id) — 읽기 전용 카탈로그 조회 export
-- utils/room-helpers.js: marble.skins {} (CRLF 유지)
-- socket/marble.js: resolveSkin(mb,name,authedUserId)=prefs.equipped.marble_skin→카탈로그 creature/skin (게스트 null); skinFor; idlePreview balls.skin; marble:pick 뒤 resolve→변경 시 재emit; marble:requestState 재resolve; 신규 marble:refreshSkin(페이로드 없음, rateOk); startMarble: simulate 뒤 attachSkins(소유 getOwned 재검증) → revealBalls.skin
-- js/marble-render.js: sheet(group,b) 헬퍼(스킨 시트 '{creature}-{skin}' → 없으면 기본 폴백) — creatures 5·sleep 4·scuffle 1 호출부 전부 교체; ASSETS 3맵에 'ribbonpig-scarf'; payload.balls.skin; drawCreatureIcon(…, skin)
-- js/marble-shop.js: 신규 ShopModule 어댑터(mount marbleShopMount, 단일 슬롯, 미리보기=스킨 시트 idle 칸 캔버스, onEquipApplied→marble:refreshSkin, getEquippedSkin)
-- js/marble.js: connect 시 MarbleShop.connect/loadCatalog/authenticate(userAuth), window.marbleRendererForShop, 선택 버튼 아이콘에 장착 스킨 반영 + '스킨' 배지 (v29)
-- marble-multiplayer.html: 제목 줄 오른쪽 [🎀 동물 스킨] 버튼, #marbleShopMount, horse-shop.css, shop-shared.js + marble-shop.js, marble.css v20/marble-render v57
-- css/marble.css: .marble-pick-head/.marble-shop-btn/.mshop-*/.skin-badge
-- assets/marble/creatures/ribbonpig-scarf{,-sleep,-scuffle}.png: 배치 L(codex exec, K 도구) 인수 — md5 0acf91ee… / 91befa23… / 9dc6883e…, manifest creaturesL
-- AutoTest/qa-marble-skin-shop-test.js: 신규 소켓 통합 테스트(계정 등록→코인→buy/equip→방→pick→preview.skin, 게스트 없음, 해제) 10/10 PASS
-- docs/goal/marble-creature-skins-shop.md(명세) / docs/spritemake-request/applied/2026-09-22-marble-run-ribbonpig-v3-l.md(의뢰서)
+- utils/room-helpers.js: deguri.skins {} (CRLF 유지)
+- socket/deguri.js: resolveSkin(mb,name,authedUserId)=prefs.equipped.deguri_skin→카탈로그 creature/skin (게스트 null); skinFor; idlePreview balls.skin; deguri:pick 뒤 resolve→변경 시 재emit; deguri:requestState 재resolve; 신규 deguri:refreshSkin(페이로드 없음, rateOk); startDeguri: simulate 뒤 attachSkins(소유 getOwned 재검증) → revealBalls.skin
+- js/deguri-render.js: sheet(group,b) 헬퍼(스킨 시트 '{creature}-{skin}' → 없으면 기본 폴백) — creatures 5·sleep 4·scuffle 1 호출부 전부 교체; ASSETS 3맵에 'ribbonpig-scarf'; payload.balls.skin; drawCreatureIcon(…, skin)
+- js/deguri-shop.js: 신규 ShopModule 어댑터(mount deguriShopMount, 단일 슬롯, 미리보기=스킨 시트 idle 칸 캔버스, onEquipApplied→deguri:refreshSkin, getEquippedSkin)
+- js/deguri.js: connect 시 DeguriShop.connect/loadCatalog/authenticate(userAuth), window.deguriRendererForShop, 선택 버튼 아이콘에 장착 스킨 반영 + '스킨' 배지 (v29)
+- deguri-multiplayer.html: 제목 줄 오른쪽 [🎀 동물 스킨] 버튼, #deguriShopMount, horse-shop.css, shop-shared.js + deguri-shop.js, deguri.css v20/deguri-render v57
+- css/deguri.css: .deguri-pick-head/.deguri-shop-btn/.mshop-*/.skin-badge
+- assets/deguri/creatures/ribbonpig-scarf{,-sleep,-scuffle}.png: 배치 L(codex exec, K 도구) 인수 — md5 0acf91ee… / 91befa23… / 9dc6883e…, manifest creaturesL
+- AutoTest/qa-deguri-skin-shop-test.js: 신규 소켓 통합 테스트(계정 등록→코인→buy/equip→방→pick→preview.skin, 게스트 없음, 해제) 10/10 PASS
+- docs/goal/deguri-creature-skins-shop.md(명세) / docs/spritemake-request/applied/2026-09-22-deguri-ribbonpig-v3-l.md(의뢰서)
 
 ## 상세 변경 내역
 
 ### [결정]
-- 사용자: "리본돼지 v3(목 스카프)는 교체 대신 상점 스킨으로". v2 머리리본 = 기본 유지, v3 = marble_skin_ribbonpig_scarf. 기존 상점 스택 재사용 — 새 경제 없음.
+- 사용자: "리본돼지 v3(목 스카프)는 교체 대신 상점 스킨으로". v2 머리리본 = 기본 유지, v3 = deguri_skin_ribbonpig_scarf. 기존 상점 스택 재사용 — 새 경제 없음.
 - 원 컨셉 이미지(메이플 리본돼지) 특징만: 목 스카프 리본(매듭·꼬리 목 뒤), 반쯤 감은 시큰둥 눈(화들짝 칸만 번쩍), 큰 납작 코, 갈색 발굽. 형태 복제 아님.
 
 ### [공정성·계약]
-- 스킨은 layoutBalls/simulate 입력이 아니다 — simulate 뒤 attachSkins 로 b.skin 만 얹음. marble-determinism-test ALL PASS. marble:pick/stateUpdated/reveal 은 additive 필드(skin)만 추가 — 구 클라 무영향.
+- 스킨은 layoutBalls/simulate 입력이 아니다 — simulate 뒤 attachSkins 로 b.skin 만 얹음. deguri-determinism-test ALL PASS. deguri:pick/stateUpdated/reveal 은 additive 필드(skin)만 추가 — 구 클라 무영향.
 - 서버 권위: 클라는 refreshSkin 신호만 보내고 서버가 prefs.equipped+user_cosmetics 를 읽는다. 시작 시 소유 재검증. 게스트는 항상 스킨 없음.
 
 ### [검증]
 - 소켓 통합 테스트 10/10 PASS(5174). 브라우저: 실제 방에서 장착 계정의 리본돼지가 출발대에 스카프 시트로, 선택 버튼 아이콘·'스킨' 배지 표시. game-lab 프리뷰에 skin 주입 → 스카프 시트 로드·렌더 확인. 모바일 375px 모달 OK.
-- (추가 커밋) 사용자 요청 "동물스킨 풀어줘" → shop-shared.js 에 어댑터 옵션 `init({ coinShopOpen: true })` 추가, marble-shop.js 만 켬. 경마·사다리·회전 코인샵은 그대로 준비 중. 브라우저에서 구매(90)→장착중→'스킨' 배지→출발대 skin=scarf 확인.
+- (추가 커밋) 사용자 요청 "동물스킨 풀어줘" → shop-shared.js 에 어댑터 옵션 `init({ coinShopOpen: true })` 추가, deguri-shop.js 만 켬. 경마·사다리·회전 코인샵은 그대로 준비 중. 브라우저에서 구매(90)→장착중→'스킨' 배지→출발대 skin=scarf 확인.
 - **주의: js/shared/shop-shared.js 의 COIN_SHOP_COMING_SOON=true 가 코인샵 전 게임 공통 게이트** — 라이브에선 "코인샵은 준비 중" 안내만 보이고 구매/장착 UI 는 안 열린다(경마·사다리·회전 코인샵과 동일 상태). 서버 경로는 열려 있음. 오픈은 그 플래그 1줄(제품 결정).
 
 ### [동시 세션 협업]
-- 같은 작업 트리에서 UI 아이콘 아틀라스·광고 세션이 동시 편집 중 — 헝크 단위 스테이징(git apply --cached --unidiff-zero). marble-multiplayer.html 제목 줄의 #marblePickHint span 은 HEAD 그대로 보존(다른 세션 WIP 가 제거 중이라 내 커밋엔 포함시키지 않음).
+- 같은 작업 트리에서 UI 아이콘 아틀라스·광고 세션이 동시 편집 중 — 헝크 단위 스테이징(git apply --cached --unidiff-zero). deguri-multiplayer.html 제목 줄의 #deguriPickHint span 은 HEAD 그대로 보존(다른 세션 WIP 가 제거 중이라 내 커밋엔 포함시키지 않음).
 
 ========================================
 
@@ -975,25 +975,25 @@
 ========================================
 
 ## 변경 파일
-- socket/marble.js: 당첨 순위 투표 핸들러(marble:voteRank), decideTarget() 룰렛 결정, rouletteStart/reasonHold → hold 뒤 reveal(revealTimeout), target 을 reveal/gameEnd/history 에 동봉, gameRules first-ball/last-ball, 강제 시작 문구 정리
-- socket/marble-sim.js: rankPlayers(..., target) — 'first' 면 1등이 selected·succession 반전. (동시 반영) CROWD_PRESETS 3단계(solo/normal/many)·MAX_BALLS 200→100·EAGLES_BY_CROWD 축소
-- socket/shared.js, socket/rooms.js: 준비 취소·퇴장 시 데구리 투표 삭제 + marble:rankVotesUpdated 브로드캐스트
-- utils/room-helpers.js: marble.rankVotes / target / revealTimeout 초기값
-- js/marble.js: 투표 칸 렌더(renderVoteSection), 룰렛 애니(playRouletteAnimation — 막대+빈 칸 순회, 경마와 같은 감속 곡선), 캔버스 중앙 팝업(moveVoteUiToCanvas/restoreVoteUiFromCanvas), 배너/사유, 시작 확인 팝업(강제 시작 버튼 대체), 순위 보기 버튼·주문 알림 제거, 내 동물 따라가기 sessionStorage, 안 고른 사람 이름표, MARBLE_CROWDS 3단계
-- js/marble-render.js: 1등 당첨 피날레(celebration/drawWinnerCelebration/drawCrown — 카메라 이동·왕관·색종이·깡충), 도착 스탠드 순위+이름 알약(지그재그), 피날레 문구 target 분기, 후미 흰 이름 라벨 제거
-- marble-multiplayer.html: 투표 섹션·타깃 배너·사유 카드·「동물 안 고른 사람」 섹션 추가, 강제 시작·순위 보기 버튼 제거, 마릿수 버튼 3개, 캐시 버전(css v16 / marble.js v25 / render v55)
-- css/marble.css: 투표 칸 축소·팝업(on-canvas) 크기, .spin-active, .marble-pick-status:empty
-- AutoTest/marble-determinism-test.js, marble-sim-dump.js: MAX_BALLS 상수 참조·crowd 주석 (마릿수 3단계에 맞춤)
+- socket/deguri.js: 당첨 순위 투표 핸들러(deguri:voteRank), decideTarget() 룰렛 결정, rouletteStart/reasonHold → hold 뒤 reveal(revealTimeout), target 을 reveal/gameEnd/history 에 동봉, gameRules first-ball/last-ball, 강제 시작 문구 정리
+- socket/deguri-sim.js: rankPlayers(..., target) — 'first' 면 1등이 selected·succession 반전. (동시 반영) CROWD_PRESETS 3단계(solo/normal/many)·MAX_BALLS 200→100·EAGLES_BY_CROWD 축소
+- socket/shared.js, socket/rooms.js: 준비 취소·퇴장 시 데구리 투표 삭제 + deguri:rankVotesUpdated 브로드캐스트
+- utils/room-helpers.js: deguri.rankVotes / target / revealTimeout 초기값
+- js/deguri.js: 투표 칸 렌더(renderVoteSection), 룰렛 애니(playRouletteAnimation — 막대+빈 칸 순회, 경마와 같은 감속 곡선), 캔버스 중앙 팝업(moveVoteUiToCanvas/restoreVoteUiFromCanvas), 배너/사유, 시작 확인 팝업(강제 시작 버튼 대체), 순위 보기 버튼·주문 알림 제거, 내 동물 따라가기 sessionStorage, 안 고른 사람 이름표, DEGURI_CROWDS 3단계
+- js/deguri-render.js: 1등 당첨 피날레(celebration/drawWinnerCelebration/drawCrown — 카메라 이동·왕관·색종이·깡충), 도착 스탠드 순위+이름 알약(지그재그), 피날레 문구 target 분기, 후미 흰 이름 라벨 제거
+- deguri-multiplayer.html: 투표 섹션·타깃 배너·사유 카드·「동물 안 고른 사람」 섹션 추가, 강제 시작·순위 보기 버튼 제거, 마릿수 버튼 3개, 캐시 버전(css v16 / deguri.js v25 / render v55)
+- css/deguri.css: 투표 칸 축소·팝업(on-canvas) 크기, .spin-active, .deguri-pick-status:empty
+- AutoTest/deguri-determinism-test.js, deguri-sim-dump.js: MAX_BALLS 상수 참조·crowd 주석 (마릿수 3단계에 맞춤)
 
 ## 상세 변경 내역
 
 ### 당첨 순위 투표 → 룰렛 (경마 N등 투표와 같은 방식, 선택지는 1등/꼴등 둘)
-- 준비한 사람만 marble:voteRank {target:'first'|'last'} — 같은 칸 재클릭 = 취소. 서버가 marble:rankVotesUpdated {votes} 브로드캐스트, 클라는 익명 막대로만 표시. 준비 취소·퇴장 시 표 삭제.
-- 시작 시 decideTarget(): 참가자 표만 집계, 득표 비례 가중 랜덤(서버 RNG). 표 있으면 marble:rouletteStart {segments, winning, animDurationMs, votes, reason} → 5.5s 스핀 + 3s 감상 후 reveal. 표 없으면 marble:reasonHold(3s, 기본 꼴등). 한쪽에만 몰려도 스핀(경마는 skip) — 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 연출을 항상 보여준다(사용자).
+- 준비한 사람만 deguri:voteRank {target:'first'|'last'} — 같은 칸 재클릭 = 취소. 서버가 deguri:rankVotesUpdated {votes} 브로드캐스트, 클라는 익명 막대로만 표시. 준비 취소·퇴장 시 표 삭제.
+- 시작 시 decideTarget(): 참가자 표만 집계, 득표 비례 가중 랜덤(서버 RNG). 표 있으면 deguri:rouletteStart {segments, winning, animDurationMs, votes, reason} → 5.5s 스핀 + 3s 감상 후 reveal. 표 없으면 deguri:reasonHold(3s, 기본 꼴등). 한쪽에만 몰려도 스핀(경마는 skip) — 선택지가 둘뿐이라 "1등이냐 꼴등이냐" 연출을 항상 보여준다(사용자).
 - 시뮬은 룰렛이 도는 동안 미리 돌리고 남은 hold 만큼 기다렸다 reveal(revealTimeout). 시뮬 실패 시 gameAborted 로 화면 복구.
 - rankPlayers(target): rankings 는 그대로, selected/successionList 만 target 쪽으로. endGame 은 mb.target 을 history·gameEnd·DB gameRules 에 기록.
 - 클라 룰렛: 순회 칸 = 막대(표) + 표 없는 쪽은 박스 자체(.spin-active). 서버가 정한 winning 의 첫 막대에서 정지(.winner) → 배너 "N등을 찾아라!" + 사유. 감속 곡선(REPEAT 4, ease-out ^3, 40x, tailBoost, 마지막 30% 캡)은 js/horse-race.js 와 동일.
-- 룰렛 동안 배너·투표 칸·사유를 #marbleCanvasBox 안 .canvas-bars-overlay(경마 CSS)로 옮겨 정중앙 팝업 + 캔버스로 스크롤. reveal 때 0.5s 페이드 후 원위치(배너만 캔버스 위에 잔존). 준비 변동으로 재렌더돼도 룰렛 중엔 막대를 건드리지 않는다(voteUiPinned).
+- 룰렛 동안 배너·투표 칸·사유를 #deguriCanvasBox 안 .canvas-bars-overlay(경마 CSS)로 옮겨 정중앙 팝업 + 캔버스로 스크롤. reveal 때 0.5s 페이드 후 원위치(배너만 캔버스 위에 잔존). 준비 변동으로 재렌더돼도 룰렛 중엔 막대를 건드리지 않는다(voteUiPinned).
 
 ### 1등 당첨 피날레 (렌더러)
 - target 'first' 면 비석 착지 +0.9s 에 카메라가 스탠드의 1등 동물(순위를 확정한 마지막 마리)로 이동, 왕관 낙하(쿵·먼지·별) → 금빛 글로우 + 색종이 반복 + 그 사람 동물 전부 금색 링·깡충, "🥇 1등 확정… 당첨! / ○○ 님". 홈통을 아직 굴러가는 중이면 자리에 앉은 뒤 시작, 접힌 줄이면 보이는 동물로 대체. HUD "1등 ○○ 님 당첨!", 비석 라벨은 "꼴찌 확정!"(당첨 아님).
@@ -1010,7 +1010,7 @@
 - CROWD_PRESETS solo/normal(2·20)/many(4·50), MAX_BALLS 100, EAGLES_BY_CROWD {1,1,2}. 버튼 솔로/보통/많이. AutoTest 는 상수 참조로.
 
 ### 검증
-- 5175/5174 2탭: 표 동기화·취소, 1등 vs 꼴등 룰렛 → 배너 → 경주 → 당첨=1위, 투표 없음 → 사유 카드 → 꼴등, 만장일치 → 스핀(빈 칸 하이라이트) → 8.5s reveal, 준비 취소 → 표 삭제, 시작 팝업 → force 자동 배정 알림, 팝업 룰렛 overlay 생성/제거·배너 복귀, 1등 피날레 스크린샷. marble-determinism-test ALL PASS. 콘솔 에러는 AdSense TagError(기존)뿐.
+- 5175/5174 2탭: 표 동기화·취소, 1등 vs 꼴등 룰렛 → 배너 → 경주 → 당첨=1위, 투표 없음 → 사유 카드 → 꼴등, 만장일치 → 스핀(빈 칸 하이라이트) → 8.5s reveal, 준비 취소 → 표 삭제, 시작 팝업 → force 자동 배정 알림, 팝업 룰렛 overlay 생성/제거·배너 복귀, 1등 피날레 스크린샷. deguri-determinism-test ALL PASS. 콘솔 에러는 AdSense TagError(기존)뿐.
 - 함정: node server.js 는 자동 리로드가 없어 socket/* 변경은 재시작 필수 — 옛 프로세스(5174, 18:54)에서 "투표가 안 그려지고 바로 3,2,1" 제보가 나온 원인.
 
 ========================================
@@ -1020,10 +1020,10 @@
 ========================================
 
 ## 변경 파일
-- assets/marble/creatures/ribbonpig.png (640×800), ribbonpig-sleep.png (640×160), ribbonpig-scuffle.png (640×320): 신규. md5 383d27d21aa948f2722d997753da2fac / 9fc54c569039daee046e936ae1c813d1 / cd8c39c48d29bc474b7341678728a2ab
-- assets/marble/marble-run.manifest.json: creaturesI 섹션
-- docs/spritemake-request/applied/2026-09-21-marble-run-creatures-i.md: 의뢰서(디자인·§4 리팩 규칙) → applied/
-- (코드 연결은 선행 커밋 884bacc — socket/marble.js CREATURES·js/marble.js·js/marble-render.js·선택 버튼·AutoTest, v49/v20)
+- assets/deguri/creatures/ribbonpig.png (640×800), ribbonpig-sleep.png (640×160), ribbonpig-scuffle.png (640×320): 신규. md5 383d27d21aa948f2722d997753da2fac / 9fc54c569039daee046e936ae1c813d1 / cd8c39c48d29bc474b7341678728a2ab
+- assets/deguri/deguri.manifest.json: creaturesI 섹션
+- docs/spritemake-request/applied/2026-09-21-deguri-creatures-i.md: 의뢰서(디자인·§4 리팩 규칙) → applied/
+- (코드 연결은 선행 커밋 884bacc — socket/deguri.js CREATURES·js/deguri.js·js/deguri-render.js·선택 버튼·AutoTest, v49/v20)
 
 ## 상세 변경 내역
 
@@ -1045,14 +1045,14 @@
 ========================================
 
 ## 변경 파일
-- assets/marble/creatures/rabbit.png (640×800 4×5), rabbit-sleep.png (640×160), rabbit-scuffle.png (640×320): 신규. md5 7685907938f7fd573646fb61c7c92639 / 08a947693d3ab44d1f7a9d011741f26f / fe4f54bfe75bb72fa706e1ce5d984811
-- assets/marble/marble-run.manifest.json: creaturesH 섹션(배치·md5·bbox 메모)
-- socket/marble.js: CREATURES 에 'rabbit' (9종, assignCreature 순환도 9종)
-- js/marble.js: MARBLE_CREATURES 에 'rabbit' (v18)
-- js/marble-render.js: CREATURE_NAMES rabbit:'토끼', ASSETS.creatures/sleep/scuffle 에 rabbit 3장 (v47)
-- marble-multiplayer.html: 동물 선택 버튼 🐰 토끼(data-optional — 시트 없으면 자동 숨김), ?v 갱신
-- AutoTest/devtools.html, marble-determinism-test.js, marble-sim-dump.js: CREATURES 목록 9종
-- docs/spritemake-request/applied/2026-09-21-marble-run-creatures-h.md: 의뢰서(디자인·프레임 순서·QA 게이트), 인수 완료로 applied/ 이동
+- assets/deguri/creatures/rabbit.png (640×800 4×5), rabbit-sleep.png (640×160), rabbit-scuffle.png (640×320): 신규. md5 7685907938f7fd573646fb61c7c92639 / 08a947693d3ab44d1f7a9d011741f26f / fe4f54bfe75bb72fa706e1ce5d984811
+- assets/deguri/deguri.manifest.json: creaturesH 섹션(배치·md5·bbox 메모)
+- socket/deguri.js: CREATURES 에 'rabbit' (9종, assignCreature 순환도 9종)
+- js/deguri.js: DEGURI_CREATURES 에 'rabbit' (v18)
+- js/deguri-render.js: CREATURE_NAMES rabbit:'토끼', ASSETS.creatures/sleep/scuffle 에 rabbit 3장 (v47)
+- deguri-multiplayer.html: 동물 선택 버튼 🐰 토끼(data-optional — 시트 없으면 자동 숨김), ?v 갱신
+- AutoTest/devtools.html, deguri-determinism-test.js, deguri-sim-dump.js: CREATURES 목록 9종
+- docs/spritemake-request/applied/2026-09-21-deguri-creatures-h.md: 의뢰서(디자인·프레임 순서·QA 게이트), 인수 완료로 applied/ 이동
 
 ## 상세 변경 내역
 
@@ -1069,8 +1069,8 @@
 - r2c0 공 bbox (20,26)-(140,135) = 120×109, 중심 (80,80.5) — 솜꼬리 돌출 때문에 폭 120 캡으로 균등 축소(본체 ~109, 108~120 게이트 안). 찌그러짐 칸 120×79. row1 col3 == row2 col0 diff 0. 공 4칸 픽셀 차 9천 이상(구분됨).
 
 ### [검증]
-- node AutoTest/marble-determinism-test.js ALL PASS. game-lab/marble-preview.html(9인, 시드 7) 출발대 대기(서기)·공 렌더 확인, rabbit*.png 200. 404 는 기존 4차 미도착 4개뿐.
-- 로컬 5173 서버는 옛 프로세스 — socket/marble.js 바뀌었으니 재기동 필요.
+- node AutoTest/deguri-determinism-test.js ALL PASS. game-lab/deguri-preview.html(9인, 시드 7) 출발대 대기(서기)·공 렌더 확인, rabbit*.png 200. 404 는 기존 4차 미도착 4개뿐.
+- 로컬 5173 서버는 옛 프로세스 — socket/deguri.js 바뀌었으니 재기동 필요.
 
 ========================================
 
@@ -1079,10 +1079,10 @@
 ========================================
 
 ## 변경 파일
-- js/marble-render.js: drawCreatureIcon(iconCanvas, creature, col) — idle 행 칸 지정 (v46)
-- js/marble.js: startPickerIconAnim — 선택 버튼 아이콘 setInterval 230ms, 프레임 [0,1,0,1,0,1,2,3], 버튼마다 위상 3칸씩 어긋남, 선택창 숨김·탭 비활성 시 스킵 (v16)
-- marble-multiplayer.html: ?v 갱신
-- (이전 커밋) assets/marble/creatures/turtle.png row0 col0 좌우 반전(원본이 왼쪽 보기 → 통로 걷기 0·1칸 교대·대기·아이콘에서 고개 홱홱), pufferfish 3장 v2(다리 제거), manifest md5
+- js/deguri-render.js: drawCreatureIcon(iconCanvas, creature, col) — idle 행 칸 지정 (v46)
+- js/deguri.js: startPickerIconAnim — 선택 버튼 아이콘 setInterval 230ms, 프레임 [0,1,0,1,0,1,2,3], 버튼마다 위상 3칸씩 어긋남, 선택창 숨김·탭 비활성 시 스킵 (v16)
+- deguri-multiplayer.html: ?v 갱신
+- (이전 커밋) assets/deguri/creatures/turtle.png row0 col0 좌우 반전(원본이 왼쪽 보기 → 통로 걷기 0·1칸 교대·대기·아이콘에서 고개 홱홱), pufferfish 3장 v2(다리 제거), manifest md5
 - update-log.md, summit-log.txt
 
 ## 상세 변경 내역
@@ -1091,7 +1091,7 @@
 - 부하: 56×56 캔버스 8개 × 4.3fps, 경주 중(선택창 display:none)·document.hidden 이면 그리지 않음
 ### [거북이 반전 — 진단 정정]
 - 앞서 "row0 col2 가 왼쪽 보기"로 잘못 짚었음. 검은 눈동자 무게중심으로 재판정하니 왼쪽 칸은 col0(첫 칸). 그 칸만 픽셀 반전, 나머지 19칸·공 계약 바이트 동일 검증
-- GPT 배치 marble-run-turtle-direction-revision 은 세 시트 전 칸을 왼쪽으로 뒤집는 작업이라 폐기. 13:56 파이프라인이 게임 파일을 덮어쓴 것을 git checkout 으로 되돌림 — 재복사되면 같은 조치
+- GPT 배치 deguri-turtle-direction-revision 은 세 시트 전 칸을 왼쪽으로 뒤집는 작업이라 폐기. 13:56 파이프라인이 게임 파일을 덮어쓴 것을 git checkout 으로 되돌림 — 재복사되면 같은 조치
 ### [운영]
 - Railway 실서버가 assets/docs 만 바뀐 커밋을 SKIPPED — summit-log 한 줄로 트리거해 c662106 SUCCESS. Watch Paths 수정 요청함
 
@@ -1102,13 +1102,13 @@
 ========================================
 
 ## 변경 파일
-- socket/marble-sim.js: 몸싸움 판정(scuffle/scuffleEnd 이벤트, land.dizzy, SCUFFLE_* 상수), 독수리 예산·휴식, GRAVITY 700→595
-- socket/marble.js: CREATURES 8종, canStartMarble(opts) 동물 미선택 거절, marble:start {force:true}
-- js/marble-render.js: ASSETS scuffle 그룹·dizzy-swirl fx·새 동물 3종 경로, 밀기/화들짝/낙하/기절 그리기, hasCreatureSprite (v45)
-- js/marble.js: 강제 시작 버튼 표시 조건·안 고른 사람 표시, 동물 8종, 시트 없는 동물 버튼 숨김 (v15)
-- marble-multiplayer.html: [⚡ 강제 시작] 버튼, 동물 선택 버튼 3개(data-optional)
-- assets/marble/creatures: *-scuffle 5장 + 햄스터·복어·너구리 시트 9장, fx/dizzy-swirl.png, marble-run.manifest.json(scuffleF·creaturesG)
-- docs: goal/applied/marble-lid-scuffle.md, spritemake-request/applied/(lid-scuffle-f, creatures-g), 새 lessons 후보는 메모리에만
+- socket/deguri-sim.js: 몸싸움 판정(scuffle/scuffleEnd 이벤트, land.dizzy, SCUFFLE_* 상수), 독수리 예산·휴식, GRAVITY 700→595
+- socket/deguri.js: CREATURES 8종, canStartDeguri(opts) 동물 미선택 거절, deguri:start {force:true}
+- js/deguri-render.js: ASSETS scuffle 그룹·dizzy-swirl fx·새 동물 3종 경로, 밀기/화들짝/낙하/기절 그리기, hasCreatureSprite (v45)
+- js/deguri.js: 강제 시작 버튼 표시 조건·안 고른 사람 표시, 동물 8종, 시트 없는 동물 버튼 숨김 (v15)
+- deguri-multiplayer.html: [⚡ 강제 시작] 버튼, 동물 선택 버튼 3개(data-optional)
+- assets/deguri/creatures: *-scuffle 5장 + 햄스터·복어·너구리 시트 9장, fx/dizzy-swirl.png, deguri.manifest.json(scuffleF·creaturesG)
+- docs: goal/applied/deguri-lid-scuffle.md, spritemake-request/applied/(lid-scuffle-f, creatures-g), 새 lessons 후보는 메모리에만
 - update-log.md, summit-log.txt
 
 ## 상세 변경 내역
@@ -1120,8 +1120,8 @@
 - 교훈: 시뮬 변경의 경주 길이 영향은 같은 시드로 못 잰다(걷기 루프 rng 소비가 어긋나 다른 경주가 됨) → 40시드 평균으로 비교
 
 ### [동물 미선택 시작 거절 + 방장 강제 시작] 0575159
-- canStartMarble(room, gameState, opts): scheduled/force 가 아니면 준비했는데 미선택인 이름을 돌려줌("○○님이 아직 동물을 안 골랐어요"). 예약 발화는 종전대로 자동 배정
-- marble:start {force:true}: 방장만, 미선택자 자동 배정 + roomNotice 방 공지. 클라는 미선택자 있을 때만 강제 시작 버튼 노출
+- canStartDeguri(room, gameState, opts): scheduled/force 가 아니면 준비했는데 미선택인 이름을 돌려줌("○○님이 아직 동물을 안 골랐어요"). 예약 발화는 종전대로 자동 배정
+- deguri:start {force:true}: 방장만, 미선택자 자동 배정 + roomNotice 방 공지. 클라는 미선택자 있을 때만 강제 시작 버튼 노출
 - 5174 소켓 테스트: 거절 문구·방장 전용·강제 시작 reveal·자동 배정·공지·진행 중 거절 통과
 
 ### [피드백 튜닝] 441da46
@@ -1148,15 +1148,15 @@
 ## 변경 파일 (이 커밋)
 - update-log.md: 09-21 「마블런」 항목을 「데구리」로 고쳐 쓰고, 09-20 저녁 세션의 유저 체감 변경(출발대 대기·복제 낙하·이름표·비석·순위 보기·초대 링크·드래그 준비·예약·랭킹 탭) 추가
 - summit-log.txt: 이 항목
-- (8dcc125) 22개 파일 "마블런" → "데구리": marble-multiplayer.html(title/OG/JSON-LD/noscript/안내), dice-game-multiplayer.html 로비 라벨, js/free.js·utils/og-meta.js·js/shared/ranking-shared.js 게임명, js/marble.js 방 제목 접미사, socket/marble.js 로그·에러 문구, AutoTest/devtools.html 탭, game-lab 프리뷰, 주석. 코드 식별자(marble, /marble, marble:* 이벤트, 파일명, DB gameType)는 유지 — 저장된 방·랭킹 데이터와 어긋나지 않게. docs/·summit-log 과거 기록은 손대지 않음.
-  같은 커밋에 미추적이던 에셋 6장(assets/marble/creatures/*-scuffle.png 5, fx/dizzy-swirl.png)이 함께 추적됨(6차 의뢰 도착분, 코드 연결은 별도).
+- (8dcc125) 22개 파일 "마블런" → "데구리": deguri-multiplayer.html(title/OG/JSON-LD/noscript/안내), dice-game-multiplayer.html 로비 라벨, js/free.js·utils/og-meta.js·js/shared/ranking-shared.js 게임명, js/deguri.js 방 제목 접미사, socket/deguri.js 로그·에러 문구, AutoTest/devtools.html 탭, game-lab 프리뷰, 주석. 코드 식별자(deguri, /marble, deguri:* 이벤트, 파일명, DB gameType)는 유지 — 저장된 방·랭킹 데이터와 어긋나지 않게. docs/·summit-log 과거 기록은 손대지 않음.
+  같은 커밋에 미추적이던 에셋 6장(assets/deguri/creatures/*-scuffle.png 5, fx/dizzy-swirl.png)이 함께 추적됨(6차 의뢰 도착분, 코드 연결은 별도).
 
 ## 09-20 저녁 세션 작업 기록 (이전 summit 항목에 없던 커밋들 — 이미 main 배포됨)
 ### [방 통합 5건 c7610e2]
 - 대기 화면: 트랙 항상 표시 + 서버 stateUpdated.preview(고정 시드 배치) 로 출발대 프리뷰, 준비 인원 바뀌면 requestState
 - 다이렉트 링크: js/shared/free-invite.js·js/free.js 게임 맵에 /marble 추가(초대 바·/free/marble/CODE 입장). 해적(pirate)은 둘 다 아직 빠짐
 - 드래그 준비: 접속자 태그 draggable(source='users') — 힌트만 있고 동작이 없었음(pirate/spin-arena 동일 상태)
-- 예약 시작: socket/marble.js start 를 canStart/start 로 분리해 scheduled-start.js 등록, 클라 팝업·배지·버튼(horse 구조)
+- 예약 시작: socket/deguri.js start 를 canStart/start 로 분리해 scheduled-start.js 등록, 클라 팝업·배지·버튼(horse 구조)
 - 랭킹 팝업 게임별 탭 마블런 → db0df0b 에서 기록 있거나 마블런 방에서 열 때만 노출로 게이트
 ### [규칙·연출 5204910 b2b40c9 489c7a0 a26d1b0 b053d64 f4f8ff4 febba61 cda204b]
 - 마릿수 3단계(CROWD_PRESETS few/normal/many, 인당 = clamp(floor(total/인원),1,perMax)) → 이후 다른 세션이 솔로 추가해 4단계(1b504a7)
@@ -1165,7 +1165,7 @@
 - 새로고침 시 roomJoined 가 숨은 입력칸(localStorage 잔존 별명)을 서버 확정 이름보다 우선 → 옛 별명 재입장·호스트 상실. data.userName 우선으로 수정
 - 통로 졸음 시간 만료 시 wake 이벤트 누락 → 자는 그림인 채 걸어가던 것 수정
 - 꼴찌 확정 = 통 진입(sim.holeEntryCut, cutMs) + 착지 자리 비석(drawGravestone) + 동물 소멸 → 이후 다른 세션이 40d4179·638ddfb 에서 "통로 끝 골 진입 순서, 혼자 내려오면 즉시 확정"으로 재정의(현재 HEAD 규칙)
-- 경주 뒤 자동 roundReset 제거: 마지막 화면 유지, [🏆 순위 보기](1위…꼴찌 목록)·방장 [🔄 다음 판 준비](marble:reset). finished 에서도 동물 선택·마릿수 변경·바로 다음 경주 시작 허용
+- 경주 뒤 자동 roundReset 제거: 마지막 화면 유지, [🏆 순위 보기](1위…꼴찌 목록)·방장 [🔄 다음 판 준비](deguri:reset). finished 에서도 동물 선택·마릿수 변경·바로 다음 경주 시작 허용
 ### [장치·맵 d3edba6 e055d3f e186106 6b42b79]
 - 구덩이 → 간헐천(정원 없이 빠졌다 PIT_ERUPT_PERIOD 마다 분출). 분출 시 겹친 공이 밀어내기로 벽을 뚫고 밖으로 새던 것 → 격자로 펼쳐 띄움(e055d3f). 댐은 마리별 지연(damHold)으로 흘러 터짐 + 물살 연출
 - visible() 컬링이 줌을 무시해 0.5x 결승 프레임에서 스탠드가 안 그려지던 것 수정, 피날레 스포트라이트 → 비석 뒤 빛
@@ -1181,16 +1181,16 @@
 ========================================
 
 ## 변경 파일
-- dice-game-multiplayer.html: #marbleLabel 의 인라인 display:none 제거(방 만들기에 항상 노출), 배지 NEW → 「베타」
-- marble-multiplayer.html: 캔버스 박스에 #marbleBetaBadge(🧪 베타 테스트, 전체화면 버튼 왼쪽), css ?v=9
-- css/marble.css: #marbleBetaBadge(빨강 바탕·흰 글씨, 전체화면 위치 보정)
-- socket/marble-sim.js: 독수리 초반 예산 EAGLE_MAX_EARLY_MIN 4→3, EAGLE_MAX_EARLY_RATIO 0.15→0.12, 쉬는 시간 EAGLE_REST_MS 1200→1500. 결승전(EAGLE_MAX_FINAL 4, EAGLE_REST_FINAL_MS 500)은 그대로
-- (이전 커밋, 같은 배포에 포함) js/marble.js·js/marble-render.js: 경주 다시 보기(replayRace), 내 동물 따라가기 스위치(R.setHighlight + updateCamera myFocus), 마릿수 4단계(solo 프리셋), 장치 골짜기·갈래 골짜기·에셋 8장, 구덩이·진흙 렌더 복구, 전체화면 리사이즈 보강
+- dice-game-multiplayer.html: #deguriLabel 의 인라인 display:none 제거(방 만들기에 항상 노출), 배지 NEW → 「베타」
+- deguri-multiplayer.html: 캔버스 박스에 #deguriBetaBadge(🧪 베타 테스트, 전체화면 버튼 왼쪽), css ?v=9
+- css/deguri.css: #deguriBetaBadge(빨강 바탕·흰 글씨, 전체화면 위치 보정)
+- socket/deguri-sim.js: 독수리 초반 예산 EAGLE_MAX_EARLY_MIN 4→3, EAGLE_MAX_EARLY_RATIO 0.15→0.12, 쉬는 시간 EAGLE_REST_MS 1200→1500. 결승전(EAGLE_MAX_FINAL 4, EAGLE_REST_FINAL_MS 500)은 그대로
+- (이전 커밋, 같은 배포에 포함) js/deguri.js·js/deguri-render.js: 경주 다시 보기(replayRace), 내 동물 따라가기 스위치(R.setHighlight + updateCamera myFocus), 마릿수 4단계(solo 프리셋), 장치 골짜기·갈래 골짜기·에셋 8장, 구덩이·진흙 렌더 복구, 전체화면 리사이즈 보강
 
 ## 상세 변경 내역
 
 ### [마블런 베타 공개]
-- 서버는 원래 gameType 'marble' 을 허용(socket/rooms.js validGameType)했고 /marble 라우트도 열려 있었다. 로비 라벨만 devFlags(로컬/DEV_GAMES)에서만 보이게 숨겨 두었던 것을 제거해 실서버에서도 방 생성 가능.
+- 서버는 원래 gameType 'deguri' 을 허용(socket/rooms.js validGameType)했고 /marble 라우트도 열려 있었다. 로비 라벨만 devFlags(로컬/DEV_GAMES)에서만 보이게 숨겨 두었던 것을 제거해 실서버에서도 방 생성 가능.
 - 베타임을 두 곳에 표시: 로비 방 만들기 배지 「베타」, 게임 캔버스 우상단 「🧪 베타 테스트」(전체화면에서도 유지).
 
 ### [독수리 빈도]

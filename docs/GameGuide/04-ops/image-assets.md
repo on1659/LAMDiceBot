@@ -12,7 +12,7 @@ express.static 은 `max-age=0` 이라 재방문도 매번 재검증 요청이 �
 | 이미지 종류 | 방법 | 기대 절감 |
 |------------|------|----------|
 | 알파 있는 스프라이트/시트/아틀라스 (대부분) | `pngquant` 256색 팔레트 | 60~75% |
-| 데구리 시트 전부 (`assets/marble/**`, ramp.png 제외) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −20% 추가 |
+| 데구리 시트 전부 (`assets/deguri/**`, ramp.png 제외) | pngquant → `cwebp -lossless -z 9` (**.webp**, 픽셀 동일) | pngquant 대비 −20% 추가 |
 | 알파 없는 큰 배경 (RGB, 1000px 이상) | WebP 손실 `q 92` | 85~95% |
 | 가로로 타일링하는 불투명 스트립 (경마 레인 `assets/backgrounds/{탈것}`) | `pngquant --quality 90-98 --nofs` → `cwebp -lossless -z 9` (**.webp**) | 70% |
 | 경마 탈것 프레임 (`assets/horse-race/vehicles/{id}/*`, 꼴찌 `sprites/lose/*`) | `pngquant --quality 80-98 --nofs` → `cwebp -lossless -z 9` (**.webp**) — near-lossless·손실 q90 보다 작고 4x 확대에서도 차이 없음 | 50% |
@@ -60,8 +60,8 @@ cwebp -q 85 -alpha_q 100 -alpha_filter best -m 6 -sharp_yuv {원본}/aura-atlas.
 
 ## 데구리 에셋 캐시 (`?v=`)
 
-`routes/api.js` 가 `assets/marble/**` 에 `Cache-Control: public, max-age=7일` 을 준다(다른 경로는 기본 `max-age=0` 재검증).
-그래서 데구리 에셋 URL 은 `js/marble-render.js` 의 `ASSET_VER`(`?v=N`) 이 붙는다. **같은 이름으로 파일을 교체하면 `ASSET_VER` 을 올려라** —
+`routes/api.js` 가 `assets/deguri/**` 에 `Cache-Control: public, max-age=7일` 을 준다(다른 경로는 기본 `max-age=0` 재검증).
+그래서 데구리 에셋 URL 은 `js/deguri-render.js` 의 `ASSET_VER`(`?v=N`) 이 붙는다. **같은 이름으로 파일을 교체하면 `ASSET_VER` 을 올려라** —
 안 올리면 최대 7일 옛 그림. 새 이름 추가는 올릴 필요 없음. `pickup-skin.py` 가 끝날 때 이걸 상기시킨다.
 
 ## 배포 주의
@@ -77,7 +77,7 @@ JS/HTML 이 같이 바뀌지 않으면 `summit-log.txt` 에 한 줄 넣어 트�
 
 | 경로 | 상태 |
 |------|------|
-| `assets/marble/**` | 완료 — 전부 pngquant→WebP 무손실(스킨 45장은 필요할 때만 로드 `ensureSkin`), 배경 2장 WebP q92, 미도착 자리표시 4개(gravestone·gap-mark·lane-dirt·suck-swirl) ASSETS 에서 제거, 7일 캐시+`?v=`. 진입 시 약 2.9MB/91요청. `pieces/ramp.png` 는 미참조(삭제 후보) |
+| `assets/deguri/**` | 완료 — 전부 pngquant→WebP 무손실(스킨 45장은 필요할 때만 로드 `ensureSkin`), 배경 2장 WebP q92, 미도착 자리표시 4개(gravestone·gap-mark·lane-dirt·suck-swirl) ASSETS 에서 제거, 7일 캐시+`?v=`. 진입 시 약 2.9MB/91요청. `pieces/ramp.png` 는 미참조(삭제 후보) |
 | `assets/ui/icons.png` | 완료 — pngquant 1.18MB → 309KB (`?v=2`, 셀 128px 를 15~40px 로 쓰니 차이 없음) |
 | `assets/bridge-cross/**` 6.2MB | **미완** — `background-void-v2.png` 1.8MB (RGB → WebP 126KB), players 7장(각 ~420KB → ~165KB)·glass-fx·stage |
 | `assets/cosmetics/aura-atlas.webp` | 완료 — PNG 830KB → 140KB (손실 q85 + 무손실 알파), PNG 삭제. 경마 페이지 로드마다 `horse-shop.js` 가 선로드하는 파일이라, 경마 한 판 이미지 합계(오라 + 아이콘 아틀라스 + 레인)가 1.24MB → 0.48MB. JS·CSS 4곳 URL 이 문자열까지 같아야 한 번만 받는다. max-age=0 이라 `?v=` 없음 |

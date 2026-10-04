@@ -29,7 +29,7 @@
   --dice: #667EEA;      --dice-soft: #E9ECFC;
   --roulette: #1F7A4D;  --roulette-soft: #DFF3E7;
   --horse: #A4521B;     --horse-soft: #F8E9DD;
-  --marble: #3FA65B;    --marble-soft: #E1F5E6;
+  --deguri: #3FA65B;    --deguri-soft: #E1F5E6;
   --ladder: #D9890A;    --ladder-soft: #FBEFD6;
 
   --live: #D93B3B;      --live-soft: #FDE7E7;   --live-ink: #A81F1F;
@@ -49,7 +49,7 @@
     --dice: #8C9BF5; --dice-soft: #262C5C;
     --roulette: #4FCB86; --roulette-soft: #16382A;
     --horse: #E58A4B; --horse-soft: #3A2417;
-    --marble: #6BD187; --marble-soft: #173A25;
+    --deguri: #6BD187; --deguri-soft: #173A25;
     --ladder: #F0B14A; --ladder-soft: #3B2B10;
     --live: #FF7B7B; --live-soft: #4A1F24; --live-ink: #FFB3B3;
     --sh-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.3);
@@ -65,7 +65,7 @@
   --dice: #8C9BF5; --dice-soft: #262C5C;
   --roulette: #4FCB86; --roulette-soft: #16382A;
   --horse: #E58A4B; --horse-soft: #3A2417;
-  --marble: #6BD187; --marble-soft: #173A25;
+  --deguri: #6BD187; --deguri-soft: #173A25;
   --ladder: #F0B14A; --ladder-soft: #3B2B10;
   --live: #FF7B7B; --live-soft: #4A1F24; --live-ink: #FFB3B3;
   --sh-1: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.3);
@@ -187,7 +187,7 @@ p { margin: 0; }
 .game-card[data-game="dice"] { --soft: var(--dice-soft); --acc: var(--dice); }
 .game-card[data-game="roulette"] { --soft: var(--roulette-soft); --acc: var(--roulette); }
 .game-card[data-game="horse"] { --soft: var(--horse-soft); --acc: var(--horse); }
-.game-card[data-game="marble"] { --soft: var(--marble-soft); --acc: var(--marble); }
+.game-card[data-game="deguri"] { --soft: var(--deguri-soft); --acc: var(--deguri); }
 .game-card[data-game="ladder"] { --soft: var(--ladder-soft); --acc: var(--ladder); }
 /* 경마 카드: 탈것 두 마리가 나란히 */
 .art .duo { display: flex; align-items: flex-end; gap: 0; }
@@ -243,7 +243,7 @@ p { margin: 0; }
 .lobby-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
 .rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .room { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sh-1); --soft: var(--surface-2); }
-.room[data-game="dice"] { --soft: var(--dice-soft); } .room[data-game="roulette"] { --soft: var(--roulette-soft); } .room[data-game="horse"] { --soft: var(--horse-soft); } .room[data-game="marble"] { --soft: var(--marble-soft); }
+.room[data-game="dice"] { --soft: var(--dice-soft); } .room[data-game="roulette"] { --soft: var(--roulette-soft); } .room[data-game="horse"] { --soft: var(--horse-soft); } .room[data-game="deguri"] { --soft: var(--deguri-soft); }
 .room .thumb { width: 64px; height: 64px; border-radius: 14px; background: var(--soft); display: grid; place-items: center; }
 .room .thumb .ic { width: 44px; height: 44px; }
 .room .title { font: 400 20px/1.15 var(--display); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -283,7 +283,7 @@ p { margin: 0; }
 .pick button .sq { width: 48px; height: 48px; border-radius: 12px; background: var(--soft); display: grid; place-items: center; }
 .pick button[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
 .pick button:disabled { opacity: .45; cursor: not-allowed; }
-.pick [data-game="dice"] { --soft: var(--dice-soft); } .pick [data-game="roulette"] { --soft: var(--roulette-soft); } .pick [data-game="horse"] { --soft: var(--horse-soft); } .pick [data-game="marble"] { --soft: var(--marble-soft); } .pick [data-game="ladder"] { --soft: var(--ladder-soft); }
+.pick [data-game="dice"] { --soft: var(--dice-soft); } .pick [data-game="roulette"] { --soft: var(--roulette-soft); } .pick [data-game="horse"] { --soft: var(--horse-soft); } .pick [data-game="deguri"] { --soft: var(--deguri-soft); } .pick [data-game="ladder"] { --soft: var(--ladder-soft); }
 .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
 .switch small { display: block; color: var(--ink-3); font-size: 12px; }
 .tog { width: 44px; height: 26px; border-radius: 999px; background: var(--line); border: 0; position: relative; cursor: pointer; flex: none; }
@@ -474,7 +474,7 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
           <p class="hook">탈것 15종 중 하나 골라 1등·꼴등을 맞혀요. 다 같이 관전.</p>
           <div class="meta"><span class="chip">2~10명</span><span class="chip">2분</span><span class="chip">인기</span></div>
         </button>
-        <button type="button" class="game-card" data-game="marble">
+        <button type="button" class="game-card" data-game="deguri">
           <span class="badge">베타</span>
           <div class="art"><i class="mb px" style="--strip:url(/mockups/assets/mb-hedgehog-idle.webp)"></i></div>
           <h3><i class="sw"></i>데구리</h3>
@@ -563,7 +563,7 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
         <button type="button" class="fbtn" data-f="dice" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-dice.png" alt="">주사위</button>
         <button type="button" class="fbtn" data-f="roulette" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-slot.png" alt="">룰렛</button>
         <button type="button" class="fbtn" data-f="horse" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-horse.png" alt="">경마</button>
-        <button type="button" class="fbtn" data-f="marble" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-paw.png" alt="">데구리</button>
+        <button type="button" class="fbtn" data-f="deguri" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-paw.png" alt="">데구리</button>
       </div>
       <div class="right">
         <button type="button" class="btn ghost sm"><img class="ic px" src="/mockups/assets/ic-refresh.png" alt="">새로고침</button>
@@ -692,7 +692,7 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
         <button type="button" data-game="dice" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""></span>주사위</button>
         <button type="button" data-game="roulette" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""></span>룰렛</button>
         <button type="button" data-game="horse" aria-pressed="true"><span class="sq"><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""></span>경마</button>
-        <button type="button" data-game="marble" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리</button>
+        <button type="button" data-game="deguri" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리</button>
         <button type="button" data-game="ladder" aria-pressed="false" disabled><span class="sq"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""></span>사다리</button>
       </div>
     </div>
@@ -761,13 +761,13 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
     dice:     { name: '주사위', icon: '/mockups/assets/ic-dice.png' },
     roulette: { name: '룰렛',   icon: '/mockups/assets/ic-slot.png' },
     horse:    { name: '경마',   icon: '/mockups/assets/ic-horse.png' },
-    marble:   { name: '데구리', icon: '/mockups/assets/ic-paw.png' }
+    deguri:   { name: '데구리', icon: '/mockups/assets/ic-paw.png' }
   };
   // 예시 방 목록
   var rooms = [
     { title: '점심 내기',   game: 'horse',    host: '민수', n: 3, max: 10, live: false, code: '7QK3' },
     { title: '커피 한 판',  game: 'dice',     host: '지우', n: 5, max: 10, live: true,  code: 'B2XD' },
-    { title: '야식 정하기', game: 'marble',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
+    { title: '야식 정하기', game: 'deguri',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
     { title: '회식 룰렛',   game: 'roulette', host: '서연', n: 6, max: 10, live: true,  code: 'R4WT' }
   ];
   var filter = 'all';
@@ -838,7 +838,7 @@ input.txt:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 4
   $('#btnCreate').addEventListener('click', function () {
     var name = $('#sheetName').value.trim() || '라온';
     var title = $('#roomTitle').value.trim() || (name + '님의 ' + GAMES[picked].name);
-    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'marble' ? 8 : 10, live: false, code: 'NEW1' });
+    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'deguri' ? 8 : 10, live: false, code: 'NEW1' });
     $('#meName').textContent = name;
     $('.me .av').textContent = name.charAt(0);
     filter = 'all';

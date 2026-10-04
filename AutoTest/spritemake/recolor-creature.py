@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""데구리 동물 시트 결정론 리컬러 — 색만 바뀌는 상점 스킨용 (docs/goal/marble-skins-all-creatures.md).
+"""데구리 동물 시트 결정론 리컬러 — 색만 바뀌는 상점 스킨용 (docs/goal/deguri-skins-all-creatures.md).
 기본 시트 3장(main/sleep/scuffle)을 HSV 에서 "몸 색 범위"만 골라 hue/채도/명도를 바꾸고 나머지(alpha·외곽선·눈·보호 색)는 그대로 둔다.
 픽셀 정렬 100%, 같은 입력 → 같은 출력(난수 없음).
 
 usage:
   /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py analyze <creature>            # hue 히스토그램(규칙 잡을 때)
-  /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py make <creature> <skin>        # PRESETS[creature][skin] 로 3장 생성 → assets/marble/creatures/{creature}-{skin}*.webp (무손실)
+  /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py make <creature> <skin>        # PRESETS[creature][skin] 로 3장 생성 → assets/deguri/creatures/{creature}-{skin}*.webp (무손실)
   /opt/homebrew/bin/python3 AutoTest/spritemake/recolor-creature.py compare <creature> <skin>     # 28px 대조 PNG (scratch 경로 출력)
 
 규칙(rule) 필드: hue [lo,hi] (도, lo>hi 면 0 을 감싸 회전), sat [min,max], val [min,max] 로 대상 픽셀을 고르고
@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 
 GAME = Path(__file__).resolve().parents[2]
-SRC = GAME / 'assets' / 'marble' / 'creatures'
+SRC = GAME / 'assets' / 'deguri' / 'creatures'
 SHEETS = ['', '-sleep', '-scuffle']
 ALPHA_MIN = 8
 
@@ -87,7 +87,7 @@ PRESETS = {
         },
     },
     'ribbonpig': {
-        # 레드 돼지 바탕(2026-09-30): 연분홍 몸(s≈0.21 v1.0) → 선명한 빨강. 게임에 들어간 레드 돼지는 이 결과를 --ref 로 넣고 불꽃을 덧그린 GPT 시트(배치 marble-run-skin-ribbonpig-red) — 이 프리셋으로 make 하면 불꽃 시트를 덮어쓴다. 흰 하이라이트·갈색 발굽·노란 마크는 그대로, 볼터치(s≈0.40)는 빨강 위 밝은 분홍
+        # 레드 돼지 바탕(2026-09-30): 연분홍 몸(s≈0.21 v1.0) → 선명한 빨강. 게임에 들어간 레드 돼지는 이 결과를 --ref 로 넣고 불꽃을 덧그린 GPT 시트(배치 deguri-skin-ribbonpig-red) — 이 프리셋으로 make 하면 불꽃 시트를 덮어쓴다. 흰 하이라이트·갈색 발굽·노란 마크는 그대로, 볼터치(s≈0.40)는 빨강 위 밝은 분홍
         'red': {
             'outline_v': 0.22,
             'outline_val_mul': 0.8,

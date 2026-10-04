@@ -38,7 +38,7 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 | `socket/rooms.js` | ① gameType allowlist에 `'[game]'` 추가 ② leaveRoom 시 게임별 베팅/선택 데이터 cleanup ③ **`getCurrentRoom` 재진입 마스킹**: server-only 필드(정답/trigger/seed 등)를 가진 게임은 화이트리스트에 명시 마스킹 필수 — 안 하면 reveal 전 평문 누출 (`lessons/_common.md` C-20) |
 | `socket/chat.js` | (진짜 disconnect 경로) leaveRoom과 **짝으로** 게임별 점유(claim/lane/skin) cleanup 추가 — 한쪽만 넣으면 유령 점유 잔존 (`lessons/_common.md` C-19) |
 | `utils/room-helpers.js` | `createRoomGameState()` 에 게임별 gameState 필드 초기화 |
-| `routes/api.js` | ① `/[game]` 라우트 ② `/[game]-multiplayer.html` 301 리다이렉트 ③ `defaultGameStats` 항목 ④ `FREE_GAME_SLUGS` 에 `'[game]'` ⑤ `SERVER_ROOM_DIRECT_PATHS` 에 `'/[game]'` (④⑤ 누락 시 방 공유 다이렉트 링크 미동작) 공개 URL 슬러그는 gameType 과 다를 수 있다(데구리: gameType `marble`, 경로·슬러그 `deguri`, 2026-09-29) — 슬러그를 정하거나 바꿀 땐 ④⑤ + `utils/og-meta.js` GAME_LABELS + `js/free.js`(GAME_LABELS·GAME_ICON·GAME_GRADIENT·GAME_PATH_TO_SLUG·GAME_PATH_BY_TYPE) + `js/shared/free-invite.js` 두 맵 + dice 로비 href 가 한 세트, 옛 경로는 301 |
+| `routes/api.js` | ① `/[game]` 라우트 ② `/[game]-multiplayer.html` 301 리다이렉트 ③ `defaultGameStats` 항목 ④ `FREE_GAME_SLUGS` 에 `'[game]'` ⑤ `SERVER_ROOM_DIRECT_PATHS` 에 `'/[game]'` (④⑤ 누락 시 방 공유 다이렉트 링크 미동작) 공개 URL 슬러그는 gameType 과 다를 수 있다(데구리: gameType `deguri`, 경로·슬러그 `deguri`, 2026-09-29) — 슬러그를 정하거나 바꿀 땐 ④⑤ + `utils/og-meta.js` GAME_LABELS + `js/free.js`(GAME_LABELS·GAME_ICON·GAME_GRADIENT·GAME_PATH_TO_SLUG·GAME_PATH_BY_TYPE) + `js/shared/free-invite.js` 두 맵 + dice 로비 href 가 한 세트, 옛 경로는 301 |
 
 ### 클라이언트 진입점 (dice 로비)
 | 파일 | 할 일 |

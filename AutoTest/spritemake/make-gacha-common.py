@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""데구리 구슬 뽑기 '일반' 등급 그림 — 레어(파랑) 그림의 색만 초록으로 돌려 만든다 (docs/goal/marble-shop-declutter-common-tier.md).
+"""데구리 구슬 뽑기 '일반' 등급 그림 — 레어(파랑) 그림의 색만 초록으로 돌려 만든다 (docs/goal/deguri-shop-declutter-common-tier.md).
 그림 생성 없음, 난수 없음: 같은 입력 → 같은 출력. 모양·알파는 레어와 100% 같아서 좌표(gacha-anchors.json)를 그대로 쓴다.
 
     capsule/capsule-rare{,-cup,-lid,-lidflip,-open}.webp → capsule/capsule-common*.webp
@@ -7,10 +7,10 @@
     machine/gacha-machine-lamp.webp                      → 맨 뒤에 일반 칸 한 칸 덧붙임(4칸 → 5칸, 앞 4칸 픽셀 불변)
 
 초록인 이유: 유리구 안에 이미 초록 공(시트 1번 칸)이 있고, 회색 램프는 꺼진 램프와 구분이 안 된다.
-실행 뒤 js/marble-gacha.js 의 ASSET_VER 을 올린다(assets/marble 7일 캐시).
+실행 뒤 js/deguri-gacha.js 의 ASSET_VER 을 올린다(assets/deguri 7일 캐시).
 
 usage:
-  /opt/homebrew/bin/python3 AutoTest/spritemake/make-gacha-common.py            # assets/marble/gacha 에 쓰고 manifest 갱신
+  /opt/homebrew/bin/python3 AutoTest/spritemake/make-gacha-common.py            # assets/deguri/gacha 에 쓰고 manifest 갱신
   /opt/homebrew/bin/python3 AutoTest/spritemake/make-gacha-common.py --png DIR  # 검수용 PNG 만 DIR 에
 """
 import hashlib, json, subprocess, sys, tempfile
@@ -19,8 +19,8 @@ import numpy as np
 from PIL import Image
 
 GAME = Path(__file__).resolve().parents[2]
-GACHA = GAME / 'assets' / 'marble' / 'gacha'
-MAN = GAME / 'assets' / 'marble' / 'marble-run.manifest.json'
+GACHA = GAME / 'assets' / 'deguri' / 'gacha'
+MAN = GAME / 'assets' / 'deguri' / 'deguri.manifest.json'
 RECOLOR = ['capsule/capsule-rare', 'capsule/capsule-rare-cup', 'capsule/capsule-rare-lid', 'capsule/capsule-rare-lidflip', 'capsule/capsule-rare-open', 'fx/gacha-rays-rare']
 LAMP = 'machine/gacha-machine-lamp'
 LAMP_CELL_W, LAMP_CELLS, LAMP_RARE = 54, 4, 1     # 원본 시트: [꺼짐, 레어, 에픽, 전설]
@@ -96,7 +96,7 @@ def main():
             man['gachaMachine']['assets'][f'gacha/{rel}.webp'] = {'md5': hashlib.md5(dst.read_bytes()).hexdigest(), 'bytes': dst.stat().st_size}
             print(f'  {rel}.webp  {im.size[0]}x{im.size[1]}  {dst.stat().st_size:,}B')
     MAN.write_text(json.dumps(man, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    print('manifest 갱신 — js/marble-gacha.js ASSET_VER 을 올릴 것')
+    print('manifest 갱신 — js/deguri-gacha.js ASSET_VER 을 올릴 것')
 
 
 main()

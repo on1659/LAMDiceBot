@@ -32,7 +32,7 @@ const RankingModule = (function () {
         'roulette': { icon: 'slot', text: '룰렛' },
         'ladder': { icon: 'ladder', text: '사다리타기' },
         'spin-arena': { icon: 'swords', text: '회전 칼날' },
-        'marble': { icon: 'paw', text: '데구리' }
+        'deguri': { icon: 'paw', text: '데구리' }
     };
     // 라벨 객체 렌더 — textContent 자리(탭·칩)는 노드로, innerHTML 템플릿(달력)은 문자열로. text 는 상수만.
     function setIconLabel(el, t) { el.replaceChildren(UIIcons.el(t.icon), ' ' + t.text); }
@@ -892,7 +892,7 @@ const RankingModule = (function () {
                 case 'horse': _horseSubTab === 'vehicles' ? renderHorseVehicles(el) : renderHorseRank(el); break;
                 case 'roulette': renderGame(el, _cache.roulette, '룰렛'); break;
                 case 'ladder': renderGame(el, _cache.ladder, '사다리타기'); break;
-                case 'marble': renderGame(el, _cache.marble, '데구리'); break;
+                case 'deguri': renderGame(el, _cache.deguri, '데구리'); break;
                 case 'orders': renderOrders(el); break;
             }
         });
@@ -1001,7 +1001,7 @@ const RankingModule = (function () {
             { icon: 'ladder', text: '사다리타기', key: 'ladder', color: 'var(--rk-tab-ladder)' }
         ];
         // 데구리은 미출시(로비 라벨 devFlags) — 기록이 있거나 데구리 방에서 연 경우에만 탭을 보인다
-        if (marbleTabVisible(data)) gameTabs.push({ icon: 'paw', text: '데구리', key: 'marble', color: 'var(--rk-tab-marble)' });
+        if (deguriTabVisible(data)) gameTabs.push({ icon: 'paw', text: '데구리', key: 'deguri', color: 'var(--rk-tab-deguri)' });
         if (data.orders) {
             gameTabs.push({ icon: 'burger', text: '주문', key: 'orders', color: 'var(--rk-tab-orders)' });
         }
@@ -1335,13 +1335,13 @@ const RankingModule = (function () {
 
     function getGameTabKeys() {
         const keys = ['dice', 'horse', 'roulette', 'ladder'];
-        if (marbleTabVisible(_cache)) keys.push('marble');
+        if (deguriTabVisible(_cache)) keys.push('deguri');
         if (_cache && _cache.orders) keys.push('orders');
         return keys;
     }
-    function marbleTabVisible(data) {
-        const hasRecords = !!(data && data.marble && ((data.marble.winners || []).length || (data.marble.players || []).length));
-        return hasRecords || _currentGameTab === 'marble';
+    function deguriTabVisible(data) {
+        const hasRecords = !!(data && data.deguri && ((data.deguri.winners || []).length || (data.deguri.players || []).length));
+        return hasRecords || _currentGameTab === 'deguri';
     }
 
     function setupGestures() {

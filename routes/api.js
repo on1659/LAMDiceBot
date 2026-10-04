@@ -9,9 +9,9 @@ const { renderFreeHtml } = require('../utils/og-meta');
 const { getServerById } = require('../db/servers');
 const { DEV_GAMES_ENABLED } = require('../config');
 
-// 데구리 에셋(assets/marble/**) 브라우저 캐시 — URL 에 ?v= 이 붙어 있어(js/marble-render.js ASSET_VER) 오래 캐시해도 된다.
+// 데구리 에셋(assets/deguri/**) 브라우저 캐시 — URL 에 ?v= 이 붙어 있어(js/deguri-render.js ASSET_VER) 오래 캐시해도 된다.
 // 기본값(max-age=0)이면 방에 들어올 때마다 시트 95개를 재검증(304)한다 (2026-09-22)
-const MARBLE_ASSET_MAX_AGE_S = 7 * 24 * 3600;
+const DEGURI_ASSET_MAX_AGE_S = 7 * 24 * 3600;
 
 // /free shortcode rate limiter — IP당 분당 15회 (shortcode 무차별 대입 방지).
 // 2026-05-17 보안 패치: 30 → 15. 비공개 서버 방 보호 강화.
@@ -26,7 +26,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType marble)의 링크 슬러그
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType deguri)의 링크 슬러그
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -57,9 +57,9 @@ function setupRoutes(app) {
                 res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
                 res.setHeader('Pragma', 'no-cache');
                 res.setHeader('Expires', '0');
-            } else if (filePath.includes(path.sep + 'assets' + path.sep + 'marble' + path.sep)
+            } else if (filePath.includes(path.sep + 'assets' + path.sep + 'deguri' + path.sep)
                 || filePath.includes(path.sep + 'assets' + path.sep + 'horse-race' + path.sep + 'vehicles' + path.sep)) {
-                res.setHeader('Cache-Control', 'public, max-age=' + MARBLE_ASSET_MAX_AGE_S);
+                res.setHeader('Cache-Control', 'public, max-age=' + DEGURI_ASSET_MAX_AGE_S);
             }
         }
     });
@@ -114,12 +114,12 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'spin-arena-multiplayer.html'));
     });
 
-    // 데구리 — gameType 은 marble 그대로, 공개 경로·링크 슬러그만 deguri(사용자 2026-09-29: 직링크에 marble 이 보인다)
+    // 데구리 — gameType 은 deguri 그대로, 공개 경로·링크 슬러그만 deguri(사용자 2026-09-29: 직링크에 deguri 이 보인다)
     app.get('/deguri', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'marble-multiplayer.html'));
+        res.sendFile(path.join(__dirname, '..', 'deguri-multiplayer.html'));
     });
     // 옛 데구리 링크(/marble, /marble/:code, /free/marble/:code) → deguri 로 301. /free/:game 일반 라우트보다 먼저 걸어야 슬러그 검사에 안 걸린다
     app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
@@ -225,7 +225,7 @@ function setupRoutes(app) {
             (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished') ||
             (gs.ladder && gs.ladder.phase && gs.ladder.phase !== 'idle' && gs.ladder.phase !== 'finished') ||
             (gs.spinArena && gs.spinArena.phase === 'playing') ||
-            (gs.marble && gs.marble.phase === 'playing')
+            (gs.deguri && gs.deguri.phase === 'playing')
         );
 
         // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
@@ -426,7 +426,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 }, 'marble': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 }, 'deguri': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

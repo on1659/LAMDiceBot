@@ -5,7 +5,7 @@
 SpriteMake batch: `output/ui-icons-shared-m-2026-09-22/`
 받기 경로: `/Users/radar/Work/LAMDiceBot/assets/ui/icons.png` (저장소 공용, 새 폴더 `assets/ui/`)
 모델: gpt-image-2 고정. Codex 직접 생성은 unverified 후보로 `generated/`에만.
-규칙: 10차(L) 의뢰서 `applied/2026-09-21-marble-run-ui-icons-l.md` §2 공통 화풍 + §3 리팩·QA 규칙을 그대로 상속. **L 최종본 `output/marble-run-ui-icons-l-2026-09-21/final/ui/icons.png`의 33셀은 재생성하지 않고 픽셀 그대로 복사**한다. 기존 creatures/pieces/fx/stage final 파일은 절대 건드리지 않는다.
+규칙: 10차(L) 의뢰서 `applied/2026-09-21-deguri-ui-icons-l.md` §2 공통 화풍 + §3 리팩·QA 규칙을 그대로 상속. **L 최종본 `output/marble-run-ui-icons-l-2026-09-21/final/ui/icons.png`의 33셀은 재생성하지 않고 픽셀 그대로 복사**한다. 기존 creatures/pieces/fx/stage final 파일은 절대 건드리지 않는다.
 
 > 화풍 레퍼런스(같은 화풍·외곽선 톤·광택): L 최종본 `qa/cells-labeled.png` — 치비 픽셀아트, 각 색의 어두운 톤 외곽선, 평면 채움 + 하이라이트 1점. 새 64종은 이 33종 옆에 놓여도 한 벌로 보여야 한다.
 > 도구 레퍼런스: L 배치 `tools/{repack,qa,finalize}_ui_icons_l.py` (마젠타 flood-fill 배경 제거 + 8-연결 컴포넌트 셀 배정 + 셀별 104×104 정규화 + 림 despill + 20/32px 대조 시트). 격자만 10×10 으로 바꿔 복사해 쓴다.
@@ -14,7 +14,7 @@ SpriteMake batch: `output/ui-icons-shared-m-2026-09-22/`
 
 ## 1. 왜 11차인가
 
-10차에서 데구리 페이지의 이모지 33곳을 아틀라스 1장으로 바꿨다. 나머지 게임 페이지(주사위·룰렛·경마·사다리·다리건너기·해적 룰렛·회전 칼날)와 로비(index·free), 그리고 전 게임이 공유하는 모듈(`js/shared/` control-bar·chat·free-invite·order·ranking·server-select·shop)은 아직 OS 이모지를 165종·약 1,000곳에서 쓴다. 플랫폼마다 모양이 다르고 데구리와도 따로 논다. **저장소 공용 아틀라스 1장으로 통합**한다 — 데구리 33종을 그대로 품고, 다른 게임에 필요한 64종을 더해 97셀. 데구리도 이 공용 파일로 이관하고 `assets/marble/ui/icons.png`는 삭제한다.
+10차에서 데구리 페이지의 이모지 33곳을 아틀라스 1장으로 바꿨다. 나머지 게임 페이지(주사위·룰렛·경마·사다리·다리건너기·해적 룰렛·회전 칼날)와 로비(index·free), 그리고 전 게임이 공유하는 모듈(`js/shared/` control-bar·chat·free-invite·order·ranking·server-select·shop)은 아직 OS 이모지를 165종·약 1,000곳에서 쓴다. 플랫폼마다 모양이 다르고 데구리와도 따로 논다. **저장소 공용 아틀라스 1장으로 통합**한다 — 데구리 33종을 그대로 품고, 다른 게임에 필요한 64종을 더해 97셀. 데구리도 이 공용 파일로 이관하고 `assets/deguri/ui/icons.png`는 삭제한다.
 
 이번 범위 밖(이모지 유지): 채팅 유저 리액션(❤️👍😢🎉🔥 + DB 등록 커스텀), 유저가 직접 친 채팅 본문, `<title>`·og 메타(텍스트만 남기고 이모지 삭제), 디버그 로그·admin 페이지·`pages/*.html` 정적 SEO 문서. 경마 탈것(🐎🐢🚀…)은 이미 있는 인라인 SVG 탈것 스프라이트 썸네일로 바꾸므로 셀을 만들지 않는다. 다리건너기 색 칸(🟥🟧🟨🟩🟦🟪)은 CSS 색 사각형으로.
 
@@ -157,14 +157,14 @@ index 0~32 = L 의 0~32 **그대로 복사**(L 은 6열이라 좌표만 바뀐�
 
 - `assets/ui/icons.png` + `assets/ui/icons.manifest.json`(배치·md5·셀 맵)
 - `css/ui-icons.css` — `.ui { display:inline-block; width:1.2em; height:1.2em; vertical-align:-0.25em; background:url('/assets/ui/icons.png') no-repeat 0 0 / 1000% 1000%; }` + `.ui-{id} { background-position: (col×100/9)% (row×100/9)%; }` 97개. 모든 게임 페이지·index·free 가 `<link>`.
-- `js/shared/ui-icons.js` — `UI_ICON_CELL`(id→index)·`UI_ICON_COLS=10`, `UIIcons.tag(id)`(문자열 `<i class="ui ui-{id}"></i>`), `UIIcons.el(id)`(Element), `UIIcons.textToNodes(text)`(알려진 이모지 → `<i>` + 텍스트 노드로 분해 — innerHTML 금지, XSS 안전), `UIIcons.register(emoji, factory)`(페이지별 추가 매핑 — 경마 탈것 SVG 썸). 캔버스 게임(marble-render·spin-arena)은 `UI_ICON_CELL`로 `drawImage`.
+- `js/shared/ui-icons.js` — `UI_ICON_CELL`(id→index)·`UI_ICON_COLS=10`, `UIIcons.tag(id)`(문자열 `<i class="ui ui-{id}"></i>`), `UIIcons.el(id)`(Element), `UIIcons.textToNodes(text)`(알려진 이모지 → `<i>` + 텍스트 노드로 분해 — innerHTML 금지, XSS 안전), `UIIcons.register(emoji, factory)`(페이지별 추가 매핑 — 경마 탈것 SVG 썸). 캔버스 게임(deguri-render·spin-arena)은 `UI_ICON_CELL`로 `drawImage`.
 - `js/shared/chat-shared.js` — 시스템/게임 메시지(서버 발신 `🎊🎉 축하`, `🎮 시스템`, `🌤️ 날씨`)와 이름 옆 배지(👑 호스트·🥇🥈🥉·기기)는 `UIIcons.textToNodes`로 렌더. 유저 본문·리액션은 그대로.
 - 게임 페이지 7종 + index/free + `js/{game}.js` + `js/shared/*` 이모지 → `<i class="ui ui-{id}">` (textContent 자리는 아이콘 노드 + 텍스트 노드, 유저 문자열은 escape 유지). `<title>`·og 는 이모지 삭제.
 - 경마: 실시간 순위·미니맵·튜토리얼 샘플의 탈것 이모지 → `getVehicleSVGForResult()` 썸네일. 경주 연출(🔥💨🚀💫🥕🍌❄️🚧👻🪦⚡)은 `.ui` 아이콘 노드.
-- 데구리 이관: `css/marble.css` `.mi` 블록 삭제, `mi mi-*` → `ui ui-*`, `js/marble-render.js` `ASSETS.ui.icons` → `/assets/ui/icons.png` + `ICON_CELL`/`ICON_COLS` → 공용, `assets/marble/ui/icons.png` 삭제, `marble-run.manifest.json uiIconsL` 에 이관 기록.
+- 데구리 이관: `css/deguri.css` `.mi` 블록 삭제, `mi mi-*` → `ui ui-*`, `js/deguri-render.js` `ASSETS.ui.icons` → `/assets/ui/icons.png` + `ICON_CELL`/`ICON_COLS` → 공용, `assets/deguri/ui/icons.png` 삭제, `deguri.manifest.json uiIconsL` 에 이관 기록.
 
 ## 5. 진행 기록
 
 - 2026-09-22 의뢰서 작성. codex exec 로 배치 생성 시작.
 - 2026-09-22 00:15 인수 완료. Codex 1세션 — 시트 A(attempt-01, 36종)·B(attempt-02, 28종) + 단독 재생성 4회(attempt-03 slot·palette·silver·bronze, 04 ladder·speaker 계열, 05 sound, 06 grad 어두운 배경용) → 마젠타 제거·컴포넌트 배정·셀별 정규화·L 33셀 verbatim 복사. Claude 독립 검증 PASS(97셀 bbox ≤104 중심 ±0.5 여백 ≥12, alpha 1~7 = 0, 마젠타 0, L 셀 md5 33/33 일치, 97~99 투명, 20/32px 3배경 대조 시트). `assets/ui/icons.png` md5 `6a44aec375cc65fece23bf7654deaa50`, 1.18MB(PNG-32 무손실 유지 — palette/webp 는 픽셀 변형이라 보류, 크기 최적화는 후속). manifest `assets/ui/icons.manifest.json`. 관찰: fog(50)·dash(31)는 형태가 비슷하고 색(회색/흰-하늘)으로만 구분 — 용도가 달라 허용, 재생성 후보.
-- 코드 연결(§4) 같은 세션에서 진행: 공용 `css/ui-icons.css`·`js/shared/ui-icons.js`, 10개 페이지 `<head>` 포함, chat-shared 시스템 메시지 `setIconText`, control-bar, 게임 페이지 7종·로비·공유 모듈 이모지 교체(에이전트 5개 병렬), 데구리는 아틀라스만 이관(`.mi`는 공용 셀 별칭 — 다른 세션이 marble 파일 편집 중이라 클래스 이름 변경은 보류).
+- 코드 연결(§4) 같은 세션에서 진행: 공용 `css/ui-icons.css`·`js/shared/ui-icons.js`, 10개 페이지 `<head>` 포함, chat-shared 시스템 메시지 `setIconText`, control-bar, 게임 페이지 7종·로비·공유 모듈 이모지 교체(에이전트 5개 병렬), 데구리는 아틀라스만 이관(`.mi`는 공용 셀 별칭 — 다른 세션이 deguri 파일 편집 중이라 클래스 이름 변경은 보류).

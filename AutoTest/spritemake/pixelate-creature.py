@@ -4,7 +4,7 @@
 같은 입력 → 같은 출력(난수 없음). GPT 생성 없음.
 
 usage:
-  /opt/homebrew/bin/python3 AutoTest/spritemake/pixelate-creature.py make <creature> <skin>            # → assets/marble/creatures/{creature}-{skin}*.webp (무손실)
+  /opt/homebrew/bin/python3 AutoTest/spritemake/pixelate-creature.py make <creature> <skin>            # → assets/deguri/creatures/{creature}-{skin}*.webp (무손실)
   /opt/homebrew/bin/python3 AutoTest/spritemake/pixelate-creature.py compare <creature> <skin> <out.png>   # 기본 / 도트 대조 (main 5줄 + sleep + scuffle)
 
 방법(칸마다):
@@ -14,7 +14,7 @@ usage:
      몸 가장자리 블록(4방향에 빈 칸) = 외곽선 색, 위성 블록 = 밝은 색 우선 득표.
   4. 공 칸은 격자에 맞추다 중심이 밀리면 넘친 쪽 끝줄을 떼어 (80,80) 에 맞춘다. 빙글 눈은 DIZZY 도장으로 직접 찍는다.
   5. 5배 최근접 확대. 알파는 0/255 뿐.
-새 동물은 PALETTES 에 색을(첫 색 = 외곽선, 네 번째 값 = 포인트 색 가중), DIZZY 에 빙글 눈 칸과 블록 좌표를 추가한다. 검증은 verify-creature.py · ball-round.py 그대로(스킬 .claude/skills/marble-skin/SKILL.md 2단계)."""
+새 동물은 PALETTES 에 색을(첫 색 = 외곽선, 네 번째 값 = 포인트 색 가중), DIZZY 에 빙글 눈 칸과 블록 좌표를 추가한다. 검증은 verify-creature.py · ball-round.py 그대로(스킬 .claude/skills/deguri-skin/SKILL.md 2단계)."""
 import sys
 from collections import deque
 from pathlib import Path
@@ -22,7 +22,7 @@ import numpy as np
 from PIL import Image
 
 GAME = Path(__file__).resolve().parents[2]
-SRC = GAME / 'assets' / 'marble' / 'creatures'
+SRC = GAME / 'assets' / 'deguri' / 'creatures'
 SHEETS = ['', '-sleep', '-scuffle']
 CELL, BLOCK = 160, 5
 GRID = CELL // BLOCK      # 32

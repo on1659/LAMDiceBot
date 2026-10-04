@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """데구리 걷기 시트({look}-walk.webp — 4×1, 칸 160, 오른쪽 향함) 만들기: 스캐폴드 → (Codex 가 그림) → 리팩·검증 → 인수, 그리고 리컬러·도트 스킨용 파생.
-명세: docs/goal/marble-walk-sheets.md. GPT(Codex exec)는 그리기만, 자르기·배율·정렬·판정은 여기서 한다.
+명세: docs/goal/deguri-walk-sheets.md. GPT(Codex exec)는 그리기만, 자르기·배율·정렬·판정은 여기서 한다.
 
-칸 순서(4칸이 한 바퀴): c0 디딤 A(가장 낮음) → c1 넘김 A(발 듦) → c2 디딤 B(반대 발) → c3 넘김 B. 렌더러(js/marble-render.js stepPose)가 걸은 거리로 칸을 고른다.
+칸 순서(4칸이 한 바퀴): c0 디딤 A(가장 낮음) → c1 넘김 A(발 듦) → c2 디딤 B(반대 발) → c3 넘김 B. 렌더러(js/deguri-render.js stepPose)가 걸은 거리로 칸을 고른다.
 깡충 걸음(GAIT_HOP — 토끼)은 한 바퀴가 한 번 뜀: c0 웅크림 → c1 박차기 → c2 공중 → c3 착지.
 규격: 몸 넓이(불투명 픽셀 수) = 기본 시트 row 0(서기 4칸) 몸 넓이의 중앙값 — 키로 맞추면 서 있다가 엎드려 걷는 동물(아르마딜로·공벌레)이 커진다. 발바닥선 y=150, 가로는 윗몸(위 60%) 무게중심을 기본 시트 서기와 같은 x 에 — 서기↔걷기 전환과 칸 사이에서 몸이 안 튄다.
 
 usage (파이썬은 /opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드박스 해제):
-  walk-sheet.py scaffold <look> [date] [--posture=biped|quad]   # SpriteMake/output/marble-run-walk-<date>/<look>/ 에 ref·prompt·CODEX-BRIEF. 기본 동물은 새 포즈, 스킨은 기본 동물 걷기 시트에 의상 입히기.
+  walk-sheet.py scaffold <look> [date] [--posture=biped|quad]   # SpriteMake/output/deguri-walk-<date>/<look>/ 에 ref·prompt·CODEX-BRIEF. 기본 동물은 새 포즈, 스킨은 기본 동물 걷기 시트에 의상 입히기.
                                                 # --posture: 스킨의 서기 자세가 기본 동물과 다를 때(네 발 돼지 → 두 발로 선 파일럿 돼지) 스킨 main 시트에서 새 포즈로 그린다
   walk-sheet.py repack <look> [attempt] [date]  # source/<look>-walk-attempt-NN.png → final/<look>-walk.png + 검증 수치
   walk-sheet.py verify <png> <look>             # 규격 검사만(webp 를 풀어서 다시 볼 때)
-  walk-sheet.py pickup <look> [date] [--force] [--allow-fail]  # final → assets/marble/creatures/<look>-walk.webp (pngquant --nofs + cwebp 무손실, 알파 마스크 불변 확인).
+  walk-sheet.py pickup <look> [date] [--force] [--allow-fail]  # final → assets/deguri/creatures/<look>-walk.webp (pngquant --nofs + cwebp 무손실, 알파 마스크 불변 확인).
                                                 # --allow-fail: 검사 불합격을 눈으로 확인하고 받아들일 때만(사유를 의뢰 기록에)
   walk-sheet.py recolor <creature> <skin>       # 리컬러 스킨: 기본 걷기 시트에 recolor-creature.py PRESETS 적용
   walk-sheet.py pixelate <creature> <skin>      # 도트 스킨: 기본 걷기 시트를 pixelate-creature.py 방식으로
@@ -25,7 +25,7 @@ from PIL import Image
 
 OUT = Path('/Users/radar/Work/SpriteMake/output')
 GAME = Path(__file__).resolve().parents[2]
-CREATURES = GAME / 'assets' / 'marble' / 'creatures'
+CREATURES = GAME / 'assets' / 'deguri' / 'creatures'
 CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex'
 CELL, COLS, PLANE = 160, 4, 150
 ALPHA_MIN = 8
@@ -77,13 +77,13 @@ FRAMES = {
                "c3 LANDING: the front paws touch the ground, the rump is slightly raised and the hind legs are tucked forward under the belly, about to land.\n"
                "Body length changes (compact in c0, longest in c2) but the body never rotates upright."),
 }
-GAIT_HOP = {'rabbit'}    # 한 바퀴 = 한 번 뜀(웅크림 · 박차기 · 공중 · 착지) — 렌더러 js/marble-render.js HOP_GAIT 과 같은 목록
+GAIT_HOP = {'rabbit'}    # 한 바퀴 = 한 번 뜀(웅크림 · 박차기 · 공중 · 착지) — 렌더러 js/deguri-render.js HOP_GAIT 과 같은 목록
 LEG_ZONE, LEG_DIFF_MIN = 0.35, 20.0   # 걷는 동물: 다리 구역(몸 아래 35%)에서 디딤 A·B, 넘김 A·B 가 각각 이 비율(%) 이상 달라야 한다 — 같은 다리만 두 번 그린 시트(2026-10-02 고슴도치 3%·판다 11%)를 거른다
 BACKDROP = {'turtle': 'flat lavender #B9A7E8'}   # 초록 동물은 초록 배경과 섞인다
 
 
 def creature_of(look): return next(b for b in sorted(BASES, key=len, reverse=True) if look == b or look.startswith(b + '-'))
-def batch_dir(look, date): return OUT / f'marble-run-walk-{date}' / look
+def batch_dir(look, date): return OUT / f'deguri-walk-{date}' / look
 
 
 def prompt_base(look, creature, frames=None):
@@ -132,7 +132,7 @@ def scaffold(look, date, posture=None):
         Image.open(bw).convert('RGBA').save(dst / 'ref' / f'{creature}-walk.png')
     (dst / 'prompt.md').write_text(prompt_base(look, creature, {'biped': BIPED, 'quad': QUAD}.get(posture)) if is_base else prompt_skin(look, creature))
     inputs = f'`ref/{look}.png` as the only input image' if is_base else f'`ref/{creature}-walk.png` as the first input image and `ref/{look}.png` as the second'
-    (dst / 'CODEX-BRIEF.md').write_text(f"""You are generating one raw sprite sheet for SpriteMake batch `marble-run-walk-{date}/{look}` (cwd = {dst}).
+    (dst / 'CODEX-BRIEF.md').write_text(f"""You are generating one raw sprite sheet for SpriteMake batch `deguri-walk-{date}/{look}` (cwd = {dst}).
 Your job is ONLY to DRAW with the built-in image generation tool. Do NOT write any scripts, do NOT crop/repack/resize/edit pixels, do NOT touch any other folder.
 
 1. Generate the sheet described in `prompt.md` with the image tool, passing {inputs}, plus the prompt text.
@@ -340,7 +340,7 @@ def to_webp(src, dst):
 
 def pickup(look, date, force, allow_fail=False):
     src = batch_dir(look, date) / 'final' / f'{look}-walk.png'; dst = CREATURES / f'{look}-walk.webp'
-    if dst.exists() and not force: sys.exit(f'refusing to overwrite {dst} (--force, and bump ASSET_VER in js/marble-render.js)')
+    if dst.exists() and not force: sys.exit(f'refusing to overwrite {dst} (--force, and bump ASSET_VER in js/deguri-render.js)')
     if not verify(src, look):
         if not allow_fail: sys.exit('verify failed — not picked up (after checking the four cells by eye: --allow-fail, and note why in the request doc)')
         print('  verify failed but --allow-fail given')

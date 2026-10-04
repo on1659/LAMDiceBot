@@ -162,7 +162,7 @@
         .room-item.game-ladder { --accent: var(--game-type-ladder); --accent-rgb: var(--ladder-500-rgb); }
         .room-item.game-spin-arena { --accent: var(--game-type-spin-arena); --accent-rgb: var(--spin-arena-500-rgb); }
         .room-item.game-pirate { --accent: var(--game-type-pirate); --accent-rgb: var(--pirate-500-rgb); }
-        .room-item.game-marble { --accent: var(--game-type-marble); --accent-rgb: var(--marble-500-rgb); }
+        .room-item.game-deguri { --accent: var(--game-type-deguri); --accent-rgb: var(--deguri-500-rgb); }
 
         .room-item:hover {
             border-color: var(--accent);
@@ -2071,7 +2071,7 @@
                         <span class="gt-name">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate/marble)의 인라인 display:none을 제거하면 됨 -->
+                    <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate/deguri)의 인라인 display:none을 제거하면 됨 -->
                     <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
                     <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
@@ -2093,8 +2093,8 @@
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <!-- 데구리: 베타 테스트로 공개(2026-09-21) — 배지 "베타" -->
-                    <label id="marbleLabel" class="game-type-option" style="--gt-color: var(--game-type-marble); --gt-rgb: var(--marble-500-rgb);">
-                        <input type="radio" name="gameType" value="marble" id="marbleRadio" />
+                    <label id="deguriLabel" class="game-type-option" style="--gt-color: var(--game-type-deguri); --gt-rgb: var(--deguri-500-rgb);">
+                        <input type="radio" name="gameType" value="deguri" id="deguriRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
@@ -3303,7 +3303,7 @@
                 } else if (room.gameType === 'pirate') {
                     gameTypeIcon = UIIcons.tag('pirate');
                     gameTypeLabel = '해적 룰렛';
-                } else if (room.gameType === 'marble') {
+                } else if (room.gameType === 'deguri') {
                     gameTypeIcon = UIIcons.tag('paw');
                     gameTypeLabel = '데구리';
                 }
@@ -3489,9 +3489,9 @@
             }
 
             // 데구리 방이면 데구리 페이지로 이동
-            if (room && room.gameType === 'marble') {
-                localStorage.setItem('marbleUserName', userName);
-                localStorage.setItem('pendingMarbleJoin', JSON.stringify({
+            if (room && room.gameType === 'deguri') {
+                localStorage.setItem('deguriUserName', userName);
+                localStorage.setItem('pendingDeguriJoin', JSON.stringify({
                     roomId: roomId,
                     userName: userName,
                     isPrivate: room.isPrivate,
@@ -3570,9 +3570,9 @@
         socket.on('devFlags', (flags) => {
             if (!flags) return;
             // 데구리: 미출시(라벨 hidden). 로컬 개발 서버에서만 방 만들기 라벨을 보여준다.
-            if (flags.marbleEnabled) {
-                const marbleLabel = document.getElementById('marbleLabel');
-                if (marbleLabel) marbleLabel.style.display = '';
+            if (flags.deguriEnabled) {
+                const deguriLabel = document.getElementById('deguriLabel');
+                if (deguriLabel) deguriLabel.style.display = '';
             }
             if (!flags.ladderEnabled) return;
 
@@ -4494,9 +4494,9 @@
             }
 
             // 데구리 게임이면 데구리 페이지로 이동
-            if (gameType === 'marble') {
-                localStorage.setItem('marbleUserName', hostName);
-                localStorage.setItem('pendingMarbleRoom', JSON.stringify({
+            if (gameType === 'deguri') {
+                localStorage.setItem('deguriUserName', hostName);
+                localStorage.setItem('pendingDeguriRoom', JSON.stringify({
                     userName: hostName,
                     roomName: roomName,
                     isPrivate: isPrivate,
@@ -4630,9 +4630,9 @@
             }
 
             // 데구리 방이면 데구리 페이지로 이동
-            if (room && room.gameType === 'marble') {
-                localStorage.setItem('marbleUserName', userName);
-                localStorage.setItem('pendingMarbleJoin', JSON.stringify({
+            if (room && room.gameType === 'deguri') {
+                localStorage.setItem('deguriUserName', userName);
+                localStorage.setItem('pendingDeguriJoin', JSON.stringify({
                     roomId: selectedRoomId,
                     userName: userName,
                     isPrivate: room.isPrivate,

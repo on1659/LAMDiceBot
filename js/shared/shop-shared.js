@@ -1269,7 +1269,7 @@
         var id = item.id;
         if (!_socket || !_wallet.authed) return;
         if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
-        // 방 지갑 모드면 어댑터의 구매 경로(데구리 marble:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
+        // 방 지갑 모드면 어댑터의 구매 경로(데구리 deguri:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
         var send = (_config && _config.roomWallet && _config.hooks && _config.hooks.buyRequest)
             ? function (cb) { _config.hooks.buyRequest(id, cb); }
             : function (cb) { _socket.emit('shop:buy', { cosmeticId: id }, cb); };
@@ -1304,7 +1304,7 @@
     // (데구리 동물 스킨은 동물마다 칸이 따로라 id 만으로는 어느 칸을 비울지 모른다).
     function doEquip(slot, id, item) {
         if (!_socket || !_wallet.authed) return;
-        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equip — 계정 prefs 에 저장하지 않음).
+        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/deguri-shop.js: 방 단위 장착 deguri:equip — 계정 prefs 에 저장하지 않음).
         // hook(slot, id, done, item) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
         if (_config && _config.hooks && _config.hooks.equipRequest) {
             _config.hooks.equipRequest(slot, id, function (equipped, reason) {
