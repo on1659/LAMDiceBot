@@ -1,10 +1,10 @@
 # goal: dark-mode-skin-picker
 
 ## One-line Goal
-Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make every user-facing page and every open game (dice, roulette, horse race, ladder, deguri/marble) render correctly in Dark.
+Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make every user-facing page and every open game (dice, roulette, horse race, ladder, deguri/deguri) render correctly in Dark.
 
 ## Background / Motivation
-- Every page currently hard-forces `data-theme="light"` in `<head>`. A partial `[data-theme="dark"]` block already exists in `css/theme.css` (and in `css/free.css`, `css/marble.css`, `css/marble-gacha.css`) but was never finished or exposed.
+- Every page currently hard-forces `data-theme="light"` in `<head>`. A partial `[data-theme="dark"]` block already exists in `css/theme.css` (and in `css/free.css`, `css/deguri.css`, `css/deguri-gacha.css`) but was never finished or exposed.
 - Flipping `data-theme` to `dark` today gives a half-dark page: gray tokens invert, but `--bg-white`, `--panel-primary`, hardcoded white cards, purple gradients and JS-injected styles (chat, order, server-select, …) stay light.
 - The user wants the memradar experience: an icon button that opens a small list of skins. (memradar reference: `/Users/radar/Work/memradar/src/components/ThemeSwitcher.tsx`, `src/components/theme.ts`.)
 
@@ -25,7 +25,7 @@ Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make
 - Picker button placed in: `index.html` header, dice lobby header (`dice-game-multiplayer.html`), `js/shared/control-bar-shared.js` (covers all five game rooms), the nav of every `pages/*.html`, `admin.html`.
 - Dark-correct rendering for:
   - Pages: `index.html`, `free.html`, `admin.html`, all 17 `pages/*.html`.
-  - Games (lobby, waiting room, in-play UI, result/overlay UI): `dice-game-multiplayer.html`, `roulette-game-multiplayer.html`, `horse-race-multiplayer.html` (+ `css/horse-race.css`, `css/horse-shop.css`, `js/horse-race.js`, `js/horse-shop.js`), `ladder-multiplayer.html` (+ `css/ladder.css`, `js/ladder.js`), `marble-multiplayer.html` (+ `css/marble.css`, `css/marble-gacha.css`, `js/marble*.js`).
+  - Games (lobby, waiting room, in-play UI, result/overlay UI): `dice-game-multiplayer.html`, `roulette-game-multiplayer.html`, `horse-race-multiplayer.html` (+ `css/horse-race.css`, `css/horse-shop.css`, `js/horse-race.js`, `js/horse-shop.js`), `ladder-multiplayer.html` (+ `css/ladder.css`, `js/ladder.js`), `deguri-multiplayer.html` (+ `css/deguri.css`, `css/deguri-gacha.css`, `js/deguri*.js`).
   - Shared modules that inject their own styles: chat, order, ranking, ready, server-select, shop, tutorial, free-invite, countdown.
 - Docs: `DESIGN.md` (Dark mode line, Product Context "밝은 테마 고정", Decisions Log), `docs/GameGuide/02-shared-systems/shared-modules.md` (new module), `.claude/rules/frontend.md` FOUC line if its wording no longer matches.
 
@@ -42,7 +42,7 @@ Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make
 - [ ] The picker button is present and usable (mouse, keyboard, touch) on home, lobby, every info page, admin, and in the room control bar of all five games; popover never overflows a 375px viewport.
 - [ ] **Light is unchanged**: with `data-theme="light"` every in-scope page renders the same as before this change (token values for light are not modified; new rules are dark-scoped or use tokens whose light value equals the old literal).
 - [ ] In Dark, on every in-scope page and state there is no light panel left by accident, no dark-on-dark or light-on-light text; body text contrast ≥ 4.5:1 against its surface. Checked at 375px and desktop width.
-- [ ] In Dark, per game — lobby, waiting room, in-play, result — plus chat, order panel, ranking popup, shop (horse/ladder/marble), marble gacha, tutorial overlay, server-select modal, password/name modals, free-invite UI are all legible.
+- [ ] In Dark, per game — lobby, waiting room, in-play, result — plus chat, order panel, ranking popup, shop (horse/ladder/deguri), deguri gacha, tutorial overlay, server-select modal, password/name modals, free-invite UI are all legible.
 - [ ] Any canvas/SVG that draws on a transparent background over a themed surface stays legible in both skins (reads tokens or keeps its own opaque backdrop). Art scenes look the same in both skins.
 - [ ] Horse race PiP window inherits the current skin (existing `data-theme` copy keeps working).
 - [ ] `node -c` passes for every touched JS file; no new console errors on any in-scope page; `grep` for the `document.setAttribute`-style danger patterns in `frontend.md` is clean.
@@ -56,9 +56,9 @@ Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make
 | `js/shared/control-bar-shared.js` | Room control bar — mounts the picker for all games |
 | `index.html`, `free.html`, `admin.html`, `pages/*.html` | Replace forced-light script, add picker mount, fix hardcoded colors |
 | `dice-game-multiplayer.html`, `roulette-game-multiplayer.html` | Large inline `<style>`; lobby lives in the dice page |
-| `horse-race-multiplayer.html`, `css/horse-race.css`, `css/horse-shop.css`, `js/horse-race.js`, `js/horse-shop.js` | Horse race UI; `css/horse-race.css` and `css/horse-shop.css` are also loaded by ladder and marble |
+| `horse-race-multiplayer.html`, `css/horse-race.css`, `css/horse-shop.css`, `js/horse-race.js`, `js/horse-shop.js` | Horse race UI; `css/horse-race.css` and `css/horse-shop.css` are also loaded by ladder and deguri |
 | `ladder-multiplayer.html`, `css/ladder.css`, `js/ladder.js` | Ladder UI |
-| `marble-multiplayer.html`, `css/marble.css`, `css/marble-gacha.css`, `js/marble.js`, `js/marble-shop.js`, `js/marble-gacha.js` | Deguri UI (asset URLs carry `?v=` — bump when a file changes) |
+| `deguri-multiplayer.html`, `css/deguri.css`, `css/deguri-gacha.css`, `js/deguri.js`, `js/deguri-shop.js`, `js/deguri-gacha.js` | Deguri UI (asset URLs carry `?v=` — bump when a file changes) |
 | `js/shared/{chat,order,ranking,ready,server-select,shop,tutorial,countdown}-shared.js`, `js/shared/free-invite.js`, `js/free.js` | JS-injected styles with hardcoded colors |
 | `DESIGN.md`, `docs/GameGuide/02-shared-systems/shared-modules.md` | Docs to update |
 
@@ -71,7 +71,7 @@ Add a user-selectable skin (Light / Dark) with a memradar-style picker, and make
 - C-42 lesson: popups appended to `document.body` inherit host-page global `button`/`input` rules (`css/horse-race.css` `button { width:100%; … }`). The picker must declare `width`, `margin-top`, `padding`, `background`, `min-width/min-height` explicitly.
 - Sticky bottom ad and its `--ad-sticky-reserve` layout.
 - CRLF line endings on the CRLF files listed above.
-- Uncommitted work already in the tree (marble 5090 files) — do not revert, stash or reformat it.
+- Uncommitted work already in the tree (deguri 5090 files) — do not revert, stash or reformat it.
 - Colors go through CSS variables (`frontend.md`): shared → `css/theme.css`, game-only → that game's CSS `:root`. No client `Math.random()`.
 - User-facing copy in plain Korean.
 
@@ -84,10 +84,10 @@ Foundation already in place: `js/shared/theme-shared.js`, the `[data-theme="dark
 4. **Panels that are already dark in light mode** (slate panels, loser cards, ranking popup, debug log, toasts on `rgba(0,0,0,…)`) keep their look in both skins: make sure nothing inside them uses a flipping token for text (`--gray-50…300`, `--bg-white`) — switch those to `--text-on-accent` or a fixed value via a local token.
 5. **Hardcoded chrome colors** — light surfaces (`#fff`, `#f8f9fa`, `#f5f5f5`, `#eee` …) and dark text (`#333`, `#555`, `#666`, `#999`, `black`) on page chrome get a token (exact match) or a dark-scoped override. Applies equally to CSS files, inline `<style>`, inline `style=""` attributes, and styles injected from JS strings.
 6. **Dark token cheat-sheet** (values in `css/theme.css`): card `--bg-white` `#22232b` · sunken `--bg-primary`/`--gray-50` `#1a1b21` · raised `--gray-100` `#2b2c36`, `--gray-200` `#363845` · border `--border-color` `#474958` · text `--text-primary` `#f1f2f6`, `--text-secondary` `#d3d5de`, `--text-tertiary` `#a3a6b4`, `--text-muted` `#8d90a0` · tint backgrounds `--{purple,green,red,yellow,blue}-50/100/200` are deep tints, `-800/-900` are light text · accents `--purple-500` `#837df3`, `--green-500` `#38a157`, `--red-500` `#f05856` (balance point: ≈4.5:1 as text on the card, ≥3.3:1 under white button text), yellow 500–700 unchanged.
-7. **Page ground:** each page adds `[data-theme="dark"] body { background: var(--dark-ground-<dice|roulette|horse|ladder|marble>); }` next to its own `body` rule (tokens defined in `css/theme.css`). Info pages keep `--gray-100`.
+7. **Page ground:** each page adds `[data-theme="dark"] body { background: var(--dark-ground-<dice|roulette|horse|ladder|deguri>); }` next to its own `body` rule (tokens defined in `css/theme.css`). Info pages keep `--gray-100`.
 8. **Token ownership:** `css/theme.css` and `js/shared/theme-shared.js` are owned by the orchestrator. Game-specific dark tokens go in that game's own CSS/inline `<style>` `[data-theme="dark"]` block. Note `css/horse-race.css` `:root` re-declares `--horse-accent` after `theme.css`, so its dark value must be re-declared there too.
 9. **Art is not themed:** canvas scenes, sprites, medals, rarity colors, result gold/silver/bronze cards, ad slots, QR codes. If a canvas/SVG draws text or lines on a transparent background over a themed surface, give it an opaque backdrop or read tokens via `getComputedStyle` and redraw on the `themechange` event.
-10. **Verify visually in both skins** at 375×812 and 1280×800. Screenshot helper (session scratchpad, not in repo): `node <scratchpad>/shot.js --path '/horse-race?createRoom=true' --theme dark --vp 375x812 --ls '{"pendingHorseRaceRoom":{…}}' --wait '#leaveBtn' --out <png> [--audit]` against `http://localhost:5175`. Room entry keys: `pendingRouletteRoom` (`/roulette?createRoom=true`), `pendingHorseRaceRoom` (`/horse-race?createRoom=true`), `pendingLadderRoom` (`/ladder?createRoom=true`), `pendingMarbleRoom` (`/deguri?createRoom=true`); dice rooms are created from the lobby form on `/game`.
+10. **Verify visually in both skins** at 375×812 and 1280×800. Screenshot helper (session scratchpad, not in repo): `node <scratchpad>/shot.js --path '/horse-race?createRoom=true' --theme dark --vp 375x812 --ls '{"pendingHorseRaceRoom":{…}}' --wait '#leaveBtn' --out <png> [--audit]` against `http://localhost:5175`. Room entry keys: `pendingRouletteRoom` (`/roulette?createRoom=true`), `pendingHorseRaceRoom` (`/horse-race?createRoom=true`), `pendingLadderRoom` (`/ladder?createRoom=true`), `pendingDeguriRoom` (`/deguri?createRoom=true`); dice rooms are created from the lobby form on `/game`.
 
 ## Execution Notes
 - Recommended model: strongest current Claude model (Claude Fable 5.1 / Opus-class) for the dark palette, contrast judgment, and deciding per hardcoded color whether it is chrome (theme it) or art (leave it) — these are judgment calls with visual verification. A cheaper model (Sonnet) is acceptable for mechanical parts: swapping the forced-light script on 25+ pages, adding the picker mount to each info-page nav.

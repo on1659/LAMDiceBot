@@ -16,7 +16,7 @@ var TutorialModule = (function() {
         ladder: 64,
         'spin-arena': 128,
         pirate: 256,
-        marble: 512
+        deguri: 512
     };
 
     // Server flags cache (loaded once per session via socket)

@@ -155,10 +155,10 @@
   --pirate-accent: #0f8a8a;
 
   /* 데구리 게임 - 초록+노랑 (언덕/풀밭 느낌) */
-  --marble-500: #3fa65b;
-  --marble-500-rgb: 63, 166, 91;
-  --marble-600: #2f8a49;
-  --marble-accent: #f2b134;
+  --deguri-500: #3fa65b;
+  --deguri-500-rgb: 63, 166, 91;
+  --deguri-600: #2f8a49;
+  --deguri-accent: #f2b134;
 
   /* ============================================
      게임 타입 식별용 색상
@@ -172,7 +172,7 @@
   --game-type-ladder: var(--ladder-500);
   --game-type-spin-arena: var(--spin-arena-500);
   --game-type-pirate: var(--pirate-500);
-  --game-type-marble: var(--marble-500);
+  --game-type-deguri: var(--deguri-500);
 
   /* ============================================
      게임별 파스텔 배경 토큰
@@ -473,7 +473,7 @@
   --rk-tab-horse: #e67e22;
   --rk-tab-roulette: #7c4dff;
   --rk-tab-ladder: #f59e0b;
-  --rk-tab-marble: #3fa65b;
+  --rk-tab-deguri: #3fa65b;
   --rk-tab-orders: #e91e63;
   /* 여러 게임이 같이 쓰는 것 (게임별로 따로 만들던 것을 합침) */
   --bg-subtle: rgba(0, 0, 0, 0.05);           /* 예약 창 '현재 예약' 상자 등 은은한 면 */
@@ -584,41 +584,42 @@
   /* 알림·확인 창 종류별 테두리·확인 버튼 (다크는 theme.css 알림 창 규칙이 무채로 덮는다) */
   /* [/tokens:ladder:light] */
 
-  /* [tokens:marble:light] 데구리 */
-  /* 게임 재질(데구리 eca74cb 역반영, 24) — css/marble.css 에서 옮겨 옴. 캔버스(픽셀 초원·나무 울타리·금색 HUD 배지)와 같은 재료 — '내 동물 고르기'·캔버스 틀·결과 카드에만 쓴다 */
-  --marble-ink: #2b2416;
-  --marble-muted: #6e6350;
-  --marble-wood-line: #d9b27f;
-  --marble-wood-edge: #d3b184;
-  --marble-wood-soft: #eadbbd;
-  --marble-cream: #fff8e6;
-  --marble-paper: #fffdf5;
-  --marble-gold: #ffd166;
-  --marble-gold-deep: #e0a93a;
-  --marble-gold-ink: #3a2a00;
-  --marble-gold-soft: #fff3cc;
-  --marble-gold-soft-ink: #3a2a00;
-  --marble-gold-ring: #ffe7a8;
-  /* 스킨과 무관하게 고정인 색 — 바탕이 늘 같은 자리(캔버스 위 버튼, 결과 카드의 하늘 머리)에 쓴다. --marble-cream / --red-500 은 다크에서 뒤집힌다 */
-  --marble-hud-cream: #fff8e6;   /* 캔버스 위 어두운 카메라 버튼의 테두리(수동) */
-  --marble-win-ink: #dc3545;     /* 결과 카드 하늘 머리 위 당첨자 이름 */
-  --marble-wood-shadow-rgb: 90, 60, 20;           /* 나무 팻말·캔버스 틀 아래 번진 그림자 */
-  --marble-skin-badge-bg: #e0435c;                /* 동물 버튼 모서리 스킨 배지 바탕 */
-  --marble-spin-border: #ffd700;                  /* 캔버스 위 투표 칸 — 룰렛이 스칠 때 금빛 */
-  --marble-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
-  --marble-spin-glow-rgb: 255, 213, 74;
-  --marble-hud-rgb: 43, 36, 22;                   /* 캔버스 위 어두운 버튼·말풍선 바탕 */
-  --marble-hud-manual-rgb: 90, 61, 30;            /* 카메라 버튼 수동 상태 */
-  --marble-fullscreen-bg: #000;                   /* 전체화면 캔버스 둘레 */
-  --marble-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);   /* 결과 카드 하늘→잔디 머리 */
-  --marble-result-head-ink: #2b2416;
-  --marble-result-head-sub: #4f5f3a;
-  --marble-result-sprite-bg: #fff;
-  --marble-result-sprite-shadow-rgb: 138, 90, 43;
-  --marble-yard-grass-rgb: 111, 180, 90;          /* 동물 마당 띠 아래 풀빛 */
-  --marble-yard-shadow-rgb: 60, 45, 20;           /* 마당 동물 발밑 그림자 */
-  --marble-yard-zz: #6d7fb8;                      /* 마당 동물 낮잠 z */
-  /* [/tokens:marble:light] */
+  /* [tokens:deguri:light] 데구리 */
+  /* 게임 재질(데구리 eca74cb 역반영, 24) — css/deguri.css 에서 옮겨 옴. 캔버스(픽셀 초원·나무 울타리·금색 HUD 배지)와 같은 재료 — '내 동물 고르기'·캔버스 틀·결과 카드에만 쓴다 */
+  --deguri-ink: #2b2416;
+  --deguri-muted: #6e6350;
+  --deguri-wood-line: #d9b27f;
+  --deguri-wood-edge: #d3b184;
+  --deguri-wood-soft: #eadbbd;
+  --deguri-cream: #fff8e6;
+  --deguri-paper: #fffdf5;
+  --deguri-gold: #ffd166;
+  --deguri-gold-deep: #e0a93a;
+  --deguri-gold-ink: #3a2a00;
+  --deguri-gold-soft: #fff3cc;
+  --deguri-gold-soft-ink: #3a2a00;
+  --deguri-gold-ring: #ffe7a8;
+  /* 스킨과 무관하게 고정인 색 — 바탕이 늘 같은 자리(캔버스 위 버튼, 결과 카드의 하늘 머리)에 쓴다. --deguri-cream / --red-500 은 다크에서 뒤집힌다 */
+  --deguri-hud-cream: #fff8e6;   /* 캔버스 위 어두운 카메라 버튼의 테두리(수동) */
+  --deguri-win-ink: #dc3545;     /* 결과 카드 하늘 머리 위 당첨자 이름 */
+  --deguri-wood-shadow-rgb: 90, 60, 20;           /* 나무 팻말·캔버스 틀 아래 번진 그림자 */
+  --deguri-skin-badge-bg: #e0435c;                /* 동물 버튼 모서리 스킨 배지 바탕 */
+  --deguri-spin-border: #ffd700;                  /* 캔버스 위 투표 칸 — 룰렛이 스칠 때 금빛 */
+  --deguri-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
+  --deguri-spin-glow-rgb: 255, 213, 74;
+  --deguri-hud-rgb: 43, 36, 22;                   /* 캔버스 위 어두운 버튼·말풍선 바탕 */
+  --deguri-hud-manual-rgb: 90, 61, 30;            /* 카메라 버튼 수동 상태 */
+  --deguri-fullscreen-bg: #000;                   /* 전체화면 캔버스 둘레 */
+  --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);   /* 결과 카드 하늘→잔디 머리 */
+  --deguri-result-head-ink: #2b2416;
+  --deguri-result-head-sub: #4f5f3a;
+  --deguri-result-sprite-bg: #fff;
+  --deguri-result-sprite-shadow-rgb: 138, 90, 43;
+  --deguri-yard-grass-rgb: 111, 180, 90;          /* 동물 마당 띠 아래 풀빛 */
+  --deguri-yard-shadow-rgb: 60, 45, 20;           /* 마당 동물 발밑 그림자 */
+  --deguri-yard-zz: #6d7fb8;                      /* 마당 동물 낮잠 z */
+  --deguri-rarity-common: #22c55e;  /* 데구리 일반 등급(상점 배지·뽑기 공·캡슐과 같은 초록) */
+  /* [/tokens:deguri:light] */
 
   /* [tokens:pages:light] 홈·관리자·안내 페이지 */
   --pages-nav-bg: var(--purple-500);        /* 안내 페이지 상단 메뉴 바탕 (흰 글자) */
@@ -833,7 +834,7 @@
   --dark-ground-roulette: linear-gradient(135deg, #08160f 0%, #0a1b12 50%, #0c2016 100%);
   --dark-ground-horse: linear-gradient(135deg, #16120f 0%, #1b1612 100%);
   --dark-ground-ladder: linear-gradient(135deg, #181208 0%, #1f170b 100%);
-  --dark-ground-marble: linear-gradient(135deg, #0a170f 0%, #0f1e14 100%);
+  --dark-ground-deguri: linear-gradient(135deg, #0a170f 0%, #0f1e14 100%);
 
   /* 다리건너기: 명도 약간 높임 */
   --bridge-500: #5af2ff;
@@ -860,10 +861,10 @@
   --pirate-accent: #2dd4bf;
 
   /* 데구리: 다크 모드 명도 높임 */
-  --marble-500: #7cb08c;
-  --marble-500-rgb: 124, 176, 140;
-  --marble-600: #5f9670;
-  --marble-accent: #d6b36a;
+  --deguri-500: #7cb08c;
+  --deguri-500-rgb: 124, 176, 140;
+  --deguri-600: #5f9670;
+  --deguri-accent: #d6b36a;
 
   /* RGB 채널 변수 (다크 모드) */
   --dice-500-rgb: 169, 164, 224;
@@ -967,7 +968,7 @@
   --free-loading-bridge: var(--dark-ground-dice);
   --free-loading-ladder: var(--dark-ground-ladder);
   --free-loading-spin-arena: var(--dark-ground-dice);
-  --free-loading-deguri: var(--dark-ground-marble);
+  --free-loading-deguri: var(--dark-ground-deguri);
   --alert-error: var(--red-500);              /* 다크: 테두리·버튼은 알림창 규칙이 덮고, 제목 글자에만 쓰인다 → 글자용 톤 */
   --alert-warning: var(--yellow-500);
   --alert-success: var(--green-500);
@@ -1069,37 +1070,38 @@
   --ladder-win-rgb: var(--red-500-rgb);
   /* [/tokens:ladder:dark] */
 
-  /* [tokens:marble:dark] 데구리 */
-  /* 나무·종이 재질을 다크에서는 무채 면으로 — 갈색 종이가 따뜻한 회색 다크와 어긋났다 (2026-10-03). css/marble.css 에서 옮겨 옴 */
-  --marble-ink: var(--text-primary);
-  --marble-muted: var(--text-tertiary);
-  --marble-wood-line: var(--border-color);
-  --marble-wood-edge: var(--gray-200);
-  --marble-wood-soft: var(--gray-200);
-  --marble-cream: var(--gray-100);
-  --marble-paper: var(--bg-white);
-  --marble-gold-soft: var(--gray-200);
-  --marble-gold-soft-ink: #ecdcac;
-  --marble-gold-ring: var(--border-color);
-  --marble-wood-shadow-rgb: var(--shadow-rgb);
-  --marble-skin-badge-bg: var(--fill-danger);
+  /* [tokens:deguri:dark] 데구리 */
+  /* 나무·종이 재질을 다크에서는 무채 면으로 — 갈색 종이가 따뜻한 회색 다크와 어긋났다 (2026-10-03). css/deguri.css 에서 옮겨 옴 */
+  --deguri-ink: var(--text-primary);
+  --deguri-muted: var(--text-tertiary);
+  --deguri-wood-line: var(--border-color);
+  --deguri-wood-edge: var(--gray-200);
+  --deguri-wood-soft: var(--gray-200);
+  --deguri-cream: var(--gray-100);
+  --deguri-paper: var(--bg-white);
+  --deguri-gold-soft: var(--gray-200);
+  --deguri-gold-soft-ink: #ecdcac;
+  --deguri-gold-ring: var(--border-color);
+  --deguri-wood-shadow-rgb: var(--shadow-rgb);
+  --deguri-skin-badge-bg: var(--fill-danger);
   /* 캔버스 위 요소(투표 크림 카드·HUD 버튼·결과 카드 하늘 머리)는 그림 위 연출이라 라이트와 같은 값 */
-  --marble-spin-border: #ffd700;
-  --marble-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
-  --marble-spin-glow-rgb: 255, 213, 74;
-  --marble-hud-rgb: 43, 36, 22;
-  --marble-hud-manual-rgb: 90, 61, 30;
-  --marble-fullscreen-bg: #000;
-  --marble-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
-  --marble-result-head-ink: #2b2416;
-  --marble-result-head-sub: #4f5f3a;
-  --marble-result-sprite-bg: #fff;
-  --marble-result-sprite-shadow-rgb: 138, 90, 43;
-  --marble-yard-grass-rgb: var(--marble-500-rgb);
-  --marble-yard-shadow-rgb: var(--shadow-rgb);
-  --marble-yard-zz: #9aa6cc;
+  --deguri-spin-border: #ffd700;
+  --deguri-spin-bg: linear-gradient(180deg, #fffbe6 0%, #fff1b8 100%);
+  --deguri-spin-glow-rgb: 255, 213, 74;
+  --deguri-hud-rgb: 43, 36, 22;
+  --deguri-hud-manual-rgb: 90, 61, 30;
+  --deguri-fullscreen-bg: #000;
+  --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
+  --deguri-result-head-ink: #2b2416;
+  --deguri-result-head-sub: #4f5f3a;
+  --deguri-result-sprite-bg: #fff;
+  --deguri-result-sprite-shadow-rgb: 138, 90, 43;
+  --deguri-yard-grass-rgb: var(--deguri-500-rgb);
+  --deguri-yard-shadow-rgb: var(--shadow-rgb);
+  --deguri-yard-zz: #9aa6cc;
   /* 알림·확인 창은 theme.css "알림·확인 창" 블록이 무채 테두리·브랜드 버튼으로 덮는다 — 아래는 덮이지 않는 경우의 차분한 값 */
-  /* [/tokens:marble:dark] */
+  --deguri-rarity-common: var(--fill-success);  /* 흰 글자 배지 바탕 — 채도 낮춘 초록 */
+  /* [/tokens:deguri:dark] */
 
   /* [tokens:pages:dark] 홈·관리자·안내 페이지 */
   --pages-nav-bg: var(--purple-200);        /* 스킨 보라 틴트 (흰 글자) */
@@ -1172,7 +1174,7 @@
 [data-theme="dark"] .horse-selection-section,
 [data-theme="dark"] .horse-selection-button,
 [data-theme="dark"] .rank-vote-section:not(.on-canvas),
-[data-theme="dark"] #marblePickSection,
+[data-theme="dark"] #deguriPickSection,
 [data-theme="dark"] .ladder-lane-btn:not(.is-win):not(.selected) {
   border-color: var(--border-color);
 }
@@ -1198,7 +1200,7 @@
 [data-theme="dark"] .schedule-open-btn,
 [data-theme="dark"] .schedule-open-button,
 [data-theme="dark"] #rankingBtn,
-[data-theme="dark"] .marble-shop-btn,
+[data-theme="dark"] .deguri-shop-btn,
 [data-theme="dark"] .ladder-shop-btn {
   border-color: var(--border-color) !important;  /* 랭킹 버튼은 공유 모듈이 인라인으로 테두리를 준다 */
 }
@@ -1235,7 +1237,7 @@
 [data-theme="dark"] #customAlert > div,
 [data-theme="dark"] #customConfirm > div,
 [data-theme="dark"] #playerActionDialog > div,
-[data-theme="dark"] #marblePlayerActionDialog > div {
+[data-theme="dark"] #deguriPlayerActionDialog > div {
   background: var(--bg-white) !important;
   border-color: var(--border-color) !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
@@ -1250,8 +1252,8 @@
 }
 
 /* 열리면 확인 버튼에 포커스가 가는데, 브라우저 기본 하늘색 포커스 링이 어두운 바탕에서 튄다 → 차분한 보라 링 (키보드 사용자용으로 링 자체는 유지) */
-[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus-visible,
-[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #marblePlayerActionDialog) button:focus {
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #deguriPlayerActionDialog) button:focus-visible,
+[data-theme="dark"] :is(#customAlert, #customConfirm, #playerActionDialog, #deguriPlayerActionDialog) button:focus {
   outline: 2px solid var(--purple-500) !important;
   outline-offset: 2px;
 }
@@ -1290,7 +1292,7 @@
   --dark-ground-roulette: #000000;
   --dark-ground-horse: #000000;
   --dark-ground-ladder: #000000;
-  --dark-ground-marble: #000000;
+  --dark-ground-deguri: #000000;
 
   /* 강조색 — 회색빛 흰색. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
      성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
@@ -1336,7 +1338,7 @@
   --dark-ground-roulette: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
   --dark-ground-horse: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
   --dark-ground-ladder: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
-  --dark-ground-marble: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
+  --dark-ground-deguri: linear-gradient(135deg, #070d1c 0%, #0b1730 100%);
 
   /* 강조색 — 파랑. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
      성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
@@ -1382,7 +1384,7 @@
   --dark-ground-roulette: linear-gradient(135deg, #17110e 0%, #221812 100%);
   --dark-ground-horse: linear-gradient(135deg, #17110e 0%, #221812 100%);
   --dark-ground-ladder: linear-gradient(135deg, #17110e 0%, #221812 100%);
-  --dark-ground-marble: linear-gradient(135deg, #17110e 0%, #221812 100%);
+  --dark-ground-deguri: linear-gradient(135deg, #17110e 0%, #221812 100%);
 
   /* 강조색 — 캐러멜. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
      성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */
@@ -1428,7 +1430,7 @@
   --dark-ground-roulette: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
   --dark-ground-horse: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
   --dark-ground-ladder: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
-  --dark-ground-marble: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
+  --dark-ground-deguri: linear-gradient(135deg, #140f2b 0%, #20123a 100%);
 
   /* 강조색 — 보라. 버튼 바탕(--fill-brand, 흰 글자 5:1 이상)·링크·선택 표시·포커스 링이 스킨을 따라간다.
      성공(초록)·위험(빨강)과 게임별 색은 스킨과 무관 */

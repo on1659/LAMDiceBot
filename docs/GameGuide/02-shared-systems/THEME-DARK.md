@@ -100,16 +100,16 @@
 | 대상 | 다크 처리 |
 |------|------|
 | `.host-controls`, `.room-expiry-section` | 면 `--gray-100`, 테두리 `--border-color` |
-| `.ready-section`, `.chat-section`, `.horse-selection-section`, `.horse-selection-button`, `.rank-vote-section:not(.on-canvas)`, `.rank-vote-box:not(.selected)`, `#marblePickSection`, `.ladder-lane-btn`(선택·당첨 제외) | 테두리 `--border-color` |
+| `.ready-section`, `.chat-section`, `.horse-selection-section`, `.horse-selection-button`, `.rank-vote-section:not(.on-canvas)`, `.rank-vote-box:not(.selected)`, `#deguriPickSection`, `.ladder-lane-btn`(선택·당첨 제외) | 테두리 `--border-color` |
 | `.users-list`, 미선택 목록(`#notSelectedVehicleSection`, `#notPickedSection`) | 면 `--gray-100` |
 | `.users-title`, `.container h2/h3` 밑줄 | `--border-color` |
 | `#startOrderButton` (주문받기 시작) | 중립 버튼 `--btn-neutral` |
 | 경마 트랙 칩 선택 | 형광 노랑 → `--gray-300` |
 | 예약·랭킹·상점 버튼 테두리 | `--border-color` |
-| 알림·확인 창 (`#customAlert`, `#customConfirm`, `#playerActionDialog`, `#marblePlayerActionDialog`, 경마 `#confirmOk/#confirmCancel`) | 상자 무채 테두리, 확인 = `--fill-brand`, 취소 = `--btn-neutral`, 포커스 링 `--purple-500`. 종류(경고·오류·성공)는 아이콘이 알려 준다 — 노랑·빨강 상자/버튼 금지 |
+| 알림·확인 창 (`#customAlert`, `#customConfirm`, `#playerActionDialog`, `#deguriPlayerActionDialog`, 경마 `#confirmOk/#confirmCancel`) | 상자 무채 테두리, 확인 = `--fill-brand`, 취소 = `--btn-neutral`, 포커스 링 `--purple-500`. 종류(경고·오류·성공)는 아이콘이 알려 준다 — 노랑·빨강 상자/버튼 금지 |
 
 - 인라인 `style`로 색을 주는 요소는 다크 전용 `!important`로만 덮인다. 새 코드는 인라인 색 대신 클래스+토큰으로.
-- 데구리 나무·종이 재질(`--marble-paper/cream/wood-*`)은 다크에서 무채 면으로 매핑돼 있다.
+- 데구리 나무·종이 재질(`--deguri-paper/cream/wood-*`)은 다크에서 무채 면으로 매핑돼 있다.
 - 남겨 두는 색: 이름표(`.user-tag`), 주요 버튼(경주 시작·준비), 선택 상태, 게임 그림, 로컬 전용 디버그 로그.
 
 ---
@@ -131,7 +131,7 @@
 
 화면 UI에 색 리터럴(`#hex`, `rgb()/rgba()`, `white`/`black` 같은 이름 색)을 직접 쓰지 않는다. **모든 색은 `css/theme.css`의 토큰**이다.
 
-- **토큰 위치**: `css/theme.css` 안 그룹별 섹션 — `[tokens:<그룹>:light]`(`:root`)와 `[tokens:<그룹>:dark]`(`[data-theme="dark"]`)가 짝이다. 그룹: `common`(공유 모듈·free·여러 게임 공통), `pages`(홈·관리자·안내), `shop`(꾸미기 상점 셸), `dice`, `roulette`, `horse`, `ladder`, `marble`.
+- **토큰 위치**: `css/theme.css` 안 그룹별 섹션 — `[tokens:<그룹>:light]`(`:root`)와 `[tokens:<그룹>:dark]`(`[data-theme="dark"]`)가 짝이다. 그룹: `common`(공유 모듈·free·여러 게임 공통), `pages`(홈·관리자·안내), `shop`(꾸미기 상점 셸), `dice`, `roulette`, `horse`, `ladder`, `deguri`.
 - **새 색이 필요하면**: ① 라이트 값이 같은 기존 토큰이 있는지 먼저 찾고 ② 없으면 해당 그룹 섹션에 `--<그룹>-<무엇>-<역할>` 이름으로 라이트·다크 **둘 다** 추가한다. 여러 게임이 쓰면 `common`에 하나만(`--alert-*`, `--bg-subtle`, `--order-star-idle` 처럼).
 - **게임 CSS·페이지 `:root`에 색 토큰을 다시 정의하지 말 것.** theme.css보다 뒤에 로드돼 같은 우선순위로 다크 값까지 라이트로 덮는다(free.css `--dice-gradient` 사례). 게임 CSS에는 `--horse-500: var(--ladder-fill)` 같은 **별칭만** 둔다.
 - **반투명 색**: `rgba(var(--shadow-rgb), a)`(검정 그림자), `rgba(var(--highlight-rgb), a)`(흰 광택), 그 밖은 `--<이름>-rgb: r, g, b` 토큰 + `rgba(var(--<이름>-rgb), a)`. hex 뒤에 투명도를 붙이는 `${color}15` 꼴 금지.
@@ -181,4 +181,4 @@ python3 <scratchpad>/orch/hc.py *.html css/*.css js/*.js js/shared/*.js pages/*.
 - [ ] CRLF 파일(`css/theme.css`, `js/shared/ready-shared.js`, `js/shared/tutorial-shared.js`, `js/shared/control-bar-shared.js`, `js/horse-race.js`) 줄바꿈 유지 — `grep -vc $'\r$' 파일` 이 0.
 - [ ] 바꾼 CSS/JS의 `?v=` 캐시 버전 올림(데구리 페이지가 특히 많이 씀).
 
-**QA 요령**: 방 진입은 `localStorage`에 `pending<Game>Room`(룰렛 `pendingRouletteRoom`, 경마 `pendingHorseRaceRoom`, 사다리 `pendingLadderRoom`, 데구리 `pendingMarbleRoom`) + `/<game>?createRoom=true`, 튜토리얼은 `tutorialSeen_<game>`으로 끈다. 방에 들어오면 이미 준비 상태(C-24). 로컬 서버가 오래 켜져 있으면 새 라우트(`/deguri`)가 없다 — "안 열린다"는 서버 시작 시각부터 확인(C-45).
+**QA 요령**: 방 진입은 `localStorage`에 `pending<Game>Room`(룰렛 `pendingRouletteRoom`, 경마 `pendingHorseRaceRoom`, 사다리 `pendingLadderRoom`, 데구리 `pendingDeguriRoom`) + `/<game>?createRoom=true`, 튜토리얼은 `tutorialSeen_<game>`으로 끈다. 방에 들어오면 이미 준비 상태(C-24). 로컬 서버가 오래 켜져 있으면 새 라우트(`/deguri`)가 없다 — "안 열린다"는 서버 시작 시각부터 확인(C-45).

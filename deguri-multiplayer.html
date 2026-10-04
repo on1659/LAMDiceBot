@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>LAM 데구리</title>
+    <meta name="description" content="쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)!">
+    <meta property="og:title" content="LAM 데구리">
+    <meta property="og:description" content="쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)!">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.com/deguri">
+    <meta property="og:site_name" content="LAMDice">
+    <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="LAM 데구리">
+    <meta name="twitter:description" content="쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)!">
+    <link rel="canonical" href="https://lamdice.com/deguri">
+
+    <!-- FOUC Prevention: resolve skin (light/dark) before first paint — must load before theme.css -->
+    <script src="/js/shared/theme-shared.js"></script>
+
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/ui-icons.css">
+    <script src="/js/shared/ui-icons.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
+    <link rel="stylesheet" href="/css/horse-race.css">
+    <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — deguri.css 의 --horse-* alias 로 데구리 색 -->
+    <link rel="stylesheet" href="/css/horse-shop.css?v=7">
+    <link rel="stylesheet" href="/css/deguri.css?v=35">
+    <link rel="stylesheet" href="/css/deguri-gacha.css?v=21">
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* ═══ 예약 시작 (horse-race-multiplayer.html 과 같은 구조, 색만 데구리 토큰) ═══
+           배지는 #deguriCanvasBox 안에 있어 전체화면에서도 캔버스와 함께 보인다. */
+        #scheduledStartBadge {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: calc(100% - 16px);
+            z-index: 110;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--yellow-400);
+            background: rgba(var(--shadow-rgb), 0.72);
+            color: var(--text-on-accent);
+            font-family: 'Jua', sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: keep-all;
+            pointer-events: none;
+        }
+        .schedule-open-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+        .schedule-open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: auto;
+            margin: 0;
+            padding: 6px 11px;
+            border: 1.5px solid var(--deguri-accent);
+            border-radius: 999px;
+            background: var(--bg-white);
+            color: var(--deguri-accent);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .schedule-open-btn.is-armed {
+            border-color: var(--red-500);
+            background: var(--btn-danger);
+            color: var(--text-on-accent);
+        }
+        .schedule-preset-btn {
+            width: auto;
+            margin: 0;
+            flex: 1 1 auto;
+            min-width: 64px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--deguri-gradient);
+            color: var(--text-on-accent);
+        }
+        .schedule-time-select {
+            flex: 1 1 0;
+            min-width: 0;
+            margin: 0;
+            padding: 8px 10px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;   /* 16px 미만이면 iOS 포커스 시 화면 확대 */
+        }
+        .schedule-time-select:focus {
+            border-color: var(--deguri-accent);
+            outline: none;
+        }
+        .schedule-time-colon {
+            flex: 0 0 auto;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 700;
+        }
+        @media (max-width: 600px) {   /* css/deguri.css·렌더러(NARROW_PX)와 같은 기준 */
+            #scheduledStartBadge { font-size: 12px; padding: 5px 10px; }
+            .schedule-preset-btn { font-size: 13px; padding: 9px 8px; }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 데구리",
+      "description": "쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)!",
+      "url": "https://lamdice.com/deguri",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
+</head>
+<body>
+    <noscript>
+        <div style="padding:40px; text-align:center; font-family:sans-serif;">
+            <h1>LAMDice 데구리</h1>
+            <p>이 게임은 JavaScript가 필요합니다.</p>
+            <p>쏙 웅크리고 데굴데굴! 고슴도치·아르마딜로·공벌레·거북이·판다가 언덕을 굴러 내려갑니다. 제일 늦게 도착한 동물의 주인이 당첨(벌칙)! 회원가입 없이 무료로 플레이할 수 있습니다.</p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
+        </div>
+    </noscript>
+
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--deguri-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: var(--text-on-accent);">
+            <i class="mi mi-paw mi-loading"></i>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(var(--highlight-rgb),0.3); border-top: 4px solid var(--text-on-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="globalUserNameInput">
+
+    <div class="container">
+        <section class="game-section" id="gameSection">
+            <div id="controlBarMount"></div>
+            <script src="/js/shared/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'deguri',
+                    soundKey: 'deguriSoundEnabled',
+                    volumeKey: 'deguriSoundVolume',
+                    onLeave: function() { leaveRoom(); }
+                });
+            </script>
+
+            <!-- 방 폭파 카운트다운 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
+                    <i class="mi mi-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    <i class="mi mi-people"></i> 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--deguri-accent); font-weight: normal; margin-left: 10px;">
+                        <i class="mi mi-bulb"></i> 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;"><i class="mi mi-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 호스트 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <!-- 예약 — 정한 시간이 되면 서버가 [경주 시작]을 대신 눌러준다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
+                <div class="schedule-open-row">
+                    <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="mi mi-clock"></i> 예약</button>
+                </div>
+                <!-- 마릿수 3단계(솔로=인당 1) — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
+                <div id="deguriHostSettings" class="deguri-host-settings">
+                    <label>동물수</label>
+                    <div class="deguri-crowd-group" role="group" aria-label="동물수">
+                        <!-- 말풍선(data-tip)은 js/deguri.js updateCrowdTips 가 서버 값으로 채운다 — 호버·포커스에 바로 뜬다(기본 title 은 늦게 떠서 안 쓴다) -->
+                        <button type="button" class="deguri-crowd-btn" data-crowd="solo" onclick="setDeguriCrowd('solo')" aria-label="솔로"><i class="mi mi-paw"></i></button>
+                        <button type="button" class="deguri-crowd-btn" data-crowd="normal" onclick="setDeguriCrowd('normal')" aria-label="보통"><i class="mi mi-paw"></i><i class="mi mi-paw"></i></button>
+                        <button type="button" class="deguri-crowd-btn" data-crowd="many" onclick="setDeguriCrowd('many')" aria-label="많이"><span class="paw-stack"><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span><span><i class="mi mi-paw"></i><i class="mi mi-paw"></i><i class="mi mi-paw"></i></span></span></button>
+                    </div>
+                </div>
+                <!-- 맵 — 랜덤(판마다 장애물 조합이 바뀜) / 고정(늘 같은 맵). 서버 mb.randomTrack -->
+                <div class="deguri-host-settings">
+                    <label>맵</label>
+                    <div class="deguri-crowd-group" role="group" aria-label="맵">
+                        <button type="button" class="deguri-crowd-btn deguri-map-btn" data-random="1" onclick="setDeguriRandomTrack(true)">랜덤 맵</button>
+                        <button type="button" class="deguri-crowd-btn deguri-map-btn" data-random="0" onclick="setDeguriRandomTrack(false)">고정 맵</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="start-button" id="startDeguriButton" onclick="startDeguri()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                </div>
+            </div>
+
+            <!-- 주문받기 섹션 -->
+            <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="font-weight: bold; color: var(--deguri-accent); font-size: 16px; margin: 0;"><i class="mi mi-burger"></i> 주문받기</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--deguri-gradient); color: var(--text-primary); font-weight: 600;"><i class="mi mi-list"></i> 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                    </div>
+                </div>
+
+                <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="mi mi-hourglass"></i> 주문하지 않은 사람</div>
+                    <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+
+                <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink:0; white-space:nowrap;">
+                            <i class="mi mi-memo"></i><span>내 주문</span>
+                        </div>
+                        <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--deguri-accent); border: 1px solid var(--deguri-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
+                    </div>
+
+                    <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--deguri-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: bold; color: var(--deguri-accent);"><i class="mi mi-list"></i> 자주 쓰는 메뉴</span>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;">
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--horse-500); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                        </div>
+                        <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
+                            <div style="color: var(--text-muted); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
+                        </div>
+                    </div>
+
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
+                        </div>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: var(--text-primary); font-weight: 600;" disabled>저장</button>
+                    </div>
+                </div>
+
+                <div id="orderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">관전자 주문</div>
+                    <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- 게임 상태 표시 — 예외 안내(경주 중 재입장·중단 사유)만. 평소엔 접혀 있다(js/deguri.js setGameStatus) -->
+            <div class="game-status waiting" id="gameStatus" hidden></div>
+
+            <!-- 동물 선택 (대기 중) -->
+            <section id="deguriPickSection">
+                <div class="deguri-pick-head">
+                    <div class="deguri-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
+                    <!-- 꾸미기(동물 스킨·야식): 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 모달은 js/deguri-shop.js 가 채움 -->
+                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriShop)DeguriShop.openShop()" title="동물 스킨·야식 구매·장착">🎀 꾸미기</button>
+                    <!-- 구슬 뽑기(사용자 2026-09-23) — 모달은 js/deguri-gacha.js 가 body 에 붙인다 -->
+                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriGacha)DeguriGacha.open()" title="60코인으로 스킨·야식 뽑기"><span class="mgacha-icon" aria-hidden="true"></span>뽑기</button>
+                    <!-- 순서 꾸미기·뽑기·코인(사용자 2026-09-24). 방 지갑 알약: 코인 아이콘 + 잔고(남은 시간은 뽑기 창에서만) — js/deguri-gacha.js 가 채운다 -->
+                    <span id="deguriCoinPill" class="deguri-coin-pill" hidden></span>
+                </div>
+                <!-- 동물 마당(장식) — 방에 나온 동물·스킨만 돌아다닌다. js/deguri.js DeguriYard 가 채운다(비어 있으면 :empty 로 숨김) -->
+                <div id="deguriYard" class="deguri-yard is-empty" aria-hidden="true"></div>
+                <div id="deguriPicker" class="deguri-picker">
+                    <button type="button" class="deguri-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="armadillo" onclick="pickCreature('armadillo')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>아르마딜로</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="pillbug" onclick="pickCreature('pillbug')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>공벌레</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="turtle" onclick="pickCreature('turtle')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>거북이</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="panda" onclick="pickCreature('panda')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>판다</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="hamster" data-optional="1" onclick="pickCreature('hamster')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>햄스터</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="pufferfish" data-optional="1" onclick="pickCreature('pufferfish')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>복어</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="raccoon" data-optional="1" onclick="pickCreature('raccoon')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>너구리</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>돼지</span></button>
+                </div>
+                <div id="deguriPickStatus" class="deguri-pick-status"></div>
+                <!-- 꾸미기 상점 모달 마운트 (js/deguri-shop.js) -->
+                <div id="deguriShopMount"></div>
+                <!-- 준비했는데 동물 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식) -->
+                <div id="notPickedSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="mi mi-hourglass"></i> 동물 안 고른 사람</div>
+                    <div id="notPickedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+            </section>
+            <!-- 당첨 순위 투표 — 경마 N등 투표와 같은 방식(득표 비례 룰렛), 선택지는 1등/꼴등 둘. 준비한 사람에게만 보인다. 스타일은 horse-race.css .rank-vote-* 재사용 -->
+            <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
+                <div class="rank-vote-title"><i class="mi mi-target"></i> 당첨 순위 투표</div>
+                <div class="rank-vote-hint">1등이 당첨될지 꼴등이 당첨될지 한 표 던지세요. 방장이 시작을 누르면 룰렛이 정합니다. 아무도 안 던지면 꼴등 찾기.</div>
+                <div id="rankVoteBoxes" class="rank-vote-boxes">
+                    <div class="rank-vote-box" data-target="first" onclick="voteRank('first')"><div class="rank-vote-rank"><i class="mi mi-medal"></i> 1등</div><div class="rank-vote-bars"></div></div>
+                    <div class="rank-vote-box" data-target="last" onclick="voteRank('last')"><div class="rank-vote-rank"><i class="mi mi-snail"></i> 꼴등</div><div class="rank-vote-bars"></div></div>
+                </div>
+            </div>
+            <!-- 타깃 순위 배너 (룰렛 결과 ~ 경주 끝) + 결정 사유 (룰렛 결과 또는 투표 없음 안내) -->
+            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
+                <span class="trb-icon"><i class="mi mi-target"></i></span>
+                <span class="trb-text">꼴등을 찾아라!</span>
+            </div>
+            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
+            <!-- 경주 캔버스 -->
+            <section id="deguriStage">
+                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 -->
+                <div class="deguri-stage-tools">
+                    <button type="button" class="deguri-stage-btn" id="deguriHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
+                    <button type="button" class="deguri-stage-btn" id="deguriFullscreenOpenBtn" onclick="toggleDeguriFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
+                </div>
+                <div id="deguriCanvasBox">
+                    <canvas id="deguriCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
+                    <div id="deguriHud"></div>
+                    <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소 -->
+                    <div id="scheduledStartBadge" style="display: none;"></div>
+                    <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
+                    <div id="raceChatOverlay"></div>
+                    <!-- 다시 보기 중 표시 (나만 보임) -->
+                    <div id="deguriReplayBadge" style="display: none;"><i class="mi mi-replay"></i> 다시 보는 중 — 나만 보여요</div>
+                    <!-- 전체화면 끝내기 — 전체화면일 때만 보인다(css/deguri.css) -->
+                    <button type="button" id="deguriFullscreenBtn" onclick="toggleDeguriFullscreen()" title="전체화면 끝내기" aria-label="전체화면 끝내기"><i class="mi mi-expand"></i></button>
+                </div>
+                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
+                <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
+                    <button type="button" class="deguri-after-btn" id="deguriReplayButton" onclick="replayRace()"><i class="mi mi-play"></i> 경주 다시 보기</button>
+                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" onclick="resetDeguriRound()" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
+                </div>
+                <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
+                <div id="deguriOrderRow" class="deguri-after-race" style="display: none;">
+                    <button type="button" class="deguri-after-btn deguri-after-btn-order" onclick="goToOrders()"><i class="mi mi-burger"></i> 주문받기 진행 중 — 주문하러 가기</button>
+                </div>
+            </section>
+
+            <!-- 채팅 섹션 -->
+            <div class="chat-section">
+                <div style="font-weight: bold; color: var(--deguri-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><span><i class="mi mi-chat"></i> 채팅</span></div><!-- span: chat-shared 가 이 줄을 flex(space-between)로 바꾸고 랭킹 버튼을 붙인다 — 아이콘과 글자가 갈라지지 않게 -->
+                <div class="chat-messages" id="chatMessages"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
+                    <button onclick="sendMessage()" style="width: auto; padding: 10px 20px; color: var(--text-primary); font-weight: 600;">전송</button>
+                </div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+        </section>
+    </div>
+
+    <!-- 기록 섹션 -->
+    <div class="history-section" id="historySection">
+        <div class="history-title"><i class="mi mi-scroll"></i> 게임 기록</div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- 결과 오버레이 -->
+    <!-- 공용 .result-overlay/.result-card 는 그대로 두고 deguri 전용 클래스(.deguri-result-card)로만 크기·재질을 입힌다(css/deguri.css) -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-card deguri-result-card">
+            <div class="result-title"><i class="mi mi-trophy"></i> 이번 판 순위 <i class="mi mi-trophy"></i></div>
+            <div id="resultRankings" class="deguri-result-body"></div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="deguri-result-btn" onclick="closeResultOverlay()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb),0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
+            <h3 style="color: var(--deguri-accent); margin-bottom: 6px;"><i class="mi mi-clock"></i> 시작 시간 예약</h3>
+            <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 경주를 대신 시작합니다. 그때 준비한 사람이 참가자예요.</p>
+
+            <!-- 예약이 걸려 있을 때만 보인다 -->
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle); text-align: center;">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
+            </div>
+
+            <div id="scheduleModalPickers">
+                <!-- 프리셋은 빠른 입력 도우미다 — 누르면 아래 시/분만 채우고, 예약은 [예약] 버튼으로만 걸린다 -->
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">빠른 입력 (지금부터)</div>
+                <div id="scheduleModalPresets" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;"></div>
+
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">시작 시각</div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;">
+                        <select id="scheduleHourSelect" class="schedule-time-select" aria-label="시작할 시"></select>
+                        <span class="schedule-time-colon">:</span>
+                        <select id="scheduleMinuteSelect" class="schedule-time-select" aria-label="시작할 분"></select>
+                    </div>
+                    <button type="button" class="schedule-preset-btn" onclick="scheduleStartAtTime()" style="flex: 0 0 auto;">예약</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600;">예약 취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb),0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: var(--deguri-accent); margin-bottom: 15px;"><i class="mi mi-lock"></i> 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
+            <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePasswordModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">취소</button>
+                <button onclick="submitPassword()" style="flex: 1; color: var(--text-primary); font-weight: 600;">입장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/free-invite.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
+    <script src="/js/shared/tutorial-shared.js?v=5"></script>
+    <script src="/js/shared/auth-token-shared.js"></script>
+    <script src="/js/shared/shop-shared.js?v=7"></script>
+    <script src="/js/deguri-shop.js?v=13"></script>
+    <script src="/js/deguri-gacha.js?v=46"></script>
+    <script src="/js/deguri-render.js?v=99"></script>
+    <script src="/js/deguri.js?v=53"></script>
+
+    <script>
+        // ============================================
+        // Custom Popup Functions
+        // ============================================
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) existingAlert.remove();
+            let borderColor, icon;
+            switch(type) {
+                case 'error': borderColor = 'var(--alert-error)'; icon = '<i class="mi mi-warn"></i>'; break;
+                case 'warning': borderColor = 'var(--alert-warning)'; icon = '<i class="mi mi-warn"></i>'; break;
+                case 'success': borderColor = 'var(--alert-success)'; icon = '<i class="mi mi-check"></i>'; break;
+                default: borderColor = 'var(--alert-info)'; icon = '<i class="mi mi-info"></i>';
+            }
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.4); z-index: 10001; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `background: var(--bg-white); border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 20px; max-width: 100%;';
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `padding: 10px 30px; background: ${borderColor}; color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;`;
+            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
+            const handleEsc = (e) => { if (e.key === 'Escape') { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200); } };
+            document.addEventListener('keydown', handleEsc);
+            alertOverlay.onclick = (e) => { if (e.target === alertOverlay) { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200); } };
+            alertContent.appendChild(messageDiv); alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent); document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                const existing = document.getElementById('customConfirm');
+                if (existing) existing.remove();
+                let borderColor, icon;
+                switch(type) {
+                    case 'error': borderColor = 'var(--alert-error)'; icon = '<i class="mi mi-warn"></i>'; break;
+                    case 'warning': borderColor = 'var(--alert-warning)'; icon = '<i class="mi mi-warn"></i>'; break;
+                    case 'success': borderColor = 'var(--alert-success)'; icon = '<i class="mi mi-check"></i>'; break;
+                    default: borderColor = 'var(--alert-info)'; icon = '<i class="mi mi-info"></i>';
+                }
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb), 0.4); z-index: 10002; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out;';
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `background: var(--bg-white); border-radius: 16px; padding: 20px; max-width: 450px; width: calc(100vw - 40px); box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.2); border: 2px solid ${borderColor}; animation: slideDown 0.3s ease-out; box-sizing: border-box;`;
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = 'font-size: 15px; line-height: 1.6; color: var(--horse-dialog-text); white-space: pre-wrap; word-wrap: break-word; word-break: keep-all; overflow-wrap: break-word; text-align: center; margin-bottom: 25px; max-width: 100%;';
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: center;';
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = 'padding: 10px 25px; background: var(--horse-dialog-cancel-bg); color: var(--horse-dialog-cancel-text); border: 1px solid var(--horse-dialog-cancel-border); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;';
+                cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `padding: 10px 25px; background: ${borderColor}; color: ${type === 'warning' ? 'var(--horse-warning-btn-text)' : 'var(--text-on-accent)'}; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1;`;
+                confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
+                const handleEsc = (e) => { if (e.key === 'Escape') { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200); } };
+                document.addEventListener('keydown', handleEsc);
+                confirmOverlay.onclick = (e) => { if (e.target === confirmOverlay) { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200); } };
+                buttonContainer.appendChild(cancelButton); buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv); confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent); document.body.appendChild(confirmOverlay);
+                confirmButton.focus();
+            });
+        }
+
+        // 방 제목 편집 (호스트)
+        let isEditingRoomName = false;
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+            roomTitleElem.addEventListener('click', function() {
+                if (!window.isHost || isEditingRoomName) return;
+                isEditingRoomName = true;
+                const displaySpan = document.getElementById('roomNameDisplay');
+                const currentName = displaySpan.textContent;
+                const editIcon = this.querySelector('.edit-icon');
+                if (editIcon) editIcon.style.display = 'none';
+                const input = document.createElement('input');
+                input.type = 'text'; input.value = currentName; input.maxLength = 30;
+                input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--deguri-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
+                displaySpan.replaceWith(input); input.focus(); input.select();
+                function finishEdit() {
+                    // Enter 로 확정하면 입력칸이 빠지는 순간(replaceWith 안에서) blur 가 또 온다 — 먼저 플래그를 내려 두 번째 호출을 건너뛴다
+                    if (!isEditingRoomName) return;
+                    isEditingRoomName = false;
+                    const newName = input.value.trim();
+                    const newDisplay = document.createElement('span');
+                    newDisplay.id = 'roomNameDisplay';
+                    newDisplay.textContent = newName || currentName;
+                    input.replaceWith(newDisplay);
+                    if (editIcon) editIcon.style.display = '';
+                    if (newName && newName !== currentName && window.socket) window.socket.emit('updateRoomName', { roomName: newName });
+                }
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keypress', (e) => { if (e.key === 'Enter') finishEdit(); });
+            });
+        });
+
+        if (window.socket) {
+            window.socket.on('roomNameUpdated', (data) => {
+                const display = document.getElementById('roomNameDisplay');
+                if (display) display.textContent = data.roomName;
+            });
+        }
+    </script>
+
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(var(--highlight-rgb),0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 데구리 게임 안내</h2>
+        <p>LAMDice 데구리은 친구들과 함께 즐기는 무료 온라인 구슬 경주 게임입니다. 고슴도치·아르마딜로·공벌레·거북이·판다 중 내 동물을 고르면, 쏙 웅크린 동물들이 언덕을 데굴데굴 굴러 내려갑니다. 벌집, 낮잠 양지, 비버 댐, 함정 구덩이, 진흙탕과 시소, 마지막 관문을 지나 결승선까지 — 제일 늦게 도착한 동물의 주인이 당첨(벌칙)으로 정해집니다. 방장이 1인당 동물 수를 정할 수 있고, 카메라가 꼴찌 동물을 따라가며 전체화면으로도 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="mi mi-lock"></i> 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="mi mi-book"></i> 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);"><i class="mi mi-home"></i> 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a> · <a href="/ladder" style="color:var(--link-brand);">사다리타기</a></p>
+    </section>
+
+    <!-- Ad: Footer Banner -->
+    <div class="ad-container" style="max-width:800px;">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+    <!-- Ad: Sticky Bottom Banner -->
+    <div class="ad-container ad-sticky">
+      <span class="ad-label">AD</span>
+      <button type="button" class="ad-close" aria-label="광고 닫기">✕</button>
+      <ins class="adsbygoogle ad-sticky-unit"
+           style="display:inline-block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="3703259052"></ins>
+    </div>
+
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
+        <p>Copyright © 2026 LAMDice. All rights reserved.</p>
+        <div style="margin-top:10px;">
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
+        </div>
+        <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
+    </footer>
+
+    <script>
+    var DEGURI_TUTORIAL_STEPS = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 도움 버튼 (접속자 목록 제목 옆)
+        const helpBtn = document.createElement('button');
+        helpBtn.id = 'deguriTutorialHelpBtn';
+        helpBtn.textContent = '?';
+        helpBtn.title = '게임 방법 보기';
+        helpBtn.style.cssText = [
+            'margin-left:8px; width:22px; height:22px; border-radius:50%;',
+            'font-size:13px; font-weight:bold; line-height:1;',
+            'background: var(--deguri-gradient);',
+            'color:var(--text-on-accent); border:2px solid rgba(var(--highlight-rgb),0.6); cursor:pointer;',
+            'display:flex; align-items:center; justify-content:center; padding:0;',
+            'box-shadow:0 2px 8px rgba(var(--deguri-500-rgb),0.5); flex-shrink:0;'
+        ].join('');
+        helpBtn.addEventListener('click', () => {
+            TutorialModule.reset('deguri');
+            TutorialModule.start('deguri', DEGURI_TUTORIAL_STEPS, { force: true });
+        });
+        const titleEl = document.querySelector('#usersSection .users-title');
+        if (titleEl) {
+            titleEl.style.display = 'flex';
+            titleEl.style.alignItems = 'center';
+            titleEl.appendChild(helpBtn);
+        }
+
+        // 방 입장 시 자동 시작 (최초 1회)
+        socket.on('roomJoined', () => {
+            setTimeout(() => {
+                TutorialModule.setUser(socket, currentUser || '', () => {
+                    TutorialModule.start('deguri', DEGURI_TUTORIAL_STEPS);
+                });
+            }, 1000);
+        });
+    });
+    </script>
+
+    <script src="/js/ads.js"></script>
+</body>
+</html>

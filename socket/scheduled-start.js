@@ -66,7 +66,7 @@ const SUPPORTED_GAME_TYPES = {
     'dice': './dice',
     'roulette': './roulette',
     'horse-race': './horse',
-    'marble': './marble'
+    'deguri': './deguri'
 };
 
 function isSupported(gameType) {

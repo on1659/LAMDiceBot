@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""데구리 생성 스킨 배치 스캐폴드 — SpriteMake/output/marble-run-skin-{creature}-{skin}-{date}/ 를 만든다.
+"""데구리 생성 스킨 배치 스캐폴드 — SpriteMake/output/deguri-skin-{creature}-{skin}-{date}/ 를 만든다.
 계약(contracts/)·리팩 도구(tools/creatures_skin_png.js)는 같은 동물의 기존 스킨 배치에서 시트 이름만 바꿔 복사하고,
 GPT(Codex exec)용 프롬프트 3장 + CODEX-BRIEF.md(생성만, 편집 금지)를 쓴다. 참조 그림은 게임 에셋 webp 를 PNG 로 풀어 ref/ 에.
 
@@ -14,14 +14,14 @@ usage:
 
 새 동물을 쓰려면 TEMPLATE(그 동물의 기존 생성 스킨 배치)와 ROWS(시트별 칸 순서 문장)를 추가한다.
 실행은 CODEX-BRIEF.md 첫 줄 주석 참고. 이후: 원본 직접 판정 → source/SOURCES.json → tools/creatures_skin_png.js repack·qa
-→ final/creatures/ 복사 → verify-creature.py → pickup-skin.py (스킬 .claude/skills/marble-skin/SKILL.md)."""
+→ final/creatures/ 복사 → verify-creature.py → pickup-skin.py (스킬 .claude/skills/deguri-skin/SKILL.md)."""
 import datetime, shutil, sys
 from pathlib import Path
 from PIL import Image
 
 OUT = Path('/Users/radar/Work/SpriteMake/output')
 GAME = Path(__file__).resolve().parents[2]
-CREATURES = GAME / 'assets' / 'marble' / 'creatures'
+CREATURES = GAME / 'assets' / 'deguri' / 'creatures'
 CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex'   # 2026-10-01 앱 업데이트로 Resources/codex → codex-cli/bin/codex
 
 # creature → (템플릿 배치, 템플릿 시트 이름, 리팩 JS). 리팩 JS 는 동물별 칸 규칙(판다·돼지는 r3c0 도 공)이 들어 있어 같은 동물 것을 쓴다
@@ -137,7 +137,7 @@ def main():
     if creature not in TEMPLATE: sys.exit(f'no template for {creature} — add TEMPLATE/ROWS entries')
     sheet = f'{creature}-{skin}'
     tbatch, tname, tjs = TEMPLATE[creature]
-    src, dst = OUT / tbatch, OUT / f'marble-run-skin-{sheet}-{date}'
+    src, dst = OUT / tbatch, OUT / f'deguri-skin-{sheet}-{date}'
     if dst.exists(): sys.exit(f'exists: {dst}')
     for d in ('source', 'generated', 'qa', 'contracts', 'tools', 'prompts', 'ref', 'final/creatures'): (dst / d).mkdir(parents=True)
     for k in ('', '-sleep', '-scuffle'):

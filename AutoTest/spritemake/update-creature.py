@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""배치 final/ 의 시트 3장을 게임 assets/marble/creatures/ 로 덮어쓰고 manifest md5 갱신. usage: update-creature.py <batch> <species-or-sheetname> <manifestSection> "<note>" (md5 는 배치 qa/candidate-qa.json 과 대조)"""
+"""배치 final/ 의 시트 3장을 게임 assets/deguri/creatures/ 로 덮어쓰고 manifest md5 갱신. usage: update-creature.py <batch> <species-or-sheetname> <manifestSection> "<note>" (md5 는 배치 qa/candidate-qa.json 과 대조)"""
 import hashlib, json, os, sys, tempfile
 from pathlib import Path
 batch, sp, section, note = sys.argv[1:5]
 FINAL = Path('/Users/radar/Work/SpriteMake/output') / batch / 'final' / 'creatures'
-GAME = Path('/Users/radar/Work/LAMDiceBot'); DEST = GAME/'assets'/'marble'/'creatures'; MAN = GAME/'assets'/'marble'/'marble-run.manifest.json'
+GAME = Path('/Users/radar/Work/LAMDiceBot'); DEST = GAME/'assets'/'deguri'/'creatures'; MAN = GAME/'assets'/'deguri'/'deguri.manifest.json'
 def md5(p): return hashlib.md5(p.read_bytes()).hexdigest()
 qa = json.loads((Path('/Users/radar/Work/SpriteMake/output')/batch/'qa'/'candidate-qa.json').read_text())
 qa_md5 = {i['assetId'].replace('-main',''): i['checks']['md5'] for i in qa['assets']}

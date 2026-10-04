@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SpriteMake 배치 final/ 의 시트 3장(<sheet>.png/-sleep/-scuffle)을 pngquant(256색) → cwebp 무손실로 최적화해 게임 assets/marble/creatures/{n}.webp 로 들여오고 manifest 에 섹션을 쓴다
+"""SpriteMake 배치 final/ 의 시트 3장(<sheet>.png/-sleep/-scuffle)을 pngquant(256색) → cwebp 무손실로 최적화해 게임 assets/deguri/creatures/{n}.webp 로 들여오고 manifest 에 섹션을 쓴다
 (brew install pngquant webp 필요. 기준: docs/GameGuide/04-ops/image-assets.md) (기존 파일 덮어쓰기 거부).
 usage: pickup-skin.py <batch-dir-name> <sheet> <manifestSection> "<note>" [request-doc-path] [--allow-fail=<assetId,...>]
   sheet 예: pillbug-rainbow (스킨) / ribbonpig (기본 시트 교체는 먼저 옛 파일을 옮겨 둔 뒤)
@@ -18,8 +18,8 @@ request = sys.argv[5] if len(sys.argv) > 5 else ''
 BATCH = Path('/Users/radar/Work/SpriteMake/output') / batch
 FINAL = BATCH / 'final' / 'creatures'
 GAME = Path(__file__).resolve().parents[2]
-DEST = GAME / 'assets' / 'marble' / 'creatures'
-MAN = GAME / 'assets' / 'marble' / 'marble-run.manifest.json'
+DEST = GAME / 'assets' / 'deguri' / 'creatures'
+MAN = GAME / 'assets' / 'deguri' / 'deguri.manifest.json'
 NAMES = [sheet, f'{sheet}-sleep', f'{sheet}-scuffle']
 
 def md5(p): return hashlib.md5(p.read_bytes()).hexdigest()
@@ -56,11 +56,11 @@ base = dict(canvas=[640, 800], grid=[4, 5], cell=[160, 160], anchor=[80, 150], s
 j[section] = {
     'batch': batch, 'status': 'all-3-picked-up', 'request': request, 'note': note,
     'assets': {
-        sheet: {'image': f'creatures/{sheet}.png', **base, 'animations': 'hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)', 'targetGamePath': f'assets/marble/creatures/{sheet}.webp', 'md5': copied[sheet], 'qaStatus': 'PASS'},
-        f'{sheet}-sleep': {'image': f'creatures/{sheet}-sleep.png', 'canvas': [640, 160], 'grid': [4, 1], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['lying', 'breathing', 'waking', 'sit-up'], 'targetGamePath': f'assets/marble/creatures/{sheet}-sleep.webp', 'md5': copied[f'{sheet}-sleep'], 'qaStatus': 'PASS'},
-        f'{sheet}-scuffle': {'image': f'creatures/{sheet}-scuffle.png', 'canvas': [640, 320], 'grid': [4, 2], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['push-lean', 'push-step', 'push-heave', 'push-recoil', 'startle-jump', 'falling', 'dizzy-sit-a', 'dizzy-sit-b'], 'targetGamePath': f'assets/marble/creatures/{sheet}-scuffle.webp', 'md5': copied[f'{sheet}-scuffle'], 'qaStatus': 'PASS'},
+        sheet: {'image': f'creatures/{sheet}.png', **base, 'animations': 'hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)', 'targetGamePath': f'assets/deguri/creatures/{sheet}.webp', 'md5': copied[sheet], 'qaStatus': 'PASS'},
+        f'{sheet}-sleep': {'image': f'creatures/{sheet}-sleep.png', 'canvas': [640, 160], 'grid': [4, 1], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['lying', 'breathing', 'waking', 'sit-up'], 'targetGamePath': f'assets/deguri/creatures/{sheet}-sleep.webp', 'md5': copied[f'{sheet}-sleep'], 'qaStatus': 'PASS'},
+        f'{sheet}-scuffle': {'image': f'creatures/{sheet}-scuffle.png', 'canvas': [640, 320], 'grid': [4, 2], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['push-lean', 'push-step', 'push-heave', 'push-recoil', 'startle-jump', 'falling', 'dizzy-sit-a', 'dizzy-sit-b'], 'targetGamePath': f'assets/deguri/creatures/{sheet}-scuffle.webp', 'md5': copied[f'{sheet}-scuffle'], 'qaStatus': 'PASS'},
     },
 }
 MAN.write_text(json.dumps(j, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 print(f'manifest {section} written')
-print('NOTE: 같은 이름의 시트를 교체한 경우 js/marble-render.js ASSET_VER 을 올릴 것 (assets/marble/** 는 7일 캐시)')
+print('NOTE: 같은 이름의 시트를 교체한 경우 js/deguri-render.js ASSET_VER 을 올릴 것 (assets/deguri/** 는 7일 캐시)')

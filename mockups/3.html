@@ -37,7 +37,7 @@
   --dice: #8C9BF5;     --dice-soft: #262C5C;
   --roulette: #4FCB86; --roulette-soft: #16382A;
   --horse: #FF9A57;    --horse-soft: #3A2417;
-  --marble: #6BD187;   --marble-soft: #173A25;
+  --deguri: #6BD187;   --deguri-soft: #173A25;
   --ladder: #F0B14A;   --ladder-soft: #3B2B10;
 
   --r-s: 8px; --r-m: 12px; --r-l: 18px;
@@ -150,7 +150,7 @@ input.txt:focus { outline: none; border-color: var(--bulb); box-shadow: var(--gl
 [data-game="dice"] { --soft: var(--dice-soft); --acc: var(--dice); }
 [data-game="roulette"] { --soft: var(--roulette-soft); --acc: var(--roulette); }
 [data-game="horse"] { --soft: var(--horse-soft); --acc: var(--horse); }
-[data-game="marble"] { --soft: var(--marble-soft); --acc: var(--marble); }
+[data-game="deguri"] { --soft: var(--deguri-soft); --acc: var(--deguri); }
 [data-game="ladder"] { --soft: var(--ladder-soft); --acc: var(--ladder); }
 .art .duo { display: flex; align-items: flex-end; }
 .art .duo .veh, .scr .veh { position: static; animation: gallop .34s steps(1) infinite; width: 84px; height: 63px; filter: none; }
@@ -440,7 +440,7 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
           <div class="scr"><i class="veh px" style="--f1:url(/mockups/assets/veh-horse-1.webp);--f2:url(/mockups/assets/veh-horse-2.webp)"></i></div>
           <p class="hook">탈것 15종 중 하나 골라 1등·꼴등을 맞혀요. 다 같이 관전.</p>
         </button>
-        <button type="button" class="cab gchip" data-game="marble">
+        <button type="button" class="cab gchip" data-game="deguri">
           <div class="marq">데구리 <small>베타</small></div>
           <div class="scr"><i class="mb px" style="--strip:url(/mockups/assets/mb-hedgehog-idle.webp)"></i></div>
           <p class="hook">동물 구슬을 언덕에서 굴려요. 구멍에 먼저 들어가면 승리.</p>
@@ -528,7 +528,7 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
         <button type="button" class="fbtn" data-f="dice" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-dice.png" alt="">주사위</button>
         <button type="button" class="fbtn" data-f="roulette" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-slot.png" alt="">룰렛</button>
         <button type="button" class="fbtn" data-f="horse" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-horse.png" alt="">경마</button>
-        <button type="button" class="fbtn" data-f="marble" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-paw.png" alt="">데구리</button>
+        <button type="button" class="fbtn" data-f="deguri" aria-pressed="false"><img class="ic px" src="/mockups/assets/ic-paw.png" alt="">데구리</button>
       </div>
       <div class="right">
         <button type="button" class="btn dim sm"><img class="ic px" src="/mockups/assets/ic-refresh.png" alt="">새로고침</button>
@@ -645,7 +645,7 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
         <button type="button" data-game="dice" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-dice.png" alt=""></span>주사위</button>
         <button type="button" data-game="roulette" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-slot.png" alt=""></span>룰렛</button>
         <button type="button" data-game="horse" aria-pressed="true"><span class="sq"><img class="ic px" src="/mockups/assets/ic-horse.png" alt=""></span>경마</button>
-        <button type="button" data-game="marble" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리</button>
+        <button type="button" data-game="deguri" aria-pressed="false"><span class="sq"><img class="ic px" src="/mockups/assets/ic-paw.png" alt=""></span>데구리</button>
         <button type="button" data-game="ladder" aria-pressed="false" disabled><span class="sq"><img class="ic px" src="/mockups/assets/ic-ladder.png" alt=""></span>사다리</button>
       </div>
     </div>
@@ -710,11 +710,11 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
 
 <script>
 (function () {
-  var GAMES = { dice: { name: '주사위', icon: '/mockups/assets/ic-dice.png' }, roulette: { name: '룰렛', icon: '/mockups/assets/ic-slot.png' }, horse: { name: '경마', icon: '/mockups/assets/ic-horse.png' }, marble: { name: '데구리', icon: '/mockups/assets/ic-paw.png' } };
+  var GAMES = { dice: { name: '주사위', icon: '/mockups/assets/ic-dice.png' }, roulette: { name: '룰렛', icon: '/mockups/assets/ic-slot.png' }, horse: { name: '경마', icon: '/mockups/assets/ic-horse.png' }, deguri: { name: '데구리', icon: '/mockups/assets/ic-paw.png' } };
   var rooms = [
     { title: '점심 내기',   game: 'horse',    host: '민수', n: 3, max: 10, live: false, code: '7QK3' },
     { title: '커피 한 판',  game: 'dice',     host: '지우', n: 5, max: 10, live: true,  code: 'B2XD' },
-    { title: '야식 정하기', game: 'marble',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
+    { title: '야식 정하기', game: 'deguri',   host: '하루', n: 2, max: 8,  live: false, code: 'M9PA' },
     { title: '회식 룰렛',   game: 'roulette', host: '서연', n: 6, max: 10, live: true,  code: 'R4WT' }
   ];
   var filter = 'all', stake = '커피', picked = 'horse';
@@ -762,7 +762,7 @@ footer .fine { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var
   $('.tog').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); });
   $('#btnCreate').addEventListener('click', function () {
     var name = $('#sheetName').value.trim() || '라온'; var title = $('#roomTitle').value.trim() || (name + '님의 ' + stake + ' 내기');
-    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'marble' ? 8 : 10, live: false, code: 'NEW1' });
+    rooms.unshift({ title: title, game: picked, host: name, n: 1, max: picked === 'deguri' ? 8 : 10, live: false, code: 'NEW1' });
     $('#meName').textContent = name; $('.me .av').textContent = name.charAt(0);
     filter = 'all'; $$('#filters .fbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.f === 'all')); });
     renderRooms(); closeSheet(); setScreen('lobby'); toast('방이 생겼어요. 링크를 복사했어요. 카톡에 붙여넣어 보세요');

@@ -77,6 +77,16 @@
     // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
     // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
     var _groupFilter = 'all';
+    // 그룹 기준이 둘 이상이면(어댑터 hooks.groupModes → [{key,label}], 데구리: 동물/테마) 칩 줄 맨 앞에 전환 버튼을 그리고,
+    // groups·itemGroup·groupIcon 훅에 지금 기준(key)을 마지막 인자로 넘긴다. 기준을 바꾸면 필터는 '전체'로. groupModes 가 없으면 기존 그대로(인자 undefined).
+    var _groupMode = null;
+    function groupModes() { var m = _config && _config.hooks && _config.hooks.groupModes; return (m && m.length > 1) ? m : null; }
+    function groupMode() {
+        var m = groupModes();
+        if (!m) return undefined;
+        if (!m.some(function (x) { return x.key === _groupMode; })) _groupMode = m[0].key;
+        return _groupMode;
+    }
     // 한 슬롯에 여러 개가 동시에 장착될 수 있다 — 데구리 동물 스킨은 동물마다 하나씩이라 서버가 id 배열을 준다.
     // 다른 게임(경마·사다리·회전)과 데구리 야식은 값 하나(문자열) 그대로다.
     function slotHas(map, slot, id) {
@@ -89,34 +99,53 @@
         if (!closetMode() || !(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup)) return false;
         if (!slotKey) return true;
         var list = (_catalog && _catalog[slotKey]) || [];
-        for (var i = 0; i < list.length; i++) if (_config.hooks.itemGroup(list[i]) != null) return true;
+        for (var i = 0; i < list.length; i++) if (_config.hooks.itemGroup(list[i], groupMode()) != null) return true;
         return false;
     }
     function passesGroup(item) {
         if (!hasGroups() || _groupFilter === 'all') return true;
-        var g = _config.hooks.itemGroup(item);
+        var g = _config.hooks.itemGroup(item, groupMode());
         return g == null || g === _groupFilter;
     }
     // 목록 정렬 옵션 훅(어댑터 hooks.sortItems(items, { slot, view, groupFilter }) → 새 배열). 없으면 카탈로그 순서 그대로 — 데구리만 쓴다('전체'에서 내 동물 스킨을 앞으로)
     function applySort(slot, items) {
         var h = _config && _config.hooks && _config.hooks.sortItems;
         if (typeof h !== 'function') return items;
-        try { var out = h(items.slice(), { slot: slot, view: _view, groupFilter: _groupFilter }); return Array.isArray(out) ? out : items; } catch (e) { return items; }
+        try { var out = h(items.slice(), { slot: slot, view: _view, groupFilter: _groupFilter, groupMode: groupMode() }); return Array.isArray(out) ? out : items; } catch (e) { return items; }
     }
     function renderGroupChips() {
         var chips = document.createElement('div');
         chips.className = 'hshop-inv-chips hshop-groupchips';
-        [{ key: 'all', label: '전체' }].concat(_config.hooks.groups() || []).forEach(function (cd) {
+        var modes = groupModes(), mode = groupMode();
+        if (modes) {   // 기준 전환(동물/테마) — 칩 줄 맨 앞
+            var sw = document.createElement('div');
+            sw.className = 'hshop-groupmode';
+            modes.forEach(function (m) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'hshop-groupmode-btn' + (m.key === mode ? ' is-active' : '');
+                b.textContent = m.label;
+                b.addEventListener('click', function () { if (_groupMode === m.key) return; _groupMode = m.key; _groupFilter = 'all'; renderModal(); });
+                sw.appendChild(b);
+            });
+            chips.appendChild(sw);
+        }
+        [{ key: 'all', label: '전체' }].concat(_config.hooks.groups(mode) || []).forEach(function (cd) {
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'hshop-inv-chip hshop-groupchip' + (_groupFilter === cd.key ? ' is-active' : '');
             // 어댑터가 그룹 아이콘(동물 얼굴 캔버스)을 주면 이름 앞에 — 글자만 있는 칩보다 한눈에 고르기 쉽다. 칩은 줄바꿈으로 전부 보인다(가로 스크롤 X)
             var icon = null;
-            if (cd.key !== 'all' && _config.hooks.groupIcon) { try { icon = _config.hooks.groupIcon(cd.key); } catch (e) { icon = null; } }
+            if (cd.key !== 'all' && _config.hooks.groupIcon) { try { icon = _config.hooks.groupIcon(cd.key, mode); } catch (e) { icon = null; } }
             if (icon) chip.appendChild(icon);
             var lb = document.createElement('span'); lb.textContent = cd.label; chip.appendChild(lb);
             chip.addEventListener('click', function () { if (_groupFilter === cd.key) return; _groupFilter = cd.key; renderModal(); });
             chips.appendChild(chip);
+        });
+        // 칩을 한 줄 가로 스크롤로 두는 배치(데구리 폰)에서 고른 칩이 줄 밖이면 가운데로 — 줄바꿈 배치(넘치지 않음)에선 아무 일도 없다
+        requestAnimationFrame(function () {
+            var act = chips.querySelector('.hshop-groupchip.is-active');
+            if (act && chips.scrollWidth > chips.clientWidth) chips.scrollLeft += act.getBoundingClientRect().left - chips.getBoundingClientRect().left - (chips.clientWidth - act.offsetWidth) / 2;
         });
         return chips;
     }
@@ -1240,7 +1269,7 @@
         var id = item.id;
         if (!_socket || !_wallet.authed) return;
         if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
-        // 방 지갑 모드면 어댑터의 구매 경로(데구리 marble:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
+        // 방 지갑 모드면 어댑터의 구매 경로(데구리 deguri:shop:buy) — 응답 형식은 shop:buy 와 같다 { ok, balance, owned, reason }
         var send = (_config && _config.roomWallet && _config.hooks && _config.hooks.buyRequest)
             ? function (cb) { _config.hooks.buyRequest(id, cb); }
             : function (cb) { _socket.emit('shop:buy', { cosmeticId: id }, cb); };
@@ -1275,7 +1304,7 @@
     // (데구리 동물 스킨은 동물마다 칸이 따로라 id 만으로는 어느 칸을 비울지 모른다).
     function doEquip(slot, id, item) {
         if (!_socket || !_wallet.authed) return;
-        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/marble-shop.js: 방 단위 장착 marble:equip — 계정 prefs 에 저장하지 않음).
+        // 어댑터가 장착 경로를 바꿀 수 있다(데구리 js/deguri-shop.js: 방 단위 장착 deguri:equip — 계정 prefs 에 저장하지 않음).
         // hook(slot, id, done, item) → done(equippedMap) 성공 / done(null) 실패. 다른 게임(경마·사다리·회전)은 hook 이 없어 아래 shop:equip 그대로.
         if (_config && _config.hooks && _config.hooks.equipRequest) {
             _config.hooks.equipRequest(slot, id, function (equipped, reason) {
@@ -1774,6 +1803,7 @@
         getCatalog: function () { return _catalog; },
         getCatalogItem: getCatalogItem,
         getGroupFilter: function () { return _groupFilter; },   // 현재 그룹 칩('all' | 그룹 key) — 어댑터 미리보기가 탭에 따라 그림을 바꿀 때
+        getGroupMode: groupMode,                                // 현재 그룹 기준 key(hooks.groupModes 가 없으면 undefined)
 
         findItem: findItem
     };

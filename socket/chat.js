@@ -644,14 +644,14 @@ module.exports = (socket, io, ctx) => {
 
                     // 데구리: 진짜 disconnect로 떠난 유저의 동물 선택 정리 (leaveRoom과 짝, C-19).
                     // idle일 때만 재브로드캐스트(진행 중 playing/finished는 손대지 않음).
-                    // 끊긴 사용자의 데구리 방 장착(스킨·풍선) 삭제 — leaveRoom(socket/rooms.js)과 짝(C-19). 장착은 그 방에서만 유지(socket/marble.js marble:equip)
-                    if (gameState.marble && gameState.marble.equip) delete gameState.marble.equip[userName];
-                    if (gameState.marble && gameState.marble.wallets) delete gameState.marble.wallets[userName];   // 방 지갑도 함께 소멸
-                    if (gameState.marble && gameState.marble.picks &&
-                        gameState.marble.picks[userName] !== undefined) {
-                        delete gameState.marble.picks[userName];
-                        if (gameState.marble.phase === 'idle') {
-                            io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, ballsPerPlayer: gameState.marble.ballsPerPlayer });
+                    // 끊긴 사용자의 데구리 방 장착(스킨·풍선) 삭제 — leaveRoom(socket/rooms.js)과 짝(C-19). 장착은 그 방에서만 유지(socket/deguri.js deguri:equip)
+                    if (gameState.deguri && gameState.deguri.equip) delete gameState.deguri.equip[userName];
+                    if (gameState.deguri && gameState.deguri.wallets) delete gameState.deguri.wallets[userName];   // 방 지갑도 함께 소멸
+                    if (gameState.deguri && gameState.deguri.picks &&
+                        gameState.deguri.picks[userName] !== undefined) {
+                        delete gameState.deguri.picks[userName];
+                        if (gameState.deguri.phase === 'idle') {
+                            io.to(roomId).emit('deguri:stateUpdated', { picks: { ...gameState.deguri.picks }, ballsPerPlayer: gameState.deguri.ballsPerPlayer });
                         }
                     }
 

@@ -6,8 +6,8 @@ from pathlib import Path
 BATCH = Path('/Users/radar/Work/SpriteMake/output/marble-run-creatures-i-2026-09-21')
 FINAL = BATCH / 'final' / 'creatures'
 GAME = Path('/Users/radar/Work/LAMDiceBot')
-DEST = GAME / 'assets' / 'marble' / 'creatures'
-MANIFEST = GAME / 'assets' / 'marble' / 'marble-run.manifest.json'
+DEST = GAME / 'assets' / 'deguri' / 'creatures'
+MANIFEST = GAME / 'assets' / 'deguri' / 'deguri.manifest.json'
 NAMES = ['ribbonpig', 'ribbonpig-sleep', 'ribbonpig-scuffle']
 note = sys.argv[1] if len(sys.argv) > 1 else ''
 
@@ -41,12 +41,12 @@ base = dict(canvas=[640, 800], grid=[4, 5], cell=[160, 160], anchor=[80, 150], s
 j['creaturesI'] = {
     'batch': 'marble-run-creatures-i-2026-09-21',
     'status': 'all-3-picked-up',
-    'request': 'docs/spritemake-request/2026-09-21-marble-run-creatures-i.md',
+    'request': 'docs/spritemake-request/2026-09-21-deguri-creatures-i.md',
     'note': note,
     'assets': {
-        'ribbonpig': {'image': 'creatures/ribbonpig.png', **base, 'animations': 'hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)', 'targetGamePath': 'assets/marble/creatures/ribbonpig.png', 'md5': copied['ribbonpig'], 'qaStatus': 'PASS'},
-        'ribbonpig-sleep': {'image': 'creatures/ribbonpig-sleep.png', 'canvas': [640, 160], 'grid': [4, 1], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['lying', 'breathing', 'waking', 'sit-up'], 'targetGamePath': 'assets/marble/creatures/ribbonpig-sleep.png', 'md5': copied['ribbonpig-sleep'], 'qaStatus': 'PASS'},
-        'ribbonpig-scuffle': {'image': 'creatures/ribbonpig-scuffle.png', 'canvas': [640, 320], 'grid': [4, 2], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['push-lean', 'push-step', 'push-heave', 'push-recoil', 'startle-jump', 'falling', 'dizzy-sit-a', 'dizzy-sit-b'], 'targetGamePath': 'assets/marble/creatures/ribbonpig-scuffle.png', 'md5': copied['ribbonpig-scuffle'], 'qaStatus': 'PASS'},
+        'ribbonpig': {'image': 'creatures/ribbonpig.png', **base, 'animations': 'hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)', 'targetGamePath': 'assets/deguri/creatures/ribbonpig.png', 'md5': copied['ribbonpig'], 'qaStatus': 'PASS'},
+        'ribbonpig-sleep': {'image': 'creatures/ribbonpig-sleep.png', 'canvas': [640, 160], 'grid': [4, 1], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['lying', 'breathing', 'waking', 'sit-up'], 'targetGamePath': 'assets/deguri/creatures/ribbonpig-sleep.png', 'md5': copied['ribbonpig-sleep'], 'qaStatus': 'PASS'},
+        'ribbonpig-scuffle': {'image': 'creatures/ribbonpig-scuffle.png', 'canvas': [640, 320], 'grid': [4, 2], 'cell': [160, 160], 'anchor': [80, 150], 'sourcePlaneY': 150, 'frames': ['push-lean', 'push-step', 'push-heave', 'push-recoil', 'startle-jump', 'falling', 'dizzy-sit-a', 'dizzy-sit-b'], 'targetGamePath': 'assets/deguri/creatures/ribbonpig-scuffle.png', 'md5': copied['ribbonpig-scuffle'], 'qaStatus': 'PASS'},
     },
 }
 MANIFEST.write_text(json.dumps(j, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

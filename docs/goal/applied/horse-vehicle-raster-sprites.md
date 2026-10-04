@@ -1,7 +1,7 @@
 # goal: horse-vehicle-raster-sprites
 
 ## One-line Goal
-Replace every hand-written inline-SVG horse-race vehicle frame (15 vehicles × base/power states + lose poses) with GPT-drawn raster sprites in the Deguri (marble-run) pixel style, without changing any race logic.
+Replace every hand-written inline-SVG horse-race vehicle frame (15 vehicles × base/power states + lose poses) with GPT-drawn raster sprites in the Deguri (deguri) pixel style, without changing any race logic.
 
 ## Background / Motivation
 All 15 vehicles live as SVG strings in `js/horse-race-sprites.js` (5,017 lines, flat vector look). The site's newer game (Deguri) uses GPT-drawn pixel sprites via the SpriteMake pipeline; the user wants the horse race to match (2026-09-27: "데구리 도트 톤", "진화형도 GPT로 따로", "전부").
@@ -28,7 +28,7 @@ All 15 vehicles live as SVG strings in `js/horse-race-sprites.js` (5,017 lines, 
 - Power variant: keep `buildPoweredVehicleSVG` aura, sparkles, glow filter and crown badge on top of the power raster; drop the per-vehicle geometric overlay marks (`getVehiclePowerOverlayMarkup`) — they trace the old SVG geometry (wheel rings, fins) and would misalign with new art.
 - Callers that globally regex-replace `width="60"`/`height="45"` (`getVehicleSVGForResult`, `getSmallVehicleSVG`) need no change: the inner `<image>` uses `width="100%" height="100%"`, which those regexes don't touch.
 - Preload helper: when the race starts, fetch the racers' base frames + power `run` (evolution swaps into run); other power states load on demand.
-- Long cache for `assets/horse-race/vehicles/` in `routes/api.js` (same rule as `assets/marble/`, versioned by `?v=`).
+- Long cache for `assets/horse-race/vehicles/` in `routes/api.js` (same rule as `assets/deguri/`, versioned by `?v=`).
 - Lose atlas: switch `js/horse-race-lose.js` src to `.webp` (old `.svg` kept for the legacy toggle).
 
 - Follow-up (2026-09-28, user request): '예전 그림' switch (same look as 자동선택) in the vehicle-selection header (`#vehicleLegacyArtToggle`, default off = new art, per-browser localStorage `horseVehicleLegacySprites`). Switching plays a short scene on selection cards (clipped to the card) and track horses: the current art switches to its 2-frame run and runs out to the right, the other art chases in from the left and decelerates to a stop (~1.5–3.3 s; a baton-handoff variant was tried and reverted as too slow). Per-vehicle gait table `VEHICLE_ART_GAIT` (speed/bob/stride; turtle slow, rabbit hops, flyers float) + id-hash stagger (no client Math.random). element.animate — works in PiP. The switch is locked until the scene ends. The 꾸미기 상점 button (localhost-only) was removed from that header. Old SVG restored as `js/horse-race-sprites-legacy.js` (IIFE → `window.HorseLegacySprites`, lazy-loaded only when turned on) + old lose SVGs kept. Toggling redraws track horses from `dataset.vehicleState` and re-renders the selection grid.

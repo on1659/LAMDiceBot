@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""데구리 풍선 액세서리 스프라이트 생성기 — 저녁 메뉴 7종 (docs/goal/marble-balloon-accessory.md).
+"""데구리 풍선 액세서리 스프라이트 생성기 — 저녁 메뉴 7종 (docs/goal/deguri-balloon-accessory.md).
 
 이미지 생성 모델 없이 PIL 도형만으로 그린다. **같은 스크립트 → 바이트 동일한 출력**(난수 없음).
 나중에 GPT/SpriteMake 그림으로 갈아끼울 때는 아래 계약만 지키면 코드·카탈로그를 안 건드리고 파일만 덮어쓰면 된다:
@@ -11,7 +11,7 @@
     알파     하드 에지 (반투명 테두리 없음) — 동물 시트와 동일
 
 사용법:
-    python3 make-balloons.py               # assets/marble/accessories/*.webp 로 내보내기 (pngquant → cwebp 무손실)
+    python3 make-balloons.py               # assets/deguri/accessories/*.webp 로 내보내기 (pngquant → cwebp 무손실)
     python3 make-balloons.py --png DIR     # 검수용 PNG + 미리보기 시트만 DIR 에
     python3 make-balloons.py --verify DIR  # 남이 그려 온 PNG/WEBP 가 계약을 지키는지만 검사(생성 안 함)
 
@@ -32,7 +32,7 @@ ALPHA_CUT = 110               # 하드 에지 임계값 (동물 시트 alphaThre
 OUTLINE_TOL = 40              # 외곽선 색 허용치(채널당) — LANCZOS 축소 + pngquant 팔레트 양자화가 섞여 정확한 값은 안 나온다
 EDGE_MARGIN = OUTLINE_PX + 1  # 실루엣이 캔버스 가장자리에서 떨어져 있어야 하는 최소 거리 — 붙으면 외곽선이 잘린다
 
-DEST = Path(__file__).resolve().parents[2] / 'assets' / 'marble' / 'accessories'
+DEST = Path(__file__).resolve().parents[2] / 'assets' / 'deguri' / 'accessories'
 
 
 def S(v):
@@ -304,7 +304,7 @@ def tangsuyuk():
 
 
 def gpu():
-    """5090 — 그래픽카드(docs/goal/marble-5090-edition.md). 야식은 아니지만 같은 슬롯·같은 계약.
+    """5090 — 그래픽카드(docs/goal/deguri-5090-edition.md). 야식은 아니지만 같은 슬롯·같은 계약.
     옆으로 긴 검은 판 + 팬 둘 + 왼쪽 끝에 위아래로 삐져나온 은색 브래킷 + 아래 금색 단자. 상표·글자는 안 그린다."""
     c = Cell()
 

@@ -5,7 +5,7 @@
  "request": "docs/spritemake-request/2026-09-22-ui-icons-shared-m.md",
  "md5": "6a44aec375cc65fece23bf7654deaa50",
  "sha256": "86e2460a5c7323cd336df1b96a4e502df83a5c96ec89c53ea4b7588e273044b9",
- "note": "11차 공용 UI 아이콘 아틀라스 — 전 게임 페이지·로비·공유 모듈의 OS 이모지 대체. index 0~32 는 데구리 10차(L) 셀을 픽셀 그대로 복사(셀별 md5 일치), 33~96 은 Codex exec 1세션(시트 A/B + 단독 재생성 4회)이 gpt-image-2 로 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화, Claude 가 97셀 bbox·중심·alpha 1~7·마젠타·L md5·20/32px 3배경 대조로 독립 검증 후 복사. 소비처: css/ui-icons.css .ui-{id}, js/shared/ui-icons.js UI_ICON_CELL, js/marble-render.js(캔버스), css/marble.css .mi-*(별칭). 97~99 는 빈 셀.",
+ "note": "11차 공용 UI 아이콘 아틀라스 — 전 게임 페이지·로비·공유 모듈의 OS 이모지 대체. index 0~32 는 데구리 10차(L) 셀을 픽셀 그대로 복사(셀별 md5 일치), 33~96 은 Codex exec 1세션(시트 A/B + 단독 재생성 4회)이 gpt-image-2 로 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화, Claude 가 97셀 bbox·중심·alpha 1~7·마젠타·L md5·20/32px 3배경 대조로 독립 검증 후 복사. 소비처: css/ui-icons.css .ui-{id}, js/shared/ui-icons.js UI_ICON_CELL, js/deguri-render.js(캔버스), css/deguri.css .mi-*(별칭). 97~99 는 빈 셀.",
  "image": "icons.png",
  "canvas": [
   1280,
