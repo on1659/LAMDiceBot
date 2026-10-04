@@ -6393,9 +6393,7 @@ function initOrderModule() {
 }
 
 function addChatMessage(data) { ChatModule.displayChatMessage(data); }
-function toggleReaction(messageIndex, emoji) {
-    socket.emit('toggleReaction', { messageIndex, emoji });
-}
+function toggleReaction(messageIndex, emoji) { ChatModule.toggleReaction(messageIndex, emoji); }
 
 // 결과 오버레이 닫기 (비석은 다음 경주 시작 전까지 유지)
 function closeResultOverlay() {
@@ -6542,6 +6540,7 @@ function initializeGameScreen(data) {
     // 채팅 기록 로드
     if (data.chatHistory) {
         document.getElementById('chatMessages').innerHTML = '';
+        ChatModule.resetHistory();
         data.chatHistory.forEach(msg => addChatMessage(msg));
         ChatModule.recalculatePins();
     }

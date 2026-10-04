@@ -4969,7 +4969,7 @@
             const chatMessages = document.getElementById('chatMessages');
             if (chatMessages) {
                 chatMessages.innerHTML = ''; // 기존 메시지 초기화
-                clientChatHistory = []; // 클라이언트 채팅 기록 초기화
+                ChatModule.resetHistory(); // 클라이언트 채팅 기록 초기화 (clientChatHistory 는 읽기 전용 참조라 대입이 무시된다)
                 
                 if (data.chatHistory && data.chatHistory.length > 0) {
                     // 채팅 기록을 순서대로 표시
@@ -7938,7 +7938,7 @@
                             
                             reactionBtn.onclick = () => {
                                 const messageIndex = parseInt(messageDiv.dataset.messageIndex);
-                                socket.emit('toggleReaction', { messageIndex, emoji });
+                                ChatModule.toggleReaction(messageIndex, emoji);
                             };
                             
                             activeReactionsDiv.appendChild(reactionBtn);
@@ -7979,7 +7979,7 @@
                     
                     reactionBtn.onclick = () => {
                         const messageIndex = parseInt(messageDiv.dataset.messageIndex);
-                        socket.emit('toggleReaction', { messageIndex, emoji });
+                        ChatModule.toggleReaction(messageIndex, emoji);
                     };
                     
                     hoverReactionsDiv.appendChild(reactionBtn);
@@ -8098,7 +8098,7 @@
                             
                             reactionBtn.onclick = () => {
                                 const messageIndex = parseInt(messageDiv.dataset.messageIndex);
-                                socket.emit('toggleReaction', { messageIndex, emoji });
+                                ChatModule.toggleReaction(messageIndex, emoji);
                             };
                             
                             activeReactionsDiv.appendChild(reactionBtn);
@@ -8139,7 +8139,7 @@
                     
                     reactionBtn.onclick = () => {
                         const messageIndex = parseInt(messageDiv.dataset.messageIndex);
-                        socket.emit('toggleReaction', { messageIndex, emoji });
+                        ChatModule.toggleReaction(messageIndex, emoji);
                     };
                     
                     hoverReactionsDiv.appendChild(reactionBtn);
@@ -8166,8 +8166,8 @@
                 chatMessage.reactions = {};
             }
             
-            // 클라이언트 채팅 기록에 추가 (중복 방지)
-            let messageIndex = clientChatHistory.findIndex(msg => 
+            // 클라이언트 채팅 기록에 추가 (중복 방지 — 고유 번호가 있으면 그것으로, 같은 초에 같은 글을 두 번 보내도 갈리게)
+            let messageIndex = clientChatHistory.findIndex(msg => chatMessage.id !== undefined ? msg.id === chatMessage.id :
                 msg.userName === chatMessage.userName && 
                 msg.message === chatMessage.message && 
                 msg.time === chatMessage.time

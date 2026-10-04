@@ -9,6 +9,10 @@ const CHAT_HISTORY_MAX = 100;          // 채팅 히스토리 최대 보관 수
 // DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, ROOM_GRACE_PERIOD → config.js (.env로 재정의 가능)
 // ────────────────────────
 
+// 반응을 달 수 있는 메시지(일반 채팅·이미지)의 고유 번호 — 프로세스 안에서 유일.
+// 반응은 순번이 아니라 이 번호로 찾는다: 화면에만 뜨는 채팅·재연결·100개 잘라내기로 순번은 어긋난다.
+let nextChatMessageId = 1;
+
 module.exports = (socket, io, ctx) => {
     // Helper function: @멘션 파싱
     function parseMentions(message, roomUsers) {
@@ -75,6 +79,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         const chatMessage = {
+            id: nextChatMessageId++,
             userName: user.name,
             message: message.trim(),
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
@@ -360,10 +365,10 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        const { messageIndex, emoji } = data;
+        const { messageId, emoji } = data;
 
         // 입력값 검증
-        if (typeof messageIndex !== 'number' || !emoji || typeof emoji !== 'string') {
+        if (typeof messageId !== 'number' || !emoji || typeof emoji !== 'string') {
             socket.emit('chatError', '올바른 이모티콘 정보를 입력해주세요!');
             return;
         }
@@ -375,13 +380,12 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 채팅 기록에서 메시지 찾기 (인덱스로 직접 접근)
-        if (messageIndex < 0 || messageIndex >= gameState.chatHistory.length) {
+        // 채팅 기록에서 메시지 찾기 (고유 번호로 — 100개를 넘겨 잘려 나간 메시지는 없다)
+        const chatMessage = gameState.chatHistory.find(m => m.id === messageId);
+        if (!chatMessage) {
             socket.emit('chatError', '메시지를 찾을 수 없습니다!');
             return;
         }
-
-        const chatMessage = gameState.chatHistory[messageIndex];
 
         // reactions 필드 초기화 (없으면)
         if (!chatMessage.reactions) {
@@ -416,7 +420,7 @@ module.exports = (socket, io, ctx) => {
 
         // 모든 클라이언트에게 업데이트된 메시지 전송
         io.to(room.roomId).emit('messageReactionUpdated', {
-            messageIndex: messageIndex,
+            messageId: messageId,
             message: chatMessage
         });
 
@@ -473,6 +477,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         const imageMessage = {
+            id: nextChatMessageId++,
             userName: user.name,
             message: caption ? caption.trim().substring(0, 100) : '',
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),

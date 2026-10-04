@@ -233,9 +233,12 @@ function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
 | 방향 | 이벤트 | 데이터 |
 |------|--------|--------|
 | emit | `sendMessage` | `{message}` |
-| emit | `toggleReaction` | `{messageIndex, emoji}` |
-| on | `newMessage` | message object |
-| on | `messageReactionUpdated` | `{messageIndex, message}` |
+| emit | `toggleReaction` | `{messageId, emoji}` |
+| on | `newMessage` | message object (일반·이미지 메시지는 서버가 붙인 `id` 포함) |
+| on | `messageReactionUpdated` | `{messageId, message}` |
+
+반응은 목록 순번이 아니라 메시지 `id`로 주고받는다 — 화면에만 뜨는 채팅·재연결·100개 잘라내기로 순번은 서버와 어긋난다.
+자체 렌더러(주사위)는 `ChatModule.toggleReaction(화면 순번, emoji)`를 부르고, 재입장 때 기록을 다시 그리기 전에 `ChatModule.resetHistory()`를 부른다.
 
 ---
 
