@@ -33,11 +33,20 @@
 
 .latest-title{font-size:32px;letter-spacing:-1px;margin:0 0 8px}.latest-note{font-size:14px;color:var(--ink-2);margin:0 0 28px}.concept-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:24px}.concept{display:block;border:1px solid var(--line);border-radius:16px;overflow:hidden;color:inherit;text-decoration:none;transition:transform .15s,box-shadow .15s}.concept:hover{transform:translateY(-3px);box-shadow:0 10px 30px #191f2812}.concept img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top;background:var(--surface);border-bottom:1px solid var(--line)}.concept-body{padding:18px}.concept-kicker{font-size:12px;color:var(--ink-2);font-weight:700}.concept h2{font-size:22px;margin:5px 0 7px;letter-spacing:-.5px}.concept p{font-size:14px;color:var(--ink-2);margin:0 0 16px;line-height:1.55}.common-features{font-size:14px;color:var(--ink-2);padding:16px 0 24px;line-height:1.7}.archive{margin-top:16px;border-top:1px solid var(--line);padding-top:24px}.archive>summary{cursor:pointer;color:var(--ink-2);padding:10px 0;margin-bottom:12px}.wrap{max-width:1160px}.archive .list{max-width:880px} @media(max-width:760px){.concept-grid{grid-template-columns:1fr}.concept{display:grid;grid-template-columns:minmax(120px,42%) 1fr}.concept img{height:100%;min-height:210px;aspect-ratio:auto;object-fit:cover;object-position:left top;border-bottom:0;border-right:1px solid var(--line)}.concept-body{padding:16px}.concept h2{font-size:21px}.latest-title{font-size:28px}.wrap{padding-top:28px}}
 .mobile-example{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;margin-bottom:24px;border:1px solid var(--line);background:var(--surface);border-radius:14px;color:inherit;text-decoration:none}.mobile-example strong{display:block;font-size:17px}.mobile-example small{display:block;font-size:13px;color:var(--ink-2);margin-top:4px}
+.interior-grid .concept img{aspect-ratio:375/812;object-fit:contain;object-position:top}@media(max-width:760px){.interior-grid .concept img{height:auto;min-height:0;align-self:start}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 class="latest-title">같은 기능, 다른 사용감.</h1>
+  <h1 class="latest-title">게임 안에서도, 세 가지 느낌.</h1>
+  <p class="latest-note">19·20번은 15·16번의 연장선. 21번은 7번 모바일 구성의 비교안입니다.</p>
+  <section class="concept-grid interior-grid" aria-label="게임 내부 디자인 비교">
+<a class="concept" href="/19"><img src="/mockups/assets/preview-19-mobile.png" alt="청회색 작업대 게임룸 모바일"><div class="concept-body"><span class="concept-kicker">19 / 홈 15번 계열</span><h2>작업대 게임룸</h2><p>게임을 가운데, 대화와 주문은 옆에. 필요한 도구를 가까이 둡니다.</p><span class="open">게임 안 보기 →</span></div></a>
+<a class="concept" href="/20"><img src="/mockups/assets/preview-20-mobile.png" alt="따뜻한 보드 게임룸 모바일"><div class="concept-body"><span class="concept-kicker">20 / 홈 16번 계열</span><h2>보드 게임룸</h2><p>따뜻한 종이색과 작은 정보판. 친구들과 한 테이블에 모인 느낌.</p><span class="open">게임 안 보기 →</span></div></a>
+<a class="concept" href="/21"><img src="/mockups/assets/preview-21-mobile.png" alt="숲색과 라임색 모바일 게임룸"><div class="concept-body"><span class="concept-kicker">21 / 7번 모바일 계열</span><h2>손안의 게임룸</h2><p>숲색과 라임, 둥근 카드. 한 손으로 선택하고 준비하는 모바일 화면.</p><span class="open">게임 안 보기 →</span></div></a>
+  </section>
+  <p class="latest-note">상단에서 준비 · 선택 · 경주 · 결과를 전환해 보세요. 예시 데이터로만 동작합니다.</p>
+  <h2 class="latest-title">홈 디자인 비교</h2>
   <p class="latest-note">15–17번 · 서버를 먼저 고르고, 한 로비에서 방·랭킹·기록·멤버를 봅니다.</p>
   <a href="/18" class="mobile-example"><span><strong>18 · 모바일 예시</strong><small>제안한 작업대를 휴대폰 화면으로 · 서버 전환, 방, 랭킹, 멤버</small></span><span class="open">열기 →</span></a>
   <section class="concept-grid" aria-label="새 목업 비교">
