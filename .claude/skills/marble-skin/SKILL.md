@@ -18,7 +18,7 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 | 동물 id | hedgehog armadillo pillbug turtle panda hamster pufferfish raccoon rabbit **ribbonpig(=돼지)** |
 | 시트 이름 | `{creature}-{skin}` (+ `-sleep`, `-scuffle`) → `assets/marble/creatures/*.webp` |
 | 카탈로그 id | `marble_skin_{creature}_{skin}` (`config/marble/cosmetics.json` 의 `marble_skin` 배열 끝에) |
-| 등급·가격 | rare 50 · epic 100 · legend 150 (카탈로그 `rarity` 는 `rare`/`epic`/`legend`) |
+| 등급·가격 | common 30 · rare 50 · epic 100 · legend 150 (카탈로그 `rarity` 는 `common`/`rare`/`epic`/`legend`). 매기는 법은 아래 **등급 기준** |
 | 방식 | 색만 바뀌면 **리컬러**(토큰 0) — 단, 색만 바꾼 건 밋밋하다는 피드백(2026-09-30 레드 돼지)이라 레어도 리컬러 + 작은 특징(`--ref` 덧그리기)을 먼저 제안. 의상·변신이면 **GPT 생성** |
 | 분업 | GPT 는 그림 생성만. 자르기·리팩·보정·판정은 Claude |
 | 기존 스킨 | 카탈로그를 먼저 읽어 같은 동물의 기존 스킨과 겹치지 않게 |
@@ -26,6 +26,20 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 - 디자인이 사용자 결정 사항이면(이름·등급 미지정 등) 짧게 확정하고 진행. 이름은 사용자가 쓴 표기를 따르되 오타 같으면 한 줄로 확인.
 - 실제 게임·캐릭터를 참고하라고 하면 **원화를 이미지 입력으로 넣지 말고 말로만** 특징을 설명한다(베낀 그림 방지).
 - 공은 늘 **원형**이어야 한다(링 반지름 60 소스 px). 의상 설명에 "공 칸에선 소품을 빼 공이 둥글게"를 넣는다.
+
+### 등급 기준 (사용자 2026-10-04)
+
+"레어는 단순 이미지 변경, 에픽은 뭔가 좀 더 달라야 하고, 전설은 보자마자 멋져야 한다." 컨셉이 재밌는지가 아니라 **얼마나 새로 그렸는지**로 매긴다. 조건을 채우는 가장 높은 등급을 준다.
+
+| 등급 | 기준 | 예 |
+|---|---|---|
+| common 30 | 색만 바꿈. 새로 그린 선이 없다(1-A 리컬러 그대로) | 벚꽃 고슴도치, 파란 복어 |
+| rare 50 | 색·무늬 + 작은 장식 1~2개. 장식을 가리면 색 다른 기본 동물 | 고추장불고기, 쿠키 햄스터, 닌자 너구리, 기사 고슴도치 |
+| epic 100 | 새로 그린 것이 3개 이상 / 몸통을 다 덮는 옷 / 몸만 한 소품 — 셋 중 하나 | 알로하 너구리, 튜브 너구리, 강철 돼지 |
+| legend 150 | epic 조건 + 셋 중 둘: 자세·표정·몸 구조가 기본과 다름 · 몸 전체가 새 그림 · 공이 됐을 때 볼거리 | 빨간 마후라, 5090, 꿀곰 |
+
+- 무늬만 바꾼 것(수박·쿠키·무지개)은 공이 그 물건으로 보여도 rare.
+- 스킨을 제안할 때 등급 옆에 근거 한 줄을 적는다("무늬 + 꽃 하나", "옷·모자·보따리 세 개").
 
 ## 1-A. 리컬러 (색만 바뀌는 스킨)
 
@@ -80,6 +94,24 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
    ```
    pngquant `--nofs` + 알파 마스크 불변 확인, 배치 QA 불합격이면 거부한다(오탐만 `--allow-fail`). 기존 파일 덮어쓰기 거부 — 같은 이름 교체는 옛 파일을 먼저 치우고 **`js/marble-render.js` ASSET_VER 을 올린다**(assets 7일 캐시).
 
+## 1-C. 걷기 시트 (네 번째 시트 — 2026-10-02 부터 필수)
+
+동물은 걸을 때 `{sheet}-walk.webp`(4×1: 디딤 A · 넘김 A · 디딤 B · 넘김 B)를 쓴다. 없으면 서기 두 칸으로 걷는다(옷은 유지되지만 어색하다). 도구는 `AutoTest/spritemake/walk-sheet.py` 하나.
+
+| 스킨 종류 | 명령 |
+|---|---|
+| 리컬러(1-A) | `walk-sheet.py recolor <creature> <skin>` — 기본 동물 걷기 시트에 같은 프리셋 |
+| 도트(pixelate) | `walk-sheet.py pixelate <creature> <skin>` |
+| GPT 생성(1-B) | `walk-sheet.py scaffold <sheet>` → 출력된 `run:` 명령(Codex, 샌드박스 해제·백그라운드) → `repack <sheet> <attempt>` → 눈으로 판정 → `pickup <sheet>` |
+
+- 스킨은 **기본 동물의 걷기 시트를 첫 입력, 스킨 main 시트를 둘째 입력**으로 옷만 입힌다(자세는 그대로). main 3장을 인수한 뒤에 돌린다.
+- 리팩이 몸 넓이·발바닥선(150)·윗몸 중심을 스킨 main 시트의 서기 칸에 맞춘다. `OK` 가 나와도 시도 전부를 서기 칸과 나란히 놓고 본다: 네 칸이 다 다른 걸음인지, 옷이 칸마다 같은지, 오른쪽을 보는지, 크기가 서기와 같은지.
+- 소품이 큰 스킨(쇠스랑·튜브)은 넓이 기준 배율 때문에 몸이 작아질 수 있다 — 서기 칸과 머리 크기를 비교하고, 작으면 `repack` 뒤 수치(`area`)를 보고 소품을 뺀 몸 기준으로 다시 맞춘다.
+- **걸음이 진짜 번갈아 나오는지 본다(2026-10-02 사고)**: 첫 판에서 고슴도치는 "서기 / 발차기" 2장을 두 번, 판다는 같은 다리만 반복해 그렸는데 전부 `OK` 로 통과했다. 이제 `verify` 가 다리 구역(몸 아래 35%)에서 디딤 A·B, 넘김 A·B 가 각각 20% 이상 다른지 잰다(`same legs twice`). 수치가 통과해도 4칸을 크게 확대해 "벌림 → 한 발 듦 → 반대로 벌림 → 다른 발 듦" 인지 눈으로 확인한다. 스킨은 의상을 다시 그리며 생긴 잡음으로 수치만 통과하는 일이 있다(판다 스킨들).
+- 다리가 같은 색(판다: 둘 다 검정)이면 A·B 를 다리로 가를 수 없다 → 팔 흔들림과 다리 겹침(먼 발은 반쯤 가려지게)으로 가르라고 의뢰문에 쓴다.
+- 깡충 뛰는 동물(토끼 — `GAIT_HOP`)은 4칸이 한 번 뜀(웅크림 · 박차기 · 공중 · 착지)이고 몸이 늘 낮고 수평이어야 한다. "두 번 뛰되 다른 자세로"라고 의뢰하면 엎드린 자세와 선 자세가 섞인다. 렌더러 쪽 목록은 `js/marble-render.js` `HOP_GAIT`.
+- 새 **기본 동물**이면 `walk-sheet.py` 의 `BASES`·`FRAMES`(걸음 설명: 두 발 / 네 발 / 그 동물만의 이동)에 먼저 추가한다.
+
 ## 2. 인수 뒤 최종 검증 (게임 파일 기준)
 
 ```bash
@@ -94,7 +126,7 @@ for k in "" -sleep -scuffle; do dwebp -quiet assets/marble/creatures/<sheet>$k.w
 `config/marble/cosmetics.json` `marble_skin` 배열 끝에 (한 줄 한 항목, 기존 형식 그대로):
 
 ```json
-{"id": "marble_skin_<creature>_<skin>", "name": "<이름>", "displayName": "<이름>", "rarity": "rare|epic|legend", "emoji": "<이모지 1개>", "price": 50|100|150, "creature": "<creature>", "skin": "<skin>", "desc": "<평이한 한국어 한두 문장>. <동물>를 고르면 적용돼요."}
+{"id": "marble_skin_<creature>_<skin>", "name": "<이름>", "displayName": "<이름>", "rarity": "common|rare|epic|legend", "emoji": "<이모지 1개>", "price": 30|50|100|150, "creature": "<creature>", "skin": "<skin>", "desc": "<평이한 한국어 한두 문장>. <동물>를 고르면 적용돼요."}
 ```
 
 - 상점·뽑기는 카탈로그에서 자동으로 뽑는다(코드 수정 없음). 뽑기 등급은 `rarity`.
@@ -102,7 +134,7 @@ for k in "" -sleep -scuffle; do dwebp -quiet assets/marble/creatures/<sheet>$k.w
 
 ## 4. 동작 확인
 
-1. 카탈로그 → 시트 존재: `node -e` 로 `marble_skin` 의 creature/skin 마다 webp 3장 존재 확인.
+1. 카탈로그 → 시트 존재: `node -e` 로 `marble_skin` 의 creature/skin 마다 webp 4장(기본·`-sleep`·`-scuffle`·`-walk`) 존재 확인.
 2. **서버 재시작 필요**(카탈로그는 `socket/marble.js` 가 시작 때 require) — preview_start `dev-5174` 로 새로 띄우고
    `node AutoTest/qa-marble-skin-shop-test.js 5174` → `✅ ALL PASS`.
 3. 렌더러: `http://localhost:5174/game-lab/marble-preview.html` 에서 `data.balls` 의 creature/skin 을 바꿔 `R.setTimeline` → `R.render` 여러 번(카메라 안정) → 구르는 공 주변을 잘라 확대해 **링 안이 차는지**, network 에서 새 시트 `200` 확인.

@@ -26,6 +26,9 @@ const CROWD_PRESETS = {
 const CROWD_DEFAULT = 'solo';    // 방 기본값(utils/room-helpers.js)과 동일 — 모르는 단계가 오면 이걸로
 const START_ROW_SIZE = 13;        // 출발대 한 줄 공 수 (13 × 30 = 390 ≤ 출발대 폭 400)
 const START_SPACING = 30;
+// 출발 자리 고르기(docs/goal/marble-start-position.md): 대기 화면에서 사람이 고른 x 는 이 범위로 잘라 받는다(출발대 벽 200·600 안쪽, 공 반지름 + 2).
+// 한 줄 13마리(12 × 30 = 360)가 이 폭(368) 안에 들어간다
+const START_X_MIN = 216, START_X_MAX = 584;
 
 // ─── 물리 ───
 const TRACK_W = 800;
@@ -686,7 +689,8 @@ function buildTrackFrom(ballCount, spec, rng, crowd) {
 
 // 출발 배치: 참가자 라운드로빈으로 나열 → 줄(13개) 단위로 시드 셔플 → 한 사람 공이 한 줄에 몰리지 않는다.
 // 반환 balls[i] = { id: i, owner, creature, colorIdx, num, x, y }
-function layoutBalls(participants, picks, ballsPerPlayer, rng) {
+// startX(선택) = { 이름: 고른 x } — 대기 화면에서 사람이 고른 출발 자리(socket/marble.js marble:moveTo). 없으면 시드로 섞은 격자 그대로
+function layoutBalls(participants, picks, ballsPerPlayer, rng, startX) {
     const seq = [];
     for (let k = 1; k <= ballsPerPlayer; k++) {
         participants.forEach((name, pi) => {
@@ -700,7 +704,7 @@ function layoutBalls(participants, picks, ballsPerPlayer, rng) {
             const tmp = seq[i]; seq[i] = seq[j]; seq[j] = tmp;
         }
     }
-    return seq.map((b, i) => {
+    const balls = seq.map((b, i) => {
         const row = Math.floor(i / START_ROW_SIZE);
         const col = i % START_ROW_SIZE;
         const rowCount = Math.min(START_ROW_SIZE, seq.length - row * START_ROW_SIZE);
@@ -709,6 +713,34 @@ function layoutBalls(participants, picks, ballsPerPlayer, rng) {
         const y = -20 - row * START_SPACING;
         return { id: i, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, x, y };
     });
+    // 고른 자리가 없으면 예전 배치 그대로(rng 소비도 같다)
+    if (!startX || !participants.some(name => startX[name] != null)) return balls;
+    // 자리 잡기: 줄마다, 자리를 고른 사람의 동물(복제 마리 포함)은 그 x 를, 안 고른 사람의 동물은 제 격자 칸을 원한다 → 겹치면 서로 같은 만큼 밀려 간격 30 으로 펴진다.
+    // 같은 x 를 원하면 위에서 섞은 순서(시드)대로 선다. 첫 마리는 원한 자리(fromX)를 들고 간다 — 카운트다운에서 그 자리에서 밀려나는 연출용
+    for (let r0 = 0; r0 < balls.length; r0 += START_ROW_SIZE) {
+        const row = balls.slice(r0, r0 + START_ROW_SIZE);
+        const want = b => startX[b.owner] != null ? clampStartX(startX[b.owner]) : b.x;
+        const order = row.map((b, k) => ({ b, k, x: want(b) })).sort((a, c) => a.x - c.x || a.k - c.k);
+        const spread = spreadRow(order.map(o => o.x));
+        order.forEach((o, j) => { if (o.b.num === 1 && startX[o.b.owner] != null) o.b.fromX = o.x; o.b.x = Math.round(spread[j]); });
+    }
+    return balls;
+}
+function clampStartX(x) { return Math.max(START_X_MIN, Math.min(START_X_MAX, Math.round(x))); }
+// 원하는 자리(오름차순)를 간격 START_SPACING 이상·출발대 안으로 펴기 — 원래 자리에서 움직인 거리의 제곱합이 가장 작은 배치(겹친 덩어리는 가운데를 지키며 양쪽으로 같이 밀린다).
+// z[i] = x[i] − i·간격 이 줄지 않게 맞추면(pool-adjacent-violators) 간격 조건이 되고, z 를 [MIN, MAX − (n−1)·간격] 으로 자르면 벽 안에 든다
+function spreadRow(xs) {
+    const n = xs.length, blocks = [];
+    xs.forEach((x, i) => {
+        blocks.push({ sum: x - i * START_SPACING, count: 1 });
+        while (blocks.length > 1 && blocks[blocks.length - 2].sum / blocks[blocks.length - 2].count > blocks[blocks.length - 1].sum / blocks[blocks.length - 1].count) {
+            const top = blocks.pop(), under = blocks[blocks.length - 1];
+            under.sum += top.sum; under.count += top.count;
+        }
+    });
+    const hi = START_X_MAX - (n - 1) * START_SPACING, out = [];
+    blocks.forEach(bl => { const z = Math.max(START_X_MIN, Math.min(hi, bl.sum / bl.count)); for (let k = 0; k < bl.count; k++) out.push(z + out.length * START_SPACING); });
+    return out;
 }
 
 // ─── 기하 헬퍼 ───
@@ -1437,10 +1469,10 @@ function effectiveBallsPerPlayer(n, players) {
 }
 
 module.exports = {
-    buildTrack, buildTrackFrom, drawOrder, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
+    buildTrack, buildTrackFrom, drawOrder, layoutBalls, clampStartX, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
     SECTION_NAMES: MIDDLE_SECTIONS.map(m => m[0]), TRACK_A_COUNT,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT, CROWD_PRESETS, CROWD_DEFAULT,
-        BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE
+        BALL_R, NAP_R, START_SPACING, START_X_MIN, START_X_MAX, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE
     }
 };

@@ -31,8 +31,8 @@ const COIN_RACE_JOIN = 10;
 // 등급 추첨 → 그 등급 안에서 균등. 스킨은 카탈로그 rarity, 야식(marble_balloon)은 전부 rare. 추첨은 서버에서만.
 const GACHA_PRICE = 60;
 const GACHA_REFUND = 30;
-const GACHA_WEIGHTS = { rare: 60, epic: 30, legend: 10 };
-const GACHA_TIER_LABEL = { rare: '레어', epic: '에픽', legend: '전설' };
+const GACHA_WEIGHTS = { common: 40, rare: 35, epic: 18, legend: 7 };   // 일반 등급 추가(사용자 2026-10-01, docs/goal/marble-shop-declutter-common-tier.md) — 전에는 rare 60 · epic 30 · legend 10
+const GACHA_TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
 const CHAT_HISTORY_MAX = 100;     // socket/chat.js·scheduled-start.js 와 같은 상한
 // 방에 머문 시간 보상(사용자 2026-09-23: 광고 클릭 보상은 애드센스 정책 위반이라 대신) — 입장(joinTime)부터 STAY_COIN_MS 마다 +STAY_COIN.
 // 타이머 없이 지갑을 볼 때(상점·구매·뽑기·한 판 보상) 밀린 만큼 한 번에 넣는다. 나가면 지갑과 함께 사라진다.
@@ -108,7 +108,7 @@ let _gachaPool = null;
 function gachaPool() {
     if (_gachaPool) return _gachaPool;
     const catalog = require('../config/marble/cosmetics.json');
-    const pool = { rare: [], epic: [], legend: [] };
+    const pool = { common: [], rare: [], epic: [], legend: [] };
     EQUIP_SLOTS.forEach(slot => (catalog[slot] || []).forEach(raw => {
         const entry = getCatalogEntry(raw.id);
         if (!entry || entry.slot !== slot) return;
@@ -318,7 +318,7 @@ async function startMarble(room, gameState, io, ctx) {
 
     let balls, result;
     try {
-        balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
+        balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed), mb.startX);   // 고른 자리(marble:moveTo)에서 출발 — 겹치면 여기서 서로 밀려 펴진다
         const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
         result = await sim.simulate(balls, seed, track);
         attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
@@ -337,7 +337,7 @@ async function startMarble(room, gameState, io, ctx) {
     // 통로 걷기도 경주 구간(추월 있음). 캡까지 못 들어간 공은 sim 이 진행도 순으로 정산해 뒤에 붙인다.
     // 당첨 = 룰렛이 정한 순위(mb.target)의 주인 — 'last' 꼴찌(기본) / 'first' 1등.
     const rank = sim.rankPlayers(balls, result.finishOrder, participants, mb.target);
-    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, skin: b.skin, skinName: b.skinName, balloon: b.balloon }));   // skin/skinName/balloon: 있을 때만(없으면 undefined → JSON 에서 빠짐)
+    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, skin: b.skin, skinName: b.skinName, balloon: b.balloon, fromX: b.fromX }));   // skin/skinName/balloon: 있을 때만(없으면 undefined → JSON 에서 빠짐). fromX = 고른 출발 자리(카운트다운에서 여기서 밀려나는 연출)
     const payload = {
         durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
         balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
@@ -471,6 +471,8 @@ module.exports = (socket, io, ctx) => {
         const picks = {};
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
+        const chosen = mb.startX || {};   // 고른 자리(marble:moveTo) — 대기 중엔 겹침을 펴지 않는다(시작할 때 편다)
+        balls.forEach(b => { if (chosen[b.owner] != null) b.x = chosen[b.owner]; });
         return {
             track: sim.buildTrack(Math.max(1, balls.length), sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder }),   // 다음 판 맵 그대로
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner), ...cosmeticFields(mb, b.owner, b.creature) })),
@@ -496,6 +498,25 @@ module.exports = (socket, io, ctx) => {
         if (!user) return;
         mb.picks[user.name] = data.creatureId;
         emitState(room, gameState);   // 스킨·풍선은 mb.equip(방 장착값)에서 바로 붙는다 — DB 조회 없음
+    });
+
+    // 출발 자리 고르기 (대기 화면 — docs/goal/marble-start-position.md). 클라는 가고 싶은 x 만 보낸다: 서버가 범위로 자르고 보관하며, 겹침은 시작할 때 sim.layoutBalls 가 편다.
+    // 출발대에 서 있는 사람(준비했거나 동물을 고른 사람)만, idle 일 때만. 대기 중엔 서로 겹쳐도 된다. 방 전체엔 { name, x } 만 알린다(프리뷰 통째 재전송은 맵을 다시 짓는다)
+    socket.on('marble:moveTo', (data) => {
+        if (!rateOk()) return;
+        if (!data || typeof data.x !== 'number' || !Number.isFinite(data.x)) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'marble') return;
+        const mb = gameState.marble;
+        if (mb.phase !== 'idle') return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        if (!(gameState.readyUsers || []).includes(user.name) && !CREATURES.includes(mb.picks[user.name])) return;
+        const x = sim.clampStartX(data.x);
+        mb.startX = mb.startX || {};   // 이 기능 전에 만든 방에는 없다
+        mb.startX[user.name] = x;
+        io.to(room.roomId).emit('marble:startPos', { name: user.name, x });
     });
 
     // 방 지갑 조회 — { ok, balance, owned, equipped } (js/marble-shop.js 가 wallet:get 대신 쓴다). 손님도 가능

@@ -1,5 +1,5 @@
 // QA — 데구리 구슬 뽑기 (docs/goal/marble-gacha.md)
-//   1) 순수 추첨(drawGacha) 2만 번 → 등급 비율 60/30/10 ±2%p, 풀 구성(스킨 rarity·야식 rare·기본 제공 제외)
+//   1) 순수 추첨(drawGacha) 2만 번 → 등급 비율 40/35/18/7 ±2%p(일반·레어·에픽·전설), 풀 구성(스킨 rarity·야식 rare·기본 제공 제외)
 //   2) 소켓: 방 생성 → marble:gacha:pull 을 코인이 모자랄 때까지 → 매번 잔고 = 이전 − 60 (+30 중복), 새 항목은 owned 에, 등급 = 카탈로그 등급,
 //      모자라면 insufficient(잔고 그대로), 뽑은 항목 장착(marble:equip) 성공, 방 밖 pull 거절
 //   3) 전설 채팅 알림 — 소켓에서 전설을 강제로 뽑을 수 없어 서버 소스에서 호출 여부만 확인
@@ -37,17 +37,19 @@ const tierOf = id => {
         const pool = marble.gachaPool();
         const buyableSkins = catalog.marble_skin.filter(i => i.creature && Number.isInteger(i.price) && !i.defaultOwned);
         const buyableBalloons = catalog.marble_balloon.filter(i => i.sprite && Number.isInteger(i.price) && !i.defaultOwned);
-        check(pool.rare.length + pool.epic.length + pool.legend.length === buyableSkins.length + buyableBalloons.length,
-            '풀 = 살 수 있는 스킨 ' + buyableSkins.length + ' + 야식 ' + buyableBalloons.length, JSON.stringify({ rare: pool.rare.length, epic: pool.epic.length, legend: pool.legend.length }));
-        check(['rare', 'epic', 'legend'].every(t => pool[t].every(p => tierOf(p.id) === t)), '풀 등급 = 카탈로그 등급(야식은 레어)');
+        const TIERS = ['common', 'rare', 'epic', 'legend'], WANT = { common: 40, rare: 35, epic: 18, legend: 7 };
+        check(TIERS.reduce((n, t) => n + pool[t].length, 0) === buyableSkins.length + buyableBalloons.length,
+            '풀 = 살 수 있는 스킨 ' + buyableSkins.length + ' + 야식 ' + buyableBalloons.length, JSON.stringify(Object.fromEntries(TIERS.map(t => [t, pool[t].length]))));
+        check(TIERS.every(t => pool[t].length > 0 && pool[t].every(p => tierOf(p.id) === t)), '네 등급 모두 항목이 있고, 풀 등급 = 카탈로그 등급(야식은 레어)');
         check(!Object.values(pool).flat().some(p => /_none$/.test(p.id)), '기본 모습/없음 항목은 풀에 없음');
-        const N = 20000, cnt = { rare: 0, epic: 0, legend: 0 };
+        check(TIERS.every(t => marble.GACHA_WEIGHTS[t] === WANT[t]) && Object.keys(marble.GACHA_WEIGHTS).length === TIERS.length, '서버 가중치 = 40/35/18/7');
+        const N = 20000, cnt = { common: 0, rare: 0, epic: 0, legend: 0 };
         let s = 12345; const rng = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };   // 결정론 — 테스트 재현용
         for (let i = 0; i < N; i++) cnt[marble.drawGacha(pool, rng).tier]++;
         const pct = t => cnt[t] / N * 100;
-        check(Math.abs(pct('rare') - 60) <= 2 && Math.abs(pct('epic') - 30) <= 2 && Math.abs(pct('legend') - 10) <= 2,
-            '등급 비율 60/30/10 ±2%p', ['rare', 'epic', 'legend'].map(t => t + ' ' + pct(t).toFixed(1)).join(' · '));
-        check(marble.drawGacha({ rare: [], epic: [], legend: [] }, rng) === null, '빈 풀 → null');
+        check(TIERS.every(t => Math.abs(pct(t) - WANT[t]) <= 2),
+            '등급 비율 40/35/18/7 ±2%p', TIERS.map(t => t + ' ' + pct(t).toFixed(1)).join(' · '));
+        check(marble.drawGacha({ common: [], rare: [], epic: [], legend: [] }, rng) === null, '빈 풀 → null');
         check(marble.drawGacha({ rare: [], epic: [{ id: 'e', tier: 'epic' }], legend: [] }, () => 0.99).tier === 'epic', '빈 등급은 가중치에서 빠짐');
         check(marble.GACHA_PRICE === 60 && marble.GACHA_REFUND === 30, '가격 60 · 중복 환급 30');
         // 머문 시간 보상 — 입장 시각부터 5분마다 +10, 남은 조각은 다음으로(사용자 2026-09-23)
@@ -67,7 +69,7 @@ const tierOf = id => {
         // ── 4) 에셋 ──
         const G = path.join(__dirname, '..', 'assets', 'marble', 'gacha');
         const files = ['machine/gacha-machine', 'machine/gacha-globe-empty', 'machine/gacha-globe-balls', 'machine/gacha-machine-rail-front', 'machine/gacha-machine-lamp', 'machine/gacha-crank', 'fx/gacha-sparkle',
-            ...['rare', 'epic', 'legend'].flatMap(t => ['capsule/capsule-' + t, 'capsule/capsule-' + t + '-open', 'fx/gacha-rays-' + t])].map(f => f + '.webp');
+            ...['common', 'rare', 'epic', 'legend'].flatMap(t => ['capsule/capsule-' + t, 'capsule/capsule-' + t + '-open', 'capsule/capsule-' + t + '-cup', 'capsule/capsule-' + t + '-lid', 'capsule/capsule-' + t + '-lidflip', 'fx/gacha-rays-' + t])].map(f => f + '.webp');
         const miss = files.filter(f => !fs.existsSync(path.join(G, f)));
         check(miss.length === 0 && fs.existsSync(path.join(G, 'gacha-anchors.json')), '뽑기 그림 ' + files.length + '장 + anchors json', miss.join(','));
 

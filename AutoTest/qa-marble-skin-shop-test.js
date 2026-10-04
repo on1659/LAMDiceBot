@@ -65,7 +65,10 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const cat = await emitAck(sockA, 'shop:catalog', {});
         const served = (cat && cat.ok && cat.catalog && cat.catalog.marble_skin) || [];
         check(SKINS.length >= 1 && SKINS.every(s => served.some(i => i.id === s.id)), 'shop:catalog 에 marble_skin 스킨 ' + SKINS.length + '개 전부', SKINS.map(s => s.skin).join(','));
-        check(SKINS.every(s => s.price === ({ rare: 50, epic: 100, legend: 150 })[s.rarity] && s.displayName), '카탈로그: 스킨 가격 = 등급별(rare 50·epic 100·legend 150)·displayName');
+        check(SKINS.every(s => s.price === ({ common: 30, rare: 50, epic: 100, legend: 150 })[s.rarity] && s.displayName), '카탈로그: 스킨 가격 = 등급별(common 30·rare 50·epic 100·legend 150)·displayName');
+        // 테마 칩은 theme 글자를 그대로 모아 만든다 — 빈 글자나 앞뒤 공백은 엉뚱한 칩이 된다
+        const themed = SKINS.filter(s => s.theme !== undefined);
+        check(themed.every(s => typeof s.theme === 'string' && s.theme && s.theme === s.theme.trim()), '카탈로그: theme 은 빈 글자·앞뒤 공백 없음', [...new Set(themed.map(s => s.theme))].join(' · '));
 
         // 싼 스킨 두 개를 사고, 남은 잔고로는 제일 비싼 스킨을 못 산다
         const SPENT = SKINS[0].price + SKINS[1].price;

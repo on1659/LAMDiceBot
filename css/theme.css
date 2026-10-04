@@ -618,6 +618,7 @@
   --marble-yard-grass-rgb: 111, 180, 90;          /* 동물 마당 띠 아래 풀빛 */
   --marble-yard-shadow-rgb: 60, 45, 20;           /* 마당 동물 발밑 그림자 */
   --marble-yard-zz: #6d7fb8;                      /* 마당 동물 낮잠 z */
+  --marble-rarity-common: #22c55e;  /* 데구리 일반 등급(상점 배지·뽑기 공·캡슐과 같은 초록) */
   /* [/tokens:marble:light] */
 
   /* [tokens:pages:light] 홈·관리자·안내 페이지 */
@@ -1099,6 +1100,7 @@
   --marble-yard-shadow-rgb: var(--shadow-rgb);
   --marble-yard-zz: #9aa6cc;
   /* 알림·확인 창은 theme.css "알림·확인 창" 블록이 무채 테두리·브랜드 버튼으로 덮는다 — 아래는 덮이지 않는 경우의 차분한 값 */
+  --marble-rarity-common: var(--fill-success);  /* 흰 글자 배지 바탕 — 채도 낮춘 초록 */
   /* [/tokens:marble:dark] */
 
   /* [tokens:pages:dark] 홈·관리자·안내 페이지 */

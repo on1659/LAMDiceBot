@@ -21,7 +21,8 @@
    "y": 7,
    "w": 54,
    "h": 52,
-   "method": "neutral off-bulb component plus 5px outline inset"
+   "method": "neutral off-bulb component plus 5px outline inset",
+   "cells": "sheet = 5 cells of w: [off, rare, epic, legend, common]. common (green) was appended 2026-10-01 by AutoTest/spritemake/make-gacha-common.py (hue shift of the rare cell); order matches LAMP_CELL in js/marble-gacha.js"
   },
   "crankPivot": [
    228,

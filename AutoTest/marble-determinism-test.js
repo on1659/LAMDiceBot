@@ -143,6 +143,36 @@ function setup(players, nReq, seed) {
         console.log(`[deck] ${rounds}판 — 중복 0, 최장 미등장 ${maxGap}판 OK`);
     } catch (e) { fails++; console.log(`[deck] FAIL: ${e.message}`); }
 
+    // 7) 출발 자리 고르기(docs/goal/marble-start-position.md): 고른 자리가 없으면 예전 배치 그대로, 있으면 간격 30 이상·출발대 안·결정론
+    try {
+        const { START_SPACING, START_X_MIN, START_X_MAX } = sim.constants;
+        const names = Array.from({ length: 16 }, (_, i) => `p${i}`), picks = {};
+        names.forEach(n => { picks[n] = 'hedgehog'; });
+        const four = names.slice(0, 4), lay = (who, n, seed, sx) => sim.layoutBalls(who, picks, n, sim.mulberry32(seed), sx);
+        const xOf = (balls, owner) => balls.find(b => b.owner === owner && b.num === 1).x;
+        assert.deepStrictEqual(lay(four, 3, 7, {}), lay(four, 3, 7), '빈 startX = 예전 배치');
+        assert.deepStrictEqual(lay(four, 3, 7, { nobody: 300 }), lay(four, 3, 7), '참가자가 아닌 이름은 무시');
+        assert.strictEqual(xOf(lay(four, 1, 7, { p0: 520 }), 'p0'), 520, '혼자 옮기면 고른 자리 그대로');
+        assert.strictEqual(xOf(lay(four, 1, 7, { p0: 9999 }), 'p0'), START_X_MAX, '출발대 밖은 끝으로');
+        const two = lay(four, 1, 7, { p0: 300, p1: 300 });
+        assert.deepStrictEqual([xOf(two, 'p0'), xOf(two, 'p1')].sort((a, b) => a - b), [285, 315], '같은 자리 둘 = 가운데를 지키며 30 벌어짐');
+        assert.ok(two.filter(b => b.fromX === 300).length === 2, '고른 자리(fromX)를 들고 간다');
+        for (const [who, n, sx] of [[four, 3, { p0: 216, p1: 216, p2: 216, p3: 216 }], [names, 1, Object.fromEntries(names.map(n => [n, 400]))], [names, 3, { p3: 584, p9: 216, p12: 400 }]]) {
+            const a = lay(who, n, 11, sx), rows = {};
+            assert.deepStrictEqual(a, lay(who, n, 11, sx), '같은 입력 = 같은 배치');
+            a.forEach(b => { (rows[b.y] = rows[b.y] || []).push(b.x); });
+            Object.values(rows).forEach(xs => {
+                xs.sort((p, q) => p - q);
+                assert.ok(xs[0] >= START_X_MIN && xs[xs.length - 1] <= START_X_MAX, `출발대 밖: ${xs[0]}~${xs[xs.length - 1]}`);
+                for (let i = 1; i < xs.length; i++) assert.ok(xs[i] - xs[i - 1] >= START_SPACING, `간격 ${xs[i] - xs[i - 1]}`);
+            });
+        }
+        const r1 = await sim.simulate(lay(four, 3, 21, { p0: 250, p1: 250 }), 21, sim.buildTrack(12, sim.mulberry32(21), 'normal'));
+        const r2 = await sim.simulate(lay(four, 3, 21, { p0: 250, p1: 250 }), 21, sim.buildTrack(12, sim.mulberry32(21), 'normal'));
+        assert.strictEqual(JSON.stringify(r1.finishOrder), JSON.stringify(r2.finishOrder), '고른 자리로 시작해도 결정론');
+        console.log('[startpos] 빈 입력 = 예전 배치, 간격·범위·결정론 OK');
+    } catch (e) { fails++; console.log(`[startpos] FAIL: ${e.message}`); }
+
     console.log(`\n${fails === 0 ? '✅ ALL PASS' : '❌ ' + fails + ' FAIL'} (${Date.now() - t0}ms)`);
     process.exit(fails ? 1 : 0);
 })();

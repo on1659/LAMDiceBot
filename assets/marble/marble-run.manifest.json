@@ -4047,8 +4047,8 @@
         "bytes": 2696
       },
       "gacha/machine/gacha-machine-lamp.webp": {
-        "md5": "4f00d1f0d33bbf0f4383538318806e79",
-        "bytes": 3610
+        "md5": "61e7d17de0c8a2f8c9d825448374bf46",
+        "bytes": 4308
       },
       "gacha/machine/gacha-machine.webp": {
         "md5": "e8b5d9c3ccc9ad559cbfb982ad0bd7fe",
@@ -4097,6 +4097,30 @@
       "gacha/capsule/capsule-legend-lid.webp": {
         "md5": "496b2b0b40a7745e37cef3e79caea734",
         "bytes": 10688
+      },
+      "gacha/capsule/capsule-common.webp": {
+        "md5": "58516cd2775029032ee33008c99d23f9",
+        "bytes": 8244
+      },
+      "gacha/capsule/capsule-common-cup.webp": {
+        "md5": "559e9c3b344e6335683723384a8a6b8c",
+        "bytes": 4088
+      },
+      "gacha/capsule/capsule-common-lid.webp": {
+        "md5": "411bd56966a496ee9697a03c420231de",
+        "bytes": 5470
+      },
+      "gacha/capsule/capsule-common-lidflip.webp": {
+        "md5": "d17febf59ae87a4d07cf1963f411d952",
+        "bytes": 5598
+      },
+      "gacha/capsule/capsule-common-open.webp": {
+        "md5": "ce197ed872e09ac5818661f06a4f9d2d",
+        "bytes": 47596
+      },
+      "gacha/fx/gacha-rays-common.webp": {
+        "md5": "f8f5062f787357245e484c4eec05003b",
+        "bytes": 22056
       }
     }
   },
@@ -5738,5 +5762,78 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creatureWalkSheets": {
+    "batch": "marble-run-walk-2026-10-02",
+    "status": "all-43-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-02-marble-walk-sheets.md",
+    "note": "걷기 4칸(디딤 A · 넘김 A · 디딤 B · 넘김 B). 몸 넓이·발바닥선·윗몸 중심을 각 look 의 기본 시트 서기 칸에 맞춤. 도구 AutoTest/spritemake/walk-sheet.py",
+    "contract": {
+      "canvas": [
+        640,
+        160
+      ],
+      "grid": [
+        4,
+        1
+      ],
+      "cell": [
+        160,
+        160
+      ],
+      "sourcePlaneY": 150,
+      "frames": [
+        "contact-a",
+        "passing-a",
+        "contact-b",
+        "passing-b"
+      ],
+      "targetGamePath": "assets/marble/creatures/{look}-walk.webp"
+    },
+    "looks": [
+      "armadillo",
+      "armadillo-gold",
+      "armadillo-gpu",
+      "hamster",
+      "hamster-cookie",
+      "hamster-dot",
+      "hamster-grey",
+      "hedgehog",
+      "hedgehog-cherry",
+      "hedgehog-knight",
+      "panda",
+      "panda-dot",
+      "panda-honey",
+      "panda-lifeguard",
+      "panda-red",
+      "panda-snorkel",
+      "panda-trunks",
+      "pillbug",
+      "pillbug-gpu",
+      "pillbug-rainbow",
+      "pufferfish",
+      "pufferfish-blue",
+      "rabbit",
+      "rabbit-black",
+      "rabbit-tophat",
+      "raccoon",
+      "raccoon-aloha",
+      "raccoon-ninja",
+      "raccoon-swimcap",
+      "raccoon-tube",
+      "ribbonpig",
+      "ribbonpig-angry",
+      "ribbonpig-gold",
+      "ribbonpig-iron",
+      "ribbonpig-pilot",
+      "ribbonpig-red",
+      "ribbonpig-ribbon",
+      "ribbonpig-scarf",
+      "ribbonpig-zhu",
+      "turtle",
+      "turtle-gpu",
+      "turtle-melon",
+      "turtle-ocean"
+    ]
   }
 }

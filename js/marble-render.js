@@ -14,13 +14,18 @@ var MarbleRender = (function () {
     var COUNTDOWN_MS = 4000;         // js/marble.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
-    // 대기 화면 애니: 출발대 위 동물들이 가만있지 않고 서성이고, 주기마다 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
-    var IDLE_SCUF_PERIOD_MS = 5200;  // 몸싸움 한 판 주기 (다가감 → 밀기 → 화들짝 → 어지러움)
+    // 대기 화면 애니: 출발대 위 동물들이 제자리에서 표정을 짓다가 자리가 바뀌면 걸어가고, 주기마다 붙어 선 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
+    var IDLE_SCUF_PERIOD_MS = 5200;  // 몸싸움 한 판 주기 (다가감 → 주고받기 → 진 놈 화들짝 → 어지러움 → 제자리로)
+    var IDLE_SCUF_FALL_PX = 8;       // 진 놈이 맞고 밀린 자리에서 더 뒤로 나가떨어지는 거리
+    var IDLE_SCUF_APPROACH_MS = 700, IDLE_SCUF_FLY_MS = 320, IDLE_SCUF_TUMBLE_MS = 240, IDLE_SCUF_RETURN_MS = 450;   // 다가감 / 맞고 공중으로 튕김 / 뒤로 넘어지며 주저앉음 / 제자리로   // 다가가는 시간 / 맞고 나가떨어지는 시간 / 화들짝 포즈 시간 / 끝나고 제자리로 걸어가는 시간. 주고받는 시간은 IDLE_SCUF_PUSH_MS
     // 출발대에 서 있는 동물(대기·카운트다운)을 공 중심보다 이만큼 위로 — 출발 판자(start-gate)는 y 0~+5 에 그려지는데, +8 에 그리면 발끝(그림 중심 +17.3)이 +5.3 으로 판자 아래 가장자리였다.
     // 4 올리면 발끝 ≈ +1.3 = 판자 윗면(데구리 8b14a1c). 공으로 말린 뒤는 공 위치 그대로
     var STAND_LIFT = 4;
-    var IDLE_WANDER_X = 9;           // 좌우로만 서성인다 — 위아래로 흔들면 발이 출발대 판자 아래로 내려갔다(데구리 6628dd3)
-    var IDLE_SCUF_REACH = 2;         // 몸싸움 때 서로 쪽으로 다가가는 거리 — 중심 간격 30 → 26, 머리만 맞닿게
+    // 출발 자리 고르기(docs/goal/marble-start-position.md): 대기 화면에서 동물은 제 자리(서버가 준 x — 사람이 출발대를 누르거나 ← → 로 고른다)에 서 있고, 자리가 바뀌면 걸어간다
+    var IDLE_MOVE_SPEED = 70;        // 자리 옮길 때 걷는 속도(px/s) — 출발대 끝에서 끝까지 ≈5초
+    var IDLE_SCUF_GAP_MAX = 36, IDLE_SCUF_HALF = 13;   // 티격태격: 자리가 이만큼 안에 붙은 이웃끼리만 / 싸울 땐 둘의 가운데에서 이만큼씩 떨어져 선다(머리만 맞닿게). 겹쳐 선 둘도 여기로 벌어진다
+    // 카운트다운 밀치기: 고른 자리(fromX)가 겹쳐 서버가 편 자리(x)로 밀려날 때 — 밀기 그림으로 버티며 미끄러진다. CURL_START_MS 전에 끝나야 한다
+    var SHOVE_START_MS = -COUNTDOWN_MS + 300, SHOVE_MS = 1700;
     // 카운트다운 복제 연출: 사람당 1마리(num 1)는 대기 때부터 서 있고, 나머지는 이 구간에 순서대로 위에서 떨어져 마릿수를 보여준다
     var SPAWN_START_MS = -COUNTDOWN_MS + 400;
     var SPAWN_END_MS = CURL_START_MS - 350;   // 웅크리기 전에 전원 착지
@@ -110,14 +115,36 @@ var MarbleRender = (function () {
     var SEESAW_SCALE = 1.5;
     var BASKET_SCALE = 2;            // 골 바구니·판자벽 — 결승 채널(160)을 채우게
     var SUN_WALK_SPEED = 260;        // 햇볕 잔디 안에서 이 속도 미만이면 공을 풀고 서서 걷는 모습(시각 — 물리는 그대로 원)
+    var SUN_WALK_KEEP = 1.25;        // 한번 펴졌으면 이 배율까지는 그대로 걷는다 — 경계 속도에서 공↔걷기가 깜빡이지 않게
     var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
+    // 움직임 맞추기(2026-10-02) — 회전·발 박자를 시간이 아니라 실제 이동(샘플 속도·걸은 거리)에서 뽑는다
+    var ROLL_SPIN_MAX = 34;          // 구르는 각속도 상한(rad/s) — 60fps 에서 프레임당 ≈32°. 넘기면 무늬가 거꾸로 도는 것처럼 보인다. 빠를수록 이 값에 붙는다(tanh)
+    var ROLL_SPIN_TAU_MS = 90;       // 목표 각속도에 붙는 시간 — 핀에 튕길 때마다 회전이 뚝뚝 바뀌지 않게
+    var ROLL_GRIP_MIN = 0.12, ROLL_GRIP_FULL = 0.37;   // 진행 방향의 가로 성분 비율: 이 아래(거의 수직 낙하)는 돌던 대로, 이 위는 굴러가는 쪽으로 돈다
+    var ROLL_REST_SPEED = 12;        // 이 속도(px/s) 아래는 멈춘 것 — 회전도 선다
+    var ROLL_JUMP_SPEED = 4000;      // 샘플 사이가 이보다 빠르면 순간이동(워프) — 회전·속도에 안 쓴다
+    var STEP_STRIDE_BASE = 10, STEP_STRIDE_PER_SPEED = 0.13;   // 한 걸음 거리(px) = 기본 + 속도(px/s) × 계수 — 빠를수록 보폭이 길다(60px/s → 17.8px·초당 3.4걸음, 140 → 28.2px·5걸음)
+    var STEP_LIFT_BASE = 1.5, STEP_LIFT_PER_SPEED = 0.02, STEP_LIFT_MAX = 5;   // 걸음마다 폴짝 뜨는 높이(px)
+    var STEP_AIR = 0.55;             // 한 걸음 중 다리를 든 구간(나머지는 디딘 칸)
+    var WALK_LIFT = 0.5;             // 걷기 시트가 있는 동물의 폴짝 배율 — 그림에 이미 오르내림이 들어 있어 절반만
+    // 깡충 걸음(토끼): 걷기 시트 4칸이 한 번 뜀(웅크림 · 박차기 · 공중 · 착지)이고 두 걸음 거리에 한 번 뛴다. 그림은 칸마다 발끝이 바닥선에 맞춰져 있어 뜨는 높이는 여기서 준다
+    var HOP_GAIT = { rabbit: true }, HOP_STRIDES = 2, HOP_CROUCH = 0.16, HOP_CUTS = [0.42, 0.74], HOP_LIFT = 2.2;   // 한 번 뜀 = 걸음 수 / 웅크린 구간 / 박차기→공중→착지 경계 / 뜨는 높이 배율
+    var IDLE_FIDGET = [0, 3, 3, 2, 3, 0], IDLE_FIDGET_MS = 380;   // 서 있을 때 표정(idle 행 칸 순서) — 동물 마당(js/marble.js)과 같은 박자
+    var IDLE_WALK_SPEED = 22;        // 대기 화면 티격태격하러 다가가고 돌아올 때 발 박자 기준 속도(px/s)
     var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
     // 구멍 앞 몸싸움(6차 scuffle 스트립 4×2: 윗줄 밀기 4 / 아랫줄 화들짝·낙하·어지러움 A·B). 서버 scuffle/scuffleEnd 이벤트 + land.dizzy 로 그린다 — 물리 위치는 그대로, 연출만
     var SCUFFLE_UNCURL_MS = 120;     // 밀기 전 공 풀기(uncurl 2프레임) — 만나면 바로 붙게 짧게
-    var SCUFFLE_PUSH_MS = 130;       // 밀기 한 프레임
-    var SCUFFLE_WOBBLE_MS = 520, SCUFFLE_WOBBLE_PX = 2.5;   // 둘이 같이 밀렸다 돌아오는 x 흔들림(주기·진폭)
+    var SCUFFLE_PUSH_MS = 130;       // 몸싸움 한 박 — 4박(버티기·힘주기·들이밀기·제자리)이 한 합(scufflePose)
+    var IDLE_SCUF_PUSH_MS = 4 * 4 * SCUFFLE_PUSH_MS - SCUFFLE_PUSH_MS;   // 대기 화면 몸싸움: 4합, 마지막 한 방(들이밀기 박)에서 끝난다
+    var SCUFFLE_STRAIN_PX = 1.5, SCUFFLE_LUNGE_PX = 4, SCUFFLE_HOP_PX = 2.5;   // 힘줄 때 다가서는 거리 / 들이밀 때 나가는(= 맞은 놈이 밀려나는) 거리 / 맞은 놈이 움찔 뜨는 높이
     var SCUFFLE_STAND_DY = -8;       // 서 있는 스프라이트 중심 = 공 중심 + 이 값 (발이 뚜껑 윗면에 닿게)
+    var SCUFFLE_TAG_STAGGER = 13;    // 뚜껑 위 몸싸움: 둘이 붙어 있어 이름표가 겹친다 — 왼쪽 놈 이름표를 이만큼(이름표 한 줄) 올린다
+    // 자세 크기 맞추기: 몸싸움 시트(밀기·화들짝·어지러움)가 서 있는 그림보다 크게 그려진 동물이 있다(돼지 계열 1.16~1.27배, 거북이 1.16배 — 시트마다 따로 리팩된 탓).
+    // 서기 칸 넓이의 POSE_FIT_TARGET 배(길이 기준)를 넘으면 그릴 때 줄여서 맞춘다. 작은 쪽은 키우지 않는다(흐려진다)
+    var POSE_FIT_TARGET = 1.04, POSE_FIT_MIN = 0.75;
+    var FOOT_DY = 70;                // 칸 중심(80)에서 발바닥선(150)까지 — 줄여 그릴 때 발이 뜨지 않게 이 점을 기준으로
     var STARTLE_MS = 350;            // 뚜껑 열림 → 화들짝 포즈(⑤) 시간, 그 뒤 파이프 안에선 떨어지는 포즈(⑥)
+    var STARTLE_CURL_MS = 220;       // 화들짝 뒤 안 떨어진 놈이 다시 공으로 웅크리는 시간
     var FALL_POSE_MS = 2500;         // 화들짝 뒤 이 시간 안에 구멍 아래(파이프·통로)에 있으면 떨어지는 포즈
     var SCUFFLE_DIZZY_MS = 500;      // 착지 기절 — socket/marble-sim.js SCUFFLE_DIZZY_MS 와 동일
     var LAND_REST_MS = 800;          // 착지 뒤 제자리에서 숨 고르기(전원) — socket/marble-sim.js LAND_REST_MS 와 동일. 기절한 놈은 이 뒤에 SCUFFLE_DIZZY_MS 더
@@ -193,6 +220,7 @@ var MarbleRender = (function () {
     // 공의 시트: 스킨(상점 marble_skin — 서버가 공에 얹은 b.skin)이 있으면 '{creature}-{skin}' 시트, 없거나 미로드면 기본 시트로 폴백.
     // 스킨 시트는 여기서 처음 필요할 때 로드한다(ensureSkin) — 카탈로그 전부(45장 3.3MB)를 진입 때 받지 않으려고(2026-09-22)
     function sheet(group, b) {
+        if (group === 'walk') { var wk = b.skin ? b.creature + '-' + b.skin : b.creature; ensureSkin(group, wk); return img(group, wk); }   // 걷기 시트는 제 것만 — 기본 동물 것으로 폴백하면 스킨 옷이 벗겨진다. 없으면 null(기본 시트 서기 칸으로 걷는다 — walkCell)
         if (group !== 'creatures') ensureSkin(group, b.creature);   // sleep·scuffle 기본 시트도 지연 로드(보통은 setTimeline 이 이미 받아 둠)
         if (!b.skin) return img(group, b.creature);
         var key = b.creature + '-' + b.skin; ensureSkin(group, key);
@@ -215,6 +243,27 @@ var MarbleRender = (function () {
         } catch (e) { /* 교차 출처 등으로 못 읽으면 상한 */ }
         return (standHCache[key] = h);
     }
+    // 시트 한 줄(네 칸)의 불투명 픽셀 수 중앙값 — 시트별로 한 번만 잰다. 못 재면 0
+    var rowAreaCache = {};
+    function rowArea(im, row) {
+        var key = im.src + ':' + row; if (rowAreaCache[key] != null) return rowAreaCache[key];
+        var area = 0;
+        try {
+            var W = CELL * 4, c = document.createElement('canvas'); c.width = W; c.height = CELL;
+            var g = c.getContext('2d'); g.drawImage(im, 0, row * CELL, W, CELL, 0, 0, W, CELL);
+            var d = g.getImageData(0, 0, W, CELL).data, n = [0, 0, 0, 0];
+            for (var y = 0; y < CELL; y++) for (var x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] >= 8) n[Math.floor(x / CELL)]++;
+            n.sort(function (a, b) { return a - b; }); area = (n[1] + n[2]) / 2;
+        } catch (e) { /* 못 읽으면 0 → 배율 1 */ }
+        return (rowAreaCache[key] = area);
+    }
+    // 몸싸움 시트가 서기(기본 시트 row 0)보다 크면 줄일 배율(≤1), 아니면 1. 시트당 하나(밀기 줄 기준) — 줄마다 따로 재면 밀기→화들짝으로 넘어갈 때 그림 크기가 툭 바뀐다
+    function poseFit(mainIm, im) {
+        if (!mainIm || !im) return 1;
+        var stand = rowArea(mainIm, 0), pose = rowArea(im, 0); if (!stand || !pose) return 1;
+        var ratio = Math.sqrt(pose / stand);
+        return ratio > POSE_FIT_TARGET ? Math.max(POSE_FIT_MIN, POSE_FIT_TARGET / ratio) : 1;
+    }
     function loadOne(group, name, onEach) {
         var src = ASSETS[group][name];
         if (!src) { images[imgKey(group, name)] = null; return false; }
@@ -227,7 +276,8 @@ var MarbleRender = (function () {
     // 상점 스킨 시트 — 서버가 공에 얹는 b.skin(socket/shop.js 가 config/marble/cosmetics.json 카탈로그에서 확인) 으로
     // '{creature}-{skin}[-sleep|-scuffle].webp' 를 처음 쓸 때 로드한다. 새 스킨 = 카탈로그 항목 + 시트 3장이면 끝(코드 수정 없음).
     // 시트가 없으면(404) sheet() 가 기본 시트로 폴백. onLoad 는 한 번만 그리는 캔버스(상점 카드)를 로드 뒤 다시 그리기용 — 이미 로드됐으면 안 부른다
-    var SKIN_SUFFIX = { creatures: '', sleep: '-sleep', scuffle: '-scuffle' };
+    // walk(4×1, 셀 160: 디딤 A · 넘김 A · 디딤 B · 넘김 B, 오른쪽 향함 — AutoTest/spritemake/walk-sheet.py)는 2026-10-02 추가. 몸 키·발바닥선·윗몸 중심이 기본 시트 서기 칸과 같다
+    var SKIN_SUFFIX = { creatures: '', sleep: '-sleep', scuffle: '-scuffle', walk: '-walk' };
     function ensureSkin(group, key, onLoad) {
         var k = imgKey(group, key), im = images[k];
         if (im === undefined) { im = new Image(); im.src = A + 'creatures/' + key + SKIN_SUFFIX[group] + '.webp' + ASSET_VER; images[k] = im; }
@@ -270,6 +320,35 @@ var MarbleRender = (function () {
     function devicePhase(d, t) { return (((t + d.phase) % d.period + d.period) % d.period) / (d.on != null ? d.on : d.up); }   // 켜진 창 안 진행도(0~1, 꺼져 있으면 >1)
     // 결정론 해시(파티클 분산용 — Math.random 대체)
     function hash01(n) { var x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+    // ─── 걸음·몸싸움 포즈(캔버스 렌더러와 동물 마당 js/marble.js 공용) ───
+    // 걸음: 발 박자를 '걸은 거리'에서 뽑는다 — 멈추면 발도 서고, 빠르면 보폭과 박자가 같이 는다. scale = 표시 배율(캔버스 1, 마당 1.2).
+    // 쓰는 쪽이 위상을 직접 쌓는다(phase += 이동 거리 / stepStride) — 속도가 변해도 위상이 튀지 않게
+    function stepStride(speed, scale) { scale = scale || 1; return STEP_STRIDE_BASE * scale + STEP_STRIDE_PER_SPEED * speed; }
+    // 걷기 시트 칸: 0 디딤 A · 1 넘김 A · 2 디딤 B · 3 넘김 B — 두 걸음이 한 바퀴
+    function stepPose(phase, speed, scale, look) {   // look = '{creature}[-{skin}]' — 걸음 종류(깡충)를 고른다
+        scale = scale || 1;
+        var n = Math.floor(phase), p = phase - n, odd = n % 2 !== 0, air = p < STEP_AIR;
+        var top = Math.min(STEP_LIFT_MAX * scale, STEP_LIFT_BASE * scale + STEP_LIFT_PER_SPEED * speed), lift = air ? Math.sin(p / STEP_AIR * Math.PI) * top : 0;
+        // frame·sheetLift = 걷기 시트가 있을 때 칸과 뜨는 높이, col·lift = 없을 때(idle 행 1 = 다리 든 칸, 0 = 디딘 칸)
+        var res = { frame: air ? (odd ? 3 : 1) : (odd ? 0 : 2), sheetLift: lift * WALK_LIFT, col: air ? 1 : 0, lift: lift };
+        if (look && HOP_GAIT[String(look).split('-')[0]]) {
+            var q = phase / HOP_STRIDES; q -= Math.floor(q);
+            res.frame = q < HOP_CROUCH ? 0 : q < HOP_CUTS[0] ? 1 : q < HOP_CUTS[1] ? 2 : 3;
+            res.sheetLift = q < HOP_CROUCH ? 0 : Math.sin((q - HOP_CROUCH) / (1 - HOP_CROUCH) * Math.PI) * top * HOP_LIFT;
+        }
+        return res;
+    }
+    function scufflePose(since, first, firstStarts) {
+        var beat = Math.floor(since / SCUFFLE_PUSH_MS), k = since / SCUFFLE_PUSH_MS - beat, eo = 1 - (1 - k) * (1 - k);
+        var attack = (Math.floor(beat / 4) % 2 === 0) === (first === !!firstStarts);
+        switch (beat % 4) {
+            case 0: return { col: 0, dx: 0, lift: 0, hit: -1 };
+            case 1: return { col: 1, dx: SCUFFLE_STRAIN_PX * eo + Math.sin(since / 22) * 0.4, lift: 0, hit: -1 };
+            case 2: return attack ? { col: 2, dx: lerp(SCUFFLE_STRAIN_PX, SCUFFLE_LUNGE_PX, eo), lift: 0, hit: -1 }
+                : { col: 3, dx: lerp(SCUFFLE_STRAIN_PX, -SCUFFLE_LUNGE_PX, eo), lift: Math.sin(k * Math.PI) * SCUFFLE_HOP_PX, hit: k };
+            default: return attack ? { col: k < 0.5 ? 2 : 1, dx: SCUFFLE_LUNGE_PX * (1 - k), lift: 0, hit: -1 } : { col: k < 0.5 ? 3 : 0, dx: -SCUFFLE_LUNGE_PX * (1 - k), lift: 0, hit: -1 };   // 들이민·움찔한 자세를 반 박 더 보여 주고 제자리로
+        }
+    }
 
     // ═══════════════════════════════════════════════════════
     // 렌더러 인스턴스
@@ -282,6 +361,7 @@ var MarbleRender = (function () {
         var byId = {};
         var evCursor = 0;         // events 처리 커서 (t 단조 증가 가정, seek 시 리셋)
         var lastT = -1;
+        var sampledT = -1;        // samplePositions 가 마지막으로 본 시각 — 회전·걸음 적분 간격
         var myName = '';
         var phase = 'idle';       // idle | countdown | play | finale | done
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead', target: null, loserSeen: false };   // target = 지금 카메라가 따라가는 동물(순위표 카메라 표시용)
@@ -301,11 +381,12 @@ var MarbleRender = (function () {
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
-        var idleClock = 0, idleStart = 0, idleOrder = [];   // 대기 애니 시계(ms)·x 순 정렬(몸싸움 짝 고르기)
+        var idleClock = 0, idleStart = 0;   // 대기 애니 시계(ms)
+        var onIdleMoveCb = null;            // 대기 화면에서 출발대를 눌렀을 때 (월드 x) — js/marble.js 가 내 동물 자리 옮기기에 쓴다
 
         R.loadAssets = loadAll;
         R.setIdleClock = function (ms) { idleClock = ms; idleStart = performance.now() - ms; };   // 테스트·프리뷰용: 대기 애니 시계를 특정 시각으로
-        R.debug = function () { return { cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT), idleClock: idleClock, balls: balls }; };
+        R.debug = function () { return { idlePose: idlePose, cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT), idleClock: idleClock, balls: balls }; };
 
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
@@ -331,12 +412,13 @@ var MarbleRender = (function () {
 
         // 공 객체 — 타임라인 balls[] 항목에서. idleSeed = 대기 화면 서성임 위상(만들 때 한 번 정해 두고, 대기 화면 갱신으로 id 가 바뀌어도 유지)
         function makeBall(b) {
-            return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim, idleSeed: b.id,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 };
+            return { id: b.id, owner: b.owner, creature: b.creature, skin: b.skin || null, skinName: b.skinName || null, balloon: b.balloon || null, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim, idleSeed: b.id, fromX: b.fromX != null ? b.fromX : null, mv: null,
+                x: 0, y: 0, angle: 0, spin: 0, stepPhase: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 };
         }
         function preloadSheets(b) {   // 이 판에 나온 동물의 sleep·scuffle(+스킨 시트)을 미리 받는다 — 첫 낮잠·몸싸움 때 한 박자 비지 않게
             ensureSkin('sleep', b.creature); ensureSkin('scuffle', b.creature);
-            if (b.skin) ['creatures', 'sleep', 'scuffle'].forEach(function (g) { ensureSkin(g, b.creature + '-' + b.skin); });
+            if (b.skin) ['creatures', 'sleep', 'scuffle', 'walk'].forEach(function (g) { ensureSkin(g, b.creature + '-' + b.skin); });
+            else ensureSkin('walk', b.creature);
         }
         function applyTrack(payload) {   // 타임라인·트랙 조각 교체(캐시 무효화). 공·시계·카메라는 건드리지 않는다
             data = payload;
@@ -430,6 +512,12 @@ var MarbleRender = (function () {
         }
         // 경주 중에는 캔버스 위 터치가 페이지 스크롤이 아니라 카메라 조작이 되게 한다. 경주가 끝나면(phase done) 되돌려 폰에서 캔버스 위에서도 결과·주문 쪽으로 스크롤할 수 있게(마우스 드래그는 계속 허용)
         function setTouchCapture(on) { canvas.style.touchAction = on ? 'none' : ''; }
+        // 캔버스 CSS 좌표가 출발대 위면 그 월드 x, 아니면 null
+        function platformXAt(p) {
+            var pz = (pieces.platform || [])[0]; if (!pz) return null;
+            var lp = logicalPerCss(), z = cam.zoom || 1, wx = cam.x + (p.x * lp - view.w / 2) / z, wy = cam.y + (p.y * lp - view.h / 2) / z, zn = pz.zone;
+            return (wx >= zn.x && wx <= zn.x + zn.w && wy >= zn.y - 10 && wy <= zn.y + zn.h + 16) ? wx : null;
+        }
         function racing() { return !!data && phase !== 'idle'; }   // 카메라 입력을 받는 때 — 경주 중(결과 화면 포함). 대기 화면은 안 받는다
         function tappable() { return !!data && (phase === 'idle' || phase === 'finale' || phase === 'done'); }   // 동물 누르면 반응(12) — 대기 출발대·결승 스탠드
         function logicalPerCss() { return TRACK_W / (view.cssW || TRACK_W); }   // CSS px 1 = 논리 px 몇
@@ -479,6 +567,7 @@ var MarbleRender = (function () {
             var dragFrom = null;      // 한 손가락/마우스 드래그 시작점
             var dragging = false;
             var pinch = null;         // { dist, mx, my }
+            var tapMove = null;       // 대기 화면에서 출발대를 누른 자리 { x(월드), at(CSS px) }
             function local(e) { var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
             function ids() { return Object.keys(pointers); }
             canvas.addEventListener('pointerdown', function (e) {
@@ -487,6 +576,7 @@ var MarbleRender = (function () {
                     var critter = critterHitAt(local(e));
                     if (critter) { pointers[e.pointerId] = local(e); dragFrom = pointers[e.pointerId]; dragFrom.critter = critter; dragging = false; pinch = null; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 무음 */ } return; }
                 }
+                if (!ids().length && phase === 'idle' && onIdleMoveCb) { var px = platformXAt(local(e)); tapMove = px != null ? { x: px, at: local(e) } : null; }   // 출발대를 누름 — 뗄 때 탭이었으면 그 자리로(포인터를 안 잡는다 — 터치 스크롤은 그대로)
                 if (!racing()) return;   // 대기 화면: 카메라 입력 없음(페이지 스크롤 그대로)
                 if (!ids().length) { var hit = rankHitAt(local(e)); if (hit) { if (hit.toggle) rankOpen = !rankOpen; else followBall(hit.ball); e.preventDefault(); return; } }
                 if (!ids().length) { var mmy = minimapHitAt(local(e)); if (mmy != null) { jumpTo(mmy); pointers[e.pointerId] = local(e); manual.held = true; dragFrom = pointers[e.pointerId]; dragFrom.minimap = true; dragging = false; pinch = null; try { canvas.setPointerCapture(e.pointerId); } catch (err3) { /* 무음 */ } e.preventDefault(); return; } }   // 미니맵 누르기 → 그 자리로, 끌면 따라 움직인다
@@ -500,7 +590,7 @@ var MarbleRender = (function () {
                 }
             });
             canvas.addEventListener('pointermove', function (e) {
-                if (e.pointerType === 'mouse' && !ids().length) canvas.style.cursor = data && ((racing() && (rankHitAt(local(e)) || minimapHitAt(local(e)) != null)) || (tappable() && critterHitAt(local(e)))) ? 'pointer' : '';
+                if (e.pointerType === 'mouse' && !ids().length) canvas.style.cursor = data && ((racing() && (rankHitAt(local(e)) || minimapHitAt(local(e)) != null)) || (tappable() && critterHitAt(local(e))) || (phase === 'idle' && onIdleMoveCb && platformXAt(local(e)) != null)) ? 'pointer' : '';
                 if (!pointers[e.pointerId]) return;
                 var prev = pointers[e.pointerId], cur = local(e);
                 pointers[e.pointerId] = cur;
@@ -522,6 +612,10 @@ var MarbleRender = (function () {
                 e.preventDefault();
             });
             function release(e) {
+                if (tapMove) {
+                    var tm = tapMove, up = local(e); tapMove = null;
+                    if (e.type === 'pointerup' && phase === 'idle' && onIdleMoveCb && Math.hypot(up.x - tm.at.x, up.y - tm.at.y) < MANUAL_DRAG_PX * 2) onIdleMoveCb(tm.x);
+                }
                 var was = pointers[e.pointerId];
                 delete pointers[e.pointerId];
                 if (manual.held && !ids().length) { manual.held = false; manual.lastInput = Date.now(); }   // 자동 복귀 대기는 손을 뗀 때부터
@@ -582,7 +676,11 @@ var MarbleRender = (function () {
                         var ea = byId[e.a], eb = byId[e.b];
                         ea.scuffle = -1; eb.scuffle = -1;
                         if (e.startled) {   // 뚜껑이 열려 떨어짐: 화들짝 포즈 + '!' — 착지 땐 land.dizzy 로 기절
-                            ea.startledAt = e.t; eb.startledAt = e.t;
+                            ea.startledAt = e.t; eb.startledAt = e.t; ea.startledY = ea.y; eb.startledY = eb.y;
+                            [ea, eb].forEach(function (q) {   // 끊긴 순간 밀던 자세의 x·높이 — 화들짝 포즈가 거기서 이어지게(안 그러면 최대 4px 옆·4px 아래로 툭 튄다)
+                                var sp = scufflePose(Math.max(0, e.t - q.scuffleAt - SCUFFLE_UNCURL_MS), q.scuffleLeft, (q.id + (q === ea ? eb.id : ea.id)) % 2 === 0);
+                                q.startDx = (q.scuffleLeft ? 1 : -1) * sp.dx; q.startLift = sp.lift;
+                            });
                             fxList.push({ type: 'wake', ball: ea.id, t0: e.t, dur: WAKE_FX_MS }); fxList.push({ type: 'wake', ball: eb.id, t0: e.t, dur: WAKE_FX_MS });
                         }
                         break;
@@ -622,18 +720,29 @@ var MarbleRender = (function () {
             var k1 = Math.min(fr.length - 1, k), k2 = Math.min(fr.length - 1, k + 1);
             var f1 = fr[k1], f2 = fr[k2];
             var a = (k2 === k1 || t <= 0) ? 0 : clamp((t - k1 * s) / s, 0, 1);
+            var dtMs = t - sampledT, stepping = dtMs > 0 && dtMs <= 250;   // 이어지는 프레임일 때만 회전·걸음을 쌓는다(시크·첫 프레임은 건너뜀)
+            sampledT = t;
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i];
                 var x1 = f1[i * 2], y1 = f1[i * 2 + 1], x2 = f2[i * 2], y2 = f2[i * 2 + 1];
                 if (x1 < 0 || b.state === 'done') continue;   // 이미 도착 — 마지막 위치 유지
                 if (x2 < 0) { x2 = x1; y2 = y1; }
                 var nx = lerp(x1, x2, a), ny = lerp(y1, y2, a);
-                if (b.state === 'roll') {
-                    var dx = nx - b.x, dy = ny - b.y;
-                    if (Math.abs(dx) + Math.abs(dy) < 200) {
-                        b.angle += (dx * 0.6 + dy) / BALL_R;   // 진행 방향 회전(시각)
-                        b.spd = Math.hypot(dx, dy) / Math.max(1e-3, s / 1000);   // 샘플 간 평균 속도(px/s)
-                        if (Math.abs(dx) > 0.5) b.dir = dx > 0 ? 1 : -1;
+                // 속도는 샘플 구간에서(px/s) — 렌더 프레임 간 차이로 재면 fps 에 따라 값이 달라진다
+                var vx = t > 0 ? (x2 - x1) / s * 1000 : 0, vy = t > 0 ? (y2 - y1) / s * 1000 : 0, spd = Math.hypot(vx, vy);
+                if (spd < ROLL_JUMP_SPEED) {
+                    b.spd = spd;
+                    if (Math.abs(vx) > 30) b.dir = vx > 0 ? 1 : -1;
+                    if (stepping) b.stepPhase += Math.hypot(nx - b.x, ny - b.y) / stepStride(b.state === 'walk' ? b.walkSpeed : spd);
+                    if (b.state === 'roll') {
+                        // 미끄럼 없이 구르기: 각속도 = 속도 / 반지름, 가는 쪽으로. 거의 수직으로 떨어질 땐(grip 0) 돌던 대로 둔다
+                        var grip = spd < ROLL_REST_SPEED ? 1 : clamp((Math.abs(vx) / spd - ROLL_GRIP_MIN) / (ROLL_GRIP_FULL - ROLL_GRIP_MIN), 0, 1);
+                        var want = spd < ROLL_REST_SPEED ? 0 : (vx > 0 ? 1 : -1) * ROLL_SPIN_MAX * Math.tanh(spd / BALL_R / ROLL_SPIN_MAX);
+                        if (!stepping) b.spin = want * grip;
+                        else {
+                            b.spin += (want - b.spin) * grip * (1 - Math.exp(-dtMs / ROLL_SPIN_TAU_MS));
+                            b.angle += b.spin * dtMs / 1000;
+                        }
                     }
                 }
                 b.x = nx; b.y = ny;
@@ -1360,14 +1469,16 @@ var MarbleRender = (function () {
         function drawClimber(b, t, cb, mine) {
             drawShadow(b.x, b.y, BALL_R);
             if (!cb.on) { drawDizzy(b, t); drawBadge(b, b.x, b.y, mine); return; }
-            var im = sheet('creatures', b), col = Math.floor(Math.max(0, t) / 110) % 2;
+            var wc = walkCell(b, stepPose(b.stepPhase, b.spd, 1, b.creature)), im = wc.im;   // 발 박자는 오른 거리에서
             if (im) {
                 ctx.save(); ctx.translate(b.x, toScreenY(b.y - 6)); ctx.rotate(cb.up > 0 ? cb.ang : cb.ang - Math.PI); if (cb.up < 0) ctx.scale(-1, 1);   // 발이 벨트 표면(공 중심 − 반지름)에 닿게, 왼쪽으로 오르면 좌우 반전(주석을 줄 끝에 붙이다 이 반전을 주석 처리했던 적 있음 — 2026-09-25)
-                ctx.drawImage(im, col * CELL, 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE);
+                ctx.drawImage(im, wc.sx, 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2 - wc.lift, CELL * SRC_SCALE, CELL * SRC_SCALE);
                 ctx.restore();
             } else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
             drawBadge(b, b.x, b.y, mine);
         }
+        // 걸음 한 칸: 걷기 시트가 있으면 그 칸, 없으면 기본 시트 idle 행의 디딘 칸·다리 든 칸. 반환 { im, sx(소스 x), lift }
+        function walkCell(b, sp) { var w = sheet('walk', b); return w ? { im: w, sx: sp.frame * CELL, lift: sp.sheetLift } : { im: sheet('creatures', b), sx: sp.col * CELL, lift: sp.lift }; }
         function drawCreatureFrame(b, row, col, x, y, rot, scale) {
             var im = sheet('creatures', b);
             var sc = (scale || 1) * SRC_SCALE;
@@ -1574,22 +1685,21 @@ var MarbleRender = (function () {
         }
         function drawSunWalker(b, t) {
             var since = t - b.sunSince;
-            var row, col;
-            if (since < SUN_UNCURL_MS) { row = 3; col = since < SUN_UNCURL_MS / 2 ? 0 : 1; }
-            else { row = 0; col = Math.floor((since - SUN_UNCURL_MS) / 140) % 4; }
-            var im = sheet('creatures', b);
+            var im = sheet('creatures', b), sx, sy = 0, lift = 0;
+            if (since < SUN_UNCURL_MS) { sy = 3 * CELL; sx = since < SUN_UNCURL_MS / 2 ? 0 : CELL; }
+            else { var wc = walkCell(b, stepPose(b.stepPhase, b.spd, 1, b.creature)); im = wc.im; sx = wc.sx; lift = wc.lift; }   // 발 박자는 걸은 거리에서 — 느려지면 걸음도 느려진다
             if (!im) { drawCreatureFrame(b, 2, 0, b.x, b.y, 0); return; }
             var sc = SRC_SCALE;
-            ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.scale(b.dir, 1);
-            ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
+            ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6 - lift)); ctx.scale(b.dir, 1);
+            ctx.drawImage(im, sx, sy, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
             ctx.restore();
         }
 
         // 6차 scuffle 시트 한 셀(row 0 밀기 / row 1 화들짝·낙하·어지러움). flip = 왼쪽을 보게 좌우 반전. 시트 없으면 false
         function drawScuffleFrame(b, row, col, x, y, flip) {
             var im = sheet('scuffle', b); if (!im) return false;
-            var sc = SRC_SCALE;
-            ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
+            var k = poseFit(sheet('creatures', b), im), sc = SRC_SCALE * k;   // 서기보다 크게 그려진 시트는 줄여서(발바닥선 기준)
+            ctx.save(); ctx.translate(x, toScreenY(y) + FOOT_DY * SRC_SCALE * (1 - k)); if (flip) ctx.scale(-1, 1);
             ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
             ctx.restore();
             return true;
@@ -1608,8 +1718,8 @@ var MarbleRender = (function () {
         }
         function drawCellOf(group, b, row, col, x, y, flip, scale) {
             var im = sheet(group, b); if (!im) return false;
-            var sc = SRC_SCALE * (scale || 1);
-            ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
+            var k = group === 'scuffle' ? poseFit(sheet('creatures', b), im) : 1, sc = SRC_SCALE * (scale || 1) * k;
+            ctx.save(); ctx.translate(x, toScreenY(y) + FOOT_DY * SRC_SCALE * (scale || 1) * (1 - k)); if (flip) ctx.scale(-1, 1);
             ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
             ctx.restore();
             return true;
@@ -1669,26 +1779,68 @@ var MarbleRender = (function () {
         // 대기 화면 포즈 — idleClock 에서 파생. 반환 { dx, dy, flip, pose: 'walk'|'push'|'startled'|'dizzy', col, growl }
         // 서성임: 마리마다 다른 위상의 사인 왕복(발 구르기 프레임은 걷는 방향으로). 몸싸움: IDLE_SCUF_PERIOD 마다 x 순 이웃 한 쌍이
         // 다가가서(0~20%) 밀고(20~70%, 으르렁) 한 놈이 화들짝(70~85%) 어지러움(85~100%). 준비 안 한(dim) 놈은 몸싸움에서 뺀다
+        // 대기 화면 자리: b.mv = { from, to, at(idleClock) } 로 걸어가는 중이면 그 사이, 아니면 제 자리(b.x). 시계의 함수라 한 프레임에 몇 번을 물어도 같다
+        function idleMove(b) {
+            var m = b.mv; if (!m) return { x: b.x, k: 1, from: b.x, to: b.x };
+            var d = Math.abs(m.to - m.from), k = d < 0.5 ? 1 : clamp((idleClock - m.at) * IDLE_MOVE_SPEED / 1000 / d, 0, 1);
+            return { x: lerp(m.from, m.to, k), k: k, from: m.from, to: m.to };
+        }
+        function idleGoTo(b, x) { b.mv = { from: idleMove(b).x, to: x, at: idleClock }; }
+        // 이번 주기에 티격태격할 한 쌍 { a(왼쪽), b(오른쪽), mid } — 준비한(dim 아님) 동물 중 자리가 붙어 있고 둘 다 서 있는 이웃끼리만. 없으면 null
+        var fightCache = { clock: -1, pair: null };
+        function idleFight() {
+            if (fightCache.clock === idleClock) return fightCache.pair;
+            var list = balls.filter(function (q) { return !q.dim; }).map(function (q) { return { b: q, x: q.mv ? q.mv.to : q.x }; })
+                .sort(function (a, c) { return a.b.y - c.b.y || a.x - c.x || a.b.id - c.b.id; }), pairs = [];
+            for (var i = 0; i + 1 < list.length; i++) if (list[i].b.y === list[i + 1].b.y && list[i + 1].x - list[i].x <= IDLE_SCUF_GAP_MAX) pairs.push([list[i], list[i + 1]]);
+            var p = pairs.length ? pairs[Math.floor(hash01(Math.floor(idleClock / IDLE_SCUF_PERIOD_MS) * 7 + 1) * pairs.length)] : null;
+            fightCache.clock = idleClock;
+            return (fightCache.pair = p && idleMove(p[0].b).k >= 1 && idleMove(p[1].b).k >= 1 ? { a: p[0].b, b: p[1].b, mid: (p[0].x + p[1].x) / 2 } : null);
+        }
+        function idleWalk(b, res, from, to, k, stand, speed) {
+            speed = speed || IDLE_WALK_SPEED;
+            var d = Math.abs(to - from), steps = d / stepStride(speed);
+            if (HOP_GAIT[b.creature]) steps = Math.max(1, Math.round(steps / HOP_STRIDES)) * HOP_STRIDES;   // 깡충 걸음은 도착할 때 뜀이 딱 끝나게(공중에서 멈추지 않게)
+            var sp = d >= 2 && k < 1 ? stepPose(steps * k, speed, 1, b.creature) : null;
+            res.dx = lerp(from, to, k); res.lift = sp ? sp.lift : 0; res.sheetLift = sp ? sp.sheetLift : 0; res.col = sp ? sp.col : stand; res.walk = sp ? sp.frame : -1; res.pose = 'walk';
+            if (sp) res.flip = to < from;
+            return !!sp;
+        }
         function idlePose(b) {
-            // 반응(잠·어지러움 등) 중에는 그 자리에 가만히 — 서성임 시계를 반응한 시간만큼 멈춰서, 끝나면 멈춘 자리에서 이어 걷는다
+            // 서서 표정만 짓다가(반응 중엔 표정 시계를 멈춘다), 자리가 바뀌면 거기까지 걸어간다. 반환 dx = 그릴 자리 − b.x
             var paused = (b.idlePause || 0) + (reacts[b.id] ? Math.min(REACT_MS, performance.now() - reacts[b.id].at) : 0);
-            var ic = idleClock - paused, ph0 = ic / 1900 + b.idleSeed * 1.7;   // 위상은 idleSeed(대기 화면 갱신으로 id 가 바뀌어도 그 자리에서 이어 걷는다)
-            var dx = Math.sin(ph0) * IDLE_WANDER_X, dy = 0;   // 좌우로만 — 위아래로 흔들면 발이 판자 아래로 내려갔다
-            var res = { dx: dx, dy: dy, flip: Math.cos(ph0) < 0, pose: 'walk', col: Math.floor(ic / 160 + b.idleSeed) % 4, growl: false };
-            var n = idleOrder.length; if (n < 2) return res;
-            ic = idleClock;   // 몸싸움 짝·박자는 두 마리가 같은 시계를 봐야 한다 — 멈춘 시계는 위 서성임에만
-            var w = Math.floor(ic / IDLE_SCUF_PERIOD_MS), ph = (ic % IDLE_SCUF_PERIOD_MS) / IDLE_SCUF_PERIOD_MS;
-            var k = Math.floor(hash01(w * 7 + 1) * (n - 1));
-            var aId = idleOrder[k], bId = idleOrder[k + 1];
-            if (b.id !== aId && b.id !== bId) return res;
-            var isA = b.id === aId, loserIsA = hash01(w * 3 + 2) < 0.5, loser = isA === loserIsA;
+            var ic = Math.max(0, idleClock - paused), mv = idleMove(b);
+            var stand = IDLE_FIDGET[Math.floor(ic / IDLE_FIDGET_MS + b.idleSeed * 1.7) % IDLE_FIDGET.length];
+            var res = { dx: mv.x - b.x, dy: 0, lift: 0, sheetLift: 0, flip: mv.to < mv.from, pose: 'walk', col: stand, walk: -1, growl: false, hit: -1 };   // walk = 걷는 중이면 걷기 시트 칸(서 있으면 -1 → idle 행 col), lift = 걸음·움찔로 뜬 높이(그릴 때만)
+            if (mv.k < 1) { idleWalk(b, res, mv.from - b.x, mv.to - b.x, mv.k, stand, IDLE_MOVE_SPEED); return res; }
+            // 몸싸움 한 판(IDLE_SCUF_PERIOD_MS): 다가감 → 주고받기(scufflePose, 마지막 한 방은 이긴 놈이) → 진 놈 나가떨어짐 → 어지러움 → 제자리로.
+            // 짝·박자는 두 마리가 같은 시계를 봐야 한다 — 멈춘 시계는 위 표정에만
+            var fight = idleFight(); if (!fight || (b !== fight.a && b !== fight.b)) return res;
+            ic = idleClock;
+            var w = Math.floor(ic / IDLE_SCUF_PERIOD_MS), into = ic % IDLE_SCUF_PERIOD_MS;
+            var isA = b === fight.a, loserIsA = hash01(w * 3 + 2) < 0.5, loser = isA === loserIsA;
             var toward = isA ? 1 : -1;   // a(왼쪽)는 오른쪽으로, b(오른쪽)는 왼쪽으로
-            res.flip = !isA;             // 서로 마주 봄 (시트는 오른쪽을 향함)
+            var home = res.dx, pushEnd = IDLE_SCUF_APPROACH_MS + IDLE_SCUF_PUSH_MS, backAt = IDLE_SCUF_PERIOD_MS - IDLE_SCUF_RETURN_MS;
+            var spot = fight.mid - toward * IDLE_SCUF_HALF - b.x;   // 싸우는 자리(dx): 둘의 가운데에서 IDLE_SCUF_HALF 씩 — 겹쳐 서 있었으면 벌어지고, 떨어져 있었으면 다가선다
+            var away = loser ? spot - toward * (SCUFFLE_LUNGE_PX + IDLE_SCUF_FALL_PX) : spot + toward * SCUFFLE_LUNGE_PX;   // 싸움이 끝난 자리(싸운 자리 기준): 진 놈은 맞고 밀린 자리에서 더 뒤로 나가떨어지고, 이긴 놈은 들이민 자리. 예전엔 진 놈만 원래 자리(home) 기준이라 겹쳐 섰다 싸우면 뒤가 아니라 앞으로 튀었다
             res.fight = true;            // drawBalls 대기 화면 z-order: 싸우는 둘은 맨 앞
-            if (ph < 0.2) { res.dx = toward * IDLE_SCUF_REACH * (ph / 0.2); res.dy = 0; res.col = Math.floor(ic / 120) % 4; }
-            else if (ph < 0.7) { res.dx = toward * IDLE_SCUF_REACH + toward * Math.sin(ic / 70) * 1.5; res.dy = 0; res.pose = 'push'; res.col = Math.floor(ic / 130) % 4; res.growl = true; }
-            else if (ph < 0.85) { res.dx = toward * (loser ? -8 : IDLE_SCUF_REACH); res.dy = 0; res.pose = loser ? 'startled' : 'walk'; res.col = 0; }
-            else { res.dx = toward * (loser ? -8 : 1); res.dy = 0; res.pose = loser ? 'dizzy' : 'walk'; res.col = Math.floor(ic / 220) % 4; }
+            res.lift = 0; res.sheetLift = 0; res.walk = -1; res.col = stand;   // 서성임 걸음이 남아 있으면 싸움 중 서 있는 칸에 걷는 그림이 나온다
+            if (into >= backAt) { idleWalk(b, res, away, home, (into - backAt) / IDLE_SCUF_RETURN_MS, stand); return res; }
+            if (into < IDLE_SCUF_APPROACH_MS && idleWalk(b, res, home, spot, into / IDLE_SCUF_APPROACH_MS, stand)) return res;   // 걸어가는 동안은 가는 쪽을 본다
+            res.flip = !isA;             // 서로 마주 봄 (시트는 오른쪽을 향함)
+            if (into < IDLE_SCUF_APPROACH_MS) return res;
+            if (into < pushEnd) {
+                var sc = scufflePose(into - IDLE_SCUF_APPROACH_MS, isA, loserIsA);   // 4합: 첫 합을 진 놈이 들이밀면 마지막(4번째) 한 방은 이긴 놈 차례
+                res.dx = spot + toward * sc.dx; res.lift = sc.lift; res.pose = 'push'; res.col = sc.col; res.hit = sc.hit; res.growl = true;
+            } else if (!loser) res.dx = away;
+            else {
+                // 맞고 화들짝 공중으로 튕김(밀려나며 포물선) → 뒤로 넘어지며 미끄러짐(떨어짐 칸) → 주저앉아 어지러움. 자리는 한 줄로 이어진다(감속 곡선)
+                var fl = into - pushEnd, fk = Math.min(1, fl / IDLE_SCUF_FLY_MS), tk = clamp((fl - IDLE_SCUF_FLY_MS) / IDLE_SCUF_TUMBLE_MS, 0, 1);
+                var from = spot - toward * SCUFFLE_LUNGE_PX, mid = lerp(from, away, 0.8);
+                res.dx = fl < IDLE_SCUF_FLY_MS ? lerp(from, mid, fk) : lerp(mid, away, 1 - (1 - tk) * (1 - tk));
+                res.lift = fl < IDLE_SCUF_FLY_MS ? Math.sin(fk * Math.PI) * 6 : 0;
+                res.pose = fl < IDLE_SCUF_FLY_MS ? 'startled' : tk < 1 ? 'tumble' : 'dizzy'; res.col = Math.floor(ic / 220) % 4;
+            }
             return res;
         }
         // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
@@ -1700,14 +1852,15 @@ var MarbleRender = (function () {
             ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
             ctx.restore();
         }
-        // 뚜껑 위 밀기: 공 풀기(uncurl 2프레임) → 밀기 4프레임 루프. 둘이 같이 살짝 밀렸다 돌아오는 x 흔들림(연출 — 물리 위치는 그대로). 시트 없으면 idle 0·1 교대
+        function drawHitStar(x, y, k) { drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: Math.min(3, Math.floor(k * 4)) * 96, sw: 96, scale: 0.7 }); }   // 몸싸움 한 방 — 둘 사이에 별
+        // 뚜껑 위 몸싸움: 공 풀기(uncurl 2프레임) → 주고받기(scufflePose — 한 놈이 들이밀면 다른 놈이 움찔 밀려난다). 연출 — 물리 위치는 그대로. 시트 없으면 idle 0·1 교대
         function drawScuffler(b, t) {
-            var since = Math.max(0, t - b.scuffleAt), flip = !b.scuffleLeft;
-            var wob = Math.sin(since / SCUFFLE_WOBBLE_MS * Math.PI * 2) * SCUFFLE_WOBBLE_PX;
-            var x = b.x + wob, y = b.y + SCUFFLE_STAND_DY;
-            if (since < SCUFFLE_UNCURL_MS) { drawCreatureFlipped(b, 3, since < SCUFFLE_UNCURL_MS / 2 ? 0 : 1, x, y, flip); return; }
-            var col = Math.floor((since - SCUFFLE_UNCURL_MS) / SCUFFLE_PUSH_MS) % 4;
-            if (!drawScuffleFrame(b, 0, col, x, y, flip)) drawCreatureFlipped(b, 0, Math.floor(since / 200) % 2, x, y, flip);
+            var since = Math.max(0, t - b.scuffleAt), flip = !b.scuffleLeft, toward = flip ? -1 : 1;
+            var y = b.y + SCUFFLE_STAND_DY;
+            if (since < SCUFFLE_UNCURL_MS) { drawCreatureFlipped(b, 3, since < SCUFFLE_UNCURL_MS / 2 ? 0 : 1, b.x, y, flip); return; }
+            var sc = scufflePose(since - SCUFFLE_UNCURL_MS, b.scuffleLeft, (b.id + b.scuffle) % 2 === 0), x = b.x + toward * sc.dx;
+            if (!drawScuffleFrame(b, 0, sc.col, x, y - sc.lift, flip)) drawCreatureFlipped(b, 0, Math.floor(since / 200) % 2, x, y - sc.lift, flip);
+            if (sc.hit >= 0) overlay(drawHitStar, [b.x + toward * 13, y - 2, sc.hit]);
         }
         // 착지 기절: 주저앉아 어지러움 A/B 교대 + 머리 위 별 궤도(6차 fx, 없으면 💫). 시트 없으면 faceplant col 3(별)
         function drawDizzy(b, t) {
@@ -1756,20 +1909,35 @@ var MarbleRender = (function () {
                         var ia = idlePose(b);
                         var ix = clamp(b.x + ia.dx, 200 + 16, 600 - 16), iy = by + ia.dy - STAND_LIFT;
                         if (drawReaction(b, ix, iy + 8, ia.flip, 1)) { drawBadge(b, ix, iy, mine); ctx.globalAlpha = 1; continue; }   // 눌러서 반응 중이면 서성임·몸싸움 대신
-                        // 모든 자세를 +8 에 그려 발끝(시트 중심 +17.3, 걷기·밀기·어지러움 공통)이 같은 판자 선에 닿게 — 예전 +4 는 몸싸움 때만 4px 떠 있었다
-                        if (ia.pose === 'push') { if (!drawScuffleFrame(b, 0, ia.col, ix, iy + 8, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip); }
-                        else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, iy + 8, ia.flip)) drawCreatureFrame(b, 4, 1, ix, iy + 8); }
-                        else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, iy + 8, ia.flip)) drawCreatureFrame(b, 4, 2, ix, iy + 8); }
-                        else drawCreatureFlipped(b, 0, ia.col, ix, iy + 8, ia.flip);
+                        // 모든 자세를 +8 에 그려 발끝(시트 중심 +17.3, 걷기·밀기·어지러움 공통)이 같은 판자 선에 닿게 — 예전 +4 는 몸싸움 때만 4px 떠 있었다. 걸음·움찔로 뜬 만큼(lift)만 위로
+                        var py = iy + 8 - ia.lift;
+                        if (ia.pose === 'push') { if (!drawScuffleFrame(b, 0, ia.col, ix, py, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, py, ia.flip); }
+                        else if (ia.pose === 'startled') { if (!drawScuffleFrame(b, 1, 0, ix, py, ia.flip)) drawCreatureFrame(b, 4, 1, ix, py); }
+                        else if (ia.pose === 'tumble') { if (!drawScuffleFrame(b, 1, 1, ix, py, ia.flip)) drawCreatureFrame(b, 4, 0, ix, py); }   // 뒤로 넘어짐(떨어짐 칸)
+                        else if (ia.pose === 'dizzy') { if (!drawScuffleFrame(b, 1, 2 + ia.col % 2, ix, py, ia.flip)) drawCreatureFrame(b, 4, 2, ix, py); }
+                        else if (ia.walk < 0 || !drawCellOf('walk', b, 0, ia.walk, ix, iy + 8 - ia.sheetLift, ia.flip)) drawCreatureFlipped(b, 0, ia.col, ix, py, ia.flip);
+                        if (ia.hit >= 0) overlay(drawHitStar, [ix + (ia.flip ? -13 : 13), py - 2, ia.hit]);
                         if (ia.growl) overlay(label, ['으르렁!', ix + (ia.flip ? -14 : 14), iy - 26 + Math.sin(idleClock / 60) * 1.5, '#fff', 11]);
                         drawBadge(b, ix, iy, mine);
                         ctx.globalAlpha = 1;
                         continue;
                     }
-                    if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8 - STAND_LIFT);
+                    // 고른 자리가 겹쳐 밀려나는 놈: 고른 자리(fromX)에서 서버가 편 자리(b.x)까지 밀기 그림으로 버티며 미끄러진다(밀려가는 반대쪽 = 밀치는 상대를 본다)
+                    var sx = b.x, shove = null;
+                    if (b.fromX != null && Math.abs(b.fromX - b.x) >= 2) {
+                        var sk = clamp((t - SHOVE_START_MS) / SHOVE_MS, 0, 1);
+                        sx = lerp(b.fromX, b.x, sk * sk * (3 - 2 * sk));
+                        if (sk > 0 && sk < 1) shove = scufflePose(t - SHOVE_START_MS, b.id % 2 === 0, true);
+                    }
+                    if (shove) {
+                        var sflip = b.x > b.fromX, sy = by + 8 - STAND_LIFT - shove.lift;
+                        if (!drawScuffleFrame(b, 0, shove.col, sx, sy, sflip)) drawCreatureFlipped(b, 0, shove.col % 2, sx, sy, sflip);
+                        if (shove.hit >= 0) overlay(drawHitStar, [sx + (sflip ? -13 : 13), sy - 2, shove.hit]);
+                    }
+                    else if (t < CURL_START_MS) drawCreatureFrame(b, 0, IDLE_FIDGET[Math.floor((t - IDLE_T) / IDLE_FIDGET_MS + b.id * 1.7) % IDLE_FIDGET.length], sx, by + 8 - STAND_LIFT);   // 전원이 같은 칸을 같이 넘기지 않게 마리마다 어긋나게
                     else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8 - STAND_LIFT)); }
                     if (curled) drawRing(b, b.x, by, BALL_R + 1, mine);
-                    else drawBadge(b, b.x, by - STAND_LIFT, mine);
+                    else drawBadge(b, sx, by - STAND_LIFT, mine);
                     ctx.globalAlpha = 1;
                     continue;
                 }
@@ -1814,10 +1982,10 @@ var MarbleRender = (function () {
                         continue;
                     }
                     var ws = t - b.landAt, resting = b.walkKind === 'rest' && ws < LAND_REST_MS;   // 숨 고르기: 펴진 뒤 발을 안 구르고 서 있다(서버도 이 동안 제자리)
-                    var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
-                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : resting ? 0 : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
-                    var wim = sheet('creatures', b);
-                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
+                    // 펴지는 두 칸(uncurl) → 숨 고르는 동안 선 칸 → 걷기(걷기 시트, 없으면 idle 행 0·1 — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다, 사용자 2026-09-21)
+                    var wc = ws < SUN_UNCURL_MS ? { im: sheet('creatures', b), sx: ws < SUN_UNCURL_MS / 2 ? 0 : CELL, sy: 3 * CELL, lift: 0 }
+                        : resting ? { im: sheet('creatures', b), sx: 0, lift: 0 } : walkCell(b, stepPose(b.stepPhase, b.walkSpeed, 1, b.creature));   // 발 박자는 걸은 거리에서 — 빠른 놈은 보폭도 박자도 크다
+                    if (wc.im) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6 - wc.lift)); ctx.drawImage(wc.im, wc.sx, wc.sy || 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
                     drawBadge(b, b.x, b.y, mine);
                     if (b.walkSpeed >= 125) overlay(icon, ['dash', b.x - 18, b.y - 4, 13]);   // 빠른 놈 표시
@@ -1828,12 +1996,21 @@ var MarbleRender = (function () {
                 var cb = onClimbBelt(b, t);   // 등반 벨트 위 — 공을 풀고 경사를 기어오른다, 벨트가 멈추면 미끄러지며 어지러움(사용자 2026-09-25 "기어올라야")
                 if (cb) { drawClimber(b, t, cb, mine); continue; }
                 // 구멍 앞 몸싸움: 서서 밀기 → (뚜껑 열림) 화들짝 → 파이프 낙하 포즈. 서버 이벤트 기준, 위치는 프레임 그대로
-                if (b.scuffle >= 0 && t >= b.scuffleAt) { drawScuffler(b, t); drawBadge(b, b.x, b.y, mine); continue; }
-                if (t - b.startledAt < STARTLE_MS) {
-                    if (!drawScuffleFrame(b, 1, 0, b.x, b.y - 4, !b.scuffleLeft)) drawCreatureFrame(b, 4, 1, b.x, b.y - 4);   // 폴백: faceplant col 1(정면 놀람)
+                if (b.scuffle >= 0 && t >= b.scuffleAt) {   // 이름표는 서 있는 자리(공보다 위) 머리 위로 — 공 자리 기준으로 달면 얼굴을 가린다. 붙어 있는 둘이 겹치지 않게 왼쪽 놈은 한 줄 위
+                    drawScuffler(b, t); drawBadge(b, b.x, b.y + SCUFFLE_STAND_DY - 8 - (b.scuffleLeft ? SCUFFLE_TAG_STAGGER * textBoost() : 0), mine); continue;
+                }
+                if (t - b.startledAt < STARTLE_MS) {   // 밀던 자리에서 뒤로 살짝 튕기며 화들짝 — 끊긴 순간의 x·높이에서 시작해 공 자리로 이어진다
+                    var stk = clamp((t - b.startledAt) / STARTLE_MS, 0, 1), back = (b.scuffleLeft ? -1 : 1) * Math.sin(stk * Math.PI) * 3;
+                    var stx = b.x + (b.startDx || 0) * (1 - stk) + back, sty = lerp(b.y + SCUFFLE_STAND_DY - (b.startLift || 0), b.y - 4, stk) - Math.sin(stk * Math.PI) * 4;
+                    if (!drawScuffleFrame(b, 1, 0, stx, sty, !b.scuffleLeft)) drawCreatureFrame(b, 4, 1, stx, sty);   // 폴백: faceplant col 1(정면 놀람)
+                    drawBadge(b, stx, lerp(b.y + SCUFFLE_STAND_DY - 8 - (b.scuffleLeft ? SCUFFLE_TAG_STAGGER * textBoost() : 0), b.y, stk), mine); continue;   // 이름표도 몸싸움 때 자리에서 공 자리로
+                }
+                // 뚜껑이 열렸는데 안 떨어진 놈(밀려 올라앉음): 화들짝 → 바로 공이면 툭 끊긴다 — 웅크리는 두 칸(curl 1·2)을 거쳐 공으로
+                if (t - b.startledAt < STARTLE_MS + STARTLE_CURL_MS && b.y <= (b.startledY || 0) + 2) {
+                    drawCreatureFrame(b, 1, t - b.startledAt < STARTLE_MS + STARTLE_CURL_MS / 2 ? 1 : 2, b.x, b.y + 8 - STAND_LIFT);
                     drawBadge(b, b.x, b.y, mine); continue;
                 }
-                if (hf0 && t - b.startledAt < FALL_POSE_MS && b.y > hf0.floorY && drawScuffleFrame(b, 1, 1, b.x, b.y, !b.scuffleLeft)) { drawBadge(b, b.x, b.y, mine); continue; }   // 시트 없으면 공 그대로
+                if (hf0 && t - b.startledAt < FALL_POSE_MS && (b.y > hf0.floorY || b.y > (b.startledY || 0) + 2) && drawScuffleFrame(b, 1, 1, b.x, b.y, !b.scuffleLeft)) { drawBadge(b, b.x, b.y, mine); continue; }   // 시트 없으면 공 그대로
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
                 if (t - b.wakeAt < WAKE_POSE_MS && sheet('sleep', b)) {
                     var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
@@ -1842,7 +2019,7 @@ var MarbleRender = (function () {
                     continue;
                 }
                 // 햇볕 잔디에서 느려짐 → 펴져서 걷는 모습 (느려지는 이유가 화면에서 읽히게)
-                if (inSunZone(b) && b.spd < SUN_WALK_SPEED && t > 0) {
+                if (inSunZone(b) && b.spd < SUN_WALK_SPEED * (b.sunSince >= 0 ? SUN_WALK_KEEP : 1) && t > 0) {
                     if (b.sunSince < 0) b.sunSince = t;
                     drawSunWalker(b, t);
                     drawBadge(b, b.x, b.y, mine);
@@ -1866,6 +2043,7 @@ var MarbleRender = (function () {
                 }
             });
             flushOverlays();   // 이름표·zz·표식 — 몸·깃발 위
+            if (phase === 'idle' && t < 0 && onIdleMoveCb && idleBallOf(myName) >= 0) label(view.narrow ? '출발대를 눌러 출발 자리를 잡아요' : '출발대를 누르거나 ← → 키로 출발 자리를 잡아요', TRACK_W / 2, 24, 'rgba(255,255,255,0.92)', 11);
         }
 
         // ─── 응원석 + 피날레 ───
@@ -2012,7 +2190,7 @@ var MarbleRender = (function () {
                         if (dist < d0) { px = chute.x; py = ln.y + dist; }
                         else { px = chute.x - (dist - d0); py = chute.y; }
                         if (!visible(py, 40)) continue;
-                        drawCreatureFrame(b, 2, 0, px, py, -dist / BALL_R, 0.85);
+                        drawCreatureFrame(b, 2, 0, px, py, -dist / (BALL_R * 0.85), 0.85);
                         drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
                         continue;
                     }
@@ -2491,9 +2669,11 @@ var MarbleRender = (function () {
             myName = me || '';
             var prev = {}, nextReacts = {};
             balls.forEach(function (b) { prev[b.owner] = b; });
-            balls = payload.balls.map(function (nb) {
+            balls = payload.balls.map(function (nb, i) {
                 var b = prev[nb.owner];
                 if (b) {
+                    var nx = payload.frames[0][i * 2];   // 자리가 바뀌었으면(누가 준비해 칸이 밀렸거나 자리를 옮겼거나) 지금 선 자리에서 걸어간다
+                    if (Math.abs(nx - (b.mv ? b.mv.to : b.x)) > 0.5) idleGoTo(b, nx);
                     if (reacts[b.id]) nextReacts[nb.id] = reacts[b.id];
                     b.id = nb.id; b.creature = nb.creature; b.skin = nb.skin || null; b.skinName = nb.skinName || null; b.balloon = nb.balloon || null; b.colorIdx = nb.colorIdx; b.num = nb.num; b.dim = !!nb.dim;
                 } else b = makeBall(nb);
@@ -2505,11 +2685,17 @@ var MarbleRender = (function () {
             balls.forEach(preloadSheets);
             applyTrack(payload);
             hudInfo = { remaining: balls.length, rows: [] };
-            idleOrder = idleOrderOf();
         }
-        function idleOrderOf() {   // 몸싸움 짝은 준비한(dim 아님) 놈들만, 출발대 x 순
-            return balls.filter(function (b) { return !b.dim; }).sort(function (a, c) { return a.y - c.y || a.x - c.x; }).map(function (b) { return b.id; });
-        }
+        // 출발 자리 고르기 — js/marble.js 가 쓴다. onIdleMove: 대기 화면에서 출발대를 누르면 cb(월드 x). setIdleX: 그 사람 동물을 x 로 걸어가게(서버 marble:startPos 또는 내 입력).
+        // idleXOf: 지금 서 있는(걷는 중이면 그 사이) x — 없으면 null
+        R.onIdleMove = function (cb) { onIdleMoveCb = cb; };
+        function idleBallOf(owner) { if (!data || !data.idle || phase !== 'idle') return -1; for (var i = 0; i < balls.length; i++) if (balls[i].owner === owner) return i; return -1; }
+        R.setIdleX = function (owner, x) {
+            var i = idleBallOf(owner); if (i < 0) return;
+            var b = balls[i]; if (Math.abs((b.mv ? b.mv.to : b.x) - x) < 0.5) return;
+            idleGoTo(b, x); data.frames[0][i * 2] = x;   // 프레임(= 서버 프리뷰 배열)도 고쳐 둔다 — 다음 갱신·다시 그리기에서 그대로
+        };
+        R.idleXOf = function (owner) { var i = idleBallOf(owner); return i < 0 ? null : idleMove(balls[i]).x; };
         R.drawIdle = function (preview, me) {
             if (manual.on) setManual(false);   // 경주 → 대기로 올 때는 자동으로
             if (preview && preview.track) {
@@ -2519,7 +2705,6 @@ var MarbleRender = (function () {
                 R.setTimeline(payload, me);
                 phase = 'idle'; updateCamButton();
                 // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다
-                idleOrder = idleOrderOf();
                 idleStart = performance.now(); idleClock = 0;
                 var loop = function () { idleClock = performance.now() - idleStart; R.render(IDLE_T, 0.016); rafId = requestAnimationFrame(loop); };
                 R.render(IDLE_T, 0);
@@ -2566,5 +2751,5 @@ var MarbleRender = (function () {
     // 조각·장식·fx 시트 URL(캐시 버전 포함) — 동물 마당의 장애물이 같은 파일을 CSS 배경으로 쓴다
     function assetUrl(group, name) { var src = ASSETS[group] && ASSETS[group][name]; return src ? withVer(src) : ''; }
 
-    return { create: create, loadAssets: loadAll, sheetUrl: sheetUrl, assetUrl: assetUrl, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
+    return { create: create, loadAssets: loadAll, sheetUrl: sheetUrl, assetUrl: assetUrl, stepStride: stepStride, stepPose: stepPose, scufflePose: scufflePose, poseFit: function (look, group) { return poseFit(img('creatures', look), img(group, look)); }, hasWalkSheet: function (look) { ensureSkin('walk', look); return !!img('walk', look); }, SCUFFLE_BEAT_MS: SCUFFLE_PUSH_MS, RING_COLORS: RING_COLORS, CREATURE_NAMES: CREATURE_NAMES, COUNTDOWN_MS: COUNTDOWN_MS, ASSETS: ASSETS };
 })();

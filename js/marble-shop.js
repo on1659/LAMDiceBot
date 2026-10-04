@@ -24,6 +24,7 @@
     var SKIN_SLOT = 'marble_skin';
     var BALLOON_SLOT = 'marble_balloon';
     var ICON_PX = 56;
+    var RARITY_RANK = { legend: 0, epic: 1, rare: 2, common: 3 };   // 목록 순서 — 높은 등급 먼저
     var _socket = null;
     var _roomEquip = {};   // { slot: id } — 이 방에서 서버가 확인해 준 장착값. 페이지 수명 = 방 수명(나가면 /game 으로 이동)
 
@@ -31,9 +32,20 @@
     function baseCreatureForPreview(item) {
         if (item.id !== 'marble_skin_none') return null;
         var g = typeof ShopModule.getGroupFilter === 'function' ? ShopModule.getGroupFilter() : 'all';
-        if (g && g !== 'all') return g;
+        if (g && g !== 'all' && ShopModule.getGroupMode() !== 'theme') return g;   // 테마 칩의 key 는 동물이 아니다
         var picks = (window.marbleState && marbleState.picks) || {};
         return picks[window.currentUser] || null;
+    }
+
+    // 테마 목록 = 카탈로그 스킨의 theme 글자를 모은 것. 새 스킨에 "theme": "이름" 만 적으면 칩이 생긴다(따로 등록할 곳 없음).
+    // 순서는 최근에 추가된 테마 먼저(카탈로그는 새 스킨을 뒤에 붙인다). item = 그 테마의 첫 스킨(칩 아이콘용)
+    function themeList() {
+        var skins = (ShopModule.getCatalog() || {})[SKIN_SLOT] || [], seen = {}, out = [];
+        skins.forEach(function (it) {
+            if (!it.theme || !it.creature || seen[it.theme]) return;
+            seen[it.theme] = true; out.unshift({ name: it.theme, item: it });
+        });
+        return out;
     }
 
     // ── 미리보기 빌더 (스킨 = 시트 idle 첫 칸 / 풍선 = 스프라이트 한 장) ──
@@ -119,31 +131,42 @@
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         hooks: {
             noticeText: function () { return ''; },   // 안내 상자 없음(사용자 2026-09-22: 설명 문구 제거) — 공유 셸이 '' 면 상자를 안 그린다
-            // 동물별 필터 칩(전체/고슴도치/…): 순서는 선택 버튼 순서(MARBLE_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등)
-            groups: function () {
+            // 필터 칩의 기준 둘 — 동물별(전체/고슴도치/…) · 테마별(전체/5090/수영복/…). 공유 셸이 칩 줄 앞에 전환 버튼을 그린다
+            groupModes: [{ key: 'creature', label: '동물' }, { key: 'theme', label: '테마' }],
+            // 동물: 순서는 선택 버튼 순서(MARBLE_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등). 테마: themeList()
+            groups: function (mode) {
+                if (mode === 'theme') return themeList().map(function (t) { return { key: t.name, label: t.name }; });
                 var names = (window.MarbleRender && MarbleRender.CREATURE_NAMES) || {};
                 var order = (typeof window.MARBLE_CREATURES !== 'undefined' && window.MARBLE_CREATURES) || Object.keys(names);
                 return order.map(function (c) { return { key: c, label: names[c] || c }; });
             },
-            itemGroup: function (item) { return item.creature || null; },
-            // 칩 아이콘 = 그 동물 기본 시트의 서 있는 얼굴(선택 버튼과 같은 그림) — 스킨과 무관하게 기본 모습
-            groupIcon: function (creature) {
+            // 테마 기준: 테마 없는 스킨은 ''(어느 테마 칩에도 안 걸림 — '전체'에서만 보인다). 동물 없는 항목(기본 카드·야식)은 null = 늘 보인다
+            itemGroup: function (item, mode) {
+                if (mode === 'theme') return item.creature ? (item.theme || '') : null;
+                return item.creature || null;
+            },
+            // 칩 아이콘 — 동물: 그 동물 기본 시트의 서 있는 얼굴(선택 버튼과 같은 그림). 테마: 그 테마 첫 스킨을 입은 모습
+            groupIcon: function (key, mode) {
                 var R = window.marbleRendererForShop;
                 if (!R || typeof R.drawCreatureIcon !== 'function') return null;
+                var first = mode === 'theme' ? themeList().filter(function (t) { return t.name === key; })[0] : null;
                 var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
-                R.drawCreatureIcon(cv, creature, 0, null);
+                if (first) R.drawCreatureIcon(cv, first.item.creature, 0, first.item.skin);
+                else R.drawCreatureIcon(cv, key, 0, null);
                 return cv;
             },
-            // '전체' 필터에서 지금 고른 동물의 스킨을 기본 모습 카드 바로 뒤로 당긴다 — 상점·옷장을 열자마자 갈아입힐 후보가 보이게(데구리 c0013fa).
-            // 나머지는 카탈로그 순서 그대로, 동물 필터에서는 원래 순서. 공유 셸(shop-shared.js)에는 이 정렬 훅만 추가됐다
+            // 스킨 목록 순서(docs/goal/marble-shop-declutter-common-tier.md): 지금 고른 동물 먼저 → 선택 버튼 순서(MARBLE_CREATURES) → 동물 안에서는 전설→일반.
+            // 상점 뷰에서는 기본 제공 카드('기본'·야식 '없음')를 뺀다(살 게 아니다) — 옷장에서는 "벗기"라 맨 앞에 남긴다. 공유 셸(shop-shared.js)에는 이 정렬 훅만 있다
             sortItems: function (items, ctx) {
-                if (ctx.slot !== SKIN_SLOT || ctx.groupFilter !== 'all') return items;
+                if (ctx.view === 'shop') items = items.filter(function (it) { return !it.defaultOwned; });
+                if (ctx.slot !== SKIN_SLOT) return items;
                 var picks = (window.marbleState && marbleState.picks) || {}, mine = picks[window.currentUser];
-                if (!mine) return items;
+                var order = (typeof window.MARBLE_CREATURES !== 'undefined' && window.MARBLE_CREATURES) || [];
+                function rank(it) { var i = order.indexOf(it.creature); return (it.creature === mine ? -1 : (i < 0 ? order.length : i)) * 10 + RARITY_RANK[it.rarity]; }
                 var base = items.filter(function (it) { return !it.creature; });
-                var own = items.filter(function (it) { return it.creature === mine; });
-                var rest = items.filter(function (it) { return it.creature && it.creature !== mine; });
-                return base.concat(own, rest);
+                var skins = items.filter(function (it) { return it.creature; }).map(function (it, i) { return { it: it, i: i, r: rank(it) }; });
+                skins.sort(function (a, b) { return a.r - b.r || a.i - b.i; });   // 같은 순위는 카탈로그 순서
+                return base.concat(skins.map(function (s) { return s.it; }));
             },
             buildPreview: buildItemPreview,
             itemState: itemState,

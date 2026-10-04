@@ -14,13 +14,13 @@
     'use strict';
 
     var BASE = '/assets/marble/gacha/';
-    var ASSET_VER = '?v=15';   // anchors json·그림이 바뀌면 반드시 올린다(2026-09-24: 벽 윤곽 추가 후 안 올려서 옛 캐시로 뽑기가 멈춘 사고)
+    var ASSET_VER = '?v=16';   // anchors json·그림이 바뀌면 반드시 올린다(2026-09-24: 벽 윤곽 추가 후 안 올려서 옛 캐시로 뽑기가 멈춘 사고). v16(2026-10-01): 일반 등급 캡슐·빛살·램프 칸
     var PRICE = 60, REFUND = 30;   // 표시용 — 서버 socket/marble.js GACHA_PRICE / GACHA_REFUND 와 같은 값
-    var ODDS_TEXT = '레어 60% · 에픽 30% · 전설 10% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';
+    var ODDS_TEXT = '일반 40% · 레어 35% · 에픽 18% · 전설 7% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';   // 서버 GACHA_WEIGHTS 와 같은 값
     var STAY_COIN = 10;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
-    var TIER_LABEL = { rare: '레어', epic: '에픽', legend: '전설' };
-    var LAMP_CELL = { off: 0, rare: 1, epic: 2, legend: 3 };
-    var TIERS = ['rare', 'epic', 'legend'];
+    var TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+    var LAMP_CELL = { off: 0, rare: 1, epic: 2, legend: 3, common: 4 };   // 일반 칸은 시트 맨 뒤에 덧붙였다(make-gacha-common.py)
+    var TIERS = ['common', 'rare', 'epic', 'legend'];
 
     // 무대(캔버스) 논리 크기(CSS px). 그림은 화면의 2배로 그려져 있다
     var STAGE_W = 300, STAGE_H = 420;
@@ -58,12 +58,13 @@
     //   cam 화면 떨림 · flash 섬광 · flash2 두 번째 섬광 · glare 눈부심 · cross 십자 빛줄기 · burst 열릴 때 튀는 반짝이 수
     //   rays 결과 빛살 배율 · rays2 반대로 도는 두 번째 빛살 · sparkles 결과 화면 반짝이 수
     var TIER_FX = {
+        common: { crank: 3120, turns: 4, shake: 600,  power: 0.8, hops: [0.55],                  stall: false, lines: false, pulse: false, cam: 0,   flash: 0,    flash2: 0,   glare: 0.3,  cross: false, burst: 0,  rays: 0.7,  rays2: false, sparkles: 0 },   // 시간은 레어와 같고 빛만 더 수수하게
         rare:   { crank: 3120, turns: 4, shake: 600,  power: 0.8, hops: [0.55],                  stall: false, lines: false, pulse: false, cam: 0,   flash: 0,    flash2: 0,   glare: 0.45, cross: false, burst: 0,  rays: 0.8,  rays2: false, sparkles: 1 },
         epic:   { crank: 3700, turns: 5, shake: 1200, power: 1.3, hops: [0.3, 0.6, 0.85],        stall: false, lines: true,  pulse: true,  cam: 1,   flash: 0.6,  flash2: 0,   glare: 1,    cross: true,  burst: 10, rays: 1,    rays2: false, sparkles: 2 },
         legend: { crank: 4400, turns: 6, shake: 1800, power: 1.7, hops: [0.25, 0.68, 0.8, 0.92], stall: true,  lines: true,  pulse: true,  cam: 1.4, flash: 0.85, flash2: 0.5, glare: 1.35, cross: true,  burst: 24, rays: 1.15, rays2: true,  sparkles: 5 }
     };
     function fx(tier) { return TIER_FX[tier] || TIER_FX.rare; }
-    var TIER_GLOW = { rare: '#8fd3ff', epic: '#c99bff', legend: '#ffd45a' };
+    var TIER_GLOW = { common: '#9be59a', rare: '#8fd3ff', epic: '#c99bff', legend: '#ffd45a' };
     var T_FLASH = 220, T_KICK = 260, FLASH2_DELAY = 320, BURST_MS = 1100;
     var OPEN_SUM = OPEN_MS.reduce(function (a, b) { return a + b; }, 0);
     var OPEN_POP = OPEN_MS[0] + OPEN_MS[1] + OPEN_MS[2] + OPEN_MS[3];   // 열기 4칸(뚜껑 튐) 시작
@@ -147,7 +148,7 @@
     var SIM_HZ = 120, SIM_FRAME_MS = 1000 / 60, SIM_TAIL_MS = 2000;   // 손잡이가 멈춘 뒤 2초 더 계산(공이 가라앉게)
     var BALL_R = 22, WALL_R = 27, GRAV = 1100;
     var AIR_RAMP_MS = 300, JET_W = 80, JET_ACC = 5200, TURB_ACC = 900;   // 바람은 손잡이 끝 AIR_TAIL 전부터 잦아든다
-    var TIER_BALL = { rare: 2, epic: 3, legend: 5 };        // 등급 → 공 시트 칸(파랑·보라·금)
+    var TIER_BALL = { common: 1, rare: 2, epic: 3, legend: 5 };        // 등급 → 공 시트 칸(초록·파랑·보라·금)
     var _globePile = null;   // [{x,y,c,rot,s}] 지금 쌓인 더미(첫 뽑기 전엔 anchors 더미). s = 0 이면 뽑혀 나간 공
     function currentPile() {
         if (!_globePile) _globePile = _anchors.machine.globeBalls.pile.map(function (b) { return { x: b.x, y: b.y, c: b.c, rot: 0, s: 1 }; });

@@ -405,6 +405,10 @@ body.hshop-open {
 .hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
 .hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(var(--highlight-rgb), 0.7); }
 .hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(var(--highlight-rgb), 0.9); }
+/* 그룹 기준 전환(어댑터 hooks.groupModes — 데구리: 동물/테마). 칩 줄 맨 앞의 작은 두 칸 버튼. 고른 쪽은 글자색 반전(초록 활성 칩과 구분) */
+.hshop-groupmode { flex: 0 0 auto; display: inline-flex; padding: 2px; border-radius: 999px; background: var(--hshop-inv-chip-bg); }
+.hshop-groupmode .hshop-groupmode-btn { width: auto; margin: 0; border: 0; padding: 4px 10px; border-radius: 999px; background: none; box-shadow: none; color: var(--hshop-ink-soft); font-size: 12px; font-weight: 800; white-space: nowrap; cursor: pointer; }   /* 게임 css 의 button { width: 100% } 상쇄 */
+.hshop-groupmode .hshop-groupmode-btn.is-active { background: var(--hshop-ink); color: var(--hshop-bg); }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped-ink);

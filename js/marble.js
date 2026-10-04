@@ -271,6 +271,7 @@ window.addEventListener('DOMContentLoaded', function () {
         renderer = MarbleRender.create(canvas);
         window.marbleRendererForShop = renderer;   // js/marble-shop.js 미리보기(drawCreatureIcon)용
         renderer.setHighlight(getMyHighlight());
+        renderer.onIdleMove(moveMyStart);   // 대기 화면에서 출발대를 누르면 내 동물이 그 자리로
         updateHighlightButton();
         MarbleRender.loadAssets(function () {
             assetsLoaded = true;
@@ -492,7 +493,9 @@ function updateCrowdTips() {
 //    로컬 연출(동기화 없음), 결과와 무관. 종류·타이밍은 시드 PRNG(mulberry32) — Math.random 은 안 쓴다. reduced motion 이면 끄고, 띠가 화면 밖이거나 탭이 숨으면 멈춘다 ──
 var MarbleYard = (function () {
     var C = 48, FLOOR = 6;   // 셀 표시 크기 / 발 높이(울타리 아래 가로대 위)
-    var SHEETS = { main: ['creatures', '192px 240px'], sleep: ['sleep', '192px 48px'], scuffle: ['scuffle', '192px 96px'] };
+    var SCALE = C / 40;      // 경주 캔버스(셀 40px 표시) 대비 배율 — 걸음·몸싸움 포즈(MarbleRender.stepPose·scufflePose)의 px 값에 곱한다
+    var SCUF_PUSH_MS = 3 * 4 * MarbleRender.SCUFFLE_BEAT_MS - MarbleRender.SCUFFLE_BEAT_MS;   // 몸싸움 주고받기 3합 — 마지막 한 방(이긴 놈)에서 끝난다
+    var SHEETS = { main: ['creatures', '192px 240px'], sleep: ['sleep', '192px 48px'], scuffle: ['scuffle', '192px 96px'], walk: ['walk', '192px 48px'] };
     var WEIGHTS = [['walk', 30], ['idle', 16], ['wave', 8], ['roll', 12], ['nap', 7], ['jump', 10], ['leave', 5]];
     var POKE_ACTS = ['startle', 'nap', 'jump', 'wave', 'trip', 'roll'];
     // ── 장애물(사용자 2026-09-24): 가끔 위에서 떨어져 앉고, 동물은 걸어가다 가장자리에서 비스듬히 타고 올라갔다 내려온다. 스프링 판은 밟으면 높이 튕기고, 진흙은 미끄러진다.
@@ -523,7 +526,7 @@ var MarbleYard = (function () {
     function calm(c) { return c.act === 'walk' || c.act === 'idle' || c.act === 'wave'; }
     function start(c, act, opts) {
         opts = opts || {};
-        c.act = act; c.t = 0; c.rot = 0; c.lift = 0; c.napping = false;
+        c.act = act; c.t = 0; c.rot = 0; c.lift = 0; c.fx = 0; c.napping = false;
         if (act === 'walk') { c.dur = rand(1800, 4200); c.speed = rand(38, 70); if (!opts.keepDir && rand01() < 0.5) c.dir = -c.dir; c.tripAt = rand01() < 0.12 ? rand(600, c.dur - 200) : -1; }
         else if (act === 'idle') { c.dur = rand(1200, 3000); c.turnAt = rand01() < 0.5 ? c.dur / 2 : -1; }
         else if (act === 'wave') c.dur = rand(900, 1600);
@@ -534,12 +537,20 @@ var MarbleYard = (function () {
         else if (act === 'scuffle') { c.win = opts.win; c.dir = opts.dir; }
         else if (act === 'startle') { c.dir = opts.dir; }
     }
+    // 걷기: 발 박자를 시간이 아니라 걸은 거리에서 — 빠른 놈은 보폭도 박자도 크고, 느린 놈이 제자리에서 발만 빨리 구르지 않는다
+    function stride(c, dt) {
+        var moved = c.speed * dt / 1000;
+        c.x += c.dir * moved; c.step = (c.step || 0) + moved / MarbleRender.stepStride(c.speed, SCALE);
+        var sp = MarbleRender.stepPose(c.step, c.speed, SCALE, c.look);
+        var walk = MarbleRender.hasWalkSheet(c.look);
+        if (walk) frame(c, 'walk', 0, sp.frame); else frame(c, 'main', 0, sp.col);   // 걷기 시트가 없는 동물은 서기 두 칸으로
+        c.lift = walk ? sp.sheetLift : sp.lift;
+    }
     function update(c, dt) {
         var t = (c.t += dt), done = false;
         if (c.act === 'walk') {
-            c.x += c.dir * c.speed * dt / 1000;
+            stride(c, dt);
             if ((c.x < 20 && c.dir < 0) || (c.x > width - 20 && c.dir > 0)) c.dir = -c.dir;
-            frame(c, 'main', 0, Math.floor(t / 150) % 2); c.lift = Math.abs(Math.sin(t / 150 * Math.PI)) * 3;
             if (c.tripAt > 0 && t > c.tripAt) { start(c, 'trip'); return; }
             done = t > c.dur;
         } else if (c.act === 'trip') {
@@ -570,14 +581,18 @@ var MarbleYard = (function () {
             frame(c, 'main', 0, p < 0.12 || p > 0.88 ? 0 : 1);
             done = k >= c.hops;
         } else if (c.act === 'leave') {
-            c.x += c.dir * c.speed * dt / 1000;
-            frame(c, 'main', 0, Math.floor(t / 140) % 2); c.lift = Math.abs(Math.sin(t / 140 * Math.PI)) * 3;
+            stride(c, dt);
             if (c.x < -40 || c.x > width + 40) {   // 방의 다른 동물로 갈아입고 같은 쪽에서 다시 들어온다
                 dress(c, pickLook()); c.dir = -c.dir; start(c, 'walk', { keepDir: true }); c.dur = rand(2200, 3800); c.tripAt = -1; return;
             }
         } else if (c.act === 'scuffle') {
-            if (t < 1400) { frame(c, 'scuffle', 0, Math.floor(t / 170) % 3); c.x += Math.sin(t / 90) * 0.4; }
-            else if (c.win) { frame(c, 'main', 3, 3); done = t > 2400; }
+            if (t < SCUF_PUSH_MS) {   // 주고받기: 한 놈이 들이밀면 다른 놈이 움찔 밀려난다(첫 합·마지막 합은 이긴 놈이)
+                var sc = MarbleRender.scufflePose(t, c.win, true);
+                frame(c, 'scuffle', 0, sc.col); c.fx = c.dir * sc.dx * SCALE; c.lift = sc.lift * SCALE;
+                return;
+            }
+            if (c.fx) { c.x += c.fx; c.fx = 0; c.lift = 0; }   // 밀고 밀린 자리에서 이어서
+            if (c.win) { frame(c, 'main', 3, 3); done = t > 2400; }
             else if (t < 1650) frame(c, 'scuffle', 0, 3);
             else if (t < 2050) { frame(c, 'scuffle', 1, t < 1850 ? 0 : 1); c.x -= c.dir * 90 * dt / 1000; c.lift = Math.sin((t - 1650) / 400 * Math.PI) * 10; }
             else { c.lift = 0; frame(c, 'scuffle', 1, 2 + Math.floor(t / 300) % 2); done = t > 3100; }
@@ -685,8 +700,9 @@ var MarbleYard = (function () {
             c.body.style.backgroundPosition = (-c.col * C) + 'px ' + (-c.row * C) + 'px';
             c.shown = key;
         }
-        c.el.style.transform = 'translate(' + (c.x - C / 2).toFixed(1) + 'px,' + (-FLOOR) + 'px)';
-        c.body.style.transform = 'translateY(' + (-(c.lift + (c.ground || 0))).toFixed(1) + 'px) scaleX(' + c.dir + ') rotate(' + c.rot.toFixed(2) + 'rad)';   // ground = 장애물 위 발 높이(그림자는 땅에 남는다)
+        c.el.style.transform = 'translate(' + (c.x + (c.fx || 0) - C / 2).toFixed(1) + 'px,' + (-FLOOR) + 'px)';   // fx = 몸싸움 중 밀고 밀리는 그리기 오프셋
+        var fit = c.sheet === 'scuffle' ? MarbleRender.poseFit(c.look, 'scuffle') : 1;   // 서기보다 크게 그려진 몸싸움 그림은 줄여서(발 기준 — 칸 중심 80 에서 발바닥선 150 까지를 표시 크기로)
+        c.body.style.transform = 'translateY(' + (C * 70 / 160 * (1 - fit) - (c.lift + (c.ground || 0))).toFixed(1) + 'px) scaleX(' + c.dir + ') rotate(' + c.rot.toFixed(2) + 'rad)' + (fit < 1 ? ' scale(' + fit.toFixed(3) + ')' : '');   // ground = 장애물 위 발 높이(그림자는 땅에 남는다)
         c.el.classList.toggle('is-napping', !!c.napping);
     }
     // 띠 폭 — 숨겨진 상태(display:none: 빈 띠·경주 중 피커 접힘)에서 재면 0 이라, 0 이면 이전 값을 유지한다.
@@ -1657,6 +1673,53 @@ socket.on('readyUsersUpdated', function (rUsers) {
 // ============================================
 // 소켓 이벤트 — 데구리 전용
 // ============================================
+// ── 출발 자리 고르기 (docs/goal/marble-start-position.md) — 대기 화면에서 출발대를 누르거나 ← → 로 내 동물을 옮긴다.
+//    클라는 가고 싶은 x 만 보낸다(marble:moveTo). 자리는 서버가 갖고, 겹친 자리는 시작할 때 서버가 서로 밀어 편다(카운트다운에서 밀치는 연출) ──
+var START_X_MIN = 216, START_X_MAX = 584;   // socket/marble-sim.js 와 같은 값(서버가 다시 자른다)
+var START_KEY_EMIT_MS = 350;                // ← → 를 누르고 있는 동안 지금 자리를 서버에 알리는 간격 — 소켓 rate limit(10초 50회) 안쪽
+var startKeyDir = 0, startKeyTimer = null;
+function canMoveStart() { return !!renderer && marbleState.phase === 'idle' && !isMarbleActive && renderer.idleXOf(currentUser) != null; }
+function moveMyStart(x) {
+    if (!canMoveStart()) return;
+    x = Math.max(START_X_MIN, Math.min(START_X_MAX, Math.round(x)));
+    renderer.setIdleX(currentUser, x);
+    socket.emit('marble:moveTo', { x: x });
+}
+function stopStartKey() {
+    if (!startKeyDir) return;
+    startKeyDir = 0; clearInterval(startKeyTimer); startKeyTimer = null;
+    var x = renderer ? renderer.idleXOf(currentUser) : null;
+    if (x != null) moveMyStart(x);   // 손을 뗀 자리에 선다
+}
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var el = document.activeElement, tag = el && el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;   // 채팅·입력 중엔 글자 커서가 움직여야 한다
+    if (e.altKey || e.ctrlKey || e.metaKey || !canMoveStart()) return;
+    e.preventDefault();
+    var dir = e.key === 'ArrowLeft' ? -1 : 1;
+    if (dir === startKeyDir) return;   // 키 반복
+    startKeyDir = dir;
+    renderer.setIdleX(currentUser, dir < 0 ? START_X_MIN : START_X_MAX);   // 끝 쪽으로 걸어가다 손을 떼면 그 자리에 선다
+    clearInterval(startKeyTimer);
+    startKeyTimer = setInterval(function () {
+        var x = canMoveStart() ? renderer.idleXOf(currentUser) : null;
+        if (x == null) { startKeyDir = 0; clearInterval(startKeyTimer); startKeyTimer = null; return; }   // 경주가 시작됐거나 출발대에서 내려옴
+        socket.emit('marble:moveTo', { x: Math.round(x) });
+    }, START_KEY_EMIT_MS);
+});
+document.addEventListener('keyup', function (e) {
+    if ((e.key === 'ArrowLeft' && startKeyDir < 0) || (e.key === 'ArrowRight' && startKeyDir > 0)) stopStartKey();
+});
+window.addEventListener('blur', stopStartKey);
+socket.on('marble:startPos', function (data) {
+    if (!data || typeof data.name !== 'string' || typeof data.x !== 'number') return;
+    if (data.name === currentUser) return;   // 내 것은 이미 움직였다 — 누르고 있는 동안 예전 자리로 끌려가지 않게
+    var pv = marbleState.preview;
+    if (pv && pv.balls && pv.frame) for (var i = 0; i < pv.balls.length; i++) if (pv.balls[i].owner === data.name) pv.frame[i * 2] = data.x;   // 대기 화면을 새로 그릴 때도 그 자리
+    if (renderer) renderer.setIdleX(data.name, data.x);
+});
+
 socket.on('marble:error', function (message) {
     showCustomAlert(typeof message === 'string' ? message : '오류가 발생했습니다.', 'error');
 });
@@ -1682,6 +1745,7 @@ socket.on('marble:stateUpdated', function (data) {
     renderVoteSection();
     updateStartButton();
     if (marbleState.phase === 'idle' && !isMarbleActive && renderer && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser);
+    if (startKeyDir && renderer) renderer.setIdleX(currentUser, startKeyDir < 0 ? START_X_MIN : START_X_MAX);   // ← → 를 누르고 있는 중에 프리뷰가 갱신돼도 계속 걷는다
 });
 
 // 투표 현황 (서버 broadcast) — 룰렛 중엔 오지 않는다(서버가 경주 중 투표를 거절)

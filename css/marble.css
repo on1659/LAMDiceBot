@@ -140,6 +140,43 @@
 .mshop-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; }
 .mshop-icon { width: 56px; height: 56px; image-rendering: pixelated; }
 .mshop-glyph { font-size: 30px; line-height: 1; }
+/* ── 상점 작은 카드 (docs/goal/marble-shop-declutter-common-tier.md, 2026-10-01) ──
+   스킨이 30개를 넘어 2열 큰 카드로는 한 화면에 4장만 보였다 → 3열 작은 카드. 공유 셸(shop-shared.js) 마크업은 그대로 두고 #marbleShopMount 안에서만 모양을 바꾼다.
+   카드 전체가 구매 버튼 — 셸의 [구매] 버튼을 투명하게 카드 위에 펼친다(누르면 지금과 같은 확인창). */
+#marbleShopMount { --hshop-common: var(--marble-rarity-common); }   /* 데구리의 일반 등급 = 초록(뽑기 공·캡슐과 같은 색) */
+#marbleShopMount .hshop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-content: start; }
+#marbleShopMount .hshop-grid:not(.hshop-inv-grid) { padding-left: 12px; padding-right: 12px; }   /* 옷장 섹션 그리드는 본문이 이미 패딩을 가진다 */
+#marbleShopMount .hshop-card { position: relative; min-width: 0; padding: 5px 5px 7px; border-radius: 12px; text-align: center; }
+#marbleShopMount .hshop-thumb { height: 58px; margin-bottom: 0; border-radius: 9px; }
+#marbleShopMount .mshop-preview { min-height: 0; }
+#marbleShopMount .mshop-icon { width: 52px; height: 52px; }
+#marbleShopMount .hshop-rarity { top: 3px; left: 3px; font-size: 9px; padding: 1px 5px; border-radius: 6px; letter-spacing: 0; }
+#marbleShopMount .hshop-namerow { flex-direction: column; align-items: center; gap: 1px; }
+#marbleShopMount .hshop-name,
+#marbleShopMount .hshop-namerow .hshop-name { display: flex; flex: none; align-items: center; justify-content: center; height: 2.4em; margin-top: 5px; font-size: 12px; line-height: 1.2; white-space: normal; word-break: keep-all; overflow: hidden; }
+#marbleShopMount .hshop-price { margin-top: 1px; }
+#marbleShopMount .hshop-buy { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; border-radius: 12px; }   /* z 6 = 등급 배지(5) 위 — 배지를 눌러도 구매 */
+#marbleShopMount .hshop-card:has(.hshop-buy:active),
+#marbleShopMount .hshop-card:has(.hshop-equip:active:not(:disabled)) { transform: scale(0.97); }
+#marbleShopMount .hshop-card:has(.hshop-buy:focus-visible),
+#marbleShopMount .hshop-card:has(.hshop-equip:focus-visible) { outline: 2px solid var(--marble-accent); outline-offset: 1px; }
+/* 상점의 '보유 중' — 가격 자리의 작은 알약(누를 수 없음) */
+#marbleShopMount .hshop-card .hshop-owned { margin-top: 3px; padding: 3px 0; font-size: 11px; border-width: 1px; border-radius: 8px; }
+#marbleShopMount .hshop-card:has(.hshop-owned) .hshop-thumb { opacity: 0.55; }
+/* 옷장의 장착/해제 — 카드 전체가 버튼. 버튼을 카드 위에 투명하게 펼치고 글자와 알약(::before)만 아래쪽에 그린다.
+   (작은 버튼에 ::after 를 펼치는 방식은 실제 클릭이 버튼으로 가지 않았다 — 버튼 자체를 펼쳐야 한다) */
+#marbleShopMount .hshop-card:has(.hshop-equip:not(.hshop-owned)) { padding-bottom: 32px; }
+#marbleShopMount .hshop-card .hshop-equip:not(.hshop-owned) { position: absolute; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; margin: 0; padding: 0 5px 11px; background: none; border: 0; border-radius: 12px; font-size: 11px; }
+#marbleShopMount .hshop-card .hshop-equip:not(.hshop-owned)::before { content: ''; position: absolute; left: 5px; right: 5px; bottom: 7px; z-index: -1; height: 22px; box-sizing: border-box; border-radius: 8px; background: var(--horse-500); }
+#marbleShopMount .hshop-card .hshop-equip.is-equipped { color: var(--hshop-equipped-ink); }
+#marbleShopMount .hshop-card .hshop-equip.is-equipped::before { background: var(--hshop-equipped-bg); border: 1px solid var(--hshop-equipped); }
+#marbleShopMount .hshop-card:has(.hshop-equip.is-equipped) { border-color: var(--hshop-equipped); }
+/* 동물 칩: 터치 화면에서는 한 줄 가로 스크롤(3줄 → 1줄, 목록이 76px 올라온다). 마우스 화면은 줄바꿈 그대로 — 가로 스크롤은 PC 에서 뒤쪽 동물을 못 고른다(2026-09-22) */
+@media (hover: none) and (pointer: coarse) {
+    #marbleShopMount .hshop-inv-chips.hshop-groupchips { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
+    /* [동물|테마] 전환은 칩을 밀어도 왼쪽에 남는다 — 칩이 그 밑으로 지나가므로 패널 색 테두리로 가린다 */
+    #marbleShopMount .hshop-groupmode { position: sticky; left: 0; z-index: 1; box-shadow: 0 0 0 6px var(--hshop-bg); }
+}
 .marble-creature-btn .skin-badge {
     position: absolute; top: -8px; left: -8px; padding: 0 6px; height: 20px; line-height: 20px; border-radius: 10px;
     background: var(--marble-skin-badge-bg); color: var(--text-on-accent); font-size: 11px; font-weight: bold; box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.25);
