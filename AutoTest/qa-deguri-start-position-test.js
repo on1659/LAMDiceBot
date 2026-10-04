@@ -82,6 +82,8 @@ let pass = true; const check = (c, label, extra) => { console.log((c ? 'PASS' : 
     const pc = await open(C); await wait(1500);
     const ca = await xOf(pc, A), cb = await xOf(pc, B), ch = await xOf(pc, host);
     check(Math.abs(ca - Math.round(a2)) < 1.5 && Math.abs(cb - b3) < 1.5 && Math.abs(ch - 584) < 1.5, '늦게 들어온 사람도 지금 자리를 본다', `A ${ca} B ${cb} 방장 ${ch}`);
+    // C 도 자리를 고른다(왼쪽 끝 — A·B 와 멀리). 안 고르면 C 는 판마다 시드로 정해지는 기본 칸(355~445)을 원하고, 그 칸이 A·B 근처면 명세대로 셋이 서로 밀려 A·B 가운데가 고른 자리에서 벗어난다(판에 따라 아래 검사가 깨짐)
+    await pc.evaluate(x => moveMyStart(x), 216); await wait(500);
     // 시작 → reveal
     const revealP = once(hs, 'deguri:reveal', 25000);
     hs.emit('deguri:start', { force: true });
@@ -89,10 +91,10 @@ let pass = true; const check = (c, label, extra) => { console.log((c ? 'PASS' : 
     check(seen.length === n0, '시작한 뒤(경주 중)의 deguri:moveTo 는 무시');
     const rv = await revealP, f0 = rv.frames[0];
     const first = n => { const i = rv.balls.findIndex(b => b.owner === n && b.num === 1); return { x: f0[i * 2], y: f0[i * 2 + 1], fromX: rv.balls[i].fromX }; };
-    const fa = first(A), fb = first(B), fh = first(host), want = Math.round(a2);
+    const fa = first(A), fb = first(B), fh = first(host), fc = first(C), want = Math.round(a2);
     check(fa.fromX === want && fb.fromX === want, 'reveal: A·B 의 고른 자리(fromX)가 실려 온다', `${fa.fromX} ${fb.fromX}`);
     check(Math.abs(fa.x - fb.x) === 30 && Math.abs((fa.x + fb.x) / 2 - want) <= 1, '겹친 A·B 는 가운데를 지키며 30 벌어져 출발', `A ${fa.x} B ${fb.x}`);
-    check(fh.x === 584, '혼자 선 방장은 고른 자리 그대로 출발', String(fh.x));
+    check(fh.x === 584 && fc.x === 216, '혼자 선 방장·C 는 고른 자리 그대로 출발', `방장 ${fh.x} C ${fc.x}`);
     const rowXs = {}; rv.balls.forEach((b, i) => { (rowXs[f0[i * 2 + 1]] = rowXs[f0[i * 2 + 1]] || []).push(f0[i * 2]); });
     check(Object.values(rowXs).every(xs => { xs.sort((p, q) => p - q); return xs.every((x, i) => i === 0 || x - xs[i - 1] >= 30); }), '모든 줄 간격 ≥ 30', JSON.stringify(rowXs));
     await wait(9000);   // 카운트다운(밀치기 연출) + 경주 초반까지 오류 없는지

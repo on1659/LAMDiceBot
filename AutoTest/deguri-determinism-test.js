@@ -157,6 +157,10 @@ function setup(players, nReq, seed) {
         const two = lay(four, 1, 7, { p0: 300, p1: 300 });
         assert.deepStrictEqual([xOf(two, 'p0'), xOf(two, 'p1')].sort((a, b) => a - b), [285, 315], '같은 자리 둘 = 가운데를 지키며 30 벌어짐');
         assert.ok(two.filter(b => b.fromX === 300).length === 2, '고른 자리(fromX)를 들고 간다');
+        // 안 고른 사람(p0)의 기본 칸이 고른 둘(457) 옆이면 셋이 한 덩어리로 서로 밀린다 — 덩어리 가운데(453) = 셋이 원한 자리(445·457·457)의 평균
+        assert.strictEqual(xOf(lay(four, 1, 7), 'p0'), 445, '전제: 시드 7 에서 p0 의 기본 칸 = 445');
+        const mix = lay(four, 1, 7, { p1: 457, p2: 457, p3: 584 });
+        assert.deepStrictEqual([xOf(mix, 'p0'), ...[xOf(mix, 'p1'), xOf(mix, 'p2')].sort((a, b) => a - b), xOf(mix, 'p3')], [423, 453, 483, 584], '안 고른 사람의 기본 칸과 겹치면 서로 같은 만큼 밀림');
         for (const [who, n, sx] of [[four, 3, { p0: 216, p1: 216, p2: 216, p3: 216 }], [names, 1, Object.fromEntries(names.map(n => [n, 400]))], [names, 3, { p3: 584, p9: 216, p12: 400 }]]) {
             const a = lay(who, n, 11, sx), rows = {};
             assert.deepStrictEqual(a, lay(who, n, 11, sx), '같은 입력 = 같은 배치');
