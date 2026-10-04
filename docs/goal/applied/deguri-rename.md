@@ -121,9 +121,15 @@ Applied in place after the user's go-ahead ("다 해도 돼. 소스코드도 이
 - `f841628f` — the rename: 364 paths, 50 further files modified, plus the startup migration in `db/init.js`.
 - Pushed to `feature/marble-run`; lamtest deployed in about a minute and serves `/deguri`, `/js/deguri.js`, `/assets/deguri/…` with 200 and the legacy URLs with 301.
 
+Production (same day, after the owner's "실서버도 올려"):
+
+- `793dd748` makes each migration query fail-safe: a failing UPDATE (e.g. a column missing on an old database) is logged and skipped instead of dropping `initDatabase` into its "no database" fallback. The production schema could not be read beforehand (blocked), hence the guard.
+- Merged into `main` as `0490810c` — tree identical to the branch tip — with no public rooms open at the time. Live about two minutes later.
+- Checked on lamdice.com: new URLs 200, legacy URLs 301, pages load with no failed responses, `deguri:shop:get` answers, `/api/statistics` shows `deguri: 29` (was the old key with 29) and the other games unchanged, so the database stayed connected and the play records moved.
+- Not checked on production: per-server 데구리 rankings (needs a login) and a played round (would write a real record).
+
 Still open:
 
-- **Production.** `main` had the same content as the branch before these two commits, so a normal merge brings both. It also releases the pile and runs the migration on the production database — do it only when the owner says so.
 - **Branch name** `feature/marble-run` needs the Railway deploy-branch setting changed by the owner.
 - **Other sessions and dev servers** started before the rename hold old paths in memory; restart them.
-- The migration block in `db/init.js` can be deleted once it has run in production.
+- The migration block in `db/init.js` can be deleted now that it has run in production.
