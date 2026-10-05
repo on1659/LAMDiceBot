@@ -138,12 +138,14 @@
 - **`var(--x, 예비값)` 금지** — 토큰이 정의돼 있으면 예비값은 필요 없고, 정의가 없으면 예비값이 조용히 라이트 값으로 굳는다(`--bg-subtle`·`--horse-100` 사례). 
 - **JS에서 색을 고를 때**: `'var(--alert-error)'`처럼 토큰 문자열을 넣는다.
 - **예외(리터럴 허용)**: 게임 그림·연출 — 캔버스 그리기(`ctx.fillStyle` 등), 스프라이트·SVG 그림(`js/horse-race-sprites.js`, `js/horse-race-fall-motion.js`), 트랙 하늘·잔디·결승선·날씨·이펙트, 룰렛 판 칸 팔레트, 사다리·데구리 캔버스, 색종이·메달, 꾸미기 아이템 그림. 그리고 로컬 전용 디버그 로그(`console.log` 스타일 포함), CSS `mask`처럼 색이 화면에 안 나오는 값, 미사용 게임(다리건너기·해적·회전칼날).
-- **점검**: 아래 집계에서 "UI" 숫자는 위 예외만 남아야 한다 (2026-10-03 기준 173 — 전부 예외).
+- **점검 — `/summit` 이 커밋 전에 자동으로 돌린다** (훅 아님). 기준선(`AutoTest/hardcoded-colors-baseline.json`, 2026-10-05 기준 4,679개 — 전부 위 예외)에 없는 **새 리터럴만** 잡는다. 기준선은 줄 번호가 아니라 줄 내용으로 맞추므로 다른 줄을 고쳐도 오탐이 안 난다.
 
 ```bash
-python3 <scratchpad>/orch/hc.py *.html css/*.css js/*.js js/shared/*.js pages/*.html
+node AutoTest/check-hardcoded-colors.js                  # 새 하드코딩 있으면 목록 + exit 1
+node AutoTest/check-hardcoded-colors.js --list           # 기준선 포함 전체
+node AutoTest/check-hardcoded-colors.js --update-baseline  # 게임 그림 예외를 새로 남길 때만
 ```
-(세션 스크래치 도구 — 없으면 `grep -nE "#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[0-9]" <파일>`에서 `--토큰: 값` 정의 줄과 `var(` 안쪽을 빼고 본다)
+UI 색이 걸리면 기준선에 넣지 말고 토큰으로 바꾼다.
 
 ---
 

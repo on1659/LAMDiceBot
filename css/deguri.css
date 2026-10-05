@@ -5,18 +5,16 @@
 
 :root {
     /* 게임 전용 토큰 */
-    --deguri-gradient: linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%);
     --deguri-50: rgba(var(--deguri-500-rgb), 0.08);
     --deguri-100: rgba(var(--deguri-500-rgb), 0.16);
     --deguri-200: rgba(var(--deguri-500-rgb), 0.24);
-    --deguri-sky: #bfe7ff;
 
     /* 게임 재질(--deguri-ink·paper·cream·wood-·gold- 계열)·고정색(--deguri-hud-cream/win-ink)은 css/theme.css [tokens:deguri] 섹션으로 옮겼다. 공용 부품(ControlBar·채팅·주문·준비·상점 모달)은 손대지 않는다 */
 
     /* horse-race.css가 사용하는 var(--horse-*)를 deguri 색으로 alias (C-4) */
-    --horse-500: var(--deguri-500);
-    --horse-600: var(--deguri-600);
-    --horse-700: var(--deguri-600);
+    --horse-500: var(--deguri-fill);
+    --horse-600: var(--deguri-fill-hover);
+    --horse-700: var(--deguri-fill-hover);
     --horse-accent: var(--deguri-accent);
     --horse-gradient: var(--deguri-gradient);
     --horse-50: var(--deguri-50);
@@ -82,17 +80,7 @@
 .mi-loading { width: 80px; height: 80px; margin: 0 auto 20px; display: block; animation: bounce 1s infinite; }
 
 /* 다크 모드(theme.css [data-theme="dark"]) — 재질 색을 어둡게 뒤집어 글자 대비 4.5:1 이상을 지킨다(밝은 크림 위 진한 글자 → 어두운 나무 위 밝은 글자) */
-[data-theme="dark"] {
-    /* 나무·종이 재질의 다크 값(무채 면)은 css/theme.css [tokens:deguri:dark] 섹션에 있다 */
-
-    /* 흰(밝은) 글자가 올라가는 바탕 — theme.css 다크의 --deguri-500(#5fc47a)은 어두운 면 위 글자·테두리용으로 밝아져 흰 글자가 안 읽힌다.
-       horse-race.css·horse-shop.css 의 --horse-500/600(내 이름표·상점 탭·장착 버튼·타깃 배너)과 --deguri-gradient(버튼)는 진한 초록으로 따로 둔다.
-       --horse-700 은 캔버스 위 크림 카드(.rank-vote-section.on-canvas) 안 글자색이라 같이 진하게. :root 뒤에 있어야 위 alias 를 덮는다 */
-    --horse-500: #3a7a4f;
-    --horse-600: #336c46;
-    --horse-700: var(--horse-600);
-    --deguri-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
-}
+/* 다크 값(재질 무채 면, 흰 글자 바탕 진한 초록 --deguri-fill, 버튼 그라디언트 --deguri-gradient)은 전부 css/theme.css [tokens:deguri] 섹션에 있다 */
 
 /* 다크: 페이지 바닥 (--deguri-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
 [data-theme="dark"] body {

@@ -1,31 +1,6 @@
 /* 데구리 구슬 뽑기 모달 (js/deguri-gacha.js, docs/goal/deguri-gacha.md)
    무대는 캔버스(논리 300×420) — 좁은 화면에서는 폭에 맞춰 비율 그대로 줄어든다. */
-:root {
-    --mgacha-dim: rgba(15, 23, 42, 0.62);
-    --mgacha-panel: #fffaf2;
-    --mgacha-stage-top: #bfe7ff;
-    --mgacha-stage-bottom: #8fd07a;
-    --mgacha-ink: #3b2a35;
-    --mgacha-sub: #7a6470;
-    --mgacha-common: var(--deguri-rarity-common);
-    --mgacha-rare: #3b82f6;
-    --mgacha-epic: #a855f7;
-    --mgacha-legend: #f59e0b;
-    --mgacha-pull: #e8483f;
-    --mgacha-pull-shadow: #b22e27;
-    --mgacha-chip-bg: rgba(255, 255, 255, 0.9);
-}
-/* 다크: 패널·글자는 css/deguri.css 의 재질 토큰(결과 카드와 같은 어두운 종이)을 따른다. 무대 바탕만 한 톤 가라앉히고, 기계·캡슐 그림과 등급색·뽑기 버튼은 그대로 */
-[data-theme="dark"] {
-    --mgacha-panel: var(--deguri-paper);
-    --mgacha-stage-top: #2b4a63;
-    --mgacha-stage-bottom: #2f5a3a;
-    --mgacha-ink: var(--deguri-ink);
-    --mgacha-sub: var(--deguri-muted);
-    --mgacha-chip-bg: rgba(42, 36, 25, 0.9);
-    --mgacha-pull: var(--fill-danger);   /* 흰 글자 4.5:1 — 라이트 #e8483f 는 다크에서 3.9:1 */
-    --mgacha-pull-shadow: #7a2f2d;
-}
+/* 색 토큰(--mgacha-*, 라이트·다크)은 css/theme.css [tokens:deguri] 섹션에 있다 */
 
 .mgacha-overlay {
     position: fixed; inset: 0; z-index: 1200;
