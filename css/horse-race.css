@@ -113,8 +113,8 @@
     color: var(--gray-700);
 }
 .game-status.ordering {
-    background: var(--status-warning-bg);
-    color: var(--status-warning-text);
+    background: var(--status-ordering-bg);
+    color: var(--status-ordering-text);
 }
 .game-status.playing {
     background: var(--status-success-bg);
