@@ -1418,7 +1418,7 @@ const ChatModule = (function () {
                 btn.id = 'rankingBtn';
                 btn.replaceChildren(UIIcons.el('trophy'), ' 랭킹');
                 btn.style.cssText = 'width:auto;margin:0;flex-shrink:0;background:var(--bg-white);border:1px solid currentColor;color:inherit;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
-                btn.addEventListener('click', () => RankingModule.show(_options.gameType));
+                btn.addEventListener('click', () => RankingModule.show());
                 titleEl.appendChild(btn);
             }
         }

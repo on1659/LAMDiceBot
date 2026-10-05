@@ -152,11 +152,11 @@ async function waitEntry(page, label) {
     if (btnBox) await pageA.click('#rankingBtn');
     else await pageA.evaluate(() => document.getElementById('rankingBtn').click());
     await pageA.waitForSelector('#ranking-overlay .rk-panel', { timeout: 8000 });
-    // 서브탭 분리(79fddea) 이후 경마 탭 기본 서브탭은 '경마 순위'다.
-    // show()가 열 때마다 _horseSubTab='rank' 로 리셋하므로(ranking-shared.js:90)
-    // 탈것 통계 테이블은 칩을 명시적으로 눌러야 렌더된다 — 실사용자 경로 그대로.
-    await pageA.waitForSelector('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]', { timeout: 8000 });
-    await pageA.click('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]');
+    // 통합 랭킹(docs/goal/applied/unified-ranking.md) — 팝업은 늘 '전체·순위'로 열린다.
+    // 탈것 통계는 경마 필터 칩 → (경마 순위가 있으면) '탈것 통계' 펼치기 — 실사용자 경로 그대로.
+    await pageA.locator('#ranking-filter-bar .rk-chip', { hasText: '경마' }).click({ timeout: 8000 });
+    await sleep(500);
+    if (await pageA.locator('.rk-vtoggle').count()) await pageA.click('.rk-vtoggle');
     await pageA.waitForSelector('.rk-vehicle-table', { timeout: 8000 });
     await sleep(700); // 테마 재렌더 안착
 
@@ -192,26 +192,24 @@ async function waitEntry(page, label) {
         const tds = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
         return { label: tds[0], app: parseInt(tds[1], 10), pick: tds[2], win: parseInt(tds[3], 10), low: tr.classList.contains('rk-low-sample') };
       }) : [];
-      // "탈것 통계" 라벨은 79fddea 에서 섹션 제목 → 서브탭 칩으로 이동했고,
-      // 칩 컨테이너(#ranking-horse-sub-tabs)는 #ranking-content 바깥이다.
-      // 따라서 라벨 존재는 오버레이 기준으로 확인한다 (구 제목 부재도 오버레이 전체로 확대 = 더 강한 단언).
+      // "탈것 통계" 라벨은 경마 필터 본문 안 — 펼치기 버튼(.rk-vtoggle) 또는 섹션 제목(경마 순위가 비었을 때)
       const overlay = document.getElementById('ranking-overlay');
-      const subTabs = document.getElementById('ranking-horse-sub-tabs');
-      const chip = subTabs && subTabs.querySelector('button[data-horse-sub="vehicles"]');
+      const chip = document.querySelector('#ranking-filter-bar .rk-chip.active');
+      const label = content.querySelector('.rk-vtoggle, .rk-section-title');
       return {
-        chipLabel: chip ? chip.textContent.trim() : null,
-        chipActive: !!(chip && chip.classList.contains('active')),
-        chipVisible: !!(subTabs && getComputedStyle(subTabs).display !== 'none'),
-        chipOutsideContent: !!(subTabs && content && !content.contains(subTabs)),
+        chipLabel: label ? label.textContent.trim() : null,
+        chipActive: !!(chip && chip.textContent.includes('경마')),
+        chipVisible: !!label,
+        chipOutsideContent: false,
         hasOldTitleAnywhere: overlay ? overlay.innerHTML.includes('탈것 등수 분포') : true,
         scrollWrapsTable: !!(scroll && scroll.contains(table)),
         ths, rows
       };
     });
     check(!!tbl.chipLabel && tbl.chipLabel.includes('탈것 통계') && tbl.chipVisible,
-      '[5] "탈것 통계" 라벨 노출 (서브탭 칩 — 섹션 제목에서 이동)',
+      '[5] "탈것 통계" 라벨 노출 (경마 필터 본문)',
       JSON.stringify({ label: tbl.chipLabel, visible: tbl.chipVisible, outsideContent: tbl.chipOutsideContent }));
-    check(tbl.chipActive, '[5] 탈것 통계 서브탭 활성 상태 (클릭 반영)', String(tbl.chipActive));
+    check(tbl.chipActive, '[5] 경마 필터 칩 활성 상태 (클릭 반영)', String(tbl.chipActive));
     check(!tbl.hasOldTitleAnywhere, '[5] 구 "탈것 등수 분포" 제목 부재 (오버레이 전체 기준)');
     check(tbl.scrollWrapsTable, '[5] .rk-table-scroll 이 테이블 래핑');
     check(tbl.ths.length === 10, '[5] 컬럼 10개 (탈것/출전/경기당 선택/승률/1~6등)', tbl.ths.join('|'));
@@ -459,69 +457,65 @@ async function waitEntry(page, label) {
           }
           return origFetch.apply(this, arguments);
         };
-        RankingModule.show('horse');
+        RankingModule.show();
       }, stubPayload);
       await page.waitForSelector('#ranking-overlay', { timeout: 8000 });
       await sleep(1000);
-      // 서브탭 분리 이후 show('horse')는 '경마 순위'를 렌더한다 —
-      // 탈것 표 분기(renderHorseVehicles)를 검사하려면 칩을 눌러 서브탭을 전환해야 한다.
-      // (칩이 없는 payload 분기도 있으므로 존재할 때만 클릭하고, 클릭 여부를 기록해 무음 통과를 막는다)
-      const switched = await page.evaluate(() => {
-        const b = document.querySelector('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]');
-        if (!b) return false;
-        b.click();
-        return true;
+      // 경마 필터 칩 → (펼치기 버튼이 있으면) 탈것 통계 펼침. 칩이 없는 payload 분기도 있어
+      // 무엇을 눌렀는지 기록해 assertFn 이 단언한다 (무음 통과 방지)
+      const nav = await page.evaluate(() => {
+        const chip = [...document.querySelectorAll('#ranking-filter-bar .rk-chip')].find(b => b.textContent.includes('경마'));
+        if (!chip) return { chip: false, toggle: false };
+        chip.click();
+        return { chip: true, toggle: false };
       });
-      check(switched, label + ' 탈것 통계 서브탭 진입', 'chipFound=' + switched);
+      await sleep(600);
+      if (nav.chip) nav.toggle = await page.evaluate(() => { const t = document.querySelector('.rk-vtoggle'); if (t) t.click(); return !!t; });
       await sleep(1200);
       const result = await page.evaluate(() => document.getElementById('ranking-content') ? document.getElementById('ranking-content').innerHTML : '');
-      assertFn(result, errs);
+      assertFn(result, errs, nav);
     });
     await ctx.close();
   }
 
-  const baseStub = {
-    serverType: 'public',
-    overall: { mostPlayed: [], mostWins: [], winRate: [], avgRank: [] },
-    dice: { winners: [], players: [] }, roulette: { winners: [], players: [] },
-    ladder: { winners: [], players: [] }, 'spin-arena': { winners: [], players: [] },
-    pirate: { winners: [], players: [] }, orders: null
-  };
+  // 통합 랭킹 응답 형태 — players: [{ name, byGame: { [gameType]: { games, wins } } }]
+  const baseStub = { serverType: 'public', players: [], vehicles: [], orders: null };
 
-  // 3-1. 저표본(출전<5) → 기록 부족 라벨 + 딤 처리
+  // 3-1. 저표본(출전<5) → 기록 부족 라벨 + 딤 처리 (경마 순위가 비어 표가 펼친 채로 나온다)
   await stubbedHorseRender(
-    Object.assign({}, baseStub, { horseRace: { winners: [], vehicles: [
+    Object.assign({}, baseStub, { vehicles: [
       { id: 'car', appearances: 3, picks: 2, ranks: [1, 0, 1, 0, 1, 0] },
       { id: 'rocket', appearances: 20, picks: 15, ranks: [10, 3, 3, 2, 1, 1] }
-    ] } }),
+    ] }),
     '[5b] 저표본',
-    (html, errs) => {
+    (html, errs, nav) => {
+      check(nav.chip, '[5b] 탈것 기록만 있어도 경마 필터 칩 노출', JSON.stringify(nav));
       check(html.includes('기록 부족'), '[5b] 출전<5 → "기록 부족" 라벨');
       check(html.includes('rk-low-sample'), '[5b] 저표본 행 딤 클래스');
       check(errs.length === 0, '[5b] 저표본 렌더 에러 0', errs.slice(0, 2).join(' | '));
     }
   );
 
-  // 3-2. vehicles 빈 배열 → 테이블 없이 우아한 렌더 (DB-less 트레이드오프 수용 확인)
+  // 3-2. 기록도 탈것도 없음 → 경마 칩 자체가 없고 전체 빈 안내
   await stubbedHorseRender(
-    Object.assign({}, baseStub, { horseRace: { winners: [], vehicles: [] } }),
-    '[5c] 빈 vehicles',
-    (html, errs) => {
-      check(!html.includes('rk-vehicle-table'), '[5c] 빈 vehicles → 테이블 미표시');
-      // 서브탭에 진입한 상태에서의 단언이므로 "테이블 없음"만으로는 공허하다 —
-      // 탈것 전용 빈 안내가 실제로 렌더되는지까지 확인한다.
-      check(html.includes('아직 탈것 기록이 없습니다'), '[5c] 빈 vehicles → 탈것 전용 빈 안내 표시');
-      check(errs.length === 0, '[5c] 빈 vehicles 렌더 에러 0', errs.slice(0, 2).join(' | '));
+    baseStub,
+    '[5c] 빈 기록·빈 vehicles',
+    (html, errs, nav) => {
+      check(!nav.chip, '[5c] 고를 게임이 없으면 경마 칩 미노출', JSON.stringify(nav));
+      check(!html.includes('rk-vehicle-table'), '[5c] 테이블 미표시');
+      check(html.includes('아직 기록이 없습니다'), '[5c] 전체 빈 안내 표시');
+      check(errs.length === 0, '[5c] 렌더 에러 0', errs.slice(0, 2).join(' | '));
     }
   );
 
-  // 3-3. horseRace 필드 자체 부재 (시즌 뷰 payload) → TypeError 없이 빈 안내
+  // 3-3. vehicles 필드 부재 (지난 시즌 payload) + 경마 기록 있음 → 순위만, 탈것 통계 없음
   await stubbedHorseRender(
-    baseStub,
-    '[5d] horseRace 부재',
-    (html, errs) => {
-      check(html.includes('아직 경마 기록이 없습니다'), '[5d] horseRace 부재 → 빈 안내 (if(!d) 가드)');
-      check(errs.length === 0, '[5d] horseRace 부재 렌더 에러 0 (TypeError 가드)', errs.slice(0, 2).join(' | '));
+    { players: [{ name: 'qa', byGame: { horse: { games: 3, wins: 1 } } }], season: 2 },
+    '[5d] vehicles 부재',
+    (html, errs, nav) => {
+      check(nav.chip && !nav.toggle, '[5d] 경마 칩은 있고 탈것 통계 펼치기는 없음', JSON.stringify(nav));
+      check(html.includes('rk-row') && !html.includes('rk-vehicle-table'), '[5d] 경마 순위만 렌더');
+      check(errs.length === 0, '[5d] vehicles 부재 렌더 에러 0 (TypeError 가드)', errs.slice(0, 2).join(' | '));
     }
   );
 
