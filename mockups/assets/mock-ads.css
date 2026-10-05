@@ -1,0 +1,41 @@
+/* 목업 22·23 공용 광고 층 — 실서버 크기를 그대로 옮긴 자리 표시(2026-10-06 lamdice.com 실측).
+   폰(≤720): 본문 배너 화면 폭×375, 구글 자동광고 앵커 338px 고정, 게임 하단 고정 320×50(칸 84px).
+   PC: 본문 auto 배너 칸 폭×280, horizontal 728×90, 게임 하단 고정 728×90(칸 124px). 앵커 없음. */
+:root{--mock-ad-bottom:0px;--mock-ad-line:rgba(120,120,120,.38);--mock-ad-fill:rgba(120,120,120,.10);--mock-ad-fill-2:rgba(120,120,120,.04);--mock-ad-text:rgba(90,90,90,.85);--mock-ad-surface:#fff}
+:root[data-theme=dark]{--mock-ad-line:rgba(200,200,200,.28);--mock-ad-fill:rgba(200,200,200,.10);--mock-ad-fill-2:rgba(200,200,200,.03);--mock-ad-text:rgba(220,220,220,.7);--mock-ad-surface:#1c1e21}
+html.mock-ads-off .mock-ad,html.mock-ads-off .mock-anchor,html.mock-ads-off .mock-sticky{display:none!important}
+
+/* 본문 배너 (실서버 .ad-container) */
+.mock-ad{margin:20px auto;padding:12px;text-align:center;box-sizing:border-box}
+.mock-ad-label,.mock-sticky-label{display:block;font:600 10px/1.4 system-ui,sans-serif;letter-spacing:.5px;color:var(--mock-ad-text);margin-bottom:6px}
+.mock-ad-box,.mock-sticky-box,.mock-anchor-box{display:grid;place-items:center;box-sizing:border-box;border:1px dashed var(--mock-ad-line);background:repeating-linear-gradient(135deg,var(--mock-ad-fill) 0 10px,var(--mock-ad-fill-2) 10px 20px);color:var(--mock-ad-text);font:600 12px/1.3 system-ui,sans-serif}
+.mock-ad[data-format=auto] .mock-ad-box{width:100%;height:280px}
+.mock-ad[data-format=horizontal]{max-width:752px}
+.mock-ad[data-format=horizontal] .mock-ad-box{width:100%;max-width:728px;height:90px;margin:0 auto}
+@media (max-width:720px){
+  /* data-full-width-responsive — 폰에서는 화면 폭 정사각으로 뜬다 */
+  .mock-ad{padding:8px 0;margin:20px calc(50% - 50vw);width:100vw;max-width:none!important}
+  .mock-ad .mock-ad-box{width:100vw!important;max-width:none!important;height:375px!important;border-left:0;border-right:0}
+}
+
+/* 게임 페이지 하단 고정 광고 (실서버 .ad-sticky) — 경주 중 숨김, ✕ 로 닫기 */
+.mock-sticky{position:fixed;left:0;right:0;bottom:0;z-index:900;padding:2px 4px;text-align:center;background:var(--mock-ad-surface);border-top:1px solid var(--mock-ad-line);box-shadow:0 -2px 8px rgba(0,0,0,.12)}
+.mock-sticky-label{line-height:24px;margin:0}
+.mock-sticky-close{min-width:0;min-height:0;position:absolute;top:0;right:4px;width:44px;height:24px;padding:0;border:0;background:transparent;color:var(--mock-ad-text);font-size:16px;line-height:24px;cursor:pointer}
+.mock-sticky-box{width:320px;height:50px;margin:0 auto}
+@media (min-width:500px){.mock-sticky{padding:4px 8px}.mock-sticky-box{width:468px;height:60px}}
+@media (min-width:800px){.mock-sticky-box{width:728px;height:90px}}
+html.mock-race-running .mock-sticky,.mock-sticky.is-closed{display:none}
+
+/* 구글 자동광고 앵커 — 폰에서만, 대시보드에서만 끌 수 있음. ∨ 로 접으면 탭만 남는다 */
+.mock-anchor{display:none;position:fixed;left:0;right:0;bottom:0;z-index:2147483000;height:338px;background:#fff;box-shadow:0 -1px 6px rgba(0,0,0,.18)}
+@media (max-width:720px){.mock-anchor{display:block}}
+.mock-anchor-box{position:absolute;inset:5px 0 20px;border:0;color:#666;background:repeating-linear-gradient(135deg,#f4f4f4 0 10px,#fbfbfb 10px 20px)}
+.mock-anchor-fold{min-width:0;min-height:0;position:absolute;left:0;top:-25px;width:56px;height:25px;border:0;border-radius:0 8px 0 0;background:#fff;box-shadow:0 -1px 4px rgba(0,0,0,.18);color:#444;font-size:18px;line-height:25px;cursor:pointer;padding:0}
+.mock-anchor.is-folded{height:0}
+.mock-anchor.is-folded .mock-anchor-box{display:none}
+.mock-anchor.is-folded .mock-anchor-fold{transform:none}
+.mock-anchor-fold span{display:inline-block;transition:transform .15s}
+.mock-anchor.is-folded .mock-anchor-fold span{transform:rotate(180deg)}
+
+/* 광고 켜기/끄기 버튼(목업 바) 활성 표시는 각 목업의 aria-pressed 스타일을 따른다 */

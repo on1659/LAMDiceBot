@@ -94,10 +94,14 @@ dialog{width:min(100%,520px);max-width:100%;max-height:calc(100dvh - 24px);margi
 }
 @media(max-width:720px) and (prefers-reduced-motion:reduce){dialog[open]{animation:none}}
 @media(max-width:360px){.app{padding-inline:12px}.header{gap:7px}.brand{font-size:14px}.mobile-scope{font-size:16px;padding-left:9px}.summary-panel{padding-inline:10px}.rank-line{gap:5px}.rank-line small{font-size:10px}.member-chip{padding:6px}.work-update small{display:block;margin:0}.create-game{padding-inline:8px}.room-actions{gap:0}}
+/* 광고 자리 — 실서버 위치(본문 ①열린 방 다음 ②맨 아래)와 폰 하단 고정 광고 위로 올라서는 게임 만들기 */
+body{padding-bottom:var(--mock-ad-bottom,0px)}
+@media(max-width:720px){.home-ad-1{grid-row:2}.work-summary{grid-row:3}.work-activity{grid-row:4}.work-update{grid-row:5}.home-ad-2{grid-row:6}.create-dock{bottom:var(--mock-ad-bottom,0px)}}
 </style>
+<link rel="stylesheet" href="/mockups/assets/mock-ads.css">
 </head>
 <body>
-<div id="mockBar"><div class="preview-links"><a href="/22" aria-current="page">22 홈</a><a href="/23">23 게임방</a><span>원안</span><a href="/15">15</a><a href="/18">18</a><a href="/main">목록</a></div><div class="preview-controls"><button data-state="new" aria-pressed="true">처음</button><button data-state="return" aria-pressed="false">단골</button><button data-state="member" aria-pressed="false">로그인</button><button id="ownerState" aria-pressed="false">관리자</button><button id="darkToggle" aria-pressed="false">다크</button></div></div>
+<div id="mockBar"><div class="preview-links"><a href="/22" aria-current="page">22 홈</a><a href="/23">23 게임방</a><span>원안</span><a href="/15">15</a><a href="/18">18</a><a href="/main">목록</a></div><div class="preview-controls"><button data-state="new" aria-pressed="true">처음</button><button data-state="return" aria-pressed="false">단골</button><button data-state="member" aria-pressed="false">로그인</button><button id="ownerState" aria-pressed="false">관리자</button><button id="darkToggle" aria-pressed="false">다크</button><button type="button" data-mock-ads-toggle aria-pressed="true">광고</button></div></div>
 <div class="app">
 <header class="header"><div class="brand"><img src="/mockups/assets/ic-dice.png" alt="">LAMDice</div><span class="workspace-caption">모임 작업대 <small>예시</small></span><button id="mobileScope" class="mobile-scope phone-only" aria-label="서버 선택"><span id="mobileScopeText" tabindex="-1">점심친구</span><span aria-hidden="true">⌄</span></button><div class="header-tools"><button class="feature-trigger pc-only" data-feature="settings" aria-label="화면·소리"><img src="/mockups/assets/ic-sparkle.png" alt=""></button><button class="feature-trigger pc-only" data-feature="menu" aria-label="계정과 전체 메뉴"><img src="/mockups/assets/ic-person.png" alt="">계정·메뉴</button><button class="feature-trigger phone-only" data-feature="menu" aria-label="계정과 전체 메뉴">메뉴</button></div></header>
 <main id="entry" class="entry workspace-entry">
@@ -108,8 +112,10 @@ dialog{width:min(100%,520px);max-width:100%;max-height:calc(100dvh - 24px);margi
  <aside class="server-rail" aria-label="모임 바로가기"><div class="rail-label">내 모임</div><div id="workspaceServers" class="rail-list"></div><button id="scope" class="scope"><img src="/mockups/assets/ic-people.png" alt="">서버 변경<span aria-hidden="true">⌄</span></button><div class="rail-bottom"><button data-feature="manage">서버 관리</button><button data-feature="help">사용법·도움말</button></div></aside>
  <div class="work-main"><div class="work-heading"><div><h1 id="scopeText" tabindex="-1">자유 방</h1><p id="scopeNote" class="scope-note">팀 기록 없음</p></div><button data-feature="manage" id="manageScope" hidden>관리</button><span class="example-badge">예시</span></div>
  <section class="lobby-rooms" aria-labelledby="roomsTitle"><div class="rooms-heading"><h2 id="roomsTitle">열린 방 <span id="roomCount">2</span></h2><div class="room-actions"><button data-feature="lobbytools" class="room-search" aria-label="방 찾기"><img class="pc-only" src="/mockups/assets/ic-refresh.png" alt=""><svg class="phone-only" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>찾기</button><button id="createRoom" class="create-game"><span aria-hidden="true">+</span> 게임 만들기</button></div></div><div class="row-labels" aria-hidden="true"><span>방 이름 · 게임</span><span>참여</span></div><div id="lobbyRoomList" class="list"></div></section>
+ <div class="mock-ad home-ad-1" data-format="auto"></div>
  <section class="work-activity" aria-labelledby="activityTitle"><div class="summary-head"><h2 id="activityTitle">최근 기록</h2><button data-feature="history" aria-label="모임 기록 전체 보기">전체 보기 <span aria-hidden="true">›</span></button></div><div id="activitySummary" class="activity-summary"></div></section>
  <section class="work-update" aria-labelledby="updateTitle"><img src="/mockups/assets/ic-book.png" alt=""><div><h2 id="updateTitle">업데이트</h2><p>화면 스킨 6종 지원 <small>10.03</small></p></div><button data-feature="updates" aria-label="업데이트 자세히 보기">보기 <span aria-hidden="true">›</span></button></section>
+ <div class="mock-ad home-ad-2" data-format="horizontal"></div>
  </div>
  <aside class="work-summary" aria-label="모임 요약"><section class="summary-panel rank-summary"><div class="summary-head"><h2><span id="rankSummaryTitle" class="pc-only">이번 시즌</span><span id="rankSummaryTitleM" class="phone-only">랭킹</span></h2><button data-feature="ranking" aria-label="랭킹 자세히 보기"><span class="pc-only">랭킹</span><span class="phone-only">전체</span> <span aria-hidden="true">›</span></button></div><div id="rankSummary" class="compact-ranks"></div></section><section class="summary-panel members-summary"><div class="summary-head"><h2><span class="pc-only">함께하는 사람</span><span class="phone-only">멤버</span></h2><button data-feature="members" aria-label="멤버 전체 보기"><span class="pc-only">멤버</span><span class="phone-only">전체</span> <span aria-hidden="true">›</span></button></div><div id="memberSummary" class="member-summary"></div></section><div class="summary-foot">예시 기록 · 실제 연결 없음</div></aside>
  <button id="lobbyTab" hidden>방 목록</button>
@@ -283,5 +289,7 @@ $('dialog').addEventListener('close',syncWorkspace);
 // PC는 15번처럼 처음 화면, 폰은 18번처럼 서버를 고른 로비에서 시작한다.
 if(phone()){name=EXAMPLE_NAME;member=true;scope=SERVERS[0];home();}else entry();
 </script>
+<script src="/mockups/assets/mock-ads.js"></script>
+<script>MockAds.init({sticky:false});</script>
 </body>
 </html>
