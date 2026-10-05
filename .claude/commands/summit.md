@@ -24,6 +24,16 @@ git log --oneline --encoding=utf-8 -10
 
 변경된 파일과 최근 커밋을 확인하여 어떤 작업이 진행되었는지 파악한다.
 
+## Step 1-1: 하드코딩 색 검사 (커밋 전 필수)
+
+```bash
+node AutoTest/check-hardcoded-colors.js
+```
+
+- ✅ 이면 다음 단계로.
+- ❌ 이면 **로그 작성·커밋을 멈추고** 출력 목록(파일:줄, 리터럴)을 사용자에게 보여준다. UI 색이면 `css/theme.css` 토큰으로 바꾼 뒤 다시 돌린다 (규칙: `docs/GameGuide/02-shared-systems/THEME-DARK.md` 5-1절).
+- 게임 그림·연출(캔버스·스프라이트·이펙트)이라 예외로 남길 때만 `node AutoTest/check-hardcoded-colors.js --update-baseline` 로 기준선을 갱신하고, 바뀐 `AutoTest/hardcoded-colors-baseline.json` 도 같이 커밋한다. 판단이 애매하면 사용자에게 묻는다.
+
 ## Step 2: update-log.txt 작성 (유저 공개용)
 
 update-log.txt 파일 **최상단**에 새 업데이트 내역을 추가한다.
