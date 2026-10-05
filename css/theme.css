@@ -383,6 +383,11 @@
   --order-explainer-bg: linear-gradient(135deg,#fff8e1 0%,#fff3e0 100%);  /* 랜덤 모드 설명 상자 */
   --order-toggle-on-line: #ffa000;
   --order-pool-bg: #f8fafc;        /* 랜덤 대상 메뉴 풀 상자 */
+  /* 주문받기 칸(내 주문 상자·주문 안 한 사람)과 '주문받기 진행 중' 상태 줄 — 라이트는 노랑 강조, 다크는 무채 */
+  --order-panel-bg: var(--yellow-50);
+  --order-panel-border: var(--yellow-500);
+  --status-ordering-bg: var(--status-warning-bg);
+  --status-ordering-text: var(--status-warning-text);
   /* 자유 초대 (free-invite.js) */
   --fi-soft-bg: #f5f7fa;
   --fi-close-line: #e9ecef;
@@ -892,6 +897,10 @@
   --order-explainer-bg: var(--yellow-50);
   --order-toggle-on-line: var(--yellow-400);
   --order-pool-bg: var(--gray-50);
+  --order-panel-bg: var(--gray-100);
+  --order-panel-border: var(--border-color);
+  --status-ordering-bg: var(--gray-100);
+  --status-ordering-text: var(--text-secondary);
   --fi-soft-bg: var(--gray-100);
   --fi-close-line: var(--border-color);
   --fi-bar-ink: var(--purple-700);
