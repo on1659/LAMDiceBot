@@ -8,7 +8,7 @@
 //
 // 확인 항목
 //   1. 자유 방 링크 → 방 이름·게임·게임별 og:image가 주입된다
-//   2. 참가자 수가 description에 반영된다
+//   2. description은 게임 이름이 든 무작위 문구이고 인원수는 안 나온다 (미리보기는 전송 시점에 1회 캐시)
 //   3. 만료/없는 방 → 기본 메타로 폴백
 //   4. 서버 방 경로(/{game}/{code})에서도 방 이름과 게임별 카드가 나온다
 //      (2026-08-24 결정 — 비공개 서버 방 이름도 링크 소지자에게는 보인다)
@@ -75,15 +75,15 @@ function createRoom(socket, gameSlug, userName) {
         ogImage(html).endsWith('/assets/og/horse.jpg'), ogImage(html));
     check('자유 방 — 기본 메타 마커가 사라진다', !isDefaultMeta(html));
 
-    // ── 2) 호스트 입장 후 참가자 수 반영
+    // ── 2) 호스트 입장 후에도 description은 게임 이름이 든 문구이고 인원수는 안 나온다
     await new Promise(resolve => {
         socket.once('roomJoined', resolve);
         socket.emit('joinRoom', { roomId: room.roomId, userName: '민수', isHost: true });
         setTimeout(resolve, 3000);
     });
     html = await get(`${BASE}/free/horse/${room.shortcode}`);
-    check('자유 방 — description에 참가자 수가 반영된다',
-        /지금 \d+명 있어요/.test(ogDesc(html)), ogDesc(html));
+    check('자유 방 — description에 게임 이름이 들어가고 인원수는 없다',
+        ogDesc(html).includes('경마') && !/\d+명/.test(ogDesc(html)), ogDesc(html));
 
     // ── 3) 없는 방 → 기본 메타
     html = await get(`${BASE}/free/horse/ZZZZZ`);

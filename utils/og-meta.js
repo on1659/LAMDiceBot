@@ -32,6 +32,20 @@ const GAME_LABELS = {
     deguri:       '데구리'
 };
 
+// 링크 미리보기 문구 — 요청마다 하나를 무작위로 고른다 (도발·설득 섞어서).
+// 인원수는 넣지 않는다: 메신저는 방장이 링크를 보내는 순간 미리보기를 한 번만
+// 가져가므로 그때는 항상 방장 1명이고, 이후 입장해도 갱신되지 않는다.
+const DESCRIPTIONS = [
+    label => `${label} 한 판 뜰 사람? 지면 핑계 금지.`,
+    label => `${label}에서 실력 좀 보자. 안 들어오면 쫄은 걸로.`,
+    label => `${label} 방장이 기다리는 중. 도망칠 거면 지금.`,
+    label => `오늘 ${label} 꼴찌는 누구? 들어와서 확인해 봐.`,
+    label => `${label} 1등 자리 비어 있음. 주인 찾는 중.`,
+    label => `딱 ${label} 한 판만. 설치도 가입도 없이 누르면 끝.`,
+    label => `${label} 방 열렸어요. 한 판이면 충분해요, 진짜로.`,
+    label => `${label} 한 판 진다고 큰일 안 나요. 아마도.`
+];
+
 // free.html 캐시 — mtime이 바뀌면 다시 읽는다 (dev에서 편집 즉시 반영).
 let htmlCache = { mtimeMs: 0, content: null };
 
@@ -86,10 +100,7 @@ function buildRoomMeta(game, urlPath, room) {
         ? `${roomName} · ${label} - LAMDice`
         : `${label} 방 - LAMDice`;
 
-    const users = room.gameState && Array.isArray(room.gameState.users) ? room.gameState.users : [];
-    const description = users.length > 0
-        ? `${label} 방이에요. 지금 ${users.length}명 있어요. 링크를 누르면 바로 들어갈 수 있어요.`
-        : `${label} 방이에요. 링크를 누르면 바로 들어갈 수 있어요.`;
+    const description = DESCRIPTIONS[Math.floor(Math.random() * DESCRIPTIONS.length)](label);
 
     return {
         title,
