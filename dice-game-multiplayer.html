@@ -1966,7 +1966,7 @@
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none;">
-                <button class="btn-ghost" onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();">← 서버 목록</button>
+                <button class="btn-ghost" onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.href = '/';">← 서버 목록</button>
                 <span id="serverInfoName"></span>
                 <span id="serverInfoUserName" style="display: none;"><i class="ui ui-person"></i> </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()"><i class="ui ui-people"></i> 멤버</button>
@@ -2470,7 +2470,7 @@
             onServerSelect: function () {
                 sessionStorage.removeItem('diceSession');
                 sessionStorage.removeItem('diceActiveRoom');
-                window.location.reload();
+                window.location.href = '/';   // /free 에서 새로고침하면 주소 때문에 자유 로비로 되돌아간다 — 서버 목록 주소로 간다
             },
             onLobby: function () {
                 document.getElementById('createRoomSection').classList.remove('active');
