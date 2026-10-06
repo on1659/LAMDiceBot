@@ -172,6 +172,7 @@ const WINDHALL_FAN_BAND = 120;         // 바람 복도 선풍기 띠 — 3대�
 const PEND_LEN = 140, PEND_AMP_DEG = 50, PEND_PERIOD_MS = 2600, PEND_R = 20;   // 진자 통나무: 밧줄·진폭·주기·통나무 반지름(LOG_R). 끝 속도 ≈ 295px/s
 const PISTON_EXT = 200, PISTON_HEAD = 24, PISTON_H = 64, PISTON_PERIOD_MS = 3000, PISTON_OUT_MS = 1200;   // 밀대: 돌출·머리 폭·머리 높이·주기·왕복 시간(나머지는 들어가 있음). 최대 523px/s
 const TRAMP_E = 1.15, TRAMP_KICK = 80;   // 트램펄린: 반발(1 넘으면 온 것보다 높이, MAX_SPEED 캡)·튈 때 좌우 시드 킥(기울기와 함께 제자리 무한 튕김 방지)
+const TRAMP_LIFE_MIN = 3, TRAMP_LIFE_MAX = 5;   // 트램펄린 한 장이 버티는 튕김 수 — 장마다 이 사이 랜덤(맵 시드). life 번째에 찢어져 없어지고 그 뒤로는 그냥 떨어진다(사용자 2026-10-06: 200 길이로 판당 27번 튕겨 너무 오래 붙잡았다 → 3번 고정 → 3~5번 랜덤). 조각에 life 로 실어 클라가 찢어짐을 그린다
 const GUST_PERIOD_MS = 2400, GUST_ON_MS = 1200, GUST_ACCEL = 900, GUST_DIRS = 64;   // 돌풍: 주기·부는 시간·가속·방향 수열 길이(트랙 만들 때 시드로 뽑아 조각에 싣는다)
 const QUAKE_PERIOD_MS = 3500, QUAKE_DUR_MS = 700, QUAKE_VX = 500, QUAKE_VY = 300;   // 지진: 주기·흔들리는 시간·시작 순간 킥(좌우 ±VX/2, 위로 0~VY)
 // 구멍 앞 몸싸움(연출, 순위 무관): 닫힌 뚜껑 위에 둘 이상이 멈춰 기다리면 구멍 중심에 가장 가까운 둘이 서서 밀어내기 → 뚜껑이 열리면 화들짝 낙하
@@ -496,11 +497,12 @@ function pistonsSection(top) {
     return { pieces: p, height: H, bounds: [{ y1: top + 80, y2: top + 520, x1: 250, x2: 550 }] };
 }
 // 트램펄린 — 살짝 기운 천 둘. 닿으면 온 것보다 높이 튀고 좌우로 조금 흔들려 결국 안쪽 끝으로 굴러 떨어진다
-function trampolinesSection(top) {
+function trampolinesSection(top, rng) {
     const p = [], decor = decorFn(p, top), H = SECTION_H.trampolines;
+    const life = () => TRAMP_LIFE_MIN + Math.floor(rng() * (TRAMP_LIFE_MAX - TRAMP_LIFE_MIN + 1));   // 모듈 서브 rng — 다른 모듈 배치는 안 바뀐다
     sideWalls(wallFn(p), top, H);
-    p.push({ kind: 'trampoline', x1: 200, y1: top + 180, x2: 400, y2: top + 200, e: TRAMP_E });
-    p.push({ kind: 'trampoline', x1: 400, y1: top + 380, x2: 600, y2: top + 360, e: TRAMP_E });
+    p.push({ kind: 'trampoline', x1: 200, y1: top + 180, x2: 400, y2: top + 200, e: TRAMP_E, life: life() });
+    p.push({ kind: 'trampoline', x1: 400, y1: top + 380, x2: 600, y2: top + 360, e: TRAMP_E, life: life() });
     decor('bush-big', 80, 300); decor('tree', 730, 120);
     return { pieces: p, height: H };
 }
@@ -779,7 +781,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp|quake
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp(n = 그 천의 몇 번째 튕김, life 면 찢어짐)|quake
  *              scuffle/scuffleEnd 는 ball 대신 { a, b, hole } (a = 왼쪽 공). scuffleEnd.startled = 뚜껑이 열려 떨어진 것(→ land.dizzy)
  */
 async function simulate(balls, seed, track, opts) {
@@ -818,7 +820,7 @@ async function simulate(balls, seed, track, opts) {
             case 'shutter': shutters.push(pc); break;
             case 'pendulum': pendulums.push(pc); break;
             case 'piston': pistons.push(pc); break;
-            case 'trampoline': trampolines.push(pc); break;
+            case 'trampoline': trampolines.push({ pc, hits: 0 }); break;   // 튕긴 수는 조각(pc)에 적지 않는다 — 조각은 타임라인에 그대로 실려 클라로 간다
             case 'gust': gusts.push(pc); break;
             case 'quake': quakes.push(pc); break;
             case 'spring': springs.push({ pc, readyAt: 0, onSince: -1 }); break;
@@ -1237,10 +1239,11 @@ async function simulate(balls, seed, track, opts) {
                 collideSegmentVel(t, b, ps.x, top, fx, top, WALL_RESTITUTION, ps.dir * o.v, 0);
                 collideSegmentVel(t, b, ps.x, bot, fx, bot, WALL_RESTITUTION, ps.dir * o.v, 0);
             }
-            for (const tr of trampolines) {   // 트램펄린: 반발 1 넘는 선분. 내려오다 튀어 오른 순간 좌우 시드 킥 + 이벤트(천 연출)
+            for (const tw of trampolines) {   // 트램펄린: 반발 1 넘는 선분. 내려오다 튀어 오른 순간 좌우 시드 킥 + 이벤트(천 연출). life 번째 튕김 뒤로는 찢어져 없다
+                const tr = tw.pc; if (tw.hits >= tr.life) continue;
                 if (b.y < Math.min(tr.y1, tr.y2) - BALL_R - 4 || b.y > Math.max(tr.y1, tr.y2) + BALL_R + 4 || b.x < tr.x1 - BALL_R || b.x > tr.x2 + BALL_R) continue;
                 const vy0 = b.vy;
-                if (collideSegment(t, b, tr.x1, tr.y1, tr.x2, tr.y2, tr.e) && vy0 > 150 && b.vy < 0) { b.vx += (rng() - 0.5) * 2 * TRAMP_KICK; pushEvent(t, 'tramp', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
+                if (collideSegment(t, b, tr.x1, tr.y1, tr.x2, tr.y2, tr.e) && vy0 > 150 && b.vy < 0) { tw.hits++; b.vx += (rng() - 0.5) * 2 * TRAMP_KICK; pushEvent(t, 'tramp', b, { x: Math.round(b.x), y: Math.round(b.y), n: tw.hits }); }   // n = 이 천이 몇 번째로 튕겼나(= life 면 찢어짐)
             }
             for (const sh of shutters) {   // 셔터 문: 닫혀 있는 동안(여닫는 중 포함) 문 선이 벽. 열리면 그냥 떨어진다
                 if (Math.abs(b.y - sh.y1) > BALL_R + 4 || b.x < sh.x1 - BALL_R || b.x > sh.x2 + BALL_R || lidCover(sh, t) <= 0) continue;

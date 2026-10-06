@@ -477,6 +477,336 @@
     z-index: 2;
 }
 
+/* ===== 다시 보기 조작줄 + GIF 녹화 (데구리 단독판 3a8c02e 역반영 — js/deguri.js setReplayUi, js/deguri-replay-gif.js) =====
+   캔버스 박스 바로 아래 나무 띠, 다시 보기 중에만. 좁으면 GIF 쪽이 다음 줄로 내려간다.
+   이 페이지는 Tailwind preflight·horse-race.css 전역 button 규칙(폭 100%·여백·hover 들뜸)이 새므로 버튼마다 폭·여백·바탕·hover 를 전부 준다(C-42·C-50) */
+.deguri-replay-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 2px solid var(--deguri-wood-line);
+    border-radius: 12px;
+    background: var(--deguri-cream);
+    box-shadow: 0 3px 0 var(--deguri-wood-edge);
+    color: var(--deguri-ink);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    line-height: 1.2;
+}
+.deguri-replay-bar[hidden] { display: none; }
+.deguri-replay-bar__btn {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--deguri-wood-line);
+    border-radius: 50%;
+    background: var(--deguri-paper);
+    color: var(--deguri-ink);
+    box-shadow: 0 2px 0 var(--deguri-wood-edge);
+    cursor: pointer;
+}
+.deguri-replay-bar__btn:hover {
+    transform: none;
+    border-color: var(--deguri-gold-deep);
+    background: var(--deguri-gold);
+    color: var(--deguri-gold-ink);
+    box-shadow: 0 2px 0 var(--deguri-wood-edge);
+}
+.deguri-replay-bar__btn:active { transform: translateY(2px); box-shadow: none; }
+.deguri-replay-bar__btn:focus-visible,
+.deguri-gif-button:focus-visible,
+.deguri-gif-cancel:focus-visible,
+.deguri-gif-area__full:focus-visible { outline: 3px solid var(--deguri-gold-deep); outline-offset: 2px; }
+/* 멈춤 아이콘은 아틀라스에 없어 두 막대를 CSS 로, 멈춘 동안(is-paused)은 재생 삼각형 */
+.deguri-replay-bar__glyph {
+    display: block;
+    width: 12px;
+    height: 14px;
+    border-left: 4px solid currentColor;
+    border-right: 4px solid currentColor;
+}
+.deguri-replay-bar__btn.is-paused .deguri-replay-bar__glyph {
+    width: 0;
+    height: 0;
+    margin-left: 4px;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 13px solid currentColor;
+    border-right: 0;
+}
+.deguri-replay-bar__track {
+    position: relative;
+    display: flex;
+    flex: 1 1 160px;
+    align-items: center;
+    min-width: 120px;
+    height: 36px;
+}
+.deguri-replay-seek {   /* theme.css 의 input 바탕(--bg-white)을 걷는다 */
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    accent-color: var(--deguri-gold-deep);
+    cursor: pointer;
+}
+/* GIF 녹화가 영역·구간을 고르는 동안은 재생·이동을 잠근다(녹화 중엔 멈춤만) — 구간을 고를 땐 이동 막대 자리에 구간 손잡이 둘 */
+.deguri-replay-bar[data-gif="range"] .deguri-replay-seek { visibility: hidden; }
+.deguri-replay-bar[data-gif="area"] .deguri-replay-seek,
+.deguri-replay-bar[data-gif="rec"] .deguri-replay-seek { pointer-events: none; opacity: 0.55; }
+.deguri-replay-bar[data-gif="area"] .deguri-replay-bar__btn,
+.deguri-replay-bar[data-gif="range"] .deguri-replay-bar__btn { pointer-events: none; opacity: 0.45; }
+.deguri-replay-bar__time {
+    flex: 0 0 auto;
+    min-width: 78px;
+    color: var(--deguri-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+.deguri-replay-bar__gif {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+.deguri-gif-status {
+    color: var(--red-600);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.deguri-gif-status:empty { display: none; }
+.deguri-replay-bar[data-gif="range"] .deguri-gif-status { color: var(--deguri-ink); }
+.deguri-gif-button,
+.deguri-gif-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    min-height: 36px;
+    margin: 0;
+    padding: 6px 12px;
+    border: 2px solid var(--deguri-wood-line);
+    border-radius: 999px;
+    background: var(--deguri-paper);
+    color: var(--deguri-ink);
+    box-shadow: 0 2px 0 var(--deguri-wood-edge);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.deguri-gif-button:hover,
+.deguri-gif-cancel:hover {
+    transform: none;
+    border-color: var(--deguri-gold-deep);
+    background: var(--deguri-gold-soft);
+    color: var(--deguri-gold-soft-ink);
+    box-shadow: 0 2px 0 var(--deguri-wood-edge);
+}
+.deguri-gif-button[hidden],
+.deguri-gif-cancel[hidden] { display: none; }
+.deguri-gif-button__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--fill-danger);
+}
+/* 구간을 고른 뒤 [녹화 시작] — 빨간 바탕(흰 글자 바탕은 --fill-danger, C-48) */
+.deguri-gif-button.is-armed {
+    border-color: transparent;
+    background: var(--fill-danger);
+    color: var(--text-on-accent);
+    box-shadow: 0 2px 0 rgba(var(--shadow-rgb), 0.3);
+}
+.deguri-gif-button.is-armed .deguri-gif-button__dot { background: var(--text-on-accent); }
+.deguri-gif-button.is-recording .deguri-gif-button__dot {
+    border-radius: 2px;
+    animation: deguri-gif-rec-blink 1s steps(2, start) infinite;
+}
+@keyframes deguri-gif-rec-blink { to { visibility: hidden; } }
+/* 구간 손잡이 둘 — 두 range 를 겹치고 손잡이만 누를 수 있게 */
+.deguri-gif-range {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+}
+.deguri-gif-range[hidden] { display: none; }
+.deguri-gif-range::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--deguri-wood-soft);
+}
+.deguri-gif-range__fill {
+    position: absolute;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--fill-danger);
+}
+.deguri-gif-range input {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: none;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.deguri-gif-range input::-webkit-slider-runnable-track { height: 6px; background: none; }
+.deguri-gif-range input::-webkit-slider-thumb {
+    width: 18px;
+    height: 22px;
+    margin-top: -8px;
+    border: 2px solid var(--fill-danger);
+    border-radius: 6px;
+    background: var(--deguri-paper);
+    pointer-events: auto;
+    cursor: ew-resize;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.deguri-gif-range input::-moz-range-thumb {
+    width: 14px;
+    height: 18px;
+    border: 2px solid var(--fill-danger);
+    border-radius: 6px;
+    background: var(--deguri-paper);
+    pointer-events: auto;
+    cursor: ew-resize;
+}
+.deguri-gif-range input::-moz-range-track { background: none; }
+.deguri-gif-range input:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--deguri-gold-deep); }
+/* 녹화 영역 — 고르는 동안(is-picking)만 입력을 받고, 고른 곳 밖은 어둡게. 캔버스 위 연출이라 스킨과 무관한 HUD 색. 둥근 모서리는 캔버스(14px)와 같게 */
+.deguri-gif-area {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    overflow: hidden;
+    border-radius: 14px;
+    pointer-events: none;
+}
+.deguri-gif-area[hidden] { display: none; }
+.deguri-gif-area.is-picking {
+    background: rgba(var(--deguri-hud-rgb), 0.35);
+    pointer-events: auto;
+    cursor: crosshair;
+    touch-action: none;
+}
+.deguri-gif-area.is-picking:has(.deguri-gif-area__rect:not([hidden])) { background: none; }
+.deguri-gif-area__rect {
+    position: absolute;
+    border: 2px dashed var(--deguri-hud-cream);
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(var(--shadow-rgb), 0.45), 0 0 0 9999px rgba(var(--deguri-hud-rgb), 0.35);
+}
+.deguri-gif-area__rect[hidden] { display: none; }
+.deguri-gif-area:not(.is-picking) .deguri-gif-area__rect { border-color: var(--red-400); }
+.deguri-gif-area__hint {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 16px);
+    margin: 0;
+    padding: 5px 5px 5px 12px;
+    border-radius: 999px;
+    background: rgba(var(--deguri-hud-rgb), 0.82);
+    color: var(--text-on-accent);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+.deguri-gif-area.is-picking .deguri-gif-area__hint { display: flex; }
+.deguri-gif-area__full {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 36px;
+    margin: 0;
+    padding: 5px 12px;
+    border: 2px solid var(--deguri-gold-deep);
+    border-radius: 999px;
+    background: var(--deguri-gold);
+    color: var(--deguri-gold-ink);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.1;
+    cursor: pointer;
+}
+.deguri-gif-area__full:hover { transform: none; box-shadow: none; background: var(--deguri-gold); }
+/* GIF 대화상자 — horse-race.css 의 * { margin: 0 } 가 <dialog> 의 가운데 정렬(margin: auto)을 지우므로 다시 준다 */
+.deguri-gif-dialog {
+    width: min(92vw, 420px);
+    max-width: 92vw;
+    max-height: 92vh;
+    margin: auto;
+    padding: 18px;
+    overflow: auto;
+    border: 3px solid var(--deguri-wood-line);
+    border-radius: 18px;
+    background: var(--deguri-paper);
+    color: var(--deguri-ink);
+    box-shadow: 0 6px 0 var(--deguri-wood-edge), 0 24px 80px rgba(var(--shadow-rgb), 0.32);
+    text-align: center;
+}
+.deguri-gif-dialog::backdrop { background: rgba(var(--shadow-rgb), 0.55); backdrop-filter: blur(3px); }
+.deguri-gif-dialog h2 {
+    margin: 0 0 12px;
+    color: var(--deguri-ink);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.2;
+}
+.deguri-gif-dialog__preview {
+    display: block;
+    max-width: 100%;
+    max-height: 55vh;
+    margin: 0 auto;
+    border-radius: 10px;
+    box-shadow: 0 0 0 2px var(--deguri-wood-line);
+}
+.deguri-gif-dialog__preview[hidden] { display: none; }
+.deguri-gif-dialog__info {
+    margin: 10px 0 0;
+    color: var(--deguri-muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+.deguri-gif-dialog__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+@media (max-width: 600px) {
+    .deguri-replay-bar { padding: 8px 10px; }
+    .deguri-gif-area__hint { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .deguri-gif-button.is-recording .deguri-gif-button__dot { animation: none; }
+}
+
 /* 캔버스 틀 — 나무 테두리(전체화면에선 뗀다). 렌더러는 box.clientWidth(테두리 안쪽)로 캔버스 크기를 잡는다 */
 #deguriCanvasBox {
     position: relative;

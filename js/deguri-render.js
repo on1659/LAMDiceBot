@@ -48,6 +48,8 @@ var DeguriRender = (function () {
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
     var TRAMP_FX_MS = 260;           // 트램펄린 천 눌림→튕김 프레임 시간
+    var TRAMP_SNAP_MS = 220;         // 트램펄린이 찢어진 뒤 두 반쪽이 기둥 쪽으로 말려 들어가는 시간
+    var TRAMP_BURST_MS = 450, TRAMP_BURST_FRAMES = 5;   // 찢어지는 효과(fx trampoline-burst 192×192 ×5) 길이·칸 수
     var QUAKE_SHAKE_PX = 6;          // 지진 카메라 흔들림 진폭(감쇠)
     var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
     var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
@@ -189,7 +191,9 @@ var DeguriRender = (function () {
             'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp',   // 5차
             // N차(2026-09-26, 의뢰서 docs/spritemake-request/2026-09-26-deguri-moving-gimmicks-n.md) — 움직이는 장애물
             'pendulum-log': A + 'pieces/pendulum-log.webp', 'pendulum-pivot': A + 'pieces/pendulum-pivot.webp', 'piston-head': A + 'pieces/piston-head.webp', 'piston-shaft': A + 'pieces/piston-shaft.webp',
-            'trampoline-post': A + 'pieces/trampoline-post.webp', 'wind-vane': A + 'pieces/wind-vane.webp'
+            'trampoline-post': A + 'pieces/trampoline-post.webp', 'wind-vane': A + 'pieces/wind-vane.webp',
+            // 트램펄린 찢어짐(2026-10-06, 의뢰서 docs/spritemake-request/2026-10-06-deguri-trampoline-break.md)
+            'trampoline-tear': A + 'pieces/trampoline-tear.webp', 'trampoline-stub': A + 'pieces/trampoline-stub.webp'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 손실 WebP — sky q92 44K, meadow q85 160K (PNG 1.2~1.3MB)
@@ -202,7 +206,8 @@ var DeguriRender = (function () {
             'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
             'eagle-shadow': A + 'fx/eagle-shadow.webp', 'mole-alert': A + 'fx/mole-alert.webp', 'dam-burst-v2': A + 'fx/dam-burst-v2.webp', 'geyser': A + 'fx/geyser.webp',   // 5차
             'dizzy-swirl': A + 'fx/dizzy-swirl.webp',   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
-            'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp'   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
+            'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp',   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
+            'trampoline-burst': A + 'fx/trampoline-burst.webp'   // 트램펄린 찢어짐 192×192 ×5
         },
         ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=3') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
@@ -430,6 +435,12 @@ var DeguriRender = (function () {
             firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
             mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
         }
+        // 조각에 적어 두는 연출 상태(스프링 발사·쿨타임, 트램펄린 눌림) 비우기 — 되감을 때와 새 타임라인을 걸 때.
+        // 다시 보기는 같은 reveal 객체를 다시 거는데, 안 비우면 지난 재생의 마지막 발사 시각이 남아 안 밟힌 스프링에도 '발사!'가 떴다(2026-10-06)
+        function resetPieceFx() {
+            (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; });
+            (pieces.trampoline || []).forEach(function (q) { q.hitAt = -1e9; q.tears = []; q.brokenAt = null; q.breakX = null; });   // tears = 맞은 자리 찢어진 자국 [{ x, n }], brokenAt = life 번째 튕김(찢어짐) 시각
+        }
         R.setTimeline = function (payload, me) {
             myName = me || '';
             balls = payload.balls.map(makeBall);
@@ -440,7 +451,7 @@ var DeguriRender = (function () {
             var spawnIv = extras.length ? (SPAWN_END_MS - SPAWN_START_MS) / extras.length : 0;
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
-            applyTrack(payload);
+            applyTrack(payload); resetPieceFx();
             evCursor = 0; lastT = -1; fxList = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {};
             hudInfo = { remaining: balls.length, rows: [] };
             R.resize();
@@ -454,13 +465,14 @@ var DeguriRender = (function () {
         R.play = function (countdownMs) {
             setTouchCapture(true);   // 경주 중엔 캔버스 위 터치가 페이지 스크롤이 아니라 카메라 조작
             startWall = performance.now() + (countdownMs == null ? COUNTDOWN_MS : countdownMs);
+            pausedAt = null;
             phase = 'countdown';
             updateCamButton();
             lastFrameWall = performance.now();
             if (rafId) cancelAnimationFrame(rafId);
             var loop = function () {
                 var now = performance.now();
-                var t = now - startWall;
+                var t = pausedAt != null ? pausedAt : now - startWall;
                 R.render(t, (now - lastFrameWall) / 1000);
                 lastFrameWall = now;
                 rafId = requestAnimationFrame(loop);
@@ -469,6 +481,20 @@ var DeguriRender = (function () {
         };
         R.stop = function () { if (rafId) cancelAnimationFrame(rafId); rafId = null; setTouchCapture(false); };
         R.isPlaying = function () { return !!rafId; };
+
+        // ─── 멈춤·이동 (데구리 단독판 3a8c02e 역반영 — 다시 보기 조작줄 js/deguri.js 가 쓴다. 보는 사람 화면만, 소켓으로 나가지 않는다) ───
+        // 멈춰도 루프는 같은 시각을 계속 그린다 — 멈춘 장면에서도 카메라 끌기·확대가 먹게. 뒤로 옮기면 applyEventsUpTo 가 공 상태를 처음부터 다시 쌓는다
+        var pausedAt = null;   // 멈춘 재생 시각(ms). null = 흐르는 중
+        R.time = function () { return pausedAt != null ? pausedAt : performance.now() - startWall; };
+        R.isPaused = function () { return pausedAt != null; };
+        R.pause = function () { if (pausedAt == null) pausedAt = performance.now() - startWall; };
+        R.resume = function () { if (pausedAt != null) { startWall = performance.now() - pausedAt; pausedAt = null; } };
+        R.seek = function (tPlay) {
+            if (pausedAt != null) pausedAt = tPlay; else startWall = performance.now() - tPlay;
+            cam.init = false;   // 트랙을 가로질러 미끄러지지 않고 그 장면으로 바로
+            // 결승 뒤에서 앞으로 오면 render 가 finale·done 을 다시 매긴다. done 이 풀어 둔 터치 카메라(setTouchCapture)도 다시 잡는다 — 끝으로 가면 render 가 또 푼다
+            if (phase !== 'idle') { phase = tPlay < 0 ? 'countdown' : 'play'; setTouchCapture(true); }
+        };
 
         // ─── 수동 카메라 (데구리 dea6fd5·6628dd3 역반영 — 보는 사람 화면 상태만, 소켓으로 나가지 않는다) ───
         // 자동 카메라는 선두/후미·내 동물·결승 프레임을 알아서 따라간다. 캔버스를 끌거나(마우스·터치)·핀치하거나·ctrl+휠·순위표 행을 누르면 수동으로 바뀌고,
@@ -547,6 +573,9 @@ var DeguriRender = (function () {
             manual.follow = b; manual.zoom = Math.max(manual.zoom, view.narrow ? MOBILE_ZOOM_MIN : 1);
             updateCamButton();
         }
+        // 강조(금색 링·이름표·미니맵 흰 테두리)를 받는 주인 — 순위표로 남의 동물을 따라가는 동안은 그 사람, 아니면 나.
+        // 내 이름에 고정해 두면 관전 카메라로 다른 동물을 봐도 링이 내 동물에 남았다(사용자 2026-10-05). 따라가기가 풀리면(setManual(false)) 다시 나
+        function watchedOwner() { return manual.follow ? manual.follow.owner : myName; }
         function rankHitAt(p) {   // p = 캔버스 기준 CSS px
             var k = logicalPerCss() / view.ui, hx = p.x * k, hy = p.y * k;
             for (var i = 0; i < rankHits.length; i++) { var r = rankHits[i]; if (hx >= r.x && hx <= r.x + r.w && hy >= r.y && hy <= r.y + r.h) return r; }
@@ -643,7 +672,7 @@ var DeguriRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); (pieces.trampoline || []).forEach(function (q) { q.hitAt = -1e9; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); resetPieceFx(); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -657,7 +686,13 @@ var DeguriRender = (function () {
                     case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160;
                         (pieces.spring || []).forEach(function (sp) { if (Math.abs(sp.x + Math.cos(sp.angle) * sp.len - e.x) < 3) { sp.firedAt = e.t; sp.readyAt = e.readyAt || (e.t + sp.cooldown); } }); break;
                     case 'flip': ffDir = e.dir; break;
-                    case 'tramp': { var tp = (pieces.trampoline || []).find(function (q) { return e.x >= q.x1 - 20 && e.x <= q.x2 + 20 && Math.abs(e.y - (q.y1 + (q.y2 - q.y1) * ((e.x - q.x1) / (q.x2 - q.x1 || 1)))) < 40; }); if (tp) tp.hitAt = e.t; if (b) b.squashUntil = e.t + 160; break; }   // 천 눌림→튕김 프레임
+                    case 'tramp': { var tp = (pieces.trampoline || []).find(function (q) { return e.x >= q.x1 - 20 && e.x <= q.x2 + 20 && Math.abs(e.y - (q.y1 + (q.y2 - q.y1) * ((e.x - q.x1) / (q.x2 - q.x1 || 1)))) < 40; }); if (tp) tp.hitAt = e.t; if (b) b.squashUntil = e.t + 160;   // 천 눌림→튕김 프레임
+                        // n = 그 천의 몇 번째 튕김, life = 그 천이 버티는 수(서버 TRAMP_LIFE_MIN~MAX 랜덤). life 번째면 찢어져 없어지고(반쪽이 기둥으로 말려 들어감 + 찢어지는 효과), 그 전엔 맞은 자리에 찢어진 자국(절반 전엔 작게·절반부터 크게)
+                        if (tp && e.n) {
+                            if (tp.life && e.n >= tp.life) { tp.brokenAt = e.t; tp.breakX = e.x; fxList.push({ type: 'trampBurst', x: e.x, y: tp.y1 + (tp.y2 - tp.y1) * clamp((e.x - tp.x1) / (tp.x2 - tp.x1 || 1), 0, 1), t0: e.t, dur: TRAMP_BURST_MS }); }
+                            else (tp.tears = tp.tears || []).push({ x: e.x, n: e.n });
+                        }
+                        break; }
                     case 'quake': fxList.push({ type: 'quake', x: e.x, y: e.y, t0: e.t, dur: e.dur }); break;   // 카메라 흔들림(R.render) + 먼지·금
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
@@ -1364,11 +1399,42 @@ var DeguriRender = (function () {
                 if (!visible((tr.y1 + tr.y2) / 2, 60)) return;
                 var tk = (t - (tr.hitAt != null ? tr.hitAt : -1e9)) / TRAMP_FX_MS, tfr = tk < 0 || tk >= 1 ? 0 : (tk < 0.5 ? 1 : 2);
                 var tlen = Math.hypot(tr.x2 - tr.x1, tr.y2 - tr.y1), tang = Math.atan2(tr.y2 - tr.y1, tr.x2 - tr.x1), tim = img('pieces', 'trampoline');
+                // 찢어짐(서버 life 번째 튕김): 찢어진 자리에서 두 반쪽이 TRAMP_SNAP_MS 동안 기둥 쪽으로 말려 들어가 사라지고, 기둥엔 천 자락만 남는다
+                var broken = tr.brokenAt != null && t >= tr.brokenAt, snapK = broken ? clamp((t - tr.brokenAt) / TRAMP_SNAP_MS, 0, 1) : 0;
+                var bd = broken ? clamp((tr.breakX - tr.x1) / (tr.x2 - tr.x1 || 1), 0, 1) * tlen : 0;
+                var tsag = broken ? 0 : tfr === 1 ? 5 : tfr === 2 ? -3 : 0;
                 ctx.save(); ctx.translate(tr.x1, toScreenY(tr.y1)); ctx.rotate(tang);
-                // 천은 평상 프레임 무늬를 8px 조각으로 깔고, 눌림(아래 5)·튕김(위 3)은 띠 전체를 한 곡선(sin)으로 휜다 — 칸마다 휜 프레임을 이으면 물결로 보인다
-                if (tim) { var tsag = tfr === 1 ? 5 : tfr === 2 ? -3 : 0; for (var td = 0; td < tlen; td += 8) { var tw = Math.min(8, tlen - td); ctx.drawImage(tim, (td % 32) * 4, 0, tw * 4, 48, td, -12 + tsag * Math.sin(Math.PI * (td + tw / 2) / tlen), tw, 12); } }
-                else { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(0, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), tlen, 8); ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
+                // 천은 평상 프레임 무늬를 8px 조각으로 깔고, 눌림(아래 5)·튕김(위 3)은 띠 전체를 한 곡선(sin)으로 휜다 — 칸마다 휜 프레임을 이으면 물결로 보인다.
+                // cloth(from, to) = 거리 from~to 구간만 — 무늬 위상은 왼쪽 끝 기준이라 찢어진 반쪽도 원래 자리 무늬 그대로
+                var cloth = function (from, to) {
+                    if (!tim) { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(from, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), to - from, 8); return; }
+                    for (var td = Math.floor(from / 8) * 8; td < to; td += 8) {
+                        var ta = Math.max(td, from), tb = Math.min(td + 8, to, tlen); if (tb <= ta) continue;
+                        ctx.drawImage(tim, (ta - td + td % 32) * 4, 0, (tb - ta) * 4, 48, ta, -12 + tsag * Math.sin(Math.PI * (ta + tb) / 2 / tlen), tb - ta, 12);
+                    }
+                };
+                if (!broken) {
+                    cloth(0, tlen);
+                    // 맞은 자리 찢어진 자국 — 계약: trampoline-tear 32×12 ×2(소스 128×48, 작게·크게, 천 칸과 같은 높이·배율). 절반 넘게 맞으면 큰 자국(3번짜리 = 1번 작게·2번 크게, 5번짜리 = 1·2번 작게·3·4번 크게). 없으면 어두운 틈
+                    var ttear = img('pieces', 'trampoline-tear');
+                    (tr.tears || []).forEach(function (tt) {
+                        var d = clamp(clamp((tt.x - tr.x1) / (tr.x2 - tr.x1 || 1), 0, 1) * tlen, 16, tlen - 16), dy = tsag * Math.sin(Math.PI * d / tlen), big = tt.n * 2 >= tr.life;
+                        if (ttear) ctx.drawImage(ttear, (big ? 1 : 0) * 128, 0, 128, 48, d - 16, -12 + dy, 32, 12);
+                        else { var hw = big ? 8 : 4; ctx.fillStyle = '#14243d'; ctx.beginPath(); ctx.moveTo(d - hw, -6 + dy); ctx.lineTo(d - hw / 2, -9 + dy); ctx.lineTo(d, -5 + dy); ctx.lineTo(d + hw / 2, -9 + dy); ctx.lineTo(d + hw, -6 + dy); ctx.lineTo(d + hw / 2, -3 + dy); ctx.lineTo(d - hw / 2, -3 + dy); ctx.closePath(); ctx.fill(); }
+                    });
+                }
+                else if (snapK < 1) { cloth(0, bd * (1 - snapK)); cloth(bd + (tlen - bd) * snapK, tlen); }
+                if (!tim) { ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
                 ctx.restore();
+                if (broken && snapK >= 1) {   // 기둥에 남은 천 자락 — 계약: trampoline-stub 16×16(왼쪽 기둥용, 위 왼쪽 = 묶인 점, 오른쪽은 반전). 없으면 짧게 늘어진 파란 띠
+                    var tstub = img('pieces', 'trampoline-stub');
+                    [[tr.x1, tr.y1, 1], [tr.x2, tr.y2, -1]].forEach(function (pp) {
+                        ctx.save(); ctx.translate(pp[0] + pp[2] * 2, toScreenY(pp[1]) - 12); ctx.scale(pp[2], 1);
+                        if (tstub) ctx.drawImage(tstub, 0, -2, 16, 16);
+                        else { ctx.rotate(1.1); ctx.fillStyle = '#4aa3ff'; ctx.fillRect(0, -3, 9, 5); }
+                        ctx.restore();
+                    });
+                }
                 var tpost = img('pieces', 'trampoline-post');   // 양 끝 기둥 64×96(표시 16×24, 하단 정렬) — 고정쇠가 천 쪽을 보게 오른쪽 끝은 뒤집는다
                 if (tpost) [[tr.x1, tr.y1, 1], [tr.x2, tr.y2, -1]].forEach(function (pp) { ctx.save(); ctx.translate(pp[0], toScreenY(pp[1]) + 10); ctx.scale(pp[2], 1); ctx.drawImage(tpost, -8, -24, 16, 24); ctx.restore(); });
             });
@@ -1878,7 +1944,7 @@ var DeguriRender = (function () {
         }
 
         function drawBalls(t) {
-            var i, b, mine;
+            var i, b, mine, hlOwner = watchedOwner();
             ballClock = (phase === 'idle') ? idleClock : t;   // 재생 중엔 재생 시각 — 모든 클라가 같은 각도로 흔들린다
             var hf0 = (pieces.holefield || [])[0];
             // 그림자 먼저
@@ -1901,7 +1967,7 @@ var DeguriRender = (function () {
             for (i = 0; i < order.length; i++) {
                 b = order[i];
                 if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
-                mine = b.owner === myName;
+                mine = b.owner === hlOwner;
                 if (b.state === 'carried') { carried.push(b); continue; }
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
@@ -2039,7 +2105,7 @@ var DeguriRender = (function () {
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
                 drawRing(b, b.x, b.y, BALL_R + 1, mine);   // 구를 때만 링 — 공 스프라이트(지름 28)에 딱 맞게
             }
-            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === myName);   // 공중 — 모든 몸 위
+            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === hlOwner);   // 공중 — 모든 몸 위
             // 후미 깃발 (내 이름은 공마다 붙는 이름표 알약이 이미 보여준다 — 예전 흰 글자 이름은 알약과 겹쳐 두 번 떠 보여 뺌, 사용자 2026-09-21)
             Object.keys(rearByOwner).forEach(function (owner) {
                 var rb = rearByOwner[owner]; if (!visible(rb.y, 60) || t < 0) return;
@@ -2199,7 +2265,7 @@ var DeguriRender = (function () {
                         else { px = chute.x - (dist - d0); py = chute.y; }
                         if (!visible(py, 40)) continue;
                         drawCreatureFrame(b, 2, 0, px, py, -dist / (BALL_R * 0.85), 0.85);
-                        drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
+                        drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === watchedOwner());
                         continue;
                     }
                     since -= (d0 + d1) / CHUTE_SPEED * 1000;   // 끝에 닿은 뒤 경과 = 자리에 나타난 뒤 경과
@@ -2230,7 +2296,7 @@ var DeguriRender = (function () {
                     var tagTxt = standTagText(idx), tagW = Math.min(colW * 1.6, ctx.measureText(tagTxt).width + 7 * f), tagH = 12 * f;
                     var tagY = toScreenY(y2 - hop) - 23;
                     ctx.fillStyle = ringColor(b); roundRect(x2 - tagW / 2, tagY - tagH / 2, tagW, tagH, 6 * f); ctx.fill();
-                    if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물은 흰 테두리
+                    if (b.owner === watchedOwner()) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물(따라가는 중이면 그 동물)은 흰 테두리
                     ctx.fillStyle = '#fff'; ctx.fillText(tagTxt, x2, tagY + 0.5);
                     ctx.restore();
                 }
@@ -2322,6 +2388,13 @@ var DeguriRender = (function () {
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
                     case 'spring': if (!visible(y, 40)) return; drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 }); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
+                    case 'trampBurst': {   // 트램펄린 찢어짐 — 계약: fx trampoline-burst 48×48 ×5(터짐 → 천 조각·고리 흩어짐 → 떨어짐). 없으면 별 효과 크게
+                        if (!visible(y, 60)) return;
+                        var tbf = Math.min(TRAMP_BURST_FRAMES - 1, Math.floor(k * TRAMP_BURST_FRAMES));
+                        if (!drawSprite('fx', 'trampoline-burst', x, y - 6, 192, 192, { sx: tbf * 192, sw: 192 })) drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96, scale: 1.6 });
+                        label('찌익!', x - 10, y - 30 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15);
+                        break;
+                    }
                     case 'quake': {   // 지진: 구역 안 먼지 6개(시드 자리) + 땅 금(에셋 없으면 코드 금) + 라벨. 카메라 흔들림은 R.render
                         if (!visible(y, 400)) return;
                         for (var qi = 0; qi < 6; qi++) {
@@ -2453,10 +2526,10 @@ var DeguriRender = (function () {
             ctx.drawImage(mmCache.canvas, x0, y0, w, h);
             // 공: 마리 수가 적으면 동물 공 아이콘(플레이어 색 테두리, 내 공은 흰 테두리 추가), 많으면 색 점. 내 공은 맨 위에
             var useIcon = balls.length <= MINIMAP_ICON_MAX;
-            var mine = [];
+            var mine = [], hlOwner = watchedOwner();   // 따라가는 중이면 그 사람 공이 강조
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i]; if (b.state === 'done' || t < 0) continue;
-                if (b.owner === myName) { mine.push(b); continue; }
+                if (b.owner === hlOwner) { mine.push(b); continue; }
                 if (useIcon) drawMiniIcon(b, mx(b.x), my(b.y), MINIMAP_ICON_PX, false);
                 else { ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(mx(b.x), my(b.y), 1.7, 0, Math.PI * 2); ctx.fill(); }
             }

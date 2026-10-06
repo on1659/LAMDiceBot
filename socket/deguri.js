@@ -451,6 +451,7 @@ module.exports = (socket, io, ctx) => {
     // 상태 동기화 (server-only 정보 미포함). phase 는 경주 중 새로 들어온 사람이 "진행 중" 안내를 띄우는 용도.
     // ballsPerPlayer = 현재 준비 인원 기준으로 crowd 프리셋을 환산한 인당 마릿수(안내용 — 시작 시점에 다시 계산).
     // preview = 대기 화면용 출발대 배치(사람당 1마리 — 복제는 카운트다운 연출에서). 결과와 무관한 순수 배치라 공정성 문제 없음.
+    // 경주 중·끝난 뒤에도 보낸다 — 그때 들어온 사람은 타임라인이 없어 이걸로 출발대를 본다(전엔 null 이라 빈 화면, 사용자 2026-10-05). 그 맵은 지금 판(reveal 이 이미 실은) 맵이다.
     // 준비 인원이 바뀌면 클라가 deguri:requestState 로 다시 받는다.
     // votes = 당첨 순위 투표 현황(이름→'first'|'last') — 재입장·준비 변동 때 막대를 다시 그리는 용도.
     // crowdInfo = 프리셋별 인당 마릿수(표시용 — 동물수 버튼 말풍선 '지금 N명이면 한 사람당 M마리'). 클라가 CROWD_PRESETS 를 복제하지 않도록 서버 값 하나로
@@ -465,7 +466,6 @@ module.exports = (socket, io, ctx) => {
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
         const mb = gameState.deguri;
-        if (mb.phase !== 'idle') return null;
         const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
         const participants = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name);
         const picks = {};

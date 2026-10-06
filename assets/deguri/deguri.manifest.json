@@ -5835,5 +5835,16 @@
       "turtle-melon",
       "turtle-ocean"
     ]
+  },
+  "trampolineBreak": {
+    "batch": "deguri-trampoline-break-2026-10-06",
+    "status": "picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-06-deguri-trampoline-break.md",
+    "note": "생성 = unverified Codex direct generation, 에셋별 attempt-01 1회. 편집은 LAMDiceBot 세션 tools/claude_pack_tramp.py: trampoline-tear 는 Codex 가 천 칸 통째로 그려 세로줄 줄무늬 색과 다른 픽셀(구멍 덩어리 둘레)만 오려 128×48 ×2(표시 32×12) 덧그림으로, trampoline-burst 는 5칸 같은 폭·칸 가운데 = 터지는 점·공통 배율 192×192 ×5, trampoline-stub 은 위 왼쪽 고리 = 묶인 점 64×64. webp 는 pngquant --nofs(알파≥8 마스크 원본과 같음). 2026-10-06",
+    "files": {
+      "pieces/trampoline-tear.webp": "67154ba85216fa9d9c7315d373ac5cdb",
+      "pieces/trampoline-stub.webp": "0dced8447a08a54d8710cfba67f815eb",
+      "fx/trampoline-burst.webp": "0c5eb9bfa30ab63699b36bcc2db859b2"
+    }
   }
 }
