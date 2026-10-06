@@ -320,7 +320,7 @@ async function startDeguri(room, gameState, io, ctx) {
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed), mb.startX);   // 고른 자리(deguri:moveTo)에서 출발 — 겹치면 여기서 서로 밀려 펴진다
         const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
-        result = await sim.simulate(balls, seed, track);
+        result = await sim.simulate(balls, seed, track, { target: mb.target });   // 1등 룰은 첫 골인에서 끝나고 낙하산·탈락·독수리 결승전이 붙는다(docs/goal/deguri-first-rule-flow.md). 꼴등 룰 결과는 opts 없음과 동일
         attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
