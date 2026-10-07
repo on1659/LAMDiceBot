@@ -4,6 +4,8 @@
 //   node mockups/measure.js            # mockups/ 의 모든 N.html
 //   node mockups/measure.js 10 11      # 고른 번호만
 //   node mockups/measure.js --shot     # 첫 화면 캡처도 저장 (mockups/.shots/N.png, git 제외 권장)
+//   node mockups/measure.js --url http://localhost:5174/home [--ls key=value ...]
+//                                      # 저장소 파일 대신 떠 있는 서버의 페이지를 잰다. --ls 는 localStorage 에 미리 넣을 값(상태 재현용)
 //
 // 기준(DESIGN.md "UX 원칙"): 첫 화면 글자 60자 이하 · 조작 요소 6개 이하 · 방까지 1탭.
 // 탭 수는 자동으로 못 잰다 — 직접 눌러 보고 적는다.
@@ -18,8 +20,13 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.webp'
 
 const args = process.argv.slice(2);
 const shot = args.includes('--shot');
-let nums = args.filter(a => /^\d+$/.test(a)).map(Number);
-if (!nums.length) nums = fs.readdirSync(__dirname).map(f => (f.match(/^(\d+)\.html$/) || [])[1]).filter(Boolean).map(Number).sort((a, b) => a - b);
+const urlAt = args.indexOf('--url');
+const liveUrl = urlAt >= 0 ? args[urlAt + 1] : null;
+const seeds = args.map((a, i) => (a === '--ls' ? args[i + 1] : null)).filter(Boolean)
+  .map(kv => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; });
+let nums = args.filter((a, i) => /^\d+$/.test(a) && args[i - 1] !== '--url' && args[i - 1] !== '--ls').map(Number);
+if (liveUrl) nums = [liveUrl];
+else if (!nums.length) nums = fs.readdirSync(__dirname).map(f => (f.match(/^(\d+)\.html$/) || [])[1]).filter(Boolean).map(Number).sort((a, b) => a - b);
 
 function measureInPage() {
   const vh = innerHeight;
@@ -45,7 +52,8 @@ function measureInPage() {
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, isMobile: true });
-  await ctx.route('http://mock.local/**', route => {
+  if (seeds.length) await ctx.addInitScript(list => { for (const [k, v] of list) { try { localStorage.setItem(k, v); } catch (e) {} } }, seeds);
+  if (!liveUrl) await ctx.route('http://mock.local/**', route => {
     let p = decodeURIComponent(new URL(route.request().url()).pathname);
     if (/^\/\d{1,2}$/.test(p)) p = '/mockups' + p + '.html';
     if (p === '/main') p = '/mockups/index.html';
@@ -59,12 +67,12 @@ function measureInPage() {
     const page = await ctx.newPage();
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     try {
-      await page.goto('http://mock.local/' + n, { waitUntil: 'load', timeout: 30000 });
+      await page.goto(liveUrl ? n : 'http://mock.local/' + n, { waitUntil: 'load', timeout: 30000 });
       await page.waitForTimeout(1200);
       const m = await page.evaluate(measureInPage);
       const ok = m.fold <= TARGET.chars && m.controls <= TARGET.controls;
       console.log([String(n).padStart(4), String(m.fold).padStart(12), String(m.controls).padStart(9), String(m.all).padStart(9), String(m.screens).padStart(10), ok ? '통과' : '미달', m.title + (errors.length ? '  [JS 오류 ' + errors.length + ']' : '')].join(' | '));
-      if (shot) await page.screenshot({ path: path.join(__dirname, '.shots', n + '.png') });
+      if (shot) await page.screenshot({ path: path.join(__dirname, '.shots', (liveUrl ? 'live-' + Date.now() : n) + '.png') });
     } catch (e) { console.log(String(n).padStart(4), '| 오류:', e.message.split('\n')[0]); }
     await page.close();
   }
