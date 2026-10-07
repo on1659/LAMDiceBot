@@ -405,3 +405,7 @@ body.home-room:has(#gameSection.active) .room-stage-action[hidden] { display: no
     body.home-room:has(#gameSection.active) .room-dice-stage { padding: 16px 8px; }
     body.home-room:has(#gameSection.active) .room-round-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* 완료된 판에서는 결과 안내가 상태 제목을 대신한다. */
+body.home-room:has(#gameSection.active)[data-room-phase="result"] #gameStatus,
+body.home-room:has(#gameSection.active)[data-room-phase="result"] #roomDiceRule { display: none; }
