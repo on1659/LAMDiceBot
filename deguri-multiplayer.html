@@ -34,7 +34,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
@@ -145,8 +145,10 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
+    <link rel="stylesheet" href="/css/home-room.css?v=20261007">
+    <link rel="stylesheet" href="/css/home-room-race.css?v=20261007">
 </head>
-<body>
+<body class="home-room" data-room-game="deguri">
     <noscript>
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 데구리</h1>
@@ -183,12 +185,70 @@
                 });
             </script>
 
+            <header class="home-room-hero">
+                <h1 class="home-room-title">데구리</h1>
+            </header>
+
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
                     <i class="mi mi-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
+
+            <!-- 게임 상태 표시 — 예외 안내(경주 중 재입장·중단 사유)만. 평소엔 접혀 있다(js/deguri.js setGameStatus) -->
+            <div class="game-status waiting" id="gameStatus" hidden></div>
+
+            <!-- 동물 선택 (대기 중) -->
+            <section id="deguriPickSection">
+                <div class="deguri-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
+
+                <!-- 동물 마당(장식) — 방에 나온 동물·스킨만 돌아다닌다. js/deguri.js DeguriYard 가 채운다(비어 있으면 :empty 로 숨김) -->
+
+                <div id="deguriPicker" tabindex="0" role="group" aria-label="동물 선택 목록" class="deguri-picker">
+                    <button type="button" class="deguri-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="armadillo" onclick="pickCreature('armadillo')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>아르마딜로</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="pillbug" onclick="pickCreature('pillbug')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>공벌레</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="turtle" onclick="pickCreature('turtle')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>거북이</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="panda" onclick="pickCreature('panda')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>판다</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="hamster" data-optional="1" onclick="pickCreature('hamster')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>햄스터</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="pufferfish" data-optional="1" onclick="pickCreature('pufferfish')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>복어</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="raccoon" data-optional="1" onclick="pickCreature('raccoon')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>너구리</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
+                    <button type="button" class="deguri-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>돼지</span></button>
+                </div>
+                <div id="deguriPickStatus" class="deguri-pick-status"></div>
+                <!-- 꾸미기 상점 모달 마운트 (js/deguri-shop.js) -->
+                <div id="deguriShopMount"></div>
+                <details class="home-room-pick-options">
+                    <summary>꾸미기 · 등수 투표 · 참가 현황</summary>
+                    <div class="deguri-pick-head">
+
+                    <!-- 꾸미기(동물 스킨·야식): 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 모달은 js/deguri-shop.js 가 채움 -->
+                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriShop)DeguriShop.openShop()" title="동물 스킨·야식 구매·장착">🎀 꾸미기</button>
+                    <!-- 구슬 뽑기(사용자 2026-09-23) — 모달은 js/deguri-gacha.js 가 body 에 붙인다 -->
+                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriGacha)DeguriGacha.open()" title="60코인으로 스킨·야식 뽑기"><span class="mgacha-icon" aria-hidden="true"></span>뽑기</button>
+                    <!-- 순서 꾸미기·뽑기·코인(사용자 2026-09-24). 방 지갑 알약: 코인 아이콘 + 잔고(남은 시간은 뽑기 창에서만) — js/deguri-gacha.js 가 채운다 -->
+                    <span id="deguriCoinPill" class="deguri-coin-pill" hidden></span>
+                </div>
+                    <div id="deguriYard" class="deguri-yard is-empty" aria-hidden="true"></div>
+                    <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
+                <div class="rank-vote-title"><i class="mi mi-target"></i> 당첨 순위 투표</div>
+                <div class="rank-vote-hint">1등이 당첨될지 꼴등이 당첨될지 한 표 던지세요. 방장이 시작을 누르면 룰렛이 정합니다. 아무도 안 던지면 꼴등 찾기.</div>
+                <div id="rankVoteBoxes" class="rank-vote-boxes">
+                    <div class="rank-vote-box" data-target="first" onclick="voteRank('first')"><div class="rank-vote-rank"><i class="mi mi-medal"></i> 1등</div><div class="rank-vote-bars"></div></div>
+                    <div class="rank-vote-box" data-target="last" onclick="voteRank('last')"><div class="rank-vote-rank"><i class="mi mi-snail"></i> 꼴등</div><div class="rank-vote-bars"></div></div>
+                </div>
+            </div>
+                    <div id="notPickedSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="mi mi-hourglass"></i> 동물 안 고른 사람</div>
+                    <div id="notPickedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+                </details>
+                <!-- 준비했는데 동물 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식) -->
+
+            </section>
+            <!-- 당첨 순위 투표 — 경마 N등 투표와 같은 방식(득표 비례 룰렛), 선택지는 1등/꼴등 둘. 준비한 사람에게만 보인다. 스타일은 horse-race.css .rank-vote-* 재사용 -->
 
             <!-- 접속자 목록 -->
             <div class="users-section" id="usersSection">
@@ -199,18 +259,6 @@
                     </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
-            </div>
-
-            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
-            <!-- Ad: Lobby Banner -->
-            <div class="ad-container ad-lobby">
-              <span class="ad-label">AD</span>
-              <ins class="adsbygoogle"
-                   style="display:block"
-                   data-ad-client="ca-pub-1608259764663412"
-                   data-ad-slot="7466418558"
-                   data-ad-format="auto"
-                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 준비 섹션 -->
@@ -226,6 +274,11 @@
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <div class="home-room-start-row">
+                    <button class="start-button" id="startDeguriButton" onclick="startDeguri()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
+                </div>
+                <details class="home-room-race-settings">
+                    <summary>방 설정 · 주문받기</summary>
                 <!-- 예약 — 정한 시간이 되면 서버가 [경주 시작]을 대신 눌러준다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
                 <div class="schedule-open-row">
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="mi mi-clock"></i> 예약</button>
@@ -249,10 +302,70 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <button class="start-button" id="startDeguriButton" onclick="startDeguri()" disabled style="flex: 1;"><i class="mi mi-paw"></i> 경주 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
+                </details>
+            </div>
+
+            <!-- 타깃 순위 배너 (룰렛 결과 ~ 경주 끝) + 결정 사유 (룰렛 결과 또는 투표 없음 안내) -->
+            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
+                <span class="trb-icon"><i class="mi mi-target"></i></span>
+                <span class="trb-text">꼴등을 찾아라!</span>
+            </div>
+            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
+            <!-- 경주 캔버스 -->
+            <section id="deguriStage">
+                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 -->
+                <div class="deguri-stage-tools">
+                    <button type="button" class="deguri-stage-btn" id="deguriHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
+                    <button type="button" class="deguri-stage-btn" id="deguriFullscreenOpenBtn" onclick="toggleDeguriFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
+                </div>
+                <div id="deguriCanvasBox">
+                    <canvas id="deguriCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
+                    <div id="deguriHud"></div>
+                    <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소 -->
+                    <div id="scheduledStartBadge" style="display: none;"></div>
+                    <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
+                    <div id="raceChatOverlay"></div>
+                    <!-- 다시 보기 중 표시 (나만 보임) -->
+                    <div id="deguriReplayBadge" style="display: none;"><i class="mi mi-replay"></i> 다시 보는 중 — 나만 보여요</div>
+                    <!-- GIF 녹화 영역(js/deguri-replay-gif.js) — 고르는 동안만 캔버스 입력을 막고, 고른 뒤엔 테두리만 남는다(캔버스에 그리지 않으니 GIF 에는 안 찍힌다) -->
+                    <div id="deguriGifArea" class="deguri-gif-area" hidden><div id="deguriGifAreaRect" class="deguri-gif-area__rect" hidden></div><p class="deguri-gif-area__hint">녹화할 곳을 끌어서 고르세요<button type="button" id="deguriGifAreaFull" class="deguri-gif-area__full">화면 전체</button></p></div>
+                    <!-- 전체화면 끝내기 — 전체화면일 때만 보인다(css/deguri.css) -->
+                    <button type="button" id="deguriFullscreenBtn" onclick="toggleDeguriFullscreen()" title="전체화면 끝내기" aria-label="전체화면 끝내기"><i class="mi mi-expand"></i></button>
+                </div>
+                <!-- 다시 보기 조작줄 — 다시 보기 중에만(js/deguri.js setReplayUi). 재생·멈춤 · 이동 막대 · 시간 · GIF 녹화(영역 → 구간 → 실시간 녹화, js/deguri-replay-gif.js). 끝내기는 아래 [그만 보기] -->
+                <div id="deguriReplayBar" class="deguri-replay-bar" hidden>
+                    <button type="button" id="deguriReplayToggle" class="deguri-replay-bar__btn" onclick="toggleReplayPause()" aria-label="멈춤" title="멈춤"><span class="deguri-replay-bar__glyph" aria-hidden="true"></span></button>
+                    <div class="deguri-replay-bar__track">
+                        <input type="range" id="deguriReplaySeek" class="deguri-replay-seek" min="0" max="1000" step="10" value="0" aria-label="다시 보기 위치" oninput="onReplaySeekInput()" onchange="onReplaySeekChange()">
+                        <div id="deguriGifRange" class="deguri-gif-range" hidden><div id="deguriGifRangeFill" class="deguri-gif-range__fill"></div><input type="range" id="deguriGifRangeStart" aria-label="녹화 시작 지점"><input type="range" id="deguriGifRangeEnd" aria-label="녹화 끝 지점"></div>
+                    </div>
+                    <span id="deguriReplayTime" class="deguri-replay-bar__time">0:00 / 0:00</span>
+                    <span class="deguri-replay-bar__gif"><span id="deguriGifStatus" class="deguri-gif-status" aria-live="polite"></span><button type="button" id="deguriGifCancel" class="deguri-gif-cancel" hidden>취소</button><button type="button" id="deguriGifButton" class="deguri-gif-button"><span class="deguri-gif-button__dot" aria-hidden="true"></span>GIF 녹화</button></span>
+                </div>
+                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
+                <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
+                    <button type="button" class="deguri-after-btn" id="deguriReplayButton" onclick="replayRace()"><i class="mi mi-play"></i> 경주 다시 보기</button>
+                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" onclick="resetDeguriRound()" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
+                </div>
+                <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
+                <div id="deguriOrderRow" class="deguri-after-race" style="display: none;">
+                    <button type="button" class="deguri-after-btn deguri-after-btn-order" onclick="goToOrders()"><i class="mi mi-burger"></i> 주문받기 진행 중 — 주문하러 가기</button>
+                </div>
+            </section>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 주문받기 섹션 -->
@@ -313,100 +426,6 @@
                     <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
                 </div>
             </div>
-
-            <!-- 게임 상태 표시 — 예외 안내(경주 중 재입장·중단 사유)만. 평소엔 접혀 있다(js/deguri.js setGameStatus) -->
-            <div class="game-status waiting" id="gameStatus" hidden></div>
-
-            <!-- 동물 선택 (대기 중) -->
-            <section id="deguriPickSection">
-                <div class="deguri-pick-head">
-                    <div class="deguri-pick-title"><i class="mi mi-paw"></i> 내 동물 고르기</div>
-                    <!-- 꾸미기(동물 스킨·야식): 팝업 하나에 [상점(구매) | 옷장(장착)] 탭(사용자 2026-09-22) — 모달은 js/deguri-shop.js 가 채움 -->
-                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriShop)DeguriShop.openShop()" title="동물 스킨·야식 구매·장착">🎀 꾸미기</button>
-                    <!-- 구슬 뽑기(사용자 2026-09-23) — 모달은 js/deguri-gacha.js 가 body 에 붙인다 -->
-                    <button type="button" class="deguri-shop-btn" onclick="if(window.DeguriGacha)DeguriGacha.open()" title="60코인으로 스킨·야식 뽑기"><span class="mgacha-icon" aria-hidden="true"></span>뽑기</button>
-                    <!-- 순서 꾸미기·뽑기·코인(사용자 2026-09-24). 방 지갑 알약: 코인 아이콘 + 잔고(남은 시간은 뽑기 창에서만) — js/deguri-gacha.js 가 채운다 -->
-                    <span id="deguriCoinPill" class="deguri-coin-pill" hidden></span>
-                </div>
-                <!-- 동물 마당(장식) — 방에 나온 동물·스킨만 돌아다닌다. js/deguri.js DeguriYard 가 채운다(비어 있으면 :empty 로 숨김) -->
-                <div id="deguriYard" class="deguri-yard is-empty" aria-hidden="true"></div>
-                <div id="deguriPicker" class="deguri-picker">
-                    <button type="button" class="deguri-creature-btn" data-creature="hedgehog" onclick="pickCreature('hedgehog')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>고슴도치</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="armadillo" onclick="pickCreature('armadillo')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>아르마딜로</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="pillbug" onclick="pickCreature('pillbug')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>공벌레</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="turtle" onclick="pickCreature('turtle')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>거북이</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="panda" onclick="pickCreature('panda')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>판다</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="hamster" data-optional="1" onclick="pickCreature('hamster')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>햄스터</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="pufferfish" data-optional="1" onclick="pickCreature('pufferfish')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>복어</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="raccoon" data-optional="1" onclick="pickCreature('raccoon')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>너구리</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
-                    <button type="button" class="deguri-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>돼지</span></button>
-                </div>
-                <div id="deguriPickStatus" class="deguri-pick-status"></div>
-                <!-- 꾸미기 상점 모달 마운트 (js/deguri-shop.js) -->
-                <div id="deguriShopMount"></div>
-                <!-- 준비했는데 동물 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식) -->
-                <div id="notPickedSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="mi mi-hourglass"></i> 동물 안 고른 사람</div>
-                    <div id="notPickedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
-                </div>
-            </section>
-            <!-- 당첨 순위 투표 — 경마 N등 투표와 같은 방식(득표 비례 룰렛), 선택지는 1등/꼴등 둘. 준비한 사람에게만 보인다. 스타일은 horse-race.css .rank-vote-* 재사용 -->
-            <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
-                <div class="rank-vote-title"><i class="mi mi-target"></i> 당첨 순위 투표</div>
-                <div class="rank-vote-hint">1등이 당첨될지 꼴등이 당첨될지 한 표 던지세요. 방장이 시작을 누르면 룰렛이 정합니다. 아무도 안 던지면 꼴등 찾기.</div>
-                <div id="rankVoteBoxes" class="rank-vote-boxes">
-                    <div class="rank-vote-box" data-target="first" onclick="voteRank('first')"><div class="rank-vote-rank"><i class="mi mi-medal"></i> 1등</div><div class="rank-vote-bars"></div></div>
-                    <div class="rank-vote-box" data-target="last" onclick="voteRank('last')"><div class="rank-vote-rank"><i class="mi mi-snail"></i> 꼴등</div><div class="rank-vote-bars"></div></div>
-                </div>
-            </div>
-            <!-- 타깃 순위 배너 (룰렛 결과 ~ 경주 끝) + 결정 사유 (룰렛 결과 또는 투표 없음 안내) -->
-            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
-                <span class="trb-icon"><i class="mi mi-target"></i></span>
-                <span class="trb-text">꼴등을 찾아라!</span>
-            </div>
-            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
-            <!-- 경주 캔버스 -->
-            <section id="deguriStage">
-                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 -->
-                <div class="deguri-stage-tools">
-                    <button type="button" class="deguri-stage-btn" id="deguriHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
-                    <button type="button" class="deguri-stage-btn" id="deguriFullscreenOpenBtn" onclick="toggleDeguriFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
-                </div>
-                <div id="deguriCanvasBox">
-                    <canvas id="deguriCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
-                    <div id="deguriHud"></div>
-                    <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소 -->
-                    <div id="scheduledStartBadge" style="display: none;"></div>
-                    <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
-                    <div id="raceChatOverlay"></div>
-                    <!-- 다시 보기 중 표시 (나만 보임) -->
-                    <div id="deguriReplayBadge" style="display: none;"><i class="mi mi-replay"></i> 다시 보는 중 — 나만 보여요</div>
-                    <!-- GIF 녹화 영역(js/deguri-replay-gif.js) — 고르는 동안만 캔버스 입력을 막고, 고른 뒤엔 테두리만 남는다(캔버스에 그리지 않으니 GIF 에는 안 찍힌다) -->
-                    <div id="deguriGifArea" class="deguri-gif-area" hidden><div id="deguriGifAreaRect" class="deguri-gif-area__rect" hidden></div><p class="deguri-gif-area__hint">녹화할 곳을 끌어서 고르세요<button type="button" id="deguriGifAreaFull" class="deguri-gif-area__full">화면 전체</button></p></div>
-                    <!-- 전체화면 끝내기 — 전체화면일 때만 보인다(css/deguri.css) -->
-                    <button type="button" id="deguriFullscreenBtn" onclick="toggleDeguriFullscreen()" title="전체화면 끝내기" aria-label="전체화면 끝내기"><i class="mi mi-expand"></i></button>
-                </div>
-                <!-- 다시 보기 조작줄 — 다시 보기 중에만(js/deguri.js setReplayUi). 재생·멈춤 · 이동 막대 · 시간 · GIF 녹화(영역 → 구간 → 실시간 녹화, js/deguri-replay-gif.js). 끝내기는 아래 [그만 보기] -->
-                <div id="deguriReplayBar" class="deguri-replay-bar" hidden>
-                    <button type="button" id="deguriReplayToggle" class="deguri-replay-bar__btn" onclick="toggleReplayPause()" aria-label="멈춤" title="멈춤"><span class="deguri-replay-bar__glyph" aria-hidden="true"></span></button>
-                    <div class="deguri-replay-bar__track">
-                        <input type="range" id="deguriReplaySeek" class="deguri-replay-seek" min="0" max="1000" step="10" value="0" aria-label="다시 보기 위치" oninput="onReplaySeekInput()" onchange="onReplaySeekChange()">
-                        <div id="deguriGifRange" class="deguri-gif-range" hidden><div id="deguriGifRangeFill" class="deguri-gif-range__fill"></div><input type="range" id="deguriGifRangeStart" aria-label="녹화 시작 지점"><input type="range" id="deguriGifRangeEnd" aria-label="녹화 끝 지점"></div>
-                    </div>
-                    <span id="deguriReplayTime" class="deguri-replay-bar__time">0:00 / 0:00</span>
-                    <span class="deguri-replay-bar__gif"><span id="deguriGifStatus" class="deguri-gif-status" aria-live="polite"></span><button type="button" id="deguriGifCancel" class="deguri-gif-cancel" hidden>취소</button><button type="button" id="deguriGifButton" class="deguri-gif-button"><span class="deguri-gif-button__dot" aria-hidden="true"></span>GIF 녹화</button></span>
-                </div>
-                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
-                <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
-                    <button type="button" class="deguri-after-btn" id="deguriReplayButton" onclick="replayRace()"><i class="mi mi-play"></i> 경주 다시 보기</button>
-                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" onclick="resetDeguriRound()" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
-                </div>
-                <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
-                <div id="deguriOrderRow" class="deguri-after-race" style="display: none;">
-                    <button type="button" class="deguri-after-btn deguri-after-btn-order" onclick="goToOrders()"><i class="mi mi-burger"></i> 주문받기 진행 중 — 주문하러 가기</button>
-                </div>
-            </section>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">

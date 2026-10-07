@@ -21,6 +21,7 @@
   var BLOCK_IP_PER_USER = false;   // dice 로비 4383행 기본값(체크 안 함)
   var TOAST_MS = 2200;
   var SERVER_WAIT_MS = 8000;       // joinServer 응답 대기(server-select-shared.js SS_JOIN_TIMEOUT 과 같은 역할)
+  var ROOM_WAIT_MS = 15000;
   var SUGGEST = ['토끼', '거북이', '고슴도치', '판다', '로켓'];
   var FREE_LABEL = '자유 방';
 
@@ -51,6 +52,7 @@
   var joining = null;                         // joinServer 대기 { serverId, timer }
   var autoServerId = null;                    // 지난번 서버 자동 선택 중(serverError 오면 자유 방으로)
   var firstConnect = true;
+  var creatingDice = null;
 
   function isLoggedIn() { return !!(auth && auth.name); }
   function currentName() { return server ? auth.name : freeName; }
@@ -106,6 +108,7 @@
 
   // ─── 그림 = 방 만들기. 이름이 있으면 바로, 없으면 이름 한 번 묻고 같은 곳으로 이어간다 ───
   function go(game, target) {
+    if (creatingDice) return;
     var name = currentName();
     if (!name) {
       pending = { game: game, target: target };
@@ -124,14 +127,28 @@
     var serverName = server ? server.serverName : null;
 
     if (game === 'dice') {
-      // 로비와 게임이 한 페이지 — diceSession 을 맞춰 두고 기존 로비로 보낸다 (1차 방식)
+      // 기존 재입장 경로로 실제 방을 연다. 생성 응답 전 중복 탭은 막는다.
       ssSet('diceSession', JSON.stringify({ serverId: serverId, serverName: serverName, hostName: server ? server.hostName : null }));
       if (target.kind === 'join') {
         ssSet('diceActiveRoom', JSON.stringify({ roomId: target.room.roomId, userName: name, serverId: serverId, serverName: serverName }));
         window.location.href = '/game';
         return;
       }
-      window.location.href = server ? '/game' : '/free';
+      if (!socket.connected) { toast('연결 중이에요. 잠시 뒤 다시 눌러주세요.'); return; }
+      creatingDice = { name: name, serverId: serverId, serverName: serverName };
+      $$('.tile').forEach(function (t) { t.disabled = true; });
+      $('.tile[data-game="dice"]').setAttribute('aria-busy', 'true');
+      creatingDice.timer = setTimeout(function () {
+        clearDiceCreate();
+        socket.disconnect();
+        socket.connect();
+        toast('응답이 늦어요. 다시 눌러주세요.');
+      }, ROOM_WAIT_MS);
+      socket.emit('createRoom', {
+        userName: name, roomName: name + '님의 주사위', gameType: 'dice',
+        isPrivate: false, password: '', expiryHours: EXPIRY_HOURS,
+        blockIPPerUser: BLOCK_IP_PER_USER, serverId: serverId, serverName: serverName
+      });
       return;
     }
 
@@ -148,6 +165,33 @@
     }));
     window.location.href = g.path + '?createRoom=true';
   }
+
+  function clearDiceCreate() {
+    if (creatingDice) clearTimeout(creatingDice.timer);
+    creatingDice = null;
+    $$('.tile').forEach(function (t) { t.disabled = false; });
+    $('.tile[data-game="dice"]').removeAttribute('aria-busy');
+  }
+  socket.on('roomCreated', function (data) {
+    if (!creatingDice) return;
+    var request = creatingDice;
+    ssSet('diceActiveRoom', JSON.stringify({
+      roomId: data.roomId, userName: request.name,
+      serverId: request.serverId, serverName: request.serverName
+    }));
+    clearTimeout(request.timer);
+    window.location.href = '/game';
+  });
+  socket.on('roomError', function (message) {
+    if (!creatingDice) return;
+    clearDiceCreate();
+    toast(typeof message === 'string' ? message : '방을 만들지 못했어요. 다시 눌러주세요.');
+  });
+  socket.on('disconnect', function () {
+    if (!creatingDice) return;
+    clearDiceCreate();
+    toast('연결이 끊겼어요. 연결되면 다시 눌러주세요.');
+  });
 
   $$('.tile').forEach(function (t) { t.addEventListener('click', function () { go(t.dataset.game, { kind: 'create' }); }); });
 

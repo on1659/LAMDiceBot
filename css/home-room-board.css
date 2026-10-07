@@ -1,0 +1,194 @@
+/* Dice and roulette: active rooms only; the legacy lobby retains its layout. */
+body.home-room:has(#gameSection.active) .home-room-lobby-masthead {
+    display: none !important;
+}
+
+body.home-room:has(#gameSection.active) #headerServerNameDisplay {
+    display: none !important;
+}
+
+body.home-room:has(#gameSection.active) :is(.users-section, .ready-section) .users-title {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+}
+
+body.home-room:has(#gameSection.active) :is(.users-section, .ready-section) .users-list {
+    padding: 8px;
+    gap: 6px;
+    min-height: 44px !important;
+}
+
+body.home-room:has(#gameSection.active) > .container {
+    width: min(760px, calc(100% - 340px));
+    max-width: 760px;
+    max-height: none;
+    overflow: visible;
+    margin: 0 0 20px max(0px, calc((100% - 1100px) / 2));
+}
+
+body.home-room:has(#gameSection.active) > .history-section {
+    left: auto;
+    right: max(12px, calc((100vw - 1100px) / 2));
+    width: 300px;
+    background: var(--room-paper);
+    color: var(--room-ink);
+    border: 2px solid var(--room-ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 var(--room-line);
+}
+
+body.home-room:has(#gameSection.active) .home-room-art .ui {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+}
+
+body.home-room:has(#gameSection.active) .home-room-disclosure {
+    border: 0 !important;
+    border-top: 2px dashed var(--room-line) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 12px 0 !important;
+    margin: 12px 0 !important;
+    color: var(--room-ink);
+    text-align: left !important;
+}
+
+body.home-room:has(#gameSection.active) .home-room-disclosure > summary {
+    min-height: 44px;
+    padding: 10px 4px;
+    font: 800 15px/1.5 var(--room-body);
+    cursor: pointer;
+}
+
+body.home-room:has(#gameSection.active) .home-room-disclosure > summary span {
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--room-muted);
+}
+
+body.home-room:has(#gameSection.active) .home-room-disclosure[open] > summary {
+    margin-bottom: 12px;
+}
+
+body.home-room:has(#gameSection.active) .home-room-host-options {
+    grid-column: 1 / -1;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+body.home-room:has(#gameSection.active) .home-room-host-options > button {
+    margin-top: 8px;
+}
+
+body.home-room:has(#gameSection.active) #gameRulesRadioSection label {
+    border-color: var(--room-line) !important;
+    border-radius: 3px !important;
+    background: var(--room-surface) !important;
+}
+
+body.home-room:has(#gameSection.active) #gameRulesRadioSection label:has(input:checked) {
+    border-color: var(--room-ink) !important;
+    background: var(--room-soft) !important;
+}
+
+body.home-room:has(#gameSection.active) #gameRulesInput {
+    min-height: 72px;
+    opacity: 1;
+    color: var(--room-ink);
+    -webkit-text-fill-color: var(--room-ink);
+}
+
+body.home-room:has(#gameSection.active) #hostControls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+body.home-room:has(#gameSection.active) #diceIdleEmoji {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    padding: 8px;
+    font-size: 28px;
+    background: var(--room-soft);
+    color: var(--room-ink);
+    border: 2px solid var(--room-ink);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+body.home-room:has(#gameSection.active) .roulette-container {
+    padding: 24px 0;
+    margin-block: 16px;
+    border-block: 2px solid var(--room-line);
+}
+
+body.home-room:has(#gameSection.active) .schedule-open-row {
+    margin-block: 8px;
+}
+
+body.home-room:has(#gameSection.active) .schedule-open-button {
+    background: var(--room-surface);
+    color: var(--room-ink);
+    border-color: var(--room-line);
+    box-shadow: none;
+}
+
+body.home-room:has(#gameSection.active) :is(.history-title-wrapper, .my-order-title) {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+body.home-room:has(#gameSection.active) .history-title-wrapper > div {
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+    body.home-room:has(#gameSection.active) > .container {
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto 20px;
+    }
+
+    body.home-room:has(#gameSection.active) > .history-section {
+        position: relative;
+        top: auto;
+        left: auto;
+        right: auto;
+        width: 100%;
+        max-width: 760px;
+        max-height: 400px;
+        margin: 20px auto;
+    }
+}
+
+@media (max-width: 600px) {
+    body.home-room:has(#gameSection.active) #dragHint {
+        display: none !important;
+    }
+
+    body.home-room:has(#gameSection.active) .roulette-wrapper {
+        width: min(280px, 76vw);
+        height: min(280px, 76vw);
+    }
+
+    body.home-room:has(#gameSection.active) .roulette-container {
+        padding-block: 20px;
+    }
+
+    body.home-room:has(#gameSection.active) #readySection > div:first-child {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    body.home-room:has(#gameSection.active) .sort-buttons {
+        flex-wrap: wrap;
+    }
+
+    body.home-room:has(#gameSection.active) #chatInput {
+        width: 100%;
+        min-width: 0;
+    }
+}
