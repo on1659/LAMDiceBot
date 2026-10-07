@@ -824,8 +824,9 @@
     }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/home-room.css?v=1">
-    <link rel="stylesheet" href="/css/home-room-board.css?v=1">
+    <link rel="stylesheet" href="/css/home-room.css?v=2">
+    <link rel="stylesheet" href="/css/home-room-board.css?v=2">
+    <script defer src="/js/shared/room-layout-shared.js?v=2"></script>
 </head>
 <body class="home-room" data-room-game="roulette">
     <noscript>
@@ -1108,12 +1109,7 @@
     <div class="container">
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
-            <div class="home-room-hero">
-                <div class="home-room-art" aria-hidden="true"><i class="ui ui-hero ui-slot"></i></div>
-                <div>
-                    <h1 class="home-room-title">룰렛</h1>
-                </div>
-            </div>
+            <p class="room-game-label">룰렛</p>
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
             <script src="/js/shared/control-bar-shared.js"></script>
@@ -1129,6 +1125,40 @@
                 });
             </script>
 
+            <div class="room-layout">
+                <main class="room-playfield" aria-label="룰렛 게임판">
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
+            </div>
+
+            <!-- 룰렛 컨테이너 (항상 표시) -->
+            <div class="roulette-container" id="rouletteContainer" style="display: flex;">
+                <div class="roulette-wrapper">
+                    <div class="roulette-pointer"></div>
+                    <div class="roulette-wheel" id="rouletteWheel"></div>
+                    <div class="roulette-center"><i class="ui ui-slot"></i></div>
+                </div>
+                <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
+            </div>
+
+            <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
+            <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
+                <button class="end-button" onclick="endRouletteGame()"><i class="ui ui-checker"></i> 게임 종료</button>
+            </div>
+
+            <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(var(--dice-500-rgb), 0.4);">
+                <div style="color: var(--text-on-accent); margin-bottom: 12px; font-size: 14px;">
+                    <i class="ui ui-clapper"></i> 화면을 보지 않는 동안 룰렛이 진행되었습니다
+                </div>
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-on-light); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(var(--roulette-danger-glow-rgb), 0.4);">
+                    <i class="ui ui-refresh"></i> 다시보기
+                </button>
+            </div>
+
+                </main>
+                <aside class="room-sidebar" aria-label="참가자와 게임 설정">
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
@@ -1177,20 +1207,19 @@
                 </details>
             </div>
 
-            <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus">
-                게임 대기 중...
-            </div>
+            <!-- 터보 애니메이션 설정 (호스트 전용) -->
+            <details class="home-room-disclosure" id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(var(--roulette-500-rgb), 0.1); border-radius: 8px;">
+                <summary>룰렛 설정 <span>연출 변경</span></summary>
+                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
+                    <span style="font-weight: bold; color: var(--roulette-accent);"><i class="ui ui-rocket"></i> 터보 애니메이션</span>
+                </label>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;">다양한 마무리 효과</div>
+            </details>
 
-            <!-- 룰렛 컨테이너 (항상 표시) -->
-            <div class="roulette-container" id="rouletteContainer" style="display: flex;">
-                <div class="roulette-wrapper">
-                    <div class="roulette-pointer"></div>
-                    <div class="roulette-wheel" id="rouletteWheel"></div>
-                    <div class="roulette-center"><i class="ui ui-slot"></i></div>
-                </div>
-                <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
+                </aside>
             </div>
+            <div class="room-extras"></div>
 
             <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
             <!-- Ad: Lobby Banner -->
@@ -1202,31 +1231,6 @@
                    data-ad-slot="7466418558"
                    data-ad-format="auto"
                    data-full-width-responsive="true"></ins>
-            </div>
-
-            <!-- 터보 애니메이션 설정 (호스트 전용) -->
-            <details class="home-room-disclosure" id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(var(--roulette-500-rgb), 0.1); border-radius: 8px;">
-                <summary>룰렛 설정 <span>연출 변경</span></summary>
-                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
-                    <span style="font-weight: bold; color: var(--roulette-accent);"><i class="ui ui-rocket"></i> 터보 애니메이션</span>
-                </label>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;">다양한 마무리 효과</div>
-            </details>
-
-            <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
-            <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
-                <button class="end-button" onclick="endRouletteGame()"><i class="ui ui-checker"></i> 게임 종료</button>
-            </div>
-
-            <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(var(--dice-500-rgb), 0.4);">
-                <div style="color: var(--text-on-accent); margin-bottom: 12px; font-size: 14px;">
-                    <i class="ui ui-clapper"></i> 화면을 보지 않는 동안 룰렛이 진행되었습니다
-                </div>
-                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-on-light); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(var(--roulette-danger-glow-rgb), 0.4);">
-                    <i class="ui ui-refresh"></i> 다시보기
-                </button>
             </div>
 
             <!-- 채팅 섹션 -->

@@ -247,3 +247,13 @@ function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
 방 입장 시 이름 중복 → 서버가 `_1`, `_2` 접미사 자동 부여.
 `generateUniqueUserName(baseName, existingNames)` in `utils/room-helpers.js`.
 모든 이름 비교는 정확한 문자열 일치(`===`)이므로 안전.
+
+
+## Room layout (인게임 표시 전용)
+
+`js/shared/room-layout-shared.js`는 주사위·룰렛·경마·데구리의 `.room-layout` / `.room-extras` 화면에서만 로드한다. `css/home-room.css` 및 게임별 board/race CSS와 함께 사용한다.
+
+- 기존 방 제목·초대 링크·볼륨·테마·나가기 DOM을 압축 헤더에 배치한다.
+- 기존 채팅/기록/주문 노드를 탭 패널로 이동한다. 게임 모듈의 ID·이벤트·호스트 표시 조건은 유지한다.
+- 주문 바로가기와 튜토리얼은 대상 패널을 먼저 연다. 탭은 방향키/Home/End로 이동한다.
+- 레이아웃 스크립트는 게임 결과나 소켓을 처리하지 않는다. 새 게임에 자동 적용하지 않는다.
