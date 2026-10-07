@@ -45,7 +45,7 @@ function luminance(rgb) {
             await page.locator(`.tile[data-game="${game}"]`).click();
             await page.locator('#gameSection.active').waitFor({ timeout: WAIT });
             await page.locator('#freeInviteBar').waitFor({ timeout: WAIT });
-            assert.equal(await page.locator('.home-room-title').innerText(), label);
+            assert.equal(await page.locator('.room-game-label').innerText(), label);
             // 로컬 전용 디버그 창은 화면 캡처에서만 제외한다.
             await page.addStyleTag({ content: '#debugLogSection { display: none !important; }' });
             const settings = page.locator('#hostControls details > summary').first();
@@ -55,6 +55,13 @@ function luminance(rgb) {
             await page.keyboard.press('Enter');
             assert.equal(await settings.evaluate(el => el.parentElement.open), false);
             assert.equal(await page.locator(start).isVisible(), true);
+            await page.locator('#room-tab-history').click();
+            assert.equal(await page.locator('#room-panel-chat').isVisible(), false);
+            assert.equal(await page.locator('#room-panel-history').isVisible(), true);
+            await page.keyboard.press('ArrowRight');
+            assert.equal(await page.locator('#room-tab-orders').getAttribute('aria-selected'), 'true');
+            await page.keyboard.press('Home');
+            assert.equal(await page.locator('#chatInput').isVisible(), true);
 
             if (game === 'horse-race' || game === 'dice') {
                 const target = game === 'horse-race' ? '#startOrderButton' : '#gameRulesSection';
@@ -65,6 +72,12 @@ function luminance(rgb) {
                 assert.equal(await page.locator(target).isVisible(), true);
                 await page.locator('#tutorialShadowHost .tutorial-btn-close').click();
                 assert.equal(await page.locator(target).evaluate(el => (el.closest('details') || el).open), false);
+                if (game === 'horse-race') {
+                    await page.evaluate(() => TutorialModule.start('horse', [HORSE_RACE_TUTORIAL_STEPS.find(step => step.target === '#tutorialFakeOrders')], { force: true }));
+                    assert.equal(await page.locator('#tutorialFakeOrders').isVisible(), true);
+                    await page.locator('#tutorialShadowHost .tutorial-btn-close').click();
+                    await page.locator('#room-tab-chat').click();
+                }
             }
 
             for (const theme of ['light', 'dark']) {
@@ -77,15 +90,18 @@ function luminance(rgb) {
                     await page.waitForFunction(width => document.documentElement.scrollWidth <= width, width, { timeout: WAIT });
                     const metrics = await page.evaluate(start => {
                         const bar = document.querySelector('#freeInviteBar');
-                        const text = bar.querySelector('.fi-bar-url');
+                        const text = bar.querySelector('.room-invite-label');
                         const button = document.querySelector(start);
                         return {
                             width: document.documentElement.scrollWidth,
+                            gameTop: Math.round(document.querySelector('.room-playfield').getBoundingClientRect().top),
+                            sidebarLeft: Math.round(document.querySelector('.room-sidebar').getBoundingClientRect().left),
                             startBottom: Math.round(button.getBoundingClientRect().bottom),
                             inviteBackground: getComputedStyle(bar).backgroundColor,
                             inviteText: getComputedStyle(text).color
                         };
                     }, start);
+                    assert.ok(metrics.gameTop < 160, `${game}: game starts at ${metrics.gameTop}`);
                     assert.ok(metrics.width <= width, `${game}/${theme}/${width}: horizontal overflow`);
                     const contrast = [luminance(metrics.inviteBackground), luminance(metrics.inviteText)].sort((a, b) => b - a);
                     metrics.inviteContrast = (contrast[0] + 0.05) / (contrast[1] + 0.05);

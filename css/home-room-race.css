@@ -1,210 +1,254 @@
-/* Room chrome only: tracks, canvas dimensions and fullscreen/PiP stay game-owned. */
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-hero {
-    margin-bottom: 24px;
+/* Game-owned tracks and canvases retain their rendering and fullscreen geometry. */
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .room-playfield {
+    min-width: 0;
+    align-self: start;
 }
 
-body.home-room[data-room-game="horse-race"] #gameSection.active :is(.horse-selection-section, .horse-selection-button),
-body.home-room[data-room-game="deguri"] #gameSection.active #deguriPickSection {
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .room-sidebar {
+    min-width: 0;
+}
+
+body.home-room[data-room-game="horse-race"] #horseSelectionSection,
+body.home-room[data-room-game="deguri"] #deguriPickSection {
+    margin: 0;
+    padding: 16px;
     background: var(--room-surface);
     color: var(--room-ink);
-    border: 2px solid var(--room-line);
-    border-radius: 0;
+    border: 1px solid var(--room-line);
+    border-radius: 12px;
     box-shadow: none;
 }
 
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-section,
-body.home-room[data-room-game="deguri"] #gameSection.active #deguriPickSection {
-    padding: 18px;
-    margin-bottom: 20px;
-}
-
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-header,
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-pick-head {
+body.home-room[data-room-game="horse-race"] .horse-selection-header,
+body.home-room[data-room-game="deguri"] .deguri-pick-head {
+    margin-bottom: 0;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
 }
 
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-header-right {
+body.home-room[data-room-game="horse-race"] .horse-selection-header-right {
     flex-wrap: wrap;
+    gap: 12px;
 }
 
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-pick-title {
-    font-family: var(--room-display);
-    color: var(--room-ink);
-    font-size: 22px;
+body.home-room[data-room-game="horse-race"] #horseSelectionGrid,
+body.home-room[data-room-game="deguri"] #deguriPicker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px;
+    max-height: 170px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    margin: 12px 0 8px;
+    padding: 3px;
 }
 
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-creature-btn {
-    border-radius: 0;
-    border-color: var(--room-line);
-    box-shadow: none;
-    background: var(--room-paper);
-    color: var(--room-ink);
-}
-
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-creature-btn.selected,
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-button.selected {
-    border-color: var(--room-focus);
-    background: var(--room-soft);
-    box-shadow: inset 0 0 0 2px var(--room-focus);
-}
-
-body.home-room[data-room-game="deguri"] #gameSection.active :is(.deguri-shop-btn, .deguri-stage-btn) {
-    min-height: 44px;
-    border-radius: 0;
-    border-color: var(--room-line);
-    background: var(--room-paper);
-    color: var(--room-ink);
-    box-shadow: none;
-}
-
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-stage-btn.is-on {
-    background: var(--room-soft);
-    border-color: var(--room-focus);
-}
-
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-start-row .start-button {
+body.home-room[data-room-game="horse-race"] .horse-selection-button,
+body.home-room[data-room-game="deguri"] .deguri-creature-btn {
+    min-width: 0;
+    max-width: none;
     width: 100%;
-    min-height: 58px;
+    min-height: 72px;
+    margin: 0;
+    padding: 6px 3px;
+    border: 1px solid var(--room-line);
+    border-radius: 8px;
+    background: var(--room-paper);
+    color: var(--room-ink);
+    font-size: 12px;
+    box-shadow: none;
+}
+
+body.home-room[data-room-game="horse-race"] .horse-selection-button:hover:not(:disabled),
+body.home-room[data-room-game="deguri"] .deguri-creature-btn:hover:not(:disabled) {
+    background: var(--room-soft);
+    transform: none;
+}
+
+body.home-room[data-room-game="horse-race"] .horse-selection-button.selected,
+body.home-room[data-room-game="deguri"] .deguri-creature-btn.selected {
+    border-color: var(--room-focus);
+    background: var(--room-soft);
+    box-shadow: inset 0 0 0 1px var(--room-focus);
+}
+
+body.home-room[data-room-game="deguri"] .deguri-creature-icon {
+    width: 42px;
+    height: 42px;
+}
+
+body.home-room[data-room-game="deguri"] .deguri-pick-title {
+    font-family: var(--room-body);
+    color: var(--room-ink);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+body.home-room[data-room-game="horse-race"] #horseSelectionInfo {
+    margin: 6px 0 !important;
+    font-size: 12px !important;
+    line-height: 1.5;
+}
+
+body.home-room[data-room-game="deguri"] .deguri-pick-status:empty {
+    display: none;
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection .home-room-pick-options,
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection .home-room-race-settings {
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--room-line);
+    background: transparent;
+    color: var(--room-ink);
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection .home-room-pick-options > summary,
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection .home-room-race-settings > summary {
+    min-height: 40px;
+    padding: 12px 0 8px;
+    cursor: pointer;
+    font-family: var(--room-body);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) details > summary:focus-visible {
+    outline: 2px solid var(--room-focus);
+    outline-offset: 3px;
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection .home-room-pick-options[open] > :not(summary) {
+    margin-top: 12px;
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .home-room-start-row .start-button {
+    width: 100%;
+    min-height: 48px;
     margin: 0 0 12px;
-    border: 2px solid var(--room-ink);
-    border-radius: 0;
+    border: 1px solid var(--room-ink);
+    border-radius: 8px;
     background: var(--room-ink);
     color: var(--room-paper);
-    font-family: var(--room-display);
-    font-size: 24px;
+    font-family: var(--room-body);
+    font-size: 16px;
+    font-weight: 700;
     box-shadow: none;
 }
 
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-start-row .start-button:disabled {
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .home-room-start-row .start-button:disabled {
     background: var(--room-soft);
     color: var(--room-muted);
     border-color: var(--room-line);
     opacity: 1;
 }
 
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-race-settings {
-    border-top: 1px solid var(--room-line);
+body.home-room[data-room-game="deguri"] #deguriStage {
+    margin: 0;
+}
+
+body.home-room[data-room-game="deguri"] #deguriCanvasBox:not(.is-pseudo-fs):not(:fullscreen) {
+    border: 1px solid var(--room-line);
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+body.home-room[data-room-game="deguri"] .deguri-stage-tools {
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+body.home-room[data-room-game="deguri"] :is(.deguri-shop-btn, .deguri-stage-btn) {
+    min-height: 36px;
+    border: 1px solid var(--room-line);
+    border-radius: 8px;
+    background: var(--room-surface);
     color: var(--room-ink);
-}
-
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-race-settings > summary {
-    min-height: 48px;
-    padding: 14px 0;
-    cursor: pointer;
     font-family: var(--room-body);
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 12px;
+    box-shadow: none;
 }
 
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-race-settings > summary:focus-visible {
-    outline: 3px solid var(--room-focus);
-    outline-offset: 3px;
+body.home-room[data-room-game="deguri"] .deguri-stage-btn.is-on {
+    background: var(--room-soft);
+    border-color: var(--room-focus);
 }
 
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-race-settings .schedule-open-row {
-    margin: 4px 0 12px;
+body.home-room[data-room-game="horse-race"] .room-playfield > #raceTrackWrapper > .race-track-container {
+    margin: 10px 0 0;
 }
 
-/* Primary play controls precede ads; ad nodes and their lifecycle remain intact. */
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active #ordersSection > div:first-child {
+body.home-room[data-room-game="horse-race"] .room-playfield > #raceTrackWrapper > .track-top-btn-row {
+    position: static;
+    justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 12px;
+    margin-bottom: 8px;
 }
 
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active #ordersSection > div:first-child > div:last-child {
+body.home-room[data-room-game="horse-race"] .room-playfield > #raceTrackWrapper > .track-top-btn-row > button {
+    min-height: 32px;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--room-line);
+    border-radius: 8px;
+    background: var(--room-surface);
+    color: var(--room-ink);
+    font-family: var(--room-body);
+    font-size: 11px;
+}
+
+body.home-room[data-room-game="horse-race"] #randomSelectButton {
+    grid-column: auto !important;
+    height: auto !important;
+}
+
+body.home-room[data-room-game="horse-race"] #randomSelectButton > div {
+    flex-direction: column;
+    gap: 2px !important;
+}
+
+body.home-room[data-room-game="horse-race"] #randomSelectButton > div > span:last-child {
+    font-size: 11px !important;
+    white-space: nowrap;
+}
+
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #ordersSection > div:first-child,
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #ordersSection > div:first-child > div:last-child {
     flex-wrap: wrap;
+    gap: 8px;
 }
 
-@media (max-width: 600px) {
-    body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-section,
-    body.home-room[data-room-game="deguri"] #gameSection.active #deguriPickSection {
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]):has(#gameSection.active) {
+    overflow-anchor: none;
+}
+
+@media (max-width: 760px) {
+    body.home-room[data-room-game="horse-race"] #horseSelectionSection,
+    body.home-room[data-room-game="deguri"] #deguriPickSection {
         padding: 12px;
     }
 
-    body.home-room[data-room-game="deguri"] #gameSection.active .deguri-pick-title {
-        flex-basis: 100%;
+    body.home-room[data-room-game="horse-race"] #horseSelectionGrid,
+    body.home-room[data-room-game="deguri"] #deguriPicker {
+        grid-template-columns: none !important;
+        grid-auto-flow: column;
+        grid-auto-columns: 76px;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-gutter: auto;
+        scroll-snap-type: x proximity;
     }
 
-    body.home-room[data-room-game="deguri"] #gameSection.active .deguri-stage-tools {
+    body.home-room[data-room-game="horse-race"] .horse-selection-button,
+    body.home-room[data-room-game="deguri"] .deguri-creature-btn {
+        scroll-snap-align: start;
+    }
+
+    body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #readySection > div:first-child {
         flex-wrap: wrap;
+        gap: 8px;
     }
-
-    body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active #readySection > div:first-child {
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-}
-
-/* A compact choice tray keeps the ready/start journey above the full race view. */
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-hero {
-    display: block;
-    margin: 0 0 16px;
-    padding: 0 0 16px;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active #horseSelectionGrid,
-body.home-room[data-room-game="deguri"] #gameSection.active #deguriPicker {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px;
-    max-height: 180px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    margin: 12px 0;
-    padding: 4px;
-}
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-creature-btn {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-    padding: 6px 2px;
-    font-size: 12px;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-button {
-    min-width: 0;
-    min-height: 64px;
-    padding: 8px;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active #horseSelectionInfo {
-    margin-top: 8px !important;
-    font-size: 12px !important;
-}
-
-/* Optional voting, cosmetics and pick metadata remain reachable in one disclosure. */
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-pick-options {
-    padding: 0;
-    border: 0;
-    border-top: 1px solid var(--room-line);
-    background: transparent;
-}
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-pick-options > summary {
-    min-height: 40px;
-    padding: 10px 0 4px;
-    font-size: 12px;
-}
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) #gameSection.active .home-room-pick-options[open] > :not(summary) {
-    margin-top: 12px;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active #horseSelectionGrid,
-body.home-room[data-room-game="deguri"] #gameSection.active #deguriPicker {
-    max-height: 148px;
-    margin: 8px 0;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active #horseSelectionSection,
-body.home-room[data-room-game="deguri"] #gameSection.active #deguriPickSection {
-    padding: 10px 12px 4px;
-    margin-bottom: 12px;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active .horse-selection-header {
-    margin-bottom: 0;
-}
-body.home-room[data-room-game="horse-race"] #gameSection.active #horseSelectionInfo {
-    margin: 4px 0 !important;
-}
-body.home-room[data-room-game="deguri"] #gameSection.active .deguri-pick-status:empty {
-    display: none;
-}
-body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]):has(#gameSection.active) {
-    overflow-anchor: none;
 }

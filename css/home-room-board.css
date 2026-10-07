@@ -1,80 +1,41 @@
-/* Dice and roulette: active rooms only; the legacy lobby retains its layout. */
-body.home-room:has(#gameSection.active) .home-room-lobby-masthead {
+/* 주사위·룰렛의 실제 게임판. 입장 전 로비에는 적용하지 않는다. */
+body.home-room:has(#gameSection.active) :is(.home-room-lobby-masthead, #headerServerNameDisplay) {
     display: none !important;
-}
-
-body.home-room:has(#gameSection.active) #headerServerNameDisplay {
-    display: none !important;
-}
-
-body.home-room:has(#gameSection.active) :is(.users-section, .ready-section) .users-title {
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-}
-
-body.home-room:has(#gameSection.active) :is(.users-section, .ready-section) .users-list {
-    padding: 8px;
-    gap: 6px;
-    min-height: 44px !important;
-}
-
-body.home-room:has(#gameSection.active) > .container {
-    width: min(760px, calc(100% - 340px));
-    max-width: 760px;
-    max-height: none;
-    overflow: visible;
-    margin: 0 0 20px max(0px, calc((100% - 1100px) / 2));
-}
-
-body.home-room:has(#gameSection.active) > .history-section {
-    left: auto;
-    right: max(12px, calc((100vw - 1100px) / 2));
-    width: 300px;
-    background: var(--room-paper);
-    color: var(--room-ink);
-    border: 2px solid var(--room-ink);
-    border-radius: 0;
-    box-shadow: 4px 4px 0 var(--room-line);
-}
-
-body.home-room:has(#gameSection.active) .home-room-art .ui {
-    width: 48px;
-    height: 48px;
-    font-size: 48px;
 }
 
 body.home-room:has(#gameSection.active) .home-room-disclosure {
+    min-width: 0;
     border: 0 !important;
-    border-top: 2px dashed var(--room-line) !important;
+    border-top: 1px solid var(--room-line) !important;
     border-radius: 0 !important;
     background: transparent !important;
-    padding: 12px 0 !important;
-    margin: 12px 0 !important;
+    padding: 10px 0 !important;
+    margin: 0 !important;
     color: var(--room-ink);
     text-align: left !important;
 }
 
 body.home-room:has(#gameSection.active) .home-room-disclosure > summary {
     min-height: 44px;
-    padding: 10px 4px;
-    font: 800 15px/1.5 var(--room-body);
+    padding: 10px 0;
+    font: 700 14px/1.5 var(--room-body);
     cursor: pointer;
 }
 
 body.home-room:has(#gameSection.active) .home-room-disclosure > summary span {
-    margin-left: 8px;
-    font-size: 12px;
+    margin-left: 6px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--room-muted);
 }
 
 body.home-room:has(#gameSection.active) .home-room-disclosure[open] > summary {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 body.home-room:has(#gameSection.active) .home-room-host-options {
     grid-column: 1 / -1;
-    margin-bottom: 0 !important;
+    margin-top: 8px !important;
     padding-bottom: 0 !important;
 }
 
@@ -83,9 +44,10 @@ body.home-room:has(#gameSection.active) .home-room-host-options > button {
 }
 
 body.home-room:has(#gameSection.active) #gameRulesRadioSection label {
-    border-color: var(--room-line) !important;
-    border-radius: 3px !important;
+    border: 1px solid var(--room-line) !important;
+    border-radius: 8px !important;
     background: var(--room-surface) !important;
+    font-size: 13px;
 }
 
 body.home-room:has(#gameSection.active) #gameRulesRadioSection label:has(input:checked) {
@@ -105,23 +67,121 @@ body.home-room:has(#gameSection.active) #hostControls {
     gap: 8px;
 }
 
+body.home-room:has(#gameSection.active) .room-dice-stage {
+    min-height: 370px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 28px 16px;
+    text-align: center;
+}
+
+body.home-room:has(#gameSection.active) .room-stage-eyebrow {
+    margin: 0 0 8px;
+    color: var(--room-muted);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .04em;
+}
+
 body.home-room:has(#gameSection.active) #diceIdleEmoji {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    padding: 8px;
-    font-size: 28px;
-    background: var(--room-soft);
+    display: grid;
+    place-items: center;
+    width: 112px;
+    height: 112px;
+    min-width: 112px;
+    padding: 18px;
+    margin: 0;
+    background: var(--room-paper);
     color: var(--room-ink);
     border: 2px solid var(--room-ink);
-    border-radius: 4px;
+    border-radius: 24px;
+    box-shadow: 0 6px 0 var(--room-line);
     cursor: pointer;
+    touch-action: manipulation;
+}
+
+body.home-room:has(#gameSection.active) #diceIdleEmoji:hover {
+    background: var(--room-soft);
+}
+
+body.home-room:has(#gameSection.active) #diceIdleEmoji:active {
+    box-shadow: 0 2px 0 var(--room-line);
+}
+
+body.home-room:has(#gameSection.active) #diceIdleEmoji .ui {
+    width: 68px;
+    height: 68px;
+    font-size: 68px;
+}
+
+body.home-room:has(#gameSection.active) .room-dice-action {
+    font-size: 14px;
+    font-weight: 750;
+    margin-top: 4px;
+}
+
+body.home-room:has(#gameSection.active) .room-stage-caption {
+    max-width: 270px;
+    margin: 4px 0 0;
+    color: var(--room-muted);
+    font-size: 12px;
+    line-height: 1.7;
+    word-break: keep-all;
+}
+
+body.home-room:has(#gameSection.active) .room-dice-result:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 160px;
+    padding-top: 12px;
+    gap: 4px;
+}
+
+body.home-room:has(#gameSection.active) #roomDiceResultUser {
+    color: var(--room-muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+body.home-room:has(#gameSection.active) #roomDiceResultValue {
+    color: var(--room-ink);
+    font: 800 clamp(36px, 7vw, 56px)/1.15 var(--room-body);
+    font-variant-numeric: tabular-nums;
+}
+
+body.home-room:has(#gameSection.active) #progressSection {
+    margin: 0 0 12px;
+    padding: 14px;
+    background: var(--room-soft);
+    border: 1px solid var(--room-line);
+    border-radius: 10px;
+}
+
+body.home-room:has(#gameSection.active) #notRolledSection {
+    margin: 0;
+    padding: 14px;
+    border-radius: 10px;
 }
 
 body.home-room:has(#gameSection.active) .roulette-container {
-    padding: 24px 0;
-    margin-block: 16px;
-    border-block: 2px solid var(--room-line);
+    justify-content: center;
+    min-height: 410px;
+    padding: 32px 0 16px;
+    margin: 0;
+    border: 0;
+}
+
+body.home-room:has(#gameSection.active) .roulette-wheel {
+    box-shadow: 0 10px 0 var(--room-line);
+}
+
+body.home-room:has(#gameSection.active) .roulette-live-commentary {
+    min-height: 26px;
+    margin-top: 16px;
 }
 
 body.home-room:has(#gameSection.active) .schedule-open-row {
@@ -145,37 +205,27 @@ body.home-room:has(#gameSection.active) .history-title-wrapper > div {
     max-width: 100%;
 }
 
-@media (max-width: 1100px) {
-    body.home-room:has(#gameSection.active) > .container {
-        width: 100%;
-        max-width: 760px;
-        margin: 0 auto 20px;
+@media (max-width: 700px) {
+    body.home-room:has(#gameSection.active) .room-dice-stage {
+        min-height: 270px;
+        padding: 20px 12px;
+        gap: 10px;
     }
 
-    body.home-room:has(#gameSection.active) > .history-section {
-        position: relative;
-        top: auto;
-        left: auto;
-        right: auto;
-        width: 100%;
-        max-width: 760px;
-        max-height: 400px;
-        margin: 20px auto;
-    }
-}
-
-@media (max-width: 600px) {
-    body.home-room:has(#gameSection.active) #dragHint {
-        display: none !important;
+    body.home-room:has(#gameSection.active) #diceIdleEmoji {
+        width: 100px;
+        min-width: 100px;
+        height: 100px;
     }
 
     body.home-room:has(#gameSection.active) .roulette-wrapper {
-        width: min(280px, 76vw);
-        height: min(280px, 76vw);
+        width: min(280px, 72vw);
+        height: min(280px, 72vw);
     }
 
     body.home-room:has(#gameSection.active) .roulette-container {
-        padding-block: 20px;
+        min-height: 320px;
+        padding-top: 24px;
     }
 
     body.home-room:has(#gameSection.active) #readySection > div:first-child {
@@ -191,4 +241,82 @@ body.home-room:has(#gameSection.active) .history-title-wrapper > div {
         width: 100%;
         min-width: 0;
     }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.home-room:has(#gameSection.active) #diceIdleEmoji {
+        transform: none !important;
+        transition: none !important;
+    }
+}
+
+body.home-room:has(#gameSection.active) .result-card {
+    box-shadow: none;
+    max-width: min(440px, calc(100vw - 32px));
+}
+
+body.home-room:has(#gameSection.active) .result-title {
+    color: var(--room-muted);
+    font: 650 18px/1.5 var(--room-body);
+}
+
+body.home-room:has(#gameSection.active) .result-winner {
+    color: var(--room-ink);
+    font: 800 clamp(30px, 7vw, 48px)/1.3 var(--room-body);
+    overflow-wrap: anywhere;
+}
+
+body.home-room:has(#gameSection.active) .result-message {
+    color: var(--room-muted);
+    font-size: 14px;
+}
+
+body.home-room:has(#gameSection.active) .result-card > button {
+    background: var(--room-ink);
+    color: var(--room-paper);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+body.home-room:has(#gameSection.active) #replaySection {
+    margin-top: 12px !important;
+    padding: 12px !important;
+    background: var(--room-soft) !important;
+    border: 1px solid var(--room-line);
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+body.home-room:has(#gameSection.active) #replaySection > div {
+    color: var(--room-muted) !important;
+    font-size: 12px !important;
+}
+
+body.home-room:has(#gameSection.active) :is(#replaySection > button, #endGameSection > button) {
+    width: auto;
+    background: var(--room-surface) !important;
+    color: var(--room-ink) !important;
+    border: 1px solid var(--room-line) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+}
+
+body.home-room:has(#gameSection.active) .roulette-live-commentary {
+    background: var(--room-soft);
+    color: var(--room-ink);
+    border: 1px solid var(--room-line);
+    box-shadow: none;
+}
+
+body.home-room:has(#gameSection.active) .roulette-live-commentary.winner {
+    background: var(--room-ink);
+    color: var(--room-paper);
+}
+
+body.home-room:has(#gameSection.active) .room-extras .chat-section > div:last-child > button {
+    background: var(--room-ink) !important;
+    color: var(--room-paper) !important;
+    border-radius: 8px;
+    box-shadow: none;
 }

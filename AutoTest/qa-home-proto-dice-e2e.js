@@ -50,7 +50,7 @@ async function ready(page) {
         await host.locator('.tile[data-game="dice"]').click();
         await inRoom(host);
         assert.ok((await host.locator('#roomTitle').innerText()).includes(ROOM));
-        assert.equal(await host.locator('.home-room-title').innerText(), '주사위');
+        assert.equal(await host.locator('.room-game-label').innerText(), '주사위');
         assert.equal(await host.locator('#lobbySection').isVisible(), false);
         assert.equal(await host.locator('#gameRulesSection').getAttribute('open'), null);
         pass('주사위 그림 한 번 → 실제 주사위 방 생성, 로비 건너뜀');
@@ -59,19 +59,40 @@ async function ready(page) {
 
         const guestContext = await makeContext(null);
         const guest = await guestContext.newPage();
-        await guest.goto(BASE + '/home');
-        await guest.locator('#toRooms').click();
-        const row = guest.locator('#roomList .item').filter({ hasText: ROOM });
-        await row.waitFor({ timeout: TIMEOUT });
-        await row.click();
-        await guest.locator('#nameSheet:not([hidden])').waitFor();
-        await guest.locator('#nameInput').fill(GUEST);
-        await guest.locator('#nameForm button[type=submit]').click();
+        if (args.includes('--via-link')) {
+            await guest.goto(host.url());
+            await guest.locator('#nameModal:not(.hidden)').waitFor({ timeout: TIMEOUT });
+            await guest.locator('#nameModalInput').fill(GUEST);
+            await guest.locator('#nameModalSubmit').click();
+        } else {
+            await guest.goto(BASE + '/home');
+            await guest.locator('#toRooms').click();
+            const row = guest.locator('#roomList .item').filter({ hasText: ROOM });
+            await row.waitFor({ timeout: TIMEOUT });
+            await row.click();
+            await guest.locator('#nameSheet:not([hidden])').waitFor();
+            await guest.locator('#nameInput').fill(GUEST);
+            await guest.locator('#nameForm button[type=submit]').click();
+        }
         await inRoom(guest);
         await guest.waitForFunction(name => document.getElementById('usersList').textContent.includes(name), HOST, { timeout: TIMEOUT });
         await host.waitForFunction(name => document.getElementById('usersList').textContent.includes(name), GUEST, { timeout: TIMEOUT });
         assert.equal(await guest.locator('#hostControls').isVisible(), false);
-        pass('열린 방 → 별명 입력 → 같은 방 합류, 손님에게 방장 메뉴 숨김');
+        pass('별명 입력 → 같은 방 합류, 손님에게 방장 메뉴 숨김');
+
+        await host.locator('#room-tab-history').click();
+        await host.locator('#room-tab-chat').click();
+        const message = '탭 채팅 확인 ' + HOST;
+        await host.locator('#chatInput').fill(message);
+        await host.locator('#chatInput').press('Enter');
+        await guest.waitForFunction(message => document.getElementById('chatMessages').textContent.includes(message), message, { timeout: TIMEOUT });
+        pass('기록→채팅 탭 전환 뒤 상대에게 실제 메시지 전달');
+
+        if ((await guest.locator('#readyButton').textContent()).trim() !== '준비') await guest.locator('#readyButton').click();
+        await guest.waitForFunction(() => document.getElementById('readyButton').textContent.trim() === '준비', null, { timeout: TIMEOUT });
+        await host.locator('#usersList [data-user-name="' + GUEST + '"]').dragTo(host.locator('#readyUsersList'));
+        await guest.waitForFunction(() => document.getElementById('readyButton').textContent.includes('취소'), null, { timeout: TIMEOUT });
+        pass('호스트가 손님을 준비 목록으로 드래그 → 양쪽 준비 상태 반영');
 
         await ready(host);
         await ready(guest);

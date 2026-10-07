@@ -1932,8 +1932,9 @@
     }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/home-room.css?v=1">
-    <link rel="stylesheet" href="/css/home-room-board.css?v=1">
+    <link rel="stylesheet" href="/css/home-room.css?v=2">
+    <link rel="stylesheet" href="/css/home-room-board.css?v=2">
+    <script defer src="/js/shared/room-layout-shared.js?v=2"></script>
 </head>
 <body class="home-room" data-room-game="dice">
     <noscript>
@@ -2140,12 +2141,7 @@
 
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
-            <div class="home-room-hero">
-                <div class="home-room-art" aria-hidden="true"><i class="ui ui-hero ui-dice"></i></div>
-                <div>
-                    <h1 class="home-room-title">주사위</h1>
-                </div>
-            </div>
+            <p class="room-game-label">주사위</p>
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
             <script src="/js/shared/control-bar-shared.js"></script>
@@ -2167,6 +2163,44 @@
             <span id="currentServerNameDisplay" style="display: none;"></span>
             <span id="headerServerNameDisplay" style="display: none;"></span>
 
+            <div class="room-layout">
+                <main class="room-playfield" aria-label="주사위 게임판">
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
+            </div>
+
+                    <div class="room-dice-stage">
+                        <p class="room-stage-eyebrow">오늘의 운을 굴려보세요</p>
+                        <button type="button" id="diceIdleEmoji" onclick="rollDiceButton()" title="주사위 굴리기" aria-label="주사위 굴리기"><i class="ui ui-dice"></i></button>
+                        <span class="room-dice-action">주사위 굴리기</span>
+                        <div class="room-dice-result" id="roomDiceResult" aria-live="polite" aria-atomic="true" hidden>
+                            <span id="roomDiceResultUser"></span>
+                            <strong id="roomDiceResultValue"></strong>
+                        </div>
+                        <p class="room-stage-caption">준비한 친구들과 시작하거나, 가볍게 연습해 보세요.</p>
+                    </div>
+            <!-- 진행 상황 표시 -->
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-title"><i class="ui ui-chart"></i> 진행 상황</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressCount">0/0</span> 명 완료
+                </div>
+            </div>
+
+            <!-- 주사위를 굴리지 않은 사람 -->
+            <div class="not-rolled-section" id="notRolledSection" style="display: none;">
+                <div class="not-rolled-title"><i class="ui ui-hourglass"></i> 주사위를 굴리지 않은 사람</div>
+                <div class="not-rolled-list" id="notRolledList">
+                    <!-- 미완료자 목록 -->
+                </div>
+            </div>
+
+                </main>
+                <aside class="room-sidebar" aria-label="참가자와 게임 설정">
             <!-- 접속자 리스트 -->
             <div class="users-section">
                 <div class="users-title">
@@ -2271,29 +2305,9 @@
                 </div>
             </details>
 
-            <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus">
-                게임 대기 중...
+                </aside>
             </div>
-
-            <!-- 진행 상황 표시 -->
-            <div class="progress-section" id="progressSection" style="display: none;">
-                <div class="progress-title"><i class="ui ui-chart"></i> 진행 상황</div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="progressCount">0/0</span> 명 완료
-                </div>
-            </div>
-
-            <!-- 주사위를 굴리지 않은 사람 -->
-            <div class="not-rolled-section" id="notRolledSection" style="display: none;">
-                <div class="not-rolled-title"><i class="ui ui-hourglass"></i> 주사위를 굴리지 않은 사람</div>
-                <div class="not-rolled-list" id="notRolledList">
-                    <!-- 미완료자 목록 -->
-                </div>
-            </div>
+            <div class="room-extras"></div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-history-wrapper">
@@ -2302,13 +2316,12 @@
                     <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-500);">
                         <div style="color: var(--text-muted); text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;">
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;">
                         <div style="position: relative;">
                             <div class="autocomplete-suggestion" id="chatAutocompleteSuggestion" style="position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10;"></div>
                             <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-500); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
                             <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
                         </div>
-                        <button type="button" id="diceIdleEmoji" onclick="rollDiceButton()" title="주사위 굴리기" aria-label="주사위 굴리기"><i class="ui ui-dice"></i></button>
                         <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: var(--dice-gradient);">전송</button>
                     </div>
                 </div>
@@ -4739,6 +4752,7 @@
         
         // 방 생성 성공
         socket.on('roomCreated', (data) => {
+            resetRoomDiceResult();
             currentRoomId = data.roomId;
             // 방 생성 시 입력한 이름 사용 (globalUserNameInput)
             const globalNameInput = document.getElementById('globalUserNameInput');
@@ -4773,6 +4787,7 @@
 
         // 방 입장 성공
         socket.on('roomJoined', (data) => {
+            resetRoomDiceResult();
             currentRoomId = data.roomId;
             // 서버에서 전달받은 이름 사용 (중복 시 _1, _2 등이 붙을 수 있음)
             currentUser = data.userName;
@@ -5986,6 +6001,7 @@
         });
 
         socket.on('gameStarted', (data) => {
+            resetRoomDiceResult();
             // 가장 먼저 세대 증가 (이전 게임의 processGameEnd가 현재 게임에 영향 주지 않도록)
             gameGeneration++;
             const thisGeneration = gameGeneration;
@@ -6152,6 +6168,7 @@
 
         // 게임 데이터 삭제 성공
         socket.on('gameDataCleared', () => {
+            resetRoomDiceResult();
             historyData = [];
             ordersData = {};
             isOrderActive = false;
@@ -6464,6 +6481,25 @@
         // 주사위 굴리기
         let diceAnimationInterval = null;
 
+        // 게임판은 채팅의 실제 연출 텍스트를 따라가며 최종 숫자를 먼저 공개하지 않는다.
+        let roomDiceResultObserver = null;
+        function resetRoomDiceResult() {
+            if (roomDiceResultObserver) roomDiceResultObserver.disconnect();
+            roomDiceResultObserver = null;
+            document.getElementById('roomDiceResult').hidden = true;
+        }
+        function showRoomDiceResult(userName, resultNode) {
+            resetRoomDiceResult();
+            document.getElementById('roomDiceResultUser').textContent = userName + '님의 주사위';
+            const syncResult = () => {
+                document.getElementById('roomDiceResultValue').textContent = resultNode.textContent.replace('🎲', '').trim() || '…';
+            };
+            syncResult();
+            document.getElementById('roomDiceResult').hidden = false;
+            roomDiceResultObserver = new MutationObserver(syncResult);
+            roomDiceResultObserver.observe(resultNode, { childList: true, characterData: true, subtree: true });
+        }
+
         // 주사위 버튼 클릭 핸들러
         function rollDiceButton() {
             const chatInput = document.getElementById('chatInput');
@@ -6622,6 +6658,7 @@
                             resultContainer.style.cssText = 'min-width: 60px; display: flex; justify-content: flex-end;';
                         }
                         resultContainer.appendChild(diceResultSpan);
+                        showRoomDiceResult(record.user, diceResultSpan);
                         
                         // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
                         if (shouldAnimate && (isLastRoller || hasSpecialAnimation || isTestAnimation)) {
