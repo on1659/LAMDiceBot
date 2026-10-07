@@ -34,12 +34,18 @@ body.home-room[data-room-game="horse-race"] .horse-selection-header-right {
 body.home-room[data-room-game="horse-race"] #horseSelectionGrid,
 body.home-room[data-room-game="deguri"] #deguriPicker {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: none !important;
+    grid-auto-flow: column;
+    grid-auto-columns: 88px;
+    justify-content: start;
+    align-content: start;
     gap: 6px;
-    max-height: 170px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: auto;
+    scroll-snap-type: x proximity;
     margin: 12px 0 8px;
     padding: 3px;
 }
@@ -252,3 +258,82 @@ body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]):has(
         gap: 8px;
     }
 }
+
+/* Selection happens on the same track that will host the race. */
+body.home-room[data-room-game="horse-race"] .horse-lane-pick {
+    position: absolute;
+    inset-inline: 0;
+    z-index: 240;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    margin: 0;
+    padding: 4px 12px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    transition: none;
+}
+body.home-room[data-room-game="horse-race"] .horse-lane-pick span {
+    padding: 5px 9px;
+    border: 1px solid var(--room-line);
+    border-radius: 20px;
+    background: var(--room-surface);
+    color: var(--room-ink);
+    font: 650 12px/1.4 var(--room-body);
+}
+body.home-room[data-room-game="horse-race"] .horse-lane-pick.is-mine {
+    border-color: var(--room-focus);
+}
+body.home-room[data-room-game="horse-race"] .horse-lane-pick.is-mine span {
+    background: var(--room-ink);
+    color: var(--room-paper);
+}
+body.home-room[data-room-game="horse-race"][data-room-phase="playing"] .horse-lane-pick {
+    visibility: hidden;
+}
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .room-race-hint {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--room-soft);
+    color: var(--room-ink);
+    font: 600 13px/1.6 var(--room-body);
+}
+body.home-room[data-room-game="horse-race"] #horseSelectionInfo,
+body.home-room[data-room-game="deguri"] #deguriPickStatus {
+    text-align: left !important;
+    margin: 8px 0 !important;
+    color: var(--room-ink);
+    font: 650 13px/1.5 var(--room-body);
+}
+body.home-room:is([data-room-game="horse-race"], [data-room-game="deguri"]) .home-room-pick-options > summary {
+    font-size: 12px;
+}
+
+body.home-room[data-room-game="deguri"] .deguri-start-positions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    color: var(--room-muted);
+    font: 600 12px/1.4 var(--room-body);
+}
+body.home-room[data-room-game="deguri"] .deguri-start-positions[hidden] { display: none; }
+body.home-room[data-room-game="deguri"] .deguri-start-positions button {
+    width: auto;
+    min-height: 40px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--room-line);
+    border-radius: 8px;
+    background: var(--room-surface);
+    color: var(--room-ink);
+    font: 650 12px/1.4 var(--room-body);
+    box-shadow: none;
+}
+body.home-room[data-room-game="deguri"] .deguri-start-positions button:disabled { opacity: .5; }

@@ -55,6 +55,7 @@ function luminance(rgb) {
             await page.keyboard.press('Enter');
             assert.equal(await settings.evaluate(el => el.parentElement.open), false);
             assert.equal(await page.locator(start).isVisible(), true);
+            await page.locator('#roomDockActivity').click();
             await page.locator('#room-tab-history').click();
             assert.equal(await page.locator('#room-panel-chat').isVisible(), false);
             assert.equal(await page.locator('#room-panel-history').isVisible(), true);
@@ -62,7 +63,16 @@ function luminance(rgb) {
             assert.equal(await page.locator('#room-tab-orders').getAttribute('aria-selected'), 'true');
             await page.keyboard.press('Home');
             assert.equal(await page.locator('#chatInput').isVisible(), true);
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('#chatInput').isVisible(), false);
+            assert.equal(await page.locator('#roomDockActivity').evaluate(el => el === document.activeElement), true);
 
+            await page.locator('#roomDockActivity').click();
+            await page.locator('#room-tab-orders').click();
+            await page.evaluate(() => OrderModule.showOrderListModal('패널 전환 검증'));
+            await page.waitForFunction(() => document.getElementById('orderListModal')?.contains(document.activeElement));
+            assert.equal(await page.locator('body').evaluate(el => el.classList.contains('room-activity-open')), false);
+            await page.keyboard.press('Escape');
             if (game === 'horse-race' || game === 'dice') {
                 const target = game === 'horse-race' ? '#startOrderButton' : '#gameRulesSection';
                 await page.evaluate(([game, target]) => {
@@ -76,7 +86,7 @@ function luminance(rgb) {
                     await page.evaluate(() => TutorialModule.start('horse', [HORSE_RACE_TUTORIAL_STEPS.find(step => step.target === '#tutorialFakeOrders')], { force: true }));
                     assert.equal(await page.locator('#tutorialFakeOrders').isVisible(), true);
                     await page.locator('#tutorialShadowHost .tutorial-btn-close').click();
-                    await page.locator('#room-tab-chat').click();
+                    assert.equal(await page.locator('#chatInput').isVisible(), false);
                 }
             }
 
@@ -95,13 +105,21 @@ function luminance(rgb) {
                         return {
                             width: document.documentElement.scrollWidth,
                             gameTop: Math.round(document.querySelector('.room-playfield').getBoundingClientRect().top),
+                            activityTop: Math.round(document.querySelector('.room-extras').getBoundingClientRect().top),
+                            dockBottom: Math.round(document.querySelector('.room-action-dock').getBoundingClientRect().bottom),
                             sidebarLeft: Math.round(document.querySelector('.room-sidebar').getBoundingClientRect().left),
                             startBottom: Math.round(button.getBoundingClientRect().bottom),
                             inviteBackground: getComputedStyle(bar).backgroundColor,
                             inviteText: getComputedStyle(text).color
                         };
                     }, start);
-                    assert.ok(metrics.gameTop < 160, `${game}: game starts at ${metrics.gameTop}`);
+                    assert.ok(metrics.startBottom < 650, `${game}: start requires scrolling at ${metrics.startBottom}`);
+                    if (width < 760) {
+                        assert.ok(metrics.dockBottom <= HEIGHT, `${game}: dock below viewport`);
+                        await page.locator('#roomDockActivity').click();
+                        assert.equal(await page.locator('#chatInput').isVisible(), true);
+                        await page.locator('.room-sheet-close').click();
+                    } else assert.ok(metrics.activityTop < 160, `${game}: chat not alongside game`);
                     assert.ok(metrics.width <= width, `${game}/${theme}/${width}: horizontal overflow`);
                     const contrast = [luminance(metrics.inviteBackground), luminance(metrics.inviteText)].sort((a, b) => b - a);
                     metrics.inviteContrast = (contrast[0] + 0.05) / (contrast[1] + 0.05);

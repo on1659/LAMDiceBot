@@ -31,3 +31,9 @@ node AutoTest/qa-home-proto-e2e.js --game horse-race --regular
 node AutoTest/qa-home-proto-e2e.js --game roulette --regular
 node AutoTest/qa-home-proto-e2e.js --game deguri --regular
 ```
+
+## 배포 확인
+
+구현 커밋 `94412769`, 테스트 브랜치 병합 `4ed96cc2`. `https://lamtest.up.railway.app`의 CSS/JS4개가 로컬과 일치하고 HTML4개가 새 구조를 로드하는 것을 확인했다. 배포 후 주사위2인 초대/채팅/호스트 준비 드래그/완주/손님 새로고침 E2E도 통과했다.
+
+💡 lesson 후보: 준비 목록은 호스트의 드롭 영역이므로 장식성 중복 목록으로 보고 숨기면 준비 조작이 사라진다. 튜토리얼 beforeShow가 만든 대상도 생성 후 탭을 열어야 한다.

@@ -1364,6 +1364,33 @@ function updateStartButton() {
     }
 }
 
+// 화면 단계는 서버 이벤트/확정된 로컬 재생 상태를 따라간다. 게임 상태는 변경하지 않는다.
+function setHorseRoomPhase(phase) {
+    if (document.body.dataset.roomPhase !== phase) document.body.dataset.roomPhase = phase;
+    const status = document.getElementById('gameStatus');
+    if (status) status.textContent = phase === 'waiting' ? '탈것을 고르고 함께 준비해요' : (phase === 'result' ? '경주 완료' : '경주가 시작됐어요');
+    updateHorsePlayHint();
+}
+function selectedHorseName() {
+    const index = userHorseBets[currentUser];
+    if (index === undefined || index === null) return '';
+    const id = selectedVehicleTypes && selectedVehicleTypes[index];
+    const vehicle = ALL_VEHICLES.find(item => item.id === id) || ALL_VEHICLES[index % ALL_VEHICLES.length];
+    return vehicle ? vehicle.name : '';
+}
+function updateHorsePlayHint() {
+    const hint = raceDoc().getElementById('horsePlayHint');
+    if (!hint) return;
+    const phase = document.body.dataset.roomPhase || 'waiting';
+    const mine = selectedHorseName();
+    const pickReady = readyUsers.includes(currentUser);
+    raceDoc().querySelectorAll('.horse-lane-pick').forEach(button => { button.disabled = phase !== 'waiting' || !pickReady; });
+    if (phase === 'playing') hint.textContent = isReplayActive ? '다시 보는 중 · 다른 참가자의 화면에는 영향을 주지 않아요.' : (mine ? '내 탈것: ' + mine + ' · ' : '') + '경주를 지켜보세요. 결과는 도착 순서로 정해져요.';
+    else if (phase === 'result') hint.textContent = '경주가 끝났어요. 다시 보거나 다음 판을 준비하세요.';
+    else if (!pickReady) hint.textContent = '먼저 준비를 누른 뒤 트랙이나 선택 목록에서 탈것을 골라주세요.';
+    else hint.textContent = mine ? '내 탈것: ' + mine + ' · 다른 트랙을 누르면 바꿀 수 있어요.' : '트랙의 탈것을 눌러 선택하세요. 선택 목록에서도 고를 수 있어요.';
+}
+
 // 경마 시작
 function startHorseRace() {
     addDebugLog('경주 시작 요청', 'race');
@@ -1572,6 +1599,28 @@ function renderTrackForSelection() {
         }
 
         track.appendChild(horse);
+
+        // 실제 트랙을 선택 입력으로 쓴다. 선택 확정/중복 허용 여부는 서버 응답이 갱신한다.
+        const lanePick = document.createElement('button');
+        lanePick.type = 'button';
+        lanePick.className = 'horse-lane-pick';
+        lanePick.dataset.horseIndex = horseIndex;
+        lanePick.style.top = (rank * totalLaneHeight) + 'px';
+        lanePick.style.height = laneHeight + 'px';
+        const isMine = userHorseBets[currentUser] === horseIndex;
+        lanePick.classList.toggle('is-mine', isMine);
+        lanePick.setAttribute('aria-pressed', String(isMine));
+        lanePick.setAttribute('aria-label', vehicle.name + (isMine ? ' 선택됨, 다시 누르면 취소' : ' 선택'));
+        const laneLabel = document.createElement('span');
+        laneLabel.textContent = vehicle.name + (isMine ? ' · 내 탈것 ✓' : ' · 선택');
+        lanePick.append(laneLabel);
+        lanePick.disabled = (document.body.dataset.roomPhase || 'waiting') !== 'waiting' || !readyUsers.includes(currentUser);
+        lanePick.addEventListener('click', () => {
+            if ((document.body.dataset.roomPhase || 'waiting') !== 'waiting' || isRaceActive) return;
+            if (!isReady) { showCustomAlert('먼저 준비를 해주세요!', 'warning'); return; }
+            selectHorse(horseIndex);
+        });
+        track.appendChild(lanePick);
 
         // 이름 라벨을 레인 왼쪽에 표시
         if (selectedUsers.length > 0) {
@@ -1828,6 +1877,7 @@ function renderHorseSelection() {
         const button = document.createElement('button');
         button.className = 'horse-selection-button';
         button.id = `horseButton_${horseIndex}`;
+        button.setAttribute('aria-pressed', String(userHorseBets[currentUser] === horseIndex));
         
         // 탈것 타입 가져오기
         const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id;
@@ -1969,7 +2019,9 @@ function renderHorseSelection() {
     });
 
     // 선택 정보는 "탈것 선택 안한 사람" 섹션에서 표시 (주사위 게임과 동일한 방식)
-    info.innerHTML = '';
+    const myVehicleName = selectedHorseName();
+    info.textContent = myVehicleName ? '내 탈것: ' + myVehicleName + ' ✓' : '탈것을 고르면 이곳에 내 선택이 표시돼요.';
+    updateHorsePlayHint();
 
     // idle 애니메이션 (4프레임 사이클: f1↑ → f2→ → f1↓ → f2→)
     if (window._idleAnimInterval) clearInterval(window._idleAnimInterval);
@@ -5495,6 +5547,7 @@ function showRaceResult(data, isReplay = false) {
     }
     console.log('[showRaceResult] 호출됨', { isReplay, raceResultShown, stack: new Error().stack });
     if (!isReplay) raceResultShown = true;
+    setHorseRoomPhase('result');
 
     isRaceActive = false;
     if (typeof stopRaceCommentary === 'function') stopRaceCommentary();
@@ -5747,7 +5800,7 @@ function showRaceResult(data, isReplay = false) {
     // 게임 상태 업데이트
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {
-        gameStatus.textContent = '게임 대기 중...';
+        gameStatus.textContent = '경주 완료 · 다시보기 또는 다음 판 준비';
         gameStatus.className = 'game-status waiting';
     }
     
@@ -6242,6 +6295,7 @@ function playReplay(record) {
 
     isRaceActive = true;
     isReplayActive = true;
+    setHorseRoomPhase('playing');
     document.body.classList.add('race-running'); // 다시보기 애니메이션 중 스티키 광고 숨김
 
     const horseRankings = record.rankings || [];
@@ -6255,6 +6309,7 @@ function playReplay(record) {
         }
         isRaceActive = false;
         isReplayActive = false;
+        setHorseRoomPhase('result');
         document.body.classList.remove('race-running'); // 다시보기 종료/중단 — 스티키 광고 복원
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
@@ -6347,6 +6402,7 @@ function initReadyModule() {
         isGameActive: () => isRaceActive,
         onReadyChanged: (users) => {
             readyUsers = users;
+            updateHorsePlayHint();
             tryAutoSelectHorse();
             // 말 선택 UI가 활성화되어 있으면 "선택 안 한 사람" 목록 갱신
             const selectionSection = document.getElementById('horseSelectionSection');
@@ -6684,6 +6740,7 @@ socket.on('roomCreated', (data) => {
     document.body.classList.add('game-active');
 
     initializeGameScreen(data);
+    setHorseRoomPhase(((data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive) ? 'playing' : 'waiting');
     ReadyModule.setReadyUsers(readyUsers);
     autoSelectAttempted = false; // 방마다 리셋
     initAutoSelectHorseToggle();
@@ -6818,6 +6875,7 @@ socket.on('roomJoined', (data) => {
         window.SoundManager.ensureContext();
     }
     initializeGameScreen(data);
+    setHorseRoomPhase(((data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive) ? 'playing' : 'waiting');
     ReadyModule.setReadyUsers(readyUsers);
     autoSelectAttempted = false; // 방마다 리셋
     initAutoSelectHorseToggle();
@@ -6935,6 +6993,7 @@ socket.on('horseSelectionReady', (data) => {
 });
 
 async function applyHorseSelectionReady(data) {
+    setHorseRoomPhase('waiting');
     // 새 선택 페이즈 진입 = 이름표 fresh 창 종료 — 모든 경로(정상 라운드 종료/중단/재접속)의
     // 공통 수렴점에서 닫아 stale labels가 선택화면에 적용되는 것을 방지(lesson 2026-06-22).
     raceLabelsFresh = false;
@@ -7065,6 +7124,7 @@ socket.on('rankVotesUpdated', (data) => {
 
 // N등 룰렛 시작 (서버에서 결정된 winningRank를 시각화만)
 socket.on('horseRouletteStart', (data) => {
+    setHorseRoomPhase('playing');
     addDebugLog(`🎯 룰렛 시작: ${data.winningRank}등 결정`, 'race');
     // 본인 투표가 아직 반영 안된 라운드 보호: userRankVotes 동기화
     if (data && data.userRankVotes) userRankVotes = data.userRankVotes;
@@ -7076,6 +7136,7 @@ socket.on('horseRouletteStart', (data) => {
 
 // fallback (투표 없음/모두 무효) — 사유 카드만 N초간 보여준 뒤 카운트다운
 socket.on('horseRaceReasonHold', (data) => {
+    setHorseRoomPhase('playing');
     if (data && typeof data.targetRankReason === 'string') {
         window._targetRankReason = data.targetRankReason;
     }
@@ -7129,6 +7190,7 @@ socket.on('horseSelectionCancelled', (data) => {
 
 // 카운트다운 이벤트 (3,2,1 - 이미 게임 시작)
 socket.on('horseRaceCountdown', (data) => {
+    setHorseRoomPhase('playing');
     // 결정 사유 텍스트는 이미 표시됨 (horseRouletteStart 또는 horseRaceReasonHold).
     // 여기서는 reason+막대 페이드 아웃 → 카운트다운 자리 비우기 (배너는 잔존).
     if (typeof fadeBarsOverlayOnly === 'function') fadeBarsOverlayOnly();
@@ -7196,6 +7258,7 @@ socket.on('horseRaceCountdown', (data) => {
 
 // 경주 시작 이벤트
 socket.on('horseRaceStarted', (data) => {
+    setHorseRoomPhase('playing');
     // 수신 시각 앵커 — 소켓 이벤트는 숨김 탭에서도 스로틀되지 않으므로 이 시각이 "라이브 출발 기준"이 된다.
     // startRaceAnimation의 500ms init 타이머가 스로틀로 늦어도 startTime 원점(anchor+500)은 밀리지 않는다.
     const raceStartAnchor = Date.now();
@@ -7426,6 +7489,7 @@ socket.on('horseRaceEnded', (data) => {
 
 // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
 socket.on('horseRaceGameReset', (data) => {
+    setHorseRoomPhase('waiting');
     raceLabelsFresh = false; // 카운트다운~시작 창에서 게임 종료 시 fresh 고착 방지
     removeQuickRaceOverlay();
     // 🔧 경주 애니메이션 정리 (경주 중 리셋 시 화면 깨짐 방지)

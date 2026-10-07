@@ -824,9 +824,9 @@
     }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/home-room.css?v=2">
-    <link rel="stylesheet" href="/css/home-room-board.css?v=2">
-    <script defer src="/js/shared/room-layout-shared.js?v=2"></script>
+    <link rel="stylesheet" href="/css/home-room.css?v=3">
+    <link rel="stylesheet" href="/css/home-room-board.css?v=3">
+    <script defer src="/js/shared/room-layout-shared.js?v=3"></script>
 </head>
 <body class="home-room" data-room-game="roulette">
     <noscript>
@@ -1132,6 +1132,11 @@
                 게임 대기 중...
             </div>
 
+            <div class="room-stage-hud">
+                <span id="roomRouletteCount"></span>
+                <strong id="roomRoulettePhase" aria-live="polite">준비 중</strong>
+            </div>
+            <h2 class="room-stage-title" id="roomRouletteHint">친구들과 준비해 주세요</h2>
             <!-- 룰렛 컨테이너 (항상 표시) -->
             <div class="roulette-container" id="rouletteContainer" style="display: flex;">
                 <div class="roulette-wrapper">
@@ -1142,6 +1147,10 @@
                 <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
             </div>
 
+            <div class="room-stage-next">
+                <p id="roomRouletteCaption" class="room-stage-caption"></p>
+                <button type="button" class="room-stage-action" id="roomStageAction" onclick="clickRoomRouletteAction()">준비하기</button>
+            </div>
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
             <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
                 <button class="end-button" onclick="endRouletteGame()"><i class="ui ui-checker"></i> 게임 종료</button>
@@ -2611,8 +2620,33 @@
             if (btn) btn.replaceChildren(UIIcons.el(iconId), ' ' + text);
         }
 
+        function setRoomRoulettePhase(phase) {
+            document.body.dataset.roomPhase = phase;
+            updateRoomRouletteStage();
+        }
+        function clickRoomRouletteAction() {
+            const source = document.getElementById(document.getElementById('roomStageAction').dataset.source);
+            if (source && !source.disabled && source.getClientRects().length) source.click();
+        }
+        function updateRoomRouletteStage() {
+            const phase = document.body.dataset.roomPhase || 'waiting';
+            const playing = phase === 'playing';
+            const players = playing && lastRouletteData ? lastRouletteData.participants : readyUsers;
+            document.getElementById('roomRouletteCount').textContent = `${players.length}명 ${playing ? '참가' : '준비'}`;
+            document.getElementById('roomRoulettePhase').textContent = playing ? '돌아가는 중' : phase === 'result' ? '결과 확인' : '준비 중';
+            document.getElementById('roomRouletteHint').textContent = playing ? '화살표가 멈추는 곳을 지켜보세요' : phase === 'result' ? '한 판 더 함께할까요?' : '내 이름이 올라가면 준비 완료';
+            document.getElementById('roomRouletteCaption').textContent = playing ? '결과는 모두에게 같은 순서로 공개돼요.' : phase === 'result' ? '다시 준비하면 새로운 판을 시작할 수 있어요.' : '최소 2명이 준비하면 방장이 룰렛을 돌릴 수 있어요.';
+            const action = document.getElementById('roomStageAction');
+            action.hidden = playing;
+            const prepared = readyUsers.includes(currentUser);
+            action.dataset.source = prepared && isHost ? 'startRouletteButton' : 'readyButton';
+            action.textContent = prepared ? (isHost ? '룰렛 돌리기' : '방장이 시작하기를 기다리는 중') : phase === 'result' ? '다음 판 준비하기' : '준비하기';
+            action.disabled = prepared && (!isHost || readyUsers.length < 2);
+        }
+
         // 시작 버튼 상태 업데이트
         function updateStartButton() {
+            updateRoomRouletteStage();
             const btn = document.getElementById('startRouletteButton');
             if (btn && isHost) {
                 if (readyUsers.length >= 2 && !isSpinning) {
@@ -3625,6 +3659,7 @@
             wheel.offsetHeight; // 강제 리플로우
             
             isSpinning = true;
+            setRoomRoulettePhase('playing');
             rouletteResultShown = false;
             document.body.classList.add('race-running'); // 다시보기 애니메이션 중 스티키 광고 숨김
 
@@ -3638,6 +3673,7 @@
                     rouletteResultShown = true;
                     document.body.classList.remove('race-running'); // 다시보기 종료 — 스티키 광고 복원
                     finishRouletteLiveCommentary(data.winner);
+                    setRoomRoulettePhase('result');
                     
                     // 결과 오버레이 표시
                     document.getElementById('resultWinner').textContent = data.winner;
@@ -4185,6 +4221,7 @@
                     isSpinning = false;
                     rouletteResultShown = true; // 결과 표시 플래그 설정
                     finishRouletteLiveCommentary(data.winner);
+                    setRoomRoulettePhase('result');
                     
                     // ========== 🧪 CSS 애니메이션 검증 로그 ==========
                     const wheelAfter = document.getElementById('rouletteWheel');
@@ -4556,6 +4593,13 @@
 
         // ========== 주문받기 (OrderModule 사용) ==========
         
+
+        ['roomCreated', 'roomJoined'].forEach(event => socket.on(event, data => {
+            setRoomRoulettePhase(data.isGameActive || (data.gameState && data.gameState.isGameActive) ? 'playing' : 'waiting');
+        }));
+        socket.on('rouletteStarted', () => setRoomRoulettePhase('playing'));
+        socket.on('rouletteEnded', () => { if (!isSpinning) setRoomRoulettePhase('result'); });
+        socket.on('rouletteGameEnded', () => setRoomRoulettePhase('waiting'));
     </script>
     <!-- SEO Content Section (hidden, crawlers only) -->
     <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">

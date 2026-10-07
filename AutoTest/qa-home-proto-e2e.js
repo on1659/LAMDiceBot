@@ -145,8 +145,8 @@ function onceEvent(page, ev, ms) {
         await guest.fill('#nameModalInput', GUEST);
         await guest.click('#nameModalSubmit');
     }
-    await waitFor(guest, h => document.body.innerText.includes(h), HOST, 20000, '손님: 방에 들어가 호스트 이름이 보임');
-    await waitFor(host, g => document.body.innerText.includes(g), GUEST, 10000, '호스트: 손님이 보임');
+    await waitFor(guest, h => document.getElementById('usersList').textContent.includes(h), HOST, 20000, '손님: 방에 들어가 호스트 이름이 보임');
+    await waitFor(host, g => document.getElementById('usersList').textContent.includes(g), GUEST, 10000, '호스트: 손님이 보임');
 
     // ── 한 판 ──
     const ended = onceEvent(guest, END_EVENT, ROUND_TIMEOUT_MS);

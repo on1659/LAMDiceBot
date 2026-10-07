@@ -84,3 +84,92 @@ body.home-room:has(#gameSection.active) .container > :is(header, footer) { displ
   .home-room .room-panel { padding: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .home-room #gameSection :is(button, summary) { transition: none; } }
+
+/* 대기 → 플레이 → 결과: 조작과 대화가 현재 게임 옆에 머무는 배치. */
+body.home-room:has(#gameSection.active) { padding-bottom: 24px; }
+.home-room .room-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-areas: 'setup activity' 'board activity';
+  gap: 14px 18px;
+}
+.home-room .room-sidebar { grid-area: setup; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.home-room .room-sidebar > * { grid-column: 1 / -1; }
+.home-room .room-sidebar > #readySection { grid-column: 1; align-self: start; }
+.home-room .room-sidebar > #hostControls { grid-column: 2; align-self: start; }
+.home-room .room-playfield { grid-area: board; }
+.home-room .room-extras { grid-area: activity; position: sticky; top: 12px; margin: 0; min-height: 0; }
+.home-room #gameSection .room-extras .chat-messages { height: clamp(240px, 48dvh, 480px); max-height: 48dvh !important; padding: 10px !important; }
+.home-room #gameSection .room-extras .room-panel { max-height: calc(100dvh - 160px); overflow-y: auto; }
+.home-room #gameSection .room-extras .chat-section > div:last-child { display: flex !important; flex-wrap: wrap; gap: 8px; }
+.home-room #gameSection .room-extras .chat-section > div:last-child > :first-child { flex: 1 1 160px; min-width: 0; }
+.home-room #gameSection .room-extras #chatInput { width: 100%; min-width: 0; font-size: 16px; }
+.home-room #gameSection .room-tabs { padding: 4px 8px 0; }
+.home-room #gameSection .room-tab { padding: 12px 14px; min-height: 44px; }
+.home-room #gameSection .room-members { padding: 0; order: 5; background: transparent; }
+.home-room #gameSection .room-members > summary { padding: 10px 12px; min-height: 44px; font-weight: 600; }
+.home-room #gameSection .room-members[open] > summary { margin: 0; }
+.home-room #gameSection .room-members .users-section { border: 0 !important; border-top: 1px solid var(--room-line) !important; border-radius: 0 !important; }
+.home-room #gameSection .room-ready-members { padding: 0; border: 0; border-radius: 0; margin-top: 4px; background: transparent; }
+.home-room #gameSection .room-ready-members > summary { min-height: 32px; padding: 6px 0; font-size: 11px; color: var(--room-muted); font-weight: 500; }
+.home-room #gameSection .room-ready-members[open] > summary { margin: 0; }
+.home-room #gameSection #readySection > div:first-child { display: flex; flex-direction: column; align-items: stretch !important; gap: 8px; }
+.home-room #gameSection #readyButton { width: 100% !important; min-height: 48px; }
+.home-room #gameSection #hostControls { margin: 0 !important; }
+.home-room #gameSection #hostControls > .home-room-start-row { margin: 0; }
+.home-room #gameSection .home-room-start-row .start-button { margin: 0; }
+.home-room:is([data-room-phase="playing"], [data-room-phase="result"]) .room-layout { grid-template-areas: 'board activity' 'setup activity'; }
+.home-room #gameSection :is(.control-bar-btn, .room-tools > summary, #freeInviteBar) { min-height: 44px; }
+body.home-room:has(#gameSection.active) .ad-container.ad-sticky {
+  position: relative !important; inset: auto !important; transform: none !important;
+  width: 100%; max-width: 1240px; margin: 24px auto 0; z-index: auto;
+}
+.home-room .room-action-dock, .home-room .room-sheet-close, .home-room .room-sheet-backdrop { display: none; }
+@media (max-width: 760px) {
+  body.home-room:has(#gameSection.active) { padding: 10px 10px calc(82px + env(safe-area-inset-bottom)); }
+  .home-room .room-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'setup' 'board'; gap: 12px; }
+  .home-room:is([data-room-phase="playing"], [data-room-phase="result"]) .room-layout { grid-template-areas: 'board' 'setup'; }
+  .home-room .room-sidebar { gap: 8px; }
+  .home-room #gameSection .room-control-bar { padding-bottom: 10px; }
+  .home-room #gameSection .room-sidebar :is(.ready-section, .host-controls) { padding: 10px; }
+  .home-room #gameSection .room-sidebar #readySection .users-title { font-size: 12px; }
+  .home-room #gameSection .room-sidebar #hostControls details > summary { font-size: 11px; }
+  .home-room .room-extras { display: none; }
+  .home-room .room-action-dock:not([hidden]) {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 910;
+    gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--room-surface); border-top: 1px solid var(--room-line);
+  }
+  .home-room .room-action-dock button {
+    flex: 1; width: auto; min-width: 0; min-height: 48px; margin: 0; padding: 8px;
+    border: 1px solid var(--room-line); border-radius: 10px;
+    background: var(--room-soft); color: var(--room-ink);
+    font: 700 13px/1.4 var(--room-body); box-shadow: none;
+  }
+  .home-room .room-action-dock button[hidden] { display: none !important; }
+  .home-room .room-action-dock #roomDockAction { flex: 1.5; background: var(--room-ink); color: var(--room-paper); border-color: var(--room-ink); }
+  .home-room .room-action-dock button:disabled { opacity: 1; background: var(--room-soft) !important; color: var(--room-muted) !important; border-color: var(--room-line) !important; }
+  .home-room .room-action-dock button:focus-visible { outline: 3px solid var(--room-focus); outline-offset: 2px; }
+  .home-room.room-activity-open { overflow: hidden; }
+  .home-room.room-activity-open .room-sheet-backdrop {
+    display: block; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 940;
+    margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--room-ink); opacity: .4;
+  }
+  .home-room.room-activity-open .room-extras {
+    display: flex; flex-direction: column; position: fixed; z-index: 950; left: 0; right: 0;
+    bottom: var(--room-keyboard-offset, 0px); top: auto; margin: 0;
+    max-height: min(80dvh, calc(var(--room-visible-height, 100dvh) - 16px));
+    border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom);
+    background: var(--room-surface); overflow: hidden;
+  }
+  .home-room #gameSection .room-sheet-close {
+    display: block; align-self: flex-end; width: auto; min-height: 44px;
+    padding: 10px 16px; margin: 4px 4px 0; background: transparent;
+    color: var(--room-ink); border: 0; border-radius: 8px; font: 650 13px/1.4 var(--room-body);
+  }
+  .home-room #gameSection .room-extras .room-panel { overflow-y: auto; max-height: none; min-height: 0; }
+  .home-room #gameSection .room-extras .chat-messages { height: clamp(100px, 30dvh, 280px); max-height: 30dvh !important; }
+  .home-room #gameSection .room-extras .chat-section > div:last-child { flex-wrap: nowrap; }
+  .home-room #gameSection .room-extras .chat-section > div:last-child > :first-child { flex-basis: 0; }
+  .home-room #gameSection .room-extras .chat-section > div:last-child > button { padding: 10px; min-height: 44px; }
+  body.home-room:has(.race-fs-css, .is-pseudo-fs, :fullscreen) .room-action-dock { display: none; }
+}
