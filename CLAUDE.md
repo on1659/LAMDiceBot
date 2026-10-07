@@ -85,6 +85,7 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 
 ## 이력
 
+- 2026-10-07: 안 쓰는 파이프라인 전부 제거 — `/qa`·`/review` 커맨드, 역할 스킬 `skills/skill-*.md` 8종, `mcp.json`, Windows 잔재. 리뷰는 빌트인 `/code-review`, QA 는 `AutoTest/qa-*.js` + goal Acceptance Criteria. 전역 bkit·AgentCrow·meeting 변형도 끔(`~/.claude/backups/harness-cleanup-2026-10-07/`)
 - 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
   가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
 - 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수
