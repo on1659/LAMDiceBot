@@ -320,3 +320,88 @@ body.home-room:has(#gameSection.active) .room-extras .chat-section > div:last-ch
     border-radius: 8px;
     box-shadow: none;
 }
+
+/* 판 안에서 준비 → 행동 → 결과를 같은 위치에서 안내한다. */
+body.home-room:has(#gameSection.active) .room-stage-title {
+    margin: 6px 0 12px;
+    color: var(--room-ink);
+    font: 750 clamp(17px, 2.2vw, 23px)/1.5 var(--room-body);
+    text-align: center;
+    word-break: keep-all;
+}
+body.home-room:has(#gameSection.active) .room-stage-hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+    color: var(--room-muted);
+    font-size: 12px;
+}
+body.home-room:has(#gameSection.active) .room-stage-hud strong {
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: var(--room-soft);
+    color: var(--room-ink);
+}
+body.home-room:has(#gameSection.active) .room-stage-next {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+    text-align: center;
+}
+body.home-room:has(#gameSection.active) .room-stage-action {
+    width: auto;
+    min-height: 44px;
+    max-width: 100%;
+    padding: 12px 20px;
+    margin: 0;
+    background: var(--room-ink);
+    color: var(--room-paper);
+    border: 1px solid var(--room-ink);
+    border-radius: 10px;
+    box-shadow: none;
+    font: 700 14px/1.4 var(--room-body);
+}
+body.home-room:has(#gameSection.active) .room-stage-action:disabled {
+    background: var(--room-soft);
+    color: var(--room-muted);
+    border-color: var(--room-line);
+    opacity: 1;
+}
+body.home-room:has(#gameSection.active) .room-round-roster {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    margin: 14px 0 0;
+    list-style: none;
+}
+body.home-room:has(#gameSection.active) .room-round-roster:empty { display: none; }
+body.home-room:has(#gameSection.active) .room-round-roster li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--room-line);
+    border-radius: 8px;
+    background: var(--room-paper);
+    color: var(--room-muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+body.home-room:has(#gameSection.active) .room-round-roster strong { color: var(--room-ink); }
+body.home-room:has(#gameSection.active)[data-room-phase="playing"] #diceIdleEmoji:disabled { opacity: .5; cursor: default; }
+body.home-room:has(#gameSection.active)[data-room-phase="result"] #diceIdleEmoji,
+body.home-room:has(#gameSection.active)[data-room-phase="result"] #roomDiceActionLabel { display: none; }
+body.home-room:has(#gameSection.active)[data-room-phase="playing"] .room-dice-stage { min-height: 330px; }
+body.home-room:has(#gameSection.active)[data-room-phase="result"] .room-dice-stage { min-height: 260px; }
+body.home-room:has(#gameSection.active) .room-stage-action[hidden] { display: none; }
+@media (max-width: 700px) {
+    body.home-room:has(#gameSection.active) .room-dice-stage { padding: 16px 8px; }
+    body.home-room:has(#gameSection.active) .room-round-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -22,6 +22,7 @@ const pass = message => console.log('  ✅ ' + message);
 async function inRoom(page) {
     await page.locator('#gameSection.active').waitFor({ timeout: TIMEOUT });
     await page.waitForFunction(() => document.getElementById('freeInviteBar'), null, { timeout: TIMEOUT });
+    if (new URL(BASE).hostname === 'localhost') await page.addStyleTag({ content: '#debugLogSection { display: none !important; }' });
 }
 
 async function ready(page) {
@@ -78,8 +79,10 @@ async function ready(page) {
         await guest.waitForFunction(name => document.getElementById('usersList').textContent.includes(name), HOST, { timeout: TIMEOUT });
         await host.waitForFunction(name => document.getElementById('usersList').textContent.includes(name), GUEST, { timeout: TIMEOUT });
         assert.equal(await guest.locator('#hostControls').isVisible(), false);
+        assert.equal(await guest.locator('#roomDockAction').isVisible(), false);
         pass('별명 입력 → 같은 방 합류, 손님에게 방장 메뉴 숨김');
 
+        await host.locator('#roomDockActivity').click();
         await host.locator('#room-tab-history').click();
         await host.locator('#room-tab-chat').click();
         const message = '탭 채팅 확인 ' + HOST;
@@ -87,9 +90,12 @@ async function ready(page) {
         await host.locator('#chatInput').press('Enter');
         await guest.waitForFunction(message => document.getElementById('chatMessages').textContent.includes(message), message, { timeout: TIMEOUT });
         pass('기록→채팅 탭 전환 뒤 상대에게 실제 메시지 전달');
+        await host.locator('.room-sheet-close').click();
 
         if ((await guest.locator('#readyButton').textContent()).trim() !== '준비') await guest.locator('#readyButton').click();
         await guest.waitForFunction(() => document.getElementById('readyButton').textContent.trim() === '준비', null, { timeout: TIMEOUT });
+        await host.locator('.room-members > summary').click();
+        await host.locator('.room-ready-members > summary').click();
         await host.locator('#usersList [data-user-name="' + GUEST + '"]').dragTo(host.locator('#readyUsersList'));
         await guest.waitForFunction(() => document.getElementById('readyButton').textContent.includes('취소'), null, { timeout: TIMEOUT });
         pass('호스트가 손님을 준비 목록으로 드래그 → 양쪽 준비 상태 반영');
@@ -97,11 +103,11 @@ async function ready(page) {
         await ready(host);
         await ready(guest);
         await host.waitForFunction(() => document.getElementById('readyCount').textContent === '2', null, { timeout: TIMEOUT });
-        await host.locator('#startButton').click();
+        await host.locator('#roomDockAction').click();
         await host.waitForFunction(() => isGameActive === true, null, { timeout: TIMEOUT });
         await guest.waitForFunction(() => isGameActive === true, null, { timeout: TIMEOUT });
-        await host.locator('#diceIdleEmoji').click();
-        await guest.locator('#diceIdleEmoji').click();
+        await host.locator('#roomDockAction').click();
+        await guest.locator('#roomDockAction').click();
         await host.waitForFunction(() => !isGameActive && window.currentGameHistoryFromServer?.length === 2, null, { timeout: RESULT_TIMEOUT });
         await guest.waitForFunction(() => !isGameActive && window.currentGameHistoryFromServer?.length === 2, null, { timeout: RESULT_TIMEOUT });
         pass('2인 준비 → 방장 시작 → 각자 주사위 굴리기 → 양쪽 서버 결과 2건');

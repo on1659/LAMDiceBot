@@ -1932,9 +1932,9 @@
     }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/home-room.css?v=2">
-    <link rel="stylesheet" href="/css/home-room-board.css?v=2">
-    <script defer src="/js/shared/room-layout-shared.js?v=2"></script>
+    <link rel="stylesheet" href="/css/home-room.css?v=3">
+    <link rel="stylesheet" href="/css/home-room-board.css?v=3">
+    <script defer src="/js/shared/room-layout-shared.js?v=3"></script>
 </head>
 <body class="home-room" data-room-game="dice">
     <noscript>
@@ -2171,14 +2171,17 @@
             </div>
 
                     <div class="room-dice-stage">
-                        <p class="room-stage-eyebrow">오늘의 운을 굴려보세요</p>
+                        <p class="room-stage-eyebrow" id="roomDiceRule"></p>
+                        <h2 class="room-stage-title" id="roomDiceHint" aria-live="polite">친구들과 준비해 주세요</h2>
                         <button type="button" id="diceIdleEmoji" onclick="rollDiceButton()" title="주사위 굴리기" aria-label="주사위 굴리기"><i class="ui ui-dice"></i></button>
-                        <span class="room-dice-action">주사위 굴리기</span>
+                        <span class="room-dice-action" id="roomDiceActionLabel">연습 굴리기</span>
                         <div class="room-dice-result" id="roomDiceResult" aria-live="polite" aria-atomic="true" hidden>
                             <span id="roomDiceResultUser"></span>
                             <strong id="roomDiceResultValue"></strong>
                         </div>
-                        <p class="room-stage-caption">준비한 친구들과 시작하거나, 가볍게 연습해 보세요.</p>
+                        <p class="room-stage-caption" id="roomDiceCaption"></p>
+                        <button type="button" class="room-stage-action" id="roomStageAction" onclick="clickRoomDiceAction()" hidden>준비하기</button>
+                        <ul class="room-round-roster" id="roomDiceRoster" aria-label="이번 판 참가자"></ul>
                     </div>
             <!-- 진행 상황 표시 -->
             <div class="progress-section" id="progressSection" style="display: none;">
@@ -6269,6 +6272,7 @@
                 }
 
                 isGameActive = false;
+                setRoomDicePhase('result');
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
                 // 게임 종료 시 스티키 광고 무조건 복원 — 안전장치(else 분기로 빠진 경우 잔존 방지)
@@ -6481,6 +6485,56 @@
         // 주사위 굴리기
         let diceAnimationInterval = null;
 
+        function setRoomDicePhase(phase) {
+            document.body.dataset.roomPhase = phase;
+            updateRoomDiceStage();
+        }
+        function clickRoomDiceAction() {
+            const source = document.getElementById(document.getElementById('roomStageAction').dataset.source);
+            if (source && !source.disabled && source.getClientRects().length) source.click();
+        }
+        function updateRoomDiceStage() {
+            const phase = document.body.dataset.roomPhase || 'waiting';
+            const playing = phase === 'playing';
+            const participant = gamePlayers.includes(currentUser);
+            const rolled = hasRolledInCurrentGame || rolledUsersInGame.includes(currentUser);
+            const button = document.getElementById('diceIdleEmoji');
+            button.disabled = playing && (!participant || rolled);
+            const label = playing ? (participant ? (rolled ? '굴리기 완료' : '주사위 굴리기') : '관전 중') : '연습 굴리기';
+            button.setAttribute('aria-label', label);
+            document.getElementById('roomDiceActionLabel').textContent = label;
+            document.getElementById('roomDiceHint').textContent = playing
+                ? (!participant ? '친구들의 주사위를 지켜보세요' : rolled ? '내 주사위는 완료했어요' : '내 차례예요. 주사위를 눌러 주세요')
+                : phase === 'result' ? '이번 판이 끝났어요' : '준비하고 함께 굴려요';
+            const rules = document.getElementById('gameRulesInput').value.trim();
+            document.getElementById('roomDiceRule').textContent = rules || '게임 규칙에서 이번 판의 룰을 선택해 주세요';
+            document.getElementById('roomDiceCaption').textContent = playing
+                ? (rolled ? '남은 친구가 굴리면 결과를 함께 확인해요.' : participant ? '한 판에 한 번, 서버가 정한 숫자가 나와요.' : '다음 판에 준비하면 함께할 수 있어요.')
+                : phase === 'result' ? '한 판 더 하려면 다시 준비해 주세요.' : `준비 ${readyUsers.length}명 · 최소 2명이 준비하면 방장이 시작할 수 있어요.`;
+            const action = document.getElementById('roomStageAction');
+            action.hidden = playing;
+            const prepared = readyUsers.includes(currentUser);
+            action.dataset.source = prepared && isHost ? 'startButton' : 'readyButton';
+            action.textContent = prepared ? (isHost ? '함께 시작하기' : '방장이 시작하기를 기다리는 중') : phase === 'result' ? '다음 판 준비하기' : '준비하기';
+            action.disabled = prepared && (!isHost || readyUsers.length < 2);
+            const start = document.getElementById('startButton');
+            start.disabled = !isHost || playing || readyUsers.length < 2;
+            start.textContent = readyUsers.length < 2 ? `시작 대기 (${readyUsers.length}/2)` : '게임 시작';
+            const roster = document.getElementById('roomDiceRoster');
+            roster.replaceChildren();
+            const records = phase === 'result' ? (window.currentGameHistoryFromServer || historyData.filter(record => record.isGameActive)) : [];
+            const players = playing ? gamePlayers : phase === 'result' ? [...new Set(records.map(record => record.user))] : [];
+            players.forEach(name => {
+                const item = document.createElement('li');
+                const who = document.createElement('span');
+                who.textContent = name + (name === currentUser ? ' (나)' : '');
+                const state = document.createElement('strong');
+                const record = records.filter(record => record.user === name).at(-1);
+                state.textContent = record ? String(record.result) : rolledUsersInGame.includes(name) ? '완료' : '굴리는 중';
+                item.append(who, state);
+                roster.append(item);
+            });
+        }
         // 게임판은 채팅의 실제 연출 텍스트를 따라가며 최종 숫자를 먼저 공개하지 않는다.
         let roomDiceResultObserver = null;
         function resetRoomDiceResult() {
@@ -7027,6 +7081,7 @@
         
         // 준비 버튼 업데이트
         function updateReadyButton() {
+            updateRoomDiceStage();
             const readyButton = document.getElementById('readyButton');
             if (isReady) {
                 readyButton.textContent = '준비 취소';
@@ -8764,6 +8819,13 @@
             }, 1500);
         });
     });
+        ['roomCreated', 'roomJoined', 'loginSuccess'].forEach(event => socket.on(event, data => {
+            setRoomDicePhase(data.isGameActive ? 'playing' : 'waiting');
+        }));
+        socket.on('gameStarted', () => setRoomDicePhase('playing'));
+        socket.on('gameDataCleared', () => setRoomDicePhase('waiting'));
+        ['diceRolled', 'rollProgress', 'readyUsersUpdated', 'readyStateChanged', 'gameRulesUpdated', 'updateUsers'].forEach(event => socket.on(event, updateRoomDiceStage));
+
     </script>
 
     <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->

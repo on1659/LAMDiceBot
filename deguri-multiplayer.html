@@ -145,9 +145,9 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
-    <link rel="stylesheet" href="/css/home-room.css?v=2">
-    <link rel="stylesheet" href="/css/home-room-race.css?v=2">
-    <script src="/js/shared/room-layout-shared.js?v=2" defer></script>
+    <link rel="stylesheet" href="/css/home-room.css?v=3">
+    <link rel="stylesheet" href="/css/home-room-race.css?v=3">
+    <script src="/js/shared/room-layout-shared.js?v=3" defer></script>
 </head>
 <body class="home-room" data-room-game="deguri">
     <noscript>
@@ -205,6 +205,13 @@
                             <button type="button" class="deguri-stage-btn" id="deguriHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
                             <button type="button" class="deguri-stage-btn" id="deguriFullscreenOpenBtn" onclick="toggleDeguriFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
                         </div>
+                        <p id="deguriPlayHint" class="room-race-hint" aria-live="polite">동물을 고른 뒤 출발대를 눌러 자리를 정하세요.</p>
+                        <div id="deguriStartPositions" class="deguri-start-positions" role="group" aria-label="내 동물 출발 위치">
+                            <span>출발 위치</span>
+                            <button type="button" onclick="chooseDeguriStart('left')">← 왼쪽</button>
+                            <button type="button" onclick="chooseDeguriStart('center')">가운데</button>
+                            <button type="button" onclick="chooseDeguriStart('right')">오른쪽 →</button>
+                        </div>
                         <div id="deguriCanvasBox">
                             <canvas id="deguriCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
                             <div id="deguriHud"></div>
@@ -259,7 +266,7 @@
                             <button type="button" class="deguri-creature-btn" data-creature="rabbit" data-optional="1" onclick="pickCreature('rabbit')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>토끼</span></button>
                             <button type="button" class="deguri-creature-btn" data-creature="ribbonpig" data-optional="1" onclick="pickCreature('ribbonpig')"><canvas class="deguri-creature-icon" width="56" height="56"></canvas><span>돼지</span></button>
                         </div>
-                        <div id="deguriPickStatus" class="deguri-pick-status"></div>
+                        <div id="deguriPickStatus" role="status" class="deguri-pick-status"></div>
                         <!-- 꾸미기 상점 모달 마운트 (js/deguri-shop.js) -->
                         <div id="deguriShopMount"></div>
                         <details class="home-room-pick-options">
@@ -545,7 +552,7 @@
     <script src="/js/deguri-gacha.js?v=46"></script>
     <script src="/js/deguri-render.js?v=105"></script>
     <script src="/js/deguri-replay-gif.js?v=1"></script>
-    <script src="/js/deguri.js?v=54"></script>
+    <script src="/js/deguri.js?v=55"></script>
 
     <script>
         // ============================================

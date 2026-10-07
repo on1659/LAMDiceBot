@@ -181,9 +181,9 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
-    <link rel="stylesheet" href="/css/home-room.css?v=2">
-    <link rel="stylesheet" href="/css/home-room-race.css?v=2">
-    <script src="/js/shared/room-layout-shared.js?v=2" defer></script>
+    <link rel="stylesheet" href="/css/home-room.css?v=3">
+    <link rel="stylesheet" href="/css/home-room-race.css?v=3">
+    <script src="/js/shared/room-layout-shared.js?v=3" defer></script>
 </head>
 <body class="home-room" data-room-game="horse-race">
     <noscript>
@@ -242,6 +242,7 @@
 
                     <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
                     <div id="raceTrackWrapper" style="position: relative; display: none;">
+                        <p id="horsePlayHint" class="room-race-hint" aria-live="polite">트랙의 탈것을 눌러 선택하세요.</p>
                         <!-- 트랙 상단 버튼 행 (트랙 바깥 우상단) — [전체화면][PiP][카메라]를 flex로 묶어
                              각 버튼 라벨 폭이 변해도 서로 밀착된다 (PiP 버튼이 없는 기기에서는 [전체화면][카메라]) -->
                         <div class="track-top-btn-row">
@@ -301,7 +302,7 @@
                         <div id="horseSelectionGrid" tabindex="0" role="group" aria-label="탈것 선택 목록" class="horse-selection-grid">
                             <!-- 탈것 선택 버튼들이 여기에 동적으로 생성됨 -->
                         </div>
-                        <div id="horseSelectionInfo" style="text-align: center; margin-top: 15px; color: var(--text-secondary); font-size: 14px;">
+                        <div id="horseSelectionInfo" role="status" style="text-align: center; margin-top: 15px; color: var(--text-secondary); font-size: 14px;">
                             탈것을 선택해주세요
                         </div>
                         <!-- N등 투표 섹션 -->
@@ -593,7 +594,7 @@
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/shared/shop-shared.js"></script>
     <script src="/js/horse-shop.js"></script>
-    <script src="/js/horse-race.js"></script>
+    <script src="/js/horse-race.js?v=3"></script>
 
     <script>
         // ============================================
