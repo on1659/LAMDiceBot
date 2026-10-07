@@ -36,7 +36,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/css/horse-race.css">
     <link rel="stylesheet" href="/css/horse-shop.css">
@@ -181,8 +181,10 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
+    <link rel="stylesheet" href="/css/home-room.css?v=20261007">
+    <link rel="stylesheet" href="/css/home-room-race.css?v=20261007">
 </head>
-<body>
+<body class="home-room" data-room-game="horse-race">
     <noscript>
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 레이스</h1>
@@ -221,44 +223,14 @@
                 });
             </script>
 
+            <header class="home-room-hero">
+                <h1 class="home-room-title">경마</h1>
+            </header>
+
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
                     <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
-                </div>
-            </div>
-
-            <!-- 접속자 목록 -->
-            <div class="users-section" id="usersSection">
-                <div class="users-title">
-                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
-                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--horse-accent); font-weight: normal; margin-left: 10px;">
-                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
-                    </span>
-                </div>
-                <div class="users-list" id="usersList"></div>
-            </div>
-
-            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
-            <!-- Ad: Lobby Banner -->
-            <div class="ad-container ad-lobby">
-              <span class="ad-label">AD</span>
-              <ins class="adsbygoogle"
-                   style="display:block"
-                   data-ad-client="ca-pub-1608259764663412"
-                   data-ad-slot="7466418558"
-                   data-ad-format="auto"
-                   data-full-width-responsive="true"></ins>
-            </div>
-
-            <!-- 준비 섹션 -->
-            <div class="ready-section" id="readySection">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
-                </div>
-                <div class="users-list" id="readyUsersList">
-                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
                 </div>
             </div>
 
@@ -268,6 +240,19 @@
             <div class="horse-selection-section" id="horseSelectionSection">
                 <div class="horse-selection-header">
                     <div class="users-title" style="margin: 0;"><i class="ui ui-checker"></i> 탈것 선택</div>
+
+                </div>
+                <div id="horseSelectionGrid" tabindex="0" role="group" aria-label="탈것 선택 목록" class="horse-selection-grid">
+                    <!-- 탈것 선택 버튼들이 여기에 동적으로 생성됨 -->
+                </div>
+                <div id="horseSelectionInfo" style="text-align: center; margin-top: 15px; color: var(--text-secondary); font-size: 14px;">
+                    탈것을 선택해주세요
+                </div>
+                <!-- N등 투표 섹션 -->
+
+                <details class="home-room-pick-options">
+                    <summary>등수 투표 · 선택 설정</summary>
+                    <div id="trackLengthSelector"></div>
                     <div class="horse-selection-header-right">
                         <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
                             <input type="checkbox" id="autoSelectHorseToggle">
@@ -281,32 +266,55 @@
                             <span class="auto-select-toggle-label">예전 그림</span>
                         </label>
                     </div>
-                </div>
-                <div id="horseSelectionGrid" class="horse-selection-grid">
-                    <!-- 탈것 선택 버튼들이 여기에 동적으로 생성됨 -->
-                </div>
-                <div id="horseSelectionInfo" style="text-align: center; margin-top: 15px; color: var(--text-secondary); font-size: 14px;">
-                    탈것을 선택해주세요
-                </div>
-                <!-- N등 투표 섹션 -->
-                <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
+                    <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
                     <div class="rank-vote-title"><i class="ui ui-target"></i> 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning);">(베타)</span></div>
                     <div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>
                     <div id="rankVoteBoxes" class="rank-vote-boxes"></div>
                     <div id="rankVoteWarn" class="rank-vote-warn" style="display: none;"></div>
                 </div>
-                <!-- 탈것 선택 안한 사람 -->
-                <div id="notSelectedVehicleSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div id="notSelectedVehicleSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
                     <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;"><i class="ui ui-hourglass"></i> 선택 안한 사람</div>
                     <div id="notSelectedVehicleList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
+                </details>
+                <!-- 탈것 선택 안한 사람 -->
+
             </div>
 
             <!-- 꾸미기 상점 모달 마운트 (JS가 채움) -->
             <div id="horseShopMount"></div>
 
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    <i class="ui ui-people"></i> 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--horse-accent); font-weight: normal; margin-left: 10px;">
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <div class="home-room-start-row">
+                    <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
+                        게임 시작
+                    </button>
+                </div>
+                <details class="home-room-race-settings">
+                    <summary>방 설정 · 주문받기</summary>
                 <!-- 예약 — 정한 시간이 되면 서버가 [게임 시작]을 대신 눌러준다.
                      예약 중이면 버튼 글자가 "⏰ 22:45"로 바뀌어 언제로 걸었는지 버튼만 봐도 안다.
                      시작 버튼들과 성격이 달라 같은 줄에 세우지 않고 위에 오른쪽 정렬로 둔다. -->
@@ -314,16 +322,88 @@
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
-                        게임 시작
-                    </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
+                <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
+                </details>
                 <div id="endGameSection" style="display: none; margin-bottom: 10px;">
                     <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;"><i class="ui ui-checker"></i> 게임 종료</button>
                 </div>
-                <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
+            </div>
+
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
+            </div>
+
+            <!-- 타깃 등수 배너 (경주 중 항상 표시) -->
+            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
+                <span class="trb-icon"><i class="ui ui-target"></i></span>
+                <span class="trb-text"><span id="targetRankBannerNum">?</span>등을 찾아라!</span>
+            </div>
+            <!-- 결정 사유 (왜 이 등수가 정해졌는지 안내) -->
+            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
+
+            <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
+            <div id="raceTrackWrapper" style="position: relative; display: none;">
+                <!-- 트랙 상단 버튼 행 (트랙 바깥 우상단) — [전체화면][PiP][카메라]를 flex로 묶어
+                     각 버튼 라벨 폭이 변해도 서로 밀착된다 (PiP 버튼이 없는 기기에서는 [전체화면][카메라]) -->
+                <div class="track-top-btn-row">
+                    <!-- 트랙 전체화면 토글 — 기능 감지로 숨기지 않는다(미지원 브라우저는 CSS 의사 전체화면 폴백).
+                         PiP로 트랙이 다른 창에 가 있는 동안에는 JS가 숨긴다. 핸들러는 js/horse-race.js가 바인딩 -->
+                    <button id="raceFullscreenBtn" class="race-fullscreen-btn" type="button"><i class="ui ui-expand"></i> 전체화면</button>
+                    <!-- 트랙 PiP(작은 창) 토글 — Document PiP 지원 데스크톱 브라우저에서 상시 노출(래퍼 표시 구간).
+                         열면 트랙이 창으로 들어가 전 단계(선택/룰렛/카운트다운/레이스)를 그대로 보여주고, 닫으면 본 화면으로 복귀.
+                         인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->
+                    <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;"><i class="ui ui-tv"></i> 작은 창으로</button>
+                    <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
+                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(var(--highlight-rgb), 0.3); background: rgba(var(--shadow-rgb), 0.65); color: var(--text-on-accent); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
+                </div>
+                <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
+                     둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
+                     래퍼 안(트랙 좌상단)이라 전체화면·PiP에서도 그대로 보인다. -->
+                <div id="scheduledStartBadge" style="display: none;"></div>
+                <div class="race-track-container" id="raceTrackContainer" style="position: relative;">
+                    <div class="race-track" id="raceTrack">
+                    <!-- 말들이 여기에 동적으로 생성됨 -->
+                </div>
+                </div>
+                <!-- 미니맵 (컨테이너 밖, 래퍼 안 — overflow:hidden에 잘리지 않도록) -->
+                <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(var(--shadow-rgb), 0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(var(--highlight-rgb), 0.15);">
+                    <div style="font-size: 9px; color: rgba(var(--highlight-rgb), 0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
+                    <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(var(--highlight-rgb), 0.15); border-radius: 3px; margin-bottom: 2px;">
+                        <!-- 거리 마커 + 말 위치 동적 생성 -->
+                    </div>
+                    <div id="minimapMarkers" style="position: relative; width: 100%; height: 10px;">
+                        <!-- 거리 텍스트 -->
+                    </div>
+                    <div id="minimapDots" style="position: relative; width: 100%; min-height: 14px; margin-top: 2px;">
+                        <!-- 말 아이콘 범례 -->
+                    </div>
+                </div>
+                <!-- 레이스 중 채팅 오버레이 -->
+                <div id="raceChatOverlay"></div>
+            </div>
+
+            <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-clapper"></i> 다시보기</button>
+
+                </div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 주문받기 섹션 -->
@@ -391,68 +471,6 @@
                 </div>
             </div>
             
-            <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus">
-                게임 대기 중...
-            </div>
-
-            <!-- 타깃 등수 배너 (경주 중 항상 표시) -->
-            <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
-                <span class="trb-icon"><i class="ui ui-target"></i></span>
-                <span class="trb-text"><span id="targetRankBannerNum">?</span>등을 찾아라!</span>
-            </div>
-            <!-- 결정 사유 (왜 이 등수가 정해졌는지 안내) -->
-            <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
-
-            <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
-            <div id="raceTrackWrapper" style="position: relative; display: none;">
-                <!-- 트랙 상단 버튼 행 (트랙 바깥 우상단) — [전체화면][PiP][카메라]를 flex로 묶어
-                     각 버튼 라벨 폭이 변해도 서로 밀착된다 (PiP 버튼이 없는 기기에서는 [전체화면][카메라]) -->
-                <div class="track-top-btn-row">
-                    <!-- 트랙 전체화면 토글 — 기능 감지로 숨기지 않는다(미지원 브라우저는 CSS 의사 전체화면 폴백).
-                         PiP로 트랙이 다른 창에 가 있는 동안에는 JS가 숨긴다. 핸들러는 js/horse-race.js가 바인딩 -->
-                    <button id="raceFullscreenBtn" class="race-fullscreen-btn" type="button"><i class="ui ui-expand"></i> 전체화면</button>
-                    <!-- 트랙 PiP(작은 창) 토글 — Document PiP 지원 데스크톱 브라우저에서 상시 노출(래퍼 표시 구간).
-                         열면 트랙이 창으로 들어가 전 단계(선택/룰렛/카운트다운/레이스)를 그대로 보여주고, 닫으면 본 화면으로 복귀.
-                         인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->
-                    <button id="racePipBtn" class="race-pip-btn" type="button" style="display: none;"><i class="ui ui-tv"></i> 작은 창으로</button>
-                    <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
-                    <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(var(--highlight-rgb), 0.3); background: rgba(var(--shadow-rgb), 0.65); color: var(--text-on-accent); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;"><i class="ui ui-camera"></i> 시스템 카메라</button>
-                </div>
-                <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
-                     둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
-                     래퍼 안(트랙 좌상단)이라 전체화면·PiP에서도 그대로 보인다. -->
-                <div id="scheduledStartBadge" style="display: none;"></div>
-                <div class="race-track-container" id="raceTrackContainer" style="position: relative;">
-                    <div class="race-track" id="raceTrack">
-                    <!-- 말들이 여기에 동적으로 생성됨 -->
-                </div>
-                </div>
-                <!-- 미니맵 (컨테이너 밖, 래퍼 안 — overflow:hidden에 잘리지 않도록) -->
-                <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(var(--shadow-rgb), 0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(var(--highlight-rgb), 0.15);">
-                    <div style="font-size: 9px; color: rgba(var(--highlight-rgb), 0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
-                    <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(var(--highlight-rgb), 0.15); border-radius: 3px; margin-bottom: 2px;">
-                        <!-- 거리 마커 + 말 위치 동적 생성 -->
-                    </div>
-                    <div id="minimapMarkers" style="position: relative; width: 100%; height: 10px;">
-                        <!-- 거리 텍스트 -->
-                    </div>
-                    <div id="minimapDots" style="position: relative; width: 100%; min-height: 14px; margin-top: 2px;">
-                        <!-- 말 아이콘 범례 -->
-                    </div>
-                </div>
-                <!-- 레이스 중 채팅 오버레이 -->
-                <div id="raceChatOverlay"></div>
-            </div>
-
-            <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-clapper"></i> 다시보기</button>
-
-                </div>
-            </div>
-
             <!-- 채팅 섹션 -->
             <div class="chat-section">
                 <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><i class="ui ui-chat"></i> 채팅</div>
@@ -1046,7 +1064,18 @@
             target: '#startOrderButton',
             title: '11단계: 주문받기 시작',
             content: '방장은 이 버튼으로 주문받기를 시작할 수 있습니다. 주문받기가 시작되면 참가자들이 주문을 입력할 수 있습니다.',
-            position: 'top'
+            position: 'top',
+            beforeShow: function() {
+                this.roomSettings = document.getElementById('startOrderButton').closest('details');
+                if (typeof this.roomSettingsWasOpen === 'undefined') this.roomSettingsWasOpen = this.roomSettings.open;
+                this.roomSettings.open = true;
+            },
+            cleanup: function() {
+                if (!this.roomSettings) return;
+                this.roomSettings.open = this.roomSettingsWasOpen;
+                this.roomSettings = null;
+                delete this.roomSettingsWasOpen;
+            }
         },
         {
             target: '#tutorialFakeOrders',

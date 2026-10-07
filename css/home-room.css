@@ -1,0 +1,205 @@
+/* 목업 10의 종이·잉크를 실제 방에 적용. 로비와 게임 그림의 색은 유지한다. */
+body.home-room {
+  --room-display: 'Bagel Fat One', 'Apple SD Gothic Neo', sans-serif;
+  --room-body: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+}
+body.home-room:has(#gameSection.active) {
+  background: var(--room-counter) !important;
+  color: var(--room-ink);
+  font-family: var(--room-body);
+  padding: 20px 12px;
+}
+body.home-room:has(#gameSection.active) .container {
+  background: var(--room-paper) !important;
+  border: 2px solid var(--room-ink);
+  border-radius: 0;
+  box-shadow: 6px 6px 0 var(--room-ink);
+  padding: 20px;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+}
+body.home-room:has(#gameSection.active) .container > :is(header, footer) { display: none; }
+.home-room #gameSection.active { color: var(--room-ink); }
+.home-room #gameSection .home-room-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0 18px;
+  margin: 0;
+  border-bottom: 2px solid var(--room-ink);
+}
+.home-room .home-room-kicker {
+  margin: 0 0 4px;
+  color: var(--room-muted);
+  font: 700 12px/1.4 var(--room-body);
+  letter-spacing: .06em;
+}
+.home-room #gameSection .home-room-title {
+  margin: 0;
+  padding: 0;
+  color: var(--room-ink);
+  border: 0;
+  font: 400 clamp(30px, 6vw, 42px)/1.15 var(--room-display);
+}
+.home-room .home-room-description {
+  margin: 6px 0 0;
+  color: var(--room-muted);
+  font-size: 14px;
+}
+.home-room .home-room-art {
+  display: grid;
+  place-items: center;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  background: var(--room-soft);
+  border: 2px solid var(--room-ink);
+  box-shadow: 3px 3px 0 var(--room-ink);
+}
+.home-room .home-room-art .ui { width: 48px; height: 48px; image-rendering: pixelated; }
+.home-room #gameSection .room-control-bar {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--room-line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 12px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.home-room #gameSection .control-bar-title {
+  color: var(--room-ink);
+  font: 700 17px/1.4 var(--room-body);
+  min-width: 0;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+}
+.home-room #gameSection .control-bar-meta { min-width: 0; width: auto; justify-content: flex-start; flex-wrap: wrap; }
+.home-room #gameSection .volume-control { margin-left: 0; }
+.home-room #gameSection .username-display { color: var(--room-muted); }
+.home-room #gameSection :is(.control-bar-btn, .volume-btn) {
+  background: var(--room-surface);
+  color: var(--room-ink);
+  border: 1px solid var(--room-line);
+  border-radius: 4px;
+  min-height: 36px;
+  box-shadow: none;
+}
+.home-room #gameSection #freeInviteBar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  border: 2px solid var(--room-ink);
+  border-radius: 0;
+  background: var(--room-ink) !important;
+  color: var(--room-paper) !important;
+  box-shadow: 3px 3px 0 var(--room-line);
+  transition: none;
+}
+.home-room #gameSection #freeInviteBar .fi-bar-url {
+  color: var(--room-paper) !important;
+  font: 700 13px/1.4 var(--room-body);
+  overflow-wrap: anywhere;
+}
+.home-room #gameSection :is(.users-section, .ready-section, .host-controls, .chat-section, .history-section, .orders-section) {
+  background: var(--room-surface) !important;
+  border: 1px solid var(--room-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none;
+  padding: 14px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+.home-room #gameSection .users-title {
+  color: var(--room-ink) !important;
+  border-color: var(--room-line);
+  font: 700 15px/1.4 var(--room-body);
+}
+.home-room #gameSection #roomExpirySection {
+  padding: 4px 0;
+  margin: 0 0 8px;
+  background: transparent !important;
+  border: 0 !important;
+}
+.home-room #gameSection #roomExpirySection :is(div, span) {
+  color: var(--room-muted) !important;
+  font-size: 12px !important;
+}
+.home-room #gameSection .users-list {
+  background: var(--room-soft) !important;
+  border-radius: 3px;
+  min-width: 0;
+  min-height: 38px !important;
+  padding: 6px !important;
+  gap: 5px;
+}
+.home-room #gameSection .users-list > div:only-child { padding: 4px !important; }
+.home-room #gameSection .users-title { margin-bottom: 6px; padding-bottom: 5px; }
+.home-room #gameSection #readySection > div:first-child { margin-bottom: 6px !important; }
+.home-room #gameSection #dragHint { display: none !important; }
+.home-room #gameSection :is(#readyButton, #startButton, #startRouletteButton, #startRaceButton, #startDeguriButton, .start-button) {
+  background: var(--room-ink) !important;
+  color: var(--room-paper) !important;
+  border: 2px solid var(--room-ink);
+  border-radius: 0;
+  min-height: 48px;
+  font: 800 16px/1.35 var(--room-body);
+  box-shadow: 3px 3px 0 var(--room-line);
+  white-space: normal;
+}
+.home-room #gameSection button:disabled { cursor: not-allowed; box-shadow: none; }
+.home-room #gameSection :is(#readyButton, #startButton, #startRouletteButton, #startRaceButton, #startDeguriButton, .start-button):disabled {
+  background: var(--room-soft) !important;
+  color: var(--room-muted) !important;
+  border-color: var(--room-line);
+}
+.home-room #gameSection :is(button, summary, a, input, select):focus-visible {
+  outline: 3px solid var(--room-focus);
+  outline-offset: 3px;
+}
+.home-room #gameSection details {
+  min-width: 0;
+  border: 1px solid var(--room-line);
+  border-radius: 0;
+  padding: 12px;
+  background: var(--room-surface);
+}
+.home-room #gameSection details > summary {
+  cursor: pointer;
+  color: var(--room-ink);
+  font: 700 15px/1.5 var(--room-body);
+  min-height: 28px;
+}
+.home-room #gameSection details[open] > summary { margin-bottom: 12px; }
+.home-room:has(#gameSection.active) :is(.result-card, .result-modal-content) {
+  background: var(--room-paper);
+  color: var(--room-ink);
+  border: 2px solid var(--room-ink);
+  border-radius: 0;
+  box-shadow: 6px 6px 0 var(--room-ink);
+}
+@media (max-width: 600px) {
+  body.home-room:has(#gameSection.active) { padding: 0 0 90px; }
+  body.home-room:has(#gameSection.active) .container {
+    padding: 12px;
+    margin: 0;
+    width: 100%;
+    border-width: 0;
+    box-shadow: none;
+  }
+  .home-room #gameSection .room-control-bar { gap: 8px; }
+  .home-room #gameSection .control-bar-title { flex-basis: 100%; }
+  .home-room #gameSection :is(.users-section, .ready-section, .host-controls) { padding: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-room #gameSection :is(button, summary) { transition: none; }
+}

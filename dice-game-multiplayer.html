@@ -1931,8 +1931,11 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
+    <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/home-room.css?v=1">
+    <link rel="stylesheet" href="/css/home-room-board.css?v=1">
 </head>
-<body>
+<body class="home-room" data-room-game="dice">
     <noscript>
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 주사위 게임</h1>
@@ -1953,7 +1956,7 @@
         </nav>
     </header>
     <div class="container">
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 30px;">
+        <div class="home-room-lobby-masthead" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 30px;">
             <h1 class="brand-title" style="margin: 0; white-space: nowrap;"><i class="ui ui-dice"></i> LAM Dice :)</h1>
             <div id="visitorStats" style="text-align: right;">
                 <div style="font-size:11px;margin-bottom:2px;">전체 서버 통합</div>
@@ -2137,6 +2140,12 @@
 
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
+            <div class="home-room-hero">
+                <div class="home-room-art" aria-hidden="true"><i class="ui ui-hero ui-dice"></i></div>
+                <div>
+                    <h1 class="home-room-title">주사위</h1>
+                </div>
+            </div>
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
             <script src="/js/shared/control-bar-shared.js"></script>
@@ -2158,9 +2167,61 @@
             <span id="currentServerNameDisplay" style="display: none;"></span>
             <span id="headerServerNameDisplay" style="display: none;"></span>
 
+            <!-- 접속자 리스트 -->
+            <div class="users-section">
+                <div class="users-title">
+                    <i class="ui ui-people"></i> 접속자 (<span id="userCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--dice-500); font-weight: normal; margin-left: 10px;">
+                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
+                <div class="users-list" id="usersList">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 방 폭파까지 남은 시간 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
+                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 준비 상태 -->
+            <div class="ready-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500); display: none;" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList" style="min-height: 50px;">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 예약 시작 안내 (모두에게 표시) — 남은 시간과 발화 안내를 같은 자리에서 보여준다 -->
+            <div class="schedule-notice" id="scheduleNotice" style="display: none;"></div>
+
+
+            <!-- Host 전용 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none;">
+                <button onclick="startGame()" id="startButton">게임 시작</button>
+                <button onclick="endGame()" id="endButton" style="display: none;">게임 종료</button>
+                <details class="home-room-disclosure home-room-host-options">
+                    <summary>방 설정 <span>예약 · 주문 · 기록</span></summary>
+                    <!-- 예약 — 누르면 팝업에서 시각을 정한다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
+                    <div class="schedule-open-row" id="scheduleOpenRow" style="display: none;">
+                        <button type="button" id="scheduleOpenButton" class="schedule-open-button" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
+                    </div>
+
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" class="order-button" style="display: none;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" class="order-button" style="display: none;">주문받기 종료</button>
+                    <button onclick="clearGameData()" id="clearDataButton" style="background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">이전 게임 데이터 삭제</button>
+                </details>
+            </div>
+
             <!-- 2. 게임 룰 섹션 -->
-            <div class="game-rules-section" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div class="dice-settings-title"><i class="ui ui-list"></i> 게임 룰</div>
+            <details class="game-rules-section home-room-disclosure" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+                <summary>게임 규칙 <span>확인 · 변경</span></summary>
                 
                 <!-- 방장 전용: 게임 룰 선택 라디오 버튼 -->
                 <div id="gameRulesRadioSection" style="display: none; margin-bottom: 15px;">
@@ -2208,54 +2269,49 @@
                 <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                     게임 시작 전에만 수정 가능합니다
                 </div>
+            </details>
+
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
             </div>
 
-            <!-- 접속자 리스트 -->
-            <div class="users-section">
-                <div class="users-title">
-                    <i class="ui ui-people"></i> 접속자 (<span id="userCount">0</span>명)
-                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--dice-500); font-weight: normal; margin-left: 10px;">
-                        <i class="ui ui-bulb"></i> 드래그로 준비 시킬 수 있습니다.
-                    </span>
+            <!-- 진행 상황 표시 -->
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-title"><i class="ui ui-chart"></i> 진행 상황</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
                 </div>
-                <div class="users-list" id="usersList">
-                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>
-                </div>
-            </div>
-            
-            <!-- 방 폭파까지 남은 시간 -->
-            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
-                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    <i class="ui ui-clock"></i> 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
-                </div>
-            </div>
-            
-            <!-- 준비 상태 -->
-            <div class="ready-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500); display: none;" id="readySection">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;"><i class="ui ui-check"></i> 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
-                </div>
-                <div class="users-list" id="readyUsersList" style="min-height: 50px;">
-                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                <div class="progress-text">
+                    <span id="progressCount">0/0</span> 명 완료
                 </div>
             </div>
 
-            <!-- 예약 시작 안내 (모두에게 표시) — 남은 시간과 발화 안내를 같은 자리에서 보여준다 -->
-            <div class="schedule-notice" id="scheduleNotice" style="display: none;"></div>
-
-            <!-- 예약 — 누르면 팝업에서 시각을 정한다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
-            <div class="schedule-open-row" id="scheduleOpenRow" style="display: none;">
-                <button type="button" id="scheduleOpenButton" class="schedule-open-button" onclick="openScheduleModal()"><i class="ui ui-clock"></i> 예약</button>
+            <!-- 주사위를 굴리지 않은 사람 -->
+            <div class="not-rolled-section" id="notRolledSection" style="display: none;">
+                <div class="not-rolled-title"><i class="ui ui-hourglass"></i> 주사위를 굴리지 않은 사람</div>
+                <div class="not-rolled-list" id="notRolledList">
+                    <!-- 미완료자 목록 -->
+                </div>
             </div>
 
-            <!-- Host 전용 컨트롤 -->
-            <div class="host-controls" id="hostControls" style="display: none;">
-                <button onclick="startGame()" id="startButton">게임 시작</button>
-                <button onclick="endGame()" id="endButton" style="display: none;">게임 종료</button>
-                <button onclick="OrderModule.startOrder()" id="startOrderButton" class="order-button" style="display: none;">주문받기 시작</button>
-                <button onclick="OrderModule.endOrder()" id="endOrderButton" class="order-button" style="display: none;">주문받기 종료</button>
-                <button onclick="clearGameData()" id="clearDataButton" style="background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">이전 게임 데이터 삭제</button>
+            <!-- 채팅 섹션 -->
+            <div class="chat-history-wrapper">
+                <div class="chat-section">
+                    <div class="users-title" style="margin-bottom: 10px;"><i class="ui ui-chat"></i> 채팅 </div>
+                    <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-500);">
+                        <div style="color: var(--text-muted); text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;">
+                        <div style="position: relative;">
+                            <div class="autocomplete-suggestion" id="chatAutocompleteSuggestion" style="position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10;"></div>
+                            <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-500); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
+                            <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
+                        </div>
+                        <button type="button" id="diceIdleEmoji" onclick="rollDiceButton()" title="주사위 굴리기" aria-label="주사위 굴리기"><i class="ui ui-dice"></i></button>
+                        <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: var(--dice-gradient);">전송</button>
+                    </div>
+                </div>
             </div>
 
             <!-- 주문받기 섹션 -->
@@ -2332,49 +2388,6 @@
                 <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-light);">
                     <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
                     <div class="order-list" id="spectatorOrderList">
-                    </div>
-                </div>
-            </div>
-
-            <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus">
-                게임 대기 중...
-            </div>
-
-            <!-- 진행 상황 표시 -->
-            <div class="progress-section" id="progressSection" style="display: none;">
-                <div class="progress-title"><i class="ui ui-chart"></i> 진행 상황</div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="progressCount">0/0</span> 명 완료
-                </div>
-            </div>
-
-            <!-- 주사위를 굴리지 않은 사람 -->
-            <div class="not-rolled-section" id="notRolledSection" style="display: none;">
-                <div class="not-rolled-title"><i class="ui ui-hourglass"></i> 주사위를 굴리지 않은 사람</div>
-                <div class="not-rolled-list" id="notRolledList">
-                    <!-- 미완료자 목록 -->
-                </div>
-            </div>
-
-            <!-- 채팅 섹션 -->
-            <div class="chat-history-wrapper">
-                <div class="chat-section">
-                    <div class="users-title" style="margin-bottom: 10px;"><i class="ui ui-chat"></i> 채팅 </div>
-                    <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-500);">
-                        <div style="color: var(--text-muted); text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;">
-                        <div style="position: relative;">
-                            <div class="autocomplete-suggestion" id="chatAutocompleteSuggestion" style="position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10;"></div>
-                            <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-500); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
-                            <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
-                        </div>
-                        <span id="diceIdleEmoji" style="font-size: 28px; cursor: pointer; user-select: none;" onclick="rollDiceButton()" title="주사위 굴리기"><i class="ui ui-dice"></i></span>
-                        <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: var(--dice-gradient);">전송</button>
                     </div>
                 </div>
             </div>
@@ -8554,7 +8567,18 @@
                     ? '하이/로우/니어/기타 중 게임 룰을 선택하세요. 선택한 룰에 따라 승패가 결정됩니다.'
                     : '방장이 설정한 게임 룰이 여기에 표시됩니다. 룰에 따라 승패가 결정됩니다.';
             },
-            position: 'bottom'
+            position: 'bottom',
+            beforeShow: function() {
+                this.roomSettings = document.getElementById('gameRulesSection');
+                if (typeof this.roomSettingsWasOpen === 'undefined') this.roomSettingsWasOpen = this.roomSettings.open;
+                this.roomSettings.open = true;
+            },
+            cleanup: function() {
+                if (!this.roomSettings) return;
+                this.roomSettings.open = this.roomSettingsWasOpen;
+                this.roomSettings = null;
+                delete this.roomSettingsWasOpen;
+            }
         },
         {
             target: '#readyButton',
