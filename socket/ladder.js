@@ -818,6 +818,10 @@ module.exports = (socket, io, ctx) => {
         // 이번 라운드 참가자 + 그들의 top 선택. 미선택자는 라운드에서 제외(픽 게이트가 보장하지만 방어적).
         const participants = roundParticipants(gameState).filter(name =>
             typeof ld.userTops[name] === 'number' && ld.userTops[name] >= 0 && ld.userTops[name] < N);
+        // 누적 참여자 목록 — 주문 목록이 이 기준으로 참여자/관전자를 나눈다(주사위·경마와 같은 규칙)
+        participants.forEach(name => {
+            if (!gameState.everPlayedUsers.includes(name)) gameState.everPlayedUsers.push(name);
+        });
         // picked tops 집합(여러 명이 같은 top 공유 가능 → 토큰 1개 공유).
         const pickedTops = new Set(participants.map(name => ld.userTops[name]));
 
@@ -956,7 +960,8 @@ module.exports = (socket, io, ctx) => {
             userTops: { ...ld.userTops },
             colorIndex: { ...ld.colorIndex },
             round: ld.round,
-            tournamentActive: !!ld.tournamentActive
+            tournamentActive: !!ld.tournamentActive,
+            everPlayedUsers: gameState.everPlayedUsers.slice()
         });
 
         console.log(`[사다리타기] 방 ${room.roomName} 공개 - winSlot=${winSlotPrev}→${winSlot}(재추첨), landings=[${landings.join(',')}], loser=[${finalLoserNames.join(',')}]`);

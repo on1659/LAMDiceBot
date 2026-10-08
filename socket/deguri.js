@@ -287,6 +287,10 @@ async function startDeguri(room, gameState, io, ctx) {
     // 참가자 = 현재 방에 있고 준비한 사용자 (입장 순서)
     const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
     const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
+    // 누적 참여자 목록 — 주문 목록이 이 기준으로 참여자/관전자를 나눈다(경마와 같은 규칙)
+    participants.forEach(name => {
+        if (!gameState.everPlayedUsers.includes(name)) gameState.everPlayedUsers.push(name);
+    });
 
     gameState.orderAutoTriggered = false;
 
@@ -346,6 +350,7 @@ async function startDeguri(room, gameState, io, ctx) {
         cutMs: result.cutMs,          // 꼴찌가 혼자 통로에 내려온 순간(나머지 전원 골인) — 클라는 여기서 세상을 멈추고 비석. null 이면 골 진입 때
         ballsPerPlayer,
         target: mb.target,            // 당첨 순위 'first' | 'last' — 클라는 배너·피날레 문구·결과 표기만 바꾼다
+        everPlayedUsers: gameState.everPlayedUsers.slice(),   // 주문 목록 참여자/관전자 구분용 — 이번 판 참가자까지 포함
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };
     mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)

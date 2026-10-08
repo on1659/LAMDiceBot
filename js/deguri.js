@@ -1490,6 +1490,7 @@ socket.on('roomCreated', function (data) {
     window.isHost = true; isHost = true;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
+    everPlayedUsers = Array.isArray(data.everPlayedUsers) ? data.everPlayedUsers.slice() : [];   // 주문 목록 참여자/관전자 구분
     sessionStorage.setItem('deguriActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     deguriInitModules();
     if (window.DeguriGacha) DeguriGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
@@ -1508,6 +1509,7 @@ socket.on('roomJoined', function (data) {
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
+    everPlayedUsers = Array.isArray(data.everPlayedUsers) ? data.everPlayedUsers.slice() : [];   // 주문 목록 참여자/관전자 구분
     sessionStorage.setItem('deguriActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     deguriInitModules();
     if (window.DeguriGacha) DeguriGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
@@ -1881,6 +1883,11 @@ socket.on('deguri:reveal', function (data) {
     deguriState.reveal = data;
     deguriState.target = data.target || 'last';
     isDeguriActive = true;
+    // 이번 판 참가자가 누적 참여자에 들어왔다 — 주문 목록을 다시 나눈다(관전자 → 참여자)
+    if (Array.isArray(data.everPlayedUsers)) {
+        everPlayedUsers = data.everPlayedUsers.slice();
+        OrderModule.renderOrders();
+    }
     if (document.body) document.body.classList.add('race-running');   // 스티키 광고 숨김
     closeResultOverlay();
     showAfterRace(false);

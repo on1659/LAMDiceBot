@@ -7341,6 +7341,7 @@ socket.on('horseRaceStarted', (data) => {
     // everPlayedUsers 업데이트
     if (data.everPlayedUsers) {
         everPlayedUsers = [...data.everPlayedUsers];
+        OrderModule.renderOrders(); // 주문받기 중에 시작했으면 관전자 → 참여자로 다시 나눈다
     }
 
     addDebugLog(`경주 시작: ${data.horseRankings?.length || 0}마리`, 'race');

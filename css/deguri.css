@@ -17,6 +17,7 @@
     --horse-700: var(--deguri-fill-hover);
     --horse-accent: var(--deguri-accent);
     --horse-gradient: var(--deguri-gradient);
+    --horse-on-gradient: var(--text-primary);   /* 라이트 그라디언트가 연두라 흰 글자는 2.3:1 — 짙은 글자 */
     --horse-50: var(--deguri-50);
     --horse-100: var(--deguri-100);
     --horse-200: var(--deguri-200);
@@ -85,6 +86,12 @@
 /* 다크: 페이지 바닥 (--deguri-gradient 는 버튼·헤더 바탕으로 계속 쓴다). horse-race.css 의 같은 규칙보다 뒤에 로드돼 이긴다 */
 [data-theme="dark"] body {
     background: var(--dark-ground-deguri);
+}
+
+/* 주문 목록 이름·개수 — horse-race.css 는 --horse-accent(데구리 노랑)로 칠하는데 흰 카드 위에서 1.9:1 이라 안 읽힌다 */
+.order-user,
+.order-count {
+    color: var(--green-700);
 }
 
 /* ===== 동물 선택 (대기 중) — 나무 테두리 팻말(두꺼운 아래 모서리) 위 크림색 카드 ===== */

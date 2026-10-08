@@ -1257,7 +1257,7 @@
                 <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-fill) 0%, var(--purple-200) 100%);"><i class="ui ui-list"></i> 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px;"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -1322,7 +1322,7 @@
                 
                 <!-- 관전자 주문 목록 -->
                 <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--gray-200);">
-                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-tertiary); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문</div>
                     <div class="order-list" id="spectatorOrderList"></div>
                 </div>
             </div>
@@ -4118,6 +4118,7 @@
             // 서버에서 받은 누적 참여자 목록으로 업데이트
             if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
                 everPlayedUsers = [...data.everPlayedUsers];
+                OrderModule.renderOrders(); // 주문받기 중에 시작했으면 관전자 → 참여자로 다시 나눈다
             }
             
             // 게임 상태 바 업데이트

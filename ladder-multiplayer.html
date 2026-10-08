@@ -189,9 +189,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: var(--ladder-accent); font-size: 16px; margin: 0;"><i class="ui ui-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--ladder-gradient); color: var(--text-primary); font-weight: 600;"><i class="ui ui-list"></i> 주문리스트</button>
-                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
-                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; margin-top: 0; padding: 8px 16px; font-size: 14px; background: var(--ladder-gradient); color: var(--horse-on-gradient); font-weight: 600;"><i class="ui ui-list"></i> 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="width: auto; margin-top: 0; padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="width: auto; margin-top: 0; padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
 
@@ -230,7 +230,7 @@
                             <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
                             <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
                         </div>
-                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: var(--text-primary); font-weight: 600;" disabled>저장</button>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; font-weight: 600;" disabled>저장</button>
                     </div>
                 </div>
 
@@ -238,7 +238,7 @@
                     <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
                 </div>
                 <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
-                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">관전자 주문</div>
+                    <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 5px;">관전자 주문</div>
                     <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
                 </div>
             </div>
