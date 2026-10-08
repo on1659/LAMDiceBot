@@ -284,7 +284,6 @@ window.addEventListener('DOMContentLoaded', function () {
             });
             startPickerIconAnim();
             if (showsIdleCanvas()) renderer.drawIdle(deguriState.preview, currentUser);
-            updateDeguriRoomView();
             DeguriYard.init('deguriYard'); DeguriYard.setLooks(deguriYardLooks());   // 시트가 다 온 뒤에 — 마당은 렌더러가 받은 같은 시트를 CSS 배경으로 쓴다
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
@@ -774,36 +773,13 @@ function deguriYardLooks() {
 }
 
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 상태 문구
-// 서버 상태 + 로컬 다시보기 상태에서 화면의 준비/관전/결과 흐름을 만든다.
-function updateDeguriRoomView() {
-    var phase = (replaying || isDeguriActive || deguriState.phase === 'playing') ? 'playing' : (deguriState.phase === 'finished' ? 'result' : 'waiting');
-    if (document.body.dataset.roomPhase !== phase) document.body.dataset.roomPhase = phase;
-    var startPositions = document.getElementById('deguriStartPositions');
-    if (startPositions) {
-        startPositions.hidden = phase !== 'waiting';
-        startPositions.querySelectorAll('button').forEach(function (button) { button.disabled = !canMoveStart(); });
-    }
-    var ownBall = deguriState.reveal && deguriState.reveal.balls && deguriState.reveal.balls.find(function (ball) { return ball.owner === currentUser; });
-    var pick = deguriState.picks[currentUser] || (ownBall && ownBall.creature);
-    var button = Array.from(document.querySelectorAll('.deguri-creature-btn')).find(function (el) { return el.dataset.creature === pick; });
-    var name = button && button.querySelector('span') ? button.querySelector('span').textContent : '';
-    var hint = document.getElementById('deguriPlayHint');
-    if (!hint) return;
-    if (replaying) hint.textContent = '다시 보는 중 · 아래 재생 막대로 원하는 장면을 찾아보세요.';
-    else if (phase === 'playing') hint.textContent = name ? '내 동물: ' + name + ' · 따라가기 버튼으로 내 동물을 계속 볼 수 있어요.' : '경주를 지켜보세요. 따라가기 버튼으로 내 동물을 찾을 수 있어요.';
-    else if (phase === 'result') hint.textContent = '경주가 끝났어요. 다시 보거나 다음 판을 준비하세요.';
-    else hint.textContent = name ? '내 동물: ' + name + ' · 출발대를 누르거나 ← → 키로 자리를 바꿔보세요.' : '먼저 동물을 고르세요. 출발대를 누르면 출발 자리도 바꿀 수 있어요.';
-}
-
 function renderPickStatus() {
-    updateDeguriRoomView();
     var picks = deguriState.picks || {};
     var counts = {};
     Object.keys(picks).forEach(function (name) { counts[picks[name]] = (counts[picks[name]] || 0) + 1; });
     document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
         var id = btn.getAttribute('data-creature');
         btn.classList.toggle('selected', picks[currentUser] === id);
-        btn.setAttribute('aria-pressed', String(picks[currentUser] === id));
         var badge = btn.querySelector('.pick-count');
         if (!badge) { badge = document.createElement('span'); badge.className = 'pick-count'; btn.appendChild(badge); }
         badge.textContent = counts[id] ? counts[id] + '명' : '';
@@ -818,8 +794,7 @@ function renderPickStatus() {
     var locked = deguriState.phase === 'playing' || isDeguriActive;
     var status = document.getElementById('deguriPickStatus');
     if (status) {
-        var selectedButton = document.querySelector('.deguri-creature-btn.selected > span');
-        status.textContent = locked ? '경주 중에는 바꿀 수 없어요' : (selectedButton ? '내 동물: ' + selectedButton.textContent + ' ✓' : '함께 출발할 동물을 골라주세요.');
+        status.textContent = locked ? '경주 중에는 바꿀 수 없어요' : '';   // 고른 동물·마릿수 문구는 없음 — 선택 강조와 발자국 버튼이 이미 보여준다(사용자 2026-09-22)
     }
     // 준비했는데 동물을 안 고른 사람 — 램다이스 공통 이름표(경마 "선택 안한 사람"과 같은 형식, .not-rolled-tag 는 OrderModule 이 주입)
     var notPickedSection = document.getElementById('notPickedSection');
@@ -1169,7 +1144,6 @@ function replayRace() {
     if (replaying) { stopReplay(true); return; }
     var data = deguriState.reveal;
     replaying = true;
-    updateDeguriRoomView();
     closeResultOverlay();
     renderer.setTimeline(data, currentUser);
     renderer.onFinale(function () {});
@@ -1191,7 +1165,6 @@ function stopReplay(jumpToEnd) {
     clearTimeout(replayEndTimer); replayEndTimer = null;
     if (!replaying) return;
     replaying = false;
-    updateDeguriRoomView();
     setReplayUi(false);
     if (!renderer) return;
     renderer.stop();
@@ -1483,7 +1456,6 @@ function deguriShowRoomName(roomName) {
 // 소켓 이벤트 — 공통
 // ============================================
 socket.on('roomCreated', function (data) {
-    document.body.dataset.roomPhase = 'waiting';
     currentRoomId = data.roomId;
     currentUser = data.userName || '';
     deguriShowRoomName(data.roomName);
@@ -1570,7 +1542,6 @@ socket.on('roomJoined', function (data) {
             showAfterRace(true);
         }
     }
-    updateDeguriRoomView();
     addDebugLog('방 입장: ' + data.roomId + ' (host=' + isHost + ')');
     if (window.FreeInvite && data.shortcode) window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
 });
@@ -1768,12 +1739,6 @@ var START_X_MIN = 216, START_X_MAX = 584;   // socket/deguri-sim.js 와 같은 �
 var START_KEY_EMIT_MS = 350;                // ← → 를 누르고 있는 동안 지금 자리를 서버에 알리는 간격 — 소켓 rate limit(10초 50회) 안쪽
 var startKeyDir = 0, startKeyTimer = null;
 function canMoveStart() { return !!renderer && deguriState.phase === 'idle' && !isDeguriActive && renderer.idleXOf(currentUser) != null; }
-function chooseDeguriStart(position) {
-    if (!canMoveStart()) return;
-    var positions = { left: START_X_MIN, center: (START_X_MIN + START_X_MAX) / 2, right: START_X_MAX };
-    if (Object.prototype.hasOwnProperty.call(positions, position)) moveMyStart(positions[position]);
-}
-window.chooseDeguriStart = chooseDeguriStart;
 function moveMyStart(x) {
     if (!canMoveStart()) return;
     x = Math.max(START_X_MIN, Math.min(START_X_MAX, Math.round(x)));
@@ -1789,7 +1754,7 @@ function stopStartKey() {
 document.addEventListener('keydown', function (e) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     var el = document.activeElement, tag = el && el.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && (el.isContentEditable || el.closest('[role="tablist"]')))) return;   // 채팅·입력 중엔 글자 커서가 움직여야 한다
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;   // 채팅·입력 중엔 글자 커서가 움직여야 한다
     if (e.altKey || e.ctrlKey || e.metaKey || !canMoveStart()) return;
     e.preventDefault();
     var dir = e.key === 'ArrowLeft' ? -1 : 1;
@@ -1843,7 +1808,6 @@ socket.on('deguri:stateUpdated', function (data) {
     renderVoteSection();
     updateStartButton();
     if (showsIdleCanvas() && renderer && assetsLoaded) renderer.drawIdle(deguriState.preview, currentUser);
-    updateDeguriRoomView();
     if (startKeyDir && renderer) renderer.setIdleX(currentUser, startKeyDir < 0 ? START_X_MIN : START_X_MAX);   // ← → 를 누르고 있는 중에 프리뷰가 갱신돼도 계속 걷는다
 });
 

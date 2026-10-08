@@ -63,16 +63,6 @@ function onceEvent(page, ev, ms) {
     const errs = [];
     const mk = async (seed) => {
         const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-        // 외부 광고의 슬롯/중복 초기화 오류를 게임 오류와 분리한다. 게임 API와 소켓은 실제 서버를 쓴다.
-        await ctx.route('**/*', route => {
-            const hostname = new URL(route.request().url()).hostname;
-            return /(^|\.)(googlesyndication\.com|doubleclick\.net)$/.test(hostname) ? route.abort() : route.continue();
-        });
-        // 플레이 검증은 튜토리얼을 이미 본 상태로 고정한다.
-        await ctx.addInitScript(() => {
-            localStorage.setItem('tutorialSeen_horse', 'v1');
-            localStorage.setItem('tutorialSeen_dice', 'v1');
-        });
         if (seed) await ctx.addInitScript(s => { for (const k in s) { try { localStorage.setItem(k, s[k]); } catch (e) {} } }, seed);
         return ctx;
     };
@@ -145,8 +135,8 @@ function onceEvent(page, ev, ms) {
         await guest.fill('#nameModalInput', GUEST);
         await guest.click('#nameModalSubmit');
     }
-    await waitFor(guest, h => document.getElementById('usersList').textContent.includes(h), HOST, 20000, '손님: 방에 들어가 호스트 이름이 보임');
-    await waitFor(host, g => document.getElementById('usersList').textContent.includes(g), GUEST, 10000, '호스트: 손님이 보임');
+    await waitFor(guest, h => document.body.innerText.includes(h), HOST, 20000, '손님: 방에 들어가 호스트 이름이 보임');
+    await waitFor(host, g => document.body.innerText.includes(g), GUEST, 10000, '호스트: 손님이 보임');
 
     // ── 한 판 ──
     const ended = onceEvent(guest, END_EVENT, ROUND_TIMEOUT_MS);
