@@ -598,6 +598,12 @@
   --deguri-fullscreen-bg: #000;                   /* 전체화면 캔버스 둘레 */
   --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);   /* 결과 카드 하늘→잔디 머리 */
   --deguri-result-head-ink: #2b2416;
+  /* 1등 룰 캔버스 소품(낙하산·돗자리·탈락 자막) — 그림이 없을 때 코드로 그리는 색, 스킨과 무관하게 고정 */
+  --deguri-chute-red: #e8574f;                    /* 낙하산 고어·돗자리 바탕 */
+  --deguri-chute-white: #fff6f0;                  /* 낙하산 고어(하양) */
+  --deguri-mat-stripe: #fff3d6;                   /* 돗자리 줄무늬 */
+  --deguri-sprite-line: #5a3d52;                  /* 동물 시트와 같은 외곽선·낙하산 줄 */
+  --deguri-toast-ink: #ffe9a8;                    /* 캔버스 아래 탈락 자막 글자(바탕은 --deguri-hud-rgb) */
   --deguri-result-head-sub: #4f5f3a;
   --deguri-result-sprite-bg: #fff;
   --deguri-result-sprite-shadow-rgb: 138, 90, 43;
@@ -1122,6 +1128,11 @@
   --deguri-fullscreen-bg: #000;
   --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
   --deguri-result-head-ink: #2b2416;
+  --deguri-chute-red: #e8574f;
+  --deguri-chute-white: #fff6f0;
+  --deguri-mat-stripe: #fff3d6;
+  --deguri-sprite-line: #5a3d52;
+  --deguri-toast-ink: #ffe9a8;
   --deguri-result-head-sub: #4f5f3a;
   --deguri-result-sprite-bg: #fff;
   --deguri-result-sprite-shadow-rgb: 138, 90, 43;

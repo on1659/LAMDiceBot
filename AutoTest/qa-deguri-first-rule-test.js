@@ -71,11 +71,11 @@ const CRE = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
     await pa.waitForFunction(() => renderer.debug().phase !== 'idle', null, { timeout: 15000 });
     await pa.evaluate(() => { renderer.pause(); document.getElementById('deguriCanvas').scrollIntoView({ block: 'center' }); });
     const d1 = await shot(pa, '01-first-finish.png', playOf(rv, t1) + 300);
-    check(d1.done === 1, '첫 골인 직후 도착 1마리', JSON.stringify(d1));
+    check(d1.done >= 1 && d1.done < n, '첫 골인 직후 일부만 도착(통로에 있던 공은 같이 들어올 수 있다)', JSON.stringify(d1));
     const d2 = await shot(pa, '02-crown-chutes.png', playOf(rv, t1) + 2600);
-    check(d2.chute + d2.walk >= 1 && d2.done + d2.chute + d2.walk === n && d2.cam === 'celebrate', '+2.6s: 나머지는 낙하산·걷기 + 축하 카메라', JSON.stringify(d2));
+    check(d2.done + d2.chute + d2.walk === n && d2.cam === 'celebrate', '+2.6s: 나머지는 낙하산·걷기(이미 다 들어왔을 수도) + 축하 카메라', JSON.stringify(d2));
     const d3 = await shot(pa, '03-landing.png', playOf(rv, t1) + 4400);
-    check(d3.cam === 'frame' || d3.cam === 'lead', '+4.4s: 축하 카메라 끝 → 결승 프레임', d3.cam);
+    check(d3.cam === 'frame' || d3.cam === 'lead' || (d3.cam === 'celebrate' && d3.done === n), '+4.4s: 축하 카메라 끝 → 결승 프레임(전원 도착이면 스탠드 왕관으로 돌아간다)', JSON.stringify(d3));
     const d4 = await shot(pa, '04-stand.png', rv.durationMs - 200);
     check(d4.done === n && (d4.phase === 'finale' || d4.phase === 'done'), '끝: 전원 스탠드(비석 없음)', JSON.stringify(d4));
     if (deepEv) { const d5 = await shot(pa, '05-deep.png', playOf(rv, deepEv.t) + 700); check(d5.deep.length >= 1, '탈락 표시(deep)', JSON.stringify(d5.deep)); }

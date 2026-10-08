@@ -311,6 +311,12 @@ var DeguriRender = (function () {
         return im;
     }
     // 1등 룰 소품(낙하산·돗자리) — 처음 쓸 때 지연 로드. ASSETS.fx 에 넣으면 모든 입장에서 받으므로(에셋 미도착이면 매번 404 헛요청) 여기서만 든다. 없으면 drawSprite 가 false → 코드 도형
+    // theme.css 고정색 토큰을 캔버스에서 쓴다(값은 처음 읽을 때 한 번) — 1등 룰 소품 코드 도형·자막
+    var tokCache = {};
+    function tok(name) {
+        if (tokCache[name] == null) tokCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return tokCache[name];
+    }
     function ensureFx(name) {
         var k = imgKey('fx', name);
         if (images[k] === undefined) { var im = new Image(); im.src = A + 'fx/' + name + '.webp' + ASSET_VER; images[k] = im; }
@@ -1723,8 +1729,8 @@ var DeguriRender = (function () {
             var bodyTop = b.deep ? b.y - 22 : b.y - BALL_R, top = bodyTop - PARA_LINE_PX * sc;
             if (open && !drawSprite('fx', 'parachute', b.x, top, 128, 96, { sx: cell * 128, sw: 128, anchor: 'bottom', scale: sc })) {
                 // 코드 도형: 빨강·하양 번갈이 고어 4개의 반원 캐노피(사용자 2026-10-06 "하얀색과 빨간색")
-                var r = 16 * sc, cols = ['#e8574f', '#fff6f0'];
-                ctx.save(); ctx.translate(b.x + (cell - 1) * 1.5, toScreenY(top)); ctx.strokeStyle = '#5a3d52'; ctx.lineWidth = 1.5;
+                var r = 16 * sc, cols = [tok('--deguri-chute-red'), tok('--deguri-chute-white')];
+                ctx.save(); ctx.translate(b.x + (cell - 1) * 1.5, toScreenY(top)); ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1.5;
                 for (var g = 0; g < 4; g++) {
                     var a0 = Math.PI + g * Math.PI / 4, a1 = a0 + Math.PI / 4;
                     ctx.fillStyle = cols[g % 2]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, a0, a1); ctx.closePath(); ctx.fill();
@@ -1733,7 +1739,7 @@ var DeguriRender = (function () {
                 ctx.restore();
             }
             if (open) {
-                ctx.save(); ctx.strokeStyle = '#5a3d52'; ctx.lineWidth = 1; ctx.beginPath();
+                ctx.save(); ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1; ctx.beginPath();
                 ctx.moveTo(b.x - 11 * sc, toScreenY(top)); ctx.lineTo(b.x - 4, toScreenY(bodyTop + 3));
                 ctx.moveTo(b.x + 11 * sc, toScreenY(top)); ctx.lineTo(b.x + 4, toScreenY(bodyTop + 3));
                 ctx.stroke(); ctx.restore();
@@ -1755,9 +1761,9 @@ var DeguriRender = (function () {
             if (drawSprite('fx', 'mat', x, my, 192, 64, { sx: cell * 192, sw: 192 })) return;
             var w = 14 + 34 * k, h = 12;
             ctx.save(); ctx.translate(x, toScreenY(my));
-            ctx.fillStyle = '#e8574f'; roundRect(-w / 2, -h / 2, w, h, 3); ctx.fill();
-            ctx.fillStyle = '#fff3d6'; for (var s = -w / 2 + 4; s < w / 2 - 3; s += 8) ctx.fillRect(s, -h / 2 + 1, 3, h - 2);
-            ctx.strokeStyle = '#5a3d52'; ctx.lineWidth = 1; roundRect(-w / 2, -h / 2, w, h, 3); ctx.stroke();
+            ctx.fillStyle = tok('--deguri-chute-red'); roundRect(-w / 2, -h / 2, w, h, 3); ctx.fill();
+            ctx.fillStyle = tok('--deguri-mat-stripe'); for (var s = -w / 2 + 4; s < w / 2 - 3; s += 8) ctx.fillRect(s, -h / 2 + 1, 3, h - 2);
+            ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1; roundRect(-w / 2, -h / 2, w, h, 3); ctx.stroke();
             ctx.restore();
         }
         // 탈락 자막(1등 룰) — "{주인}의 {동물}가 잠들었다… 이번 판 못 들어감". 받침에 따라 이/가. 내 공이면 "(휴)" — 당첨 = 벌칙이라 탈락은 안심
@@ -2696,8 +2702,8 @@ var DeguriRender = (function () {
                 var ta = age < 200 ? age / 200 : age > ELIM_TOAST_MS - 400 ? (ELIM_TOAST_MS - age) / 400 : 1;
                 ctx.save(); ctx.globalAlpha = ta; ctx.font = 'bold 13px "Jua", sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
                 var tw = Math.min(hw - 16, ctx.measureText(to.text).width + 20), tcx = hw / 2, tty = hh - 64;
-                ctx.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(tcx - tw / 2, tty, tw, 24, 8); ctx.fill();
-                ctx.fillStyle = '#ffe9a8'; ctx.fillText(to.text, tcx, tty + 5, tw - 12); ctx.restore();
+                ctx.fillStyle = 'rgba(' + tok('--deguri-hud-rgb') + ', 0.6)'; roundRect(tcx - tw / 2, tty, tw, 24, 8); ctx.fill();
+                ctx.fillStyle = tok('--deguri-toast-ink'); ctx.fillText(to.text, tcx, tty + 5, tw - 12); ctx.restore();
                 break;
             }
             // 당첨 룰 배지 — 오른쪽 위, 순위표 바로 위(19). 순위표가 있으면 둘을 같은 폭·같은 왼쪽 끝으로 맞춘다. 캔버스 위 HTML 배너는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에 띄운다
