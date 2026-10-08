@@ -38,5 +38,6 @@ if echo "$FILE" | grep -qE '\.css$'; then
 fi
 
 if [ -n "$WARNINGS" ]; then
-  echo "{\"decision\":\"allow\",\"reason\":\"⚠️ 모바일 호환성: ${WARNINGS}\"}"
+  # PostToolUse 경고는 additionalContext 로 — decision:"allow"+reason 은 에이전트에게 전달되지 않는다
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"⚠️ 모바일 호환성: ${WARNINGS}\"}}"
 fi

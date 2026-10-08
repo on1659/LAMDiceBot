@@ -22,7 +22,8 @@ if echo "$FILE" | grep -q 'socket/'; then
 
   # 핸들러 수보다 rate limit 호출이 적으면 경고 (block 아님)
   if [ "$HAS_SOCKET_ON" -gt "$HAS_RATE_LIMIT" ]; then
-    echo "{\"decision\":\"allow\",\"reason\":\"⚠️ socket.on() ${HAS_SOCKET_ON}건 vs ctx.checkRateLimit() ${HAS_RATE_LIMIT}건. 신규 핸들러에 Rate Limit 누락 가능성 확인하세요.\"}"
+    # PostToolUse 경고는 additionalContext 로 — decision:"allow"+reason 은 에이전트에게 전달되지 않는다
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"⚠️ socket.on() ${HAS_SOCKET_ON}건 vs ctx.checkRateLimit() ${HAS_RATE_LIMIT}건. 신규 핸들러에 Rate Limit 누락 가능성 확인하세요.\"}}"
     exit 0
   fi
 fi

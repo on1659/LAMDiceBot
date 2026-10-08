@@ -67,7 +67,9 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - `fairness-guard` — 클라이언트 JS의 `Math.random()` 경고 (게임 결과는 서버에서만 결정)
 - `mobile-guard` — viewport 누락, 고정 너비, `@media` 부재 경고
 - `check-main-branch` / `check-push-branch` — main 브랜치 편집·푸시 경고
-- `ui-check` / `file-type-reminder` — UI·파일 타입 리마인더
+- `ui-check` — 색 토큰 검사(THEME-DARK.md §5-1, 이번 편집으로 새로 들어간 줄만 — 같은 라이트 값 토큰을 알려 준다)·AdSense 누락 경고
+- `file-type-reminder` — 파일 타입 리마인더 (사용자 화면에만 보임)
+- 경고 훅은 `hookSpecificOutput.additionalContext` JSON 으로 낸다 — 평문 출력·`decision:"allow"` 는 에이전트에게 전달되지 않는다
 - `goal-archive` (Stop) — 아래 큐를 비우며 goal 문서를 `applied/`로 이동
 
 ## 항상 적용
