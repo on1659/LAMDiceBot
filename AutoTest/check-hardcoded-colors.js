@@ -13,6 +13,7 @@
  *
  * 세지 않는 것: css/theme.css (토큰 정의 자리), 주석, var(--x) 안쪽, transparent/currentColor/inherit,
  *              미사용 게임(다리건너기·해적·회전칼날)·mockups/·docs/·AutoTest/·node_modules/·horse-app/·game-lab/
+ *              홈 프로토타입(home.html·css/home.css·js/home.js — 시험 화면이라 검사 제외, 사용자 2026-10-08)
  * 기준선: AutoTest/hardcoded-colors-baseline.json — 파일별 (줄 내용, 리터럴) 개수. 줄 번호가 아니라 내용으로 맞추므로
  *        다른 줄을 고쳐 줄이 밀려도 오탐이 안 난다.
  */
@@ -23,6 +24,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const BASELINE = path.join(__dirname, 'hardcoded-colors-baseline.json');
 const DEAD = /(bridge-cross|pirate|spin-arena|spin-shop)/;
+const PROTO = /^home\.(html|css|js)$/;   // 홈 프로토타입 — 검사 제외
 
 function listFiles() {
     const out = [];
@@ -31,7 +33,7 @@ function listFiles() {
         if (!fs.existsSync(abs)) return;
         for (const f of fs.readdirSync(abs)) {
             const rel = path.posix.join(dir, f).replace(/^\.\//, '');
-            if (re.test(f) && !DEAD.test(f)) out.push(rel);
+            if (re.test(f) && !DEAD.test(f) && !PROTO.test(f)) out.push(rel);
         }
     };
     add('.', /\.html$/);
