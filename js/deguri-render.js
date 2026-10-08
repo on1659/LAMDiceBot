@@ -134,6 +134,7 @@ var DeguriRender = (function () {
     var ROLL_SPIN_MAX = 34;          // 구르는 각속도 상한(rad/s) — 60fps 에서 프레임당 ≈32°. 넘기면 무늬가 거꾸로 도는 것처럼 보인다. 빠를수록 이 값에 붙는다(tanh)
     var ROLL_SPIN_TAU_MS = 90;       // 목표 각속도에 붙는 시간 — 핀에 튕길 때마다 회전이 뚝뚝 바뀌지 않게
     var ROLL_GRIP_MIN = 0.12, ROLL_GRIP_FULL = 0.37;   // 진행 방향의 가로 성분 비율: 이 아래(거의 수직 낙하)는 돌던 대로, 이 위는 굴러가는 쪽으로 돈다
+    var ROLL_FALL_SPIN_MIN = 0.2, ROLL_FALL_SPIN_MAX = 0.55, ROLL_FALL_TAU_MS = 300;   // 수직 낙하 회전: 굴림 회전 대비 비율(마리마다 이 사이 랜덤) / 붙는 시간(느리게 — 벽에 튕길 때마다 방향이 바뀌어 보이지 않게)
     var ROLL_REST_SPEED = 12;        // 이 속도(px/s) 아래는 멈춘 것 — 회전도 선다
     var ROLL_JUMP_SPEED = 4000;      // 샘플 사이가 이보다 빠르면 순간이동(워프) — 회전·속도에 안 쓴다
     var STEP_STRIDE_BASE = 10, STEP_STRIDE_PER_SPEED = 0.13;   // 한 걸음 거리(px) = 기본 + 속도(px/s) × 계수 — 빠를수록 보폭이 길다(60px/s → 17.8px·초당 3.4걸음, 140 → 28.2px·5걸음)
@@ -797,10 +798,15 @@ var DeguriRender = (function () {
                     if (b.state === 'roll') {
                         // 미끄럼 없이 구르기: 각속도 = 속도 / 반지름, 가는 쪽으로. 거의 수직으로 떨어질 땐(grip 0) 돌던 대로 둔다
                         var grip = spd < ROLL_REST_SPEED ? 1 : clamp((Math.abs(vx) / spd - ROLL_GRIP_MIN) / (ROLL_GRIP_FULL - ROLL_GRIP_MIN), 0, 1);
-                        var want = spd < ROLL_REST_SPEED ? 0 : (vx > 0 ? 1 : -1) * ROLL_SPIN_MAX * Math.tanh(spd / BALL_R / ROLL_SPIN_MAX);
-                        if (!stepping) b.spin = want * grip;
+                        var mag = spd < ROLL_REST_SPEED ? 0 : ROLL_SPIN_MAX * Math.tanh(spd / BALL_R / ROLL_SPIN_MAX);
+                        // 거의 수직으로 떨어질 땐 굴러가는 쪽이 없다 — 돌던 쪽(처음이면 마리마다 정해진 쪽)으로 굴림 회전의 ROLL_FALL_SPIN 만큼 천천히 돈다(출발 직후 첫 낙하가 회전 없이 미끄러져 보였다)
+                        // 처음 도는 방향·세기는 마리마다 랜덤 — 공 id 해시라 모든 화면에서 같다(Math.random 은 화면마다 달라진다)
+                        var fallDir = Math.abs(b.spin) > 0.5 ? (b.spin > 0 ? 1 : -1) : (hash01(b.id * 7.31 + 2.9) < 0.5 ? -1 : 1);
+                        var fallK = lerp(ROLL_FALL_SPIN_MIN, ROLL_FALL_SPIN_MAX, hash01(b.id * 3.17 + 8.1));
+                        var want = grip * (vx > 0 ? 1 : -1) * mag + (1 - grip) * fallDir * mag * fallK;
+                        if (!stepping) b.spin = want;
                         else {
-                            b.spin += (want - b.spin) * grip * (1 - Math.exp(-dtMs / ROLL_SPIN_TAU_MS));
+                            b.spin += (want - b.spin) * (1 - Math.exp(-dtMs / (grip > 0 ? ROLL_SPIN_TAU_MS : ROLL_FALL_TAU_MS)));
                             b.angle += b.spin * dtMs / 1000;
                         }
                     }
@@ -2634,10 +2640,11 @@ var DeguriRender = (function () {
 
         // 순위표 카메라 표시 — 카메라 버튼과 같은 픽셀 카메라 아이콘(로드 전이면 생략). 내 줄 강조(흰 글씨·강조 아이콘)와 모양이 다르다
         var camMarkImg = null;
-        function drawCamMark(cx, cy) {
+        function drawCamMark(cx, cy, size) {
             if (!camMarkImg) { camMarkImg = new Image(); camMarkImg.src = CAM_ICONS.auto; }
             if (!camMarkImg.complete || !camMarkImg.naturalWidth) return;
-            ctx.imageSmoothingEnabled = false; ctx.drawImage(camMarkImg, cx - 8, cy - 8, 16, 16); ctx.imageSmoothingEnabled = true;
+            size = size || 16;
+            ctx.imageSmoothingEnabled = false; ctx.drawImage(camMarkImg, cx - size / 2, cy - size / 2, size, size); ctx.imageSmoothingEnabled = true;
         }
         // 출발 카운트다운: 준비!(첫 1초) → 3 → 2 → 1(1초씩) → 출발 순간 START! — 화면 가운데 큰 글자, 매 초 커졌다 줄며 톡 튀어나온다(데구리 6628dd3)
         var COUNT_START_SHOW_MS = 700;
@@ -2715,20 +2722,22 @@ var DeguriRender = (function () {
                 var compact = view.narrow && !rankOpen;
                 var rowH = compact ? HUD_RANK_COMPACT_ROW : HUD_RANK_ROW, hdrH = compact ? 22 : 26, nameMax = compact ? HUD_RANK_COMPACT_NAME_MAX : HUD_RANK_NAME_MAX;
                 var rowFont = 'bold ' + (compact ? 11 : 12) + 'px "Jua", sans-serif', hdrFont = 'bold ' + (compact ? 12 : 14) + 'px "Jua", sans-serif', hdrIcon = compact ? 14 : 16;
-                var xRank = compact ? 32 : 44, xIcon = compact ? 45 : 56, xName = compact ? 57 : 68;   // 묶음 안 가로 자리: 순위 오른쪽 끝·얼굴 가운데·이름 왼쪽 끝
                 ctx.font = rowFont;
+                // 묶음 안 가로 자리: 순위 오른쪽 끝·얼굴 가운데·이름 왼쪽 끝 — 순위 칸은 실제 글자 폭('꼴찌'·'N위' 중 넓은 것)으로. 예전엔 카메라 표시 칸(14)과 넉넉한 순위 칸을 늘 비워 둬 왼쪽이 휑했다
+                var iconPx = compact ? HUD_RANK_COMPACT_ICON_PX : HUD_ICON_PX, padX = compact ? 6 : 8;
+                var xRank = Math.ceil(Math.max(ctx.measureText('꼴찌').width, ctx.measureText(hudInfo.rows.length + '위').width)), xIcon = xRank + 4 + iconPx / 2, xName = xRank + 4 + iconPx + 4;
                 var y = hudTop, rows = hudInfo.rows, n = rows.length;   // 당첨 룰은 따로 배지 없이 순위표 머리줄로(사용자 2026-09-24)
                 var multi = balls.some(function (b) { return b.num > 1; });   // 한 사람 여러 마리일 때만 'N번'(그 사람의 몇 번째 동물) — 1마리 경주는 늘 1번이라 뺀다(17)
                 var shortName = function (nm) { return nm.length > nameMax ? nm.slice(0, nameMax) + '…' : nm; };
                 var rankText = function (r) { return shortName(r.ball.owner) + (compact ? '' : r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
                 // 폭 = 이름 앞(카메라 표시·순위·얼굴 68) + 가장 긴 이름 + 뒤 꼬리(' 도착'·' 9번' 중 긴 것 — 경주 중 폭이 들썩이지 않게) + 오른쪽 여백. 상한 HUD_RANK_W_MAX
                 var tailW = compact ? 0 : Math.max(ctx.measureText(' 도착').width, multi ? ctx.measureText(' 9번').width : 0);
-                var textW = ctx.measureText('순위표').width + 17 - (xName - 8);
+                var textW = 0;
                 rows.forEach(function (r) { textW = Math.max(textW, ctx.measureText(shortName(r.ball.owner)).width + tailW); });
-                var blockW = Math.ceil(textW + xName - 6);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
+                var blockW = Math.ceil(textW + xName), titleW0 = ctx.measureText('순위표').width + 17;   // 순위·얼굴·이름 묶음 폭 / 머리줄 '순위표'(아이콘 포함) 폭
                 var hdrRuleW = ruleW; if (compact && ruleH) { ctx.font = hdrFont; hdrRuleW = ctx.measureText(ruleText).width + hdrIcon + 4 + 14; ctx.font = rowFont; }
-                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), hdrRuleW), L = hw - w - 8;
-                var X = L + Math.round((w - blockW) / 2) - 6;   // 묶음을 패널 가운데로
+                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + padX * 2), hdrRuleW, ruleH ? 0 : Math.ceil(titleW0) + padX * 2), L = hw - w - 8;
+                var X = L + Math.round((w - blockW) / 2);   // 묶음 왼쪽 끝 — 패널 가운데로
                 badgeDone = true;
                 var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
                 var maxRows = Math.max(1, Math.floor((panelMaxH - hdrH - HUD_RANK_TOGGLE_H) / rowH));
@@ -2783,10 +2792,11 @@ var DeguriRender = (function () {
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
                     if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.fill(); }
                     if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
-                    if (!compact && cam.target === b) drawCamMark(X + 13, cy);   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11)
+                    var camRow = !compact && cam.target === b;   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11). 얼굴 왼쪽 위에 작은 표시(칸을 따로 비우지 않는다)
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
                     ctx.fillText(!r.done && b.deep ? '잠듦' : idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + xRank, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만. 탈락(자는) 공은 착지 전까지 '잠듦'
-                    drawMiniIcon(b, X + xIcon, cy, compact ? HUD_RANK_COMPACT_ICON_PX : HUD_ICON_PX, mineRow);
+                    drawMiniIcon(b, X + xIcon, cy, iconPx, mineRow);
+                    if (camRow) drawCamMark(X + xIcon - iconPx / 2 + 1, cy - iconPx / 2 + 2, 11);
                     ctx.fillStyle = mineRow ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';   // 내 줄 강조: 흰 글씨 + 강조 아이콘(흰 바깥 링)
                     ctx.fillText(rankText(r), X + xName, cy + 1);
                     rankHits.push({ x: L, y: top, w: w, h: rowH, ball: b });
