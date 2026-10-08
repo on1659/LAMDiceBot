@@ -39,6 +39,7 @@
   --horse-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
   --horse-accent: var(--horse-500);
   --horse-ink: var(--horse-600);   /* 600 을 글자색으로 쓸 때 (가격·당첨자) — 600 자체는 버튼 바탕이라 다크에서도 그대로 */
+  --horse-on-gradient: var(--text-on-accent);   /* --horse-gradient 위 글자 (주문 버튼). 그라디언트가 밝은 게임(데구리·사다리)은 자기 CSS 에서 바꾼다 */
 
   /* ── 스킨과 무관하게 고정인 글자색 (그림·늘 어두운 패널 위) ──
      --gray-* / --bg-white 는 다크에서 뒤집히므로 이런 자리에 쓰면 안 된다 */
@@ -493,9 +494,14 @@ input[type="text"]:focus, input[type="password"]:focus {
 .horse.idle .vehicle-sprite .frame1 { animation: frame1Anim 0.6s steps(1) infinite; }
 .horse.idle .vehicle-sprite .frame2 { animation: frame2Anim 0.6s steps(1) infinite; }
 
-/* 달리는 상태: 빠른 2프레임 교차 */
-.horse.racing .vehicle-sprite .frame1 { animation: frame1Anim 0.15s steps(1) infinite; }
-.horse.racing .vehicle-sprite .frame2 { animation: frame2Anim 0.15s steps(1) infinite; }
+/* 달리는 상태: 작은 픽셀 스프라이트에서도 보폭이 읽히도록 프레임 교차를 늦추고 몸을 살짝 띄운다 */
+@keyframes horseRunBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+.horse.racing:not(.jumping) .vehicle-sprite { animation: horseRunBob 0.28s ease-in-out infinite; }
+.horse.racing .vehicle-sprite .frame1 { animation: frame1Anim 0.28s steps(1) infinite; }
+.horse.racing .vehicle-sprite .frame2 { animation: frame2Anim 0.28s steps(1) infinite; }
 
 /* 쉬는 상태: 매우 느린 호흡 애니메이션 */
 .horse.rest .vehicle-sprite .frame1 { animation: frame1Anim 1.5s steps(1) infinite; }
@@ -974,6 +980,13 @@ input[type="text"]:focus, input[type="password"]:focus {
     grid-template-columns: 1fr auto;
     gap: 10px;
     position: relative;
+}
+
+/* 주문 저장 버튼 — 이 CSS 를 쓰는 페이지는 Tailwind CDN 기본 스타일(button 바탕 투명)이 위 button 규칙보다 뒤에 붙어
+   바탕이 사라지고 글자만 남는다. 선택자를 올려 게임 그라디언트를 되살린다. 비활성은 button:disabled(회색) 그대로 */
+#orderSaveButton:not(:disabled) {
+    background: var(--horse-gradient);
+    color: var(--horse-on-gradient);
 }
 
 .order-input-wrapper {
@@ -1598,7 +1611,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 @media (max-width: 768px) {
     .container {
         padding: 15px;
-        margin: 5px;
+        margin: 5px 0;   /* 좌우 여백은 width:100% 위에 더해져 가로로 넘친다(body.game-active 를 안 쓰는 데구리·사다리) */
         border-radius: 12px;
     }
 
