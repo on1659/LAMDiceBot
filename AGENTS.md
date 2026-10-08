@@ -82,9 +82,15 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - **goal 완료 시 아카이브**: `docs/goal/*.md` 명세의 작업을 끝냈으면 그 파일 경로를
   (프로젝트 루트 기준, 예 `docs/goal/foo.md`) `.Codex/.goal-applied-queue`에 한 줄 append.
   Stop 훅이 `docs/goal/applied/`로 옮기고 큐를 비운다. 미완 상태에서는 적지 않는다
+- **R&D·목업은 실제 게임에 닿지 않는다**(2026-10-09 사용자): 홈 리뉴얼 같은 목업·R&D 는 새 파일로만 만든다.
+  기존 게임 페이지·`js/*`·`js/shared/*`·`css/theme.css`·`socket/*` 를 고쳐야 하면 멈추고 사용자에게 묻는다 —
+  명세에 "기존 규칙을 대체한다"를 스스로 적지 않는다. 목업 브랜치(`feature/home-proto`)를 `feature/marble-run`
+  (실제 작업·테스트 서버)에 합치기 전 `git diff --stat origin/feature/marble-run...feature/home-proto` 에
+  새 파일 말고 기존 파일이 보이면 합치지 않는다
 
 ## 이력
 
+- 2026-10-09: R&D 목업 인게임 재설계가 실제 게임 4페이지·`js/deguri.js`·`js/horse-race.js` 를 고친 채 `feature/marble-run` 에 병합돼 있던 것을 되돌림(`2d693148`, 목업은 `feature/home-proto` 에 남음). 위 "R&D·목업" 규칙 추가
 - 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
   가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
 - 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수
