@@ -392,8 +392,8 @@
     }
 
     // 토큰으로 socket 인증 → 성공 시 지갑 동기화. 매 connect마다 호출 가능(멱등).
-    // 토큰이 없거나(구세대 userAuth) 서버가 auth 로 거부하면(만료) AuthToken.renew 로 새 토큰을
-    // 받아 1회 재시도 — 유저가 재로그인 없이 상점을 바로 쓰게(사용자 결정 2026-09-22).
+    // 서버가 auth 로 거부하면(만료) AuthToken.renew 로 새 토큰을 받아 1회 재시도 — 유저가 재로그인 없이
+    // 상점을 바로 쓰게(사용자 결정 2026-09-22). 토큰이 없으면(구세대 userAuth) renew 가 null → 미인증 확정.
     function authenticate(token, done, isRetry) {
         if (!_socket) { if (done) done(false); return; }
         if (!token) {

@@ -1,6 +1,6 @@
 // QA — 데구리 꾸미기(동물 스킨 + 풍선): 방 단위 지갑·구매·장착
 //   (docs/goal/deguri-skins-all-creatures.md + deguri-balloon-accessory.md + 2026-09-22 "코인·스킨은 그 방에서 1회용")
-//   서버 경로만 검증(소켓 클라이언트, 브라우저·DB 없음 — 지갑은 방 메모리):
+//   서버 경로만 검증(소켓 클라이언트, 브라우저·DB 없음 — 지갑은 방 메모리). 전부 손님(비로그인) 경로 — 로그인 계정은 qa-deguri-account-wallet-test.js:
 //   방 생성 → deguri:shop:get(200코인) → deguri:shop:buy(가격 차감, owned) → deguri:equip → deguri:pick → preview.balls[].skin/skinName/balloon.
 //   + 잔고 부족/중복 구매 거절, 안 산 스킨 장착 거절, 없는 슬롯 거절, picks 는 기본 creatureId(카운팅 불변), 손님(비로그인)도 동일, 해제, myEquip,
 //   + 풍선은 동물을 안 가린다(어느 동물을 골라도 붙어 있음) — 스킨과 다른 점,
@@ -240,7 +240,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         // 한 판 참여 +10 — awardRaceCoins 를 방 지갑에 직접(소켓 없이): 두 참가자 모두 +10
         const fakeIo = { to: () => ({ emit: () => {} }) };
         const fakeMb = { participants: [host, guest], wallets: { [host]: { balance: 40, owned: [] }, [guest]: { balance: 120, owned: [] } }, equip: {} };
-        deguriHandler.awardRaceCoins(fakeIo, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }] }, fakeMb);
+        deguriHandler.awardRaceCoins(fakeIo, { roomId: 'qa' }, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }] }, fakeMb);
         check(fakeMb.wallets[host].balance === 40 + deguriHandler.COIN_RACE_JOIN && fakeMb.wallets[guest].balance === 120 + deguriHandler.COIN_RACE_JOIN, '한 판 참여 → 방 지갑 +' + deguriHandler.COIN_RACE_JOIN + ' (손님 포함)');
         check(deguriHandler.ROOM_SEED_COINS_LIVE === 200 && (SEED === 200 || SEED === 2000000), '입장 지갑: 실서버 200 · 내부 테스트 200만', String(SEED));
 

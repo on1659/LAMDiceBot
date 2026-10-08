@@ -10,8 +10,13 @@ const { getPool } = require('./pool');
 // 장착 슬롯 화이트리스트 (카탈로그 카테고리와 일치)
 // spin_skin = 회전 칼날 스킨 슬롯 (config/spin-arena/cosmetics.json) — 화이트리스트 방식 유지(동적 슬롯명 금지)
 // ladder_skin = 사다리타기 하강 토큰 스킨 슬롯 (config/ladder/cosmetics.json) — per-viewer 외형 전용
-// deguri_skin = 데구리 동물 스킨 슬롯 (config/deguri/cosmetics.json) — 서버(socket/deguri.js)가 장착 항목의 creature/skin 을 읽어 공에 붙임, 전원에게 보임(PUBLIC_HORSE_SLOTS 와 무관)
-const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin', 'ladder_skin', 'deguri_skin'];
+// 데구리 슬롯(deguri_skin·deguri_balloon)은 여기 없다 — 동물 스킨이 동물마다 하나라 값이 맵이어서
+// 일반 shop:equip(슬롯당 id 하나)이 덮어쓰면 안 된다. 데구리 장착은 socket/deguri.js → setDeguriEquipped 로만.
+const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin', 'ladder_skin'];
+// 데구리 장착 슬롯 (config/deguri/cosmetics.json, docs/goal/deguri-skin-account-binding.md)
+//   deguri_skin    = { <동물>: <cosmeticId>, ... } — 동물마다 하나씩
+//   deguri_balloon = <cosmeticId> | null — 야식, 공용 하나
+const DEGURI_EQUIP_SLOTS = ['deguri_skin', 'deguri_balloon'];
 // 레이스 시작 시 타 플레이어에게 공개되는(broadcast) 슬롯.
 // ⚠️ buildRaceCosmetics(socket/horse.js)의 말별 공개 꾸미기 루프가 이 상수를 순회한다.
 // finish_fx는 "말 위 꾸미기"가 아니라 개인 연출이므로 여기 넣으면 말 위로 샌다 — 추가 금지.
@@ -52,17 +57,28 @@ async function getEquippedMap(userIds) {
 // 장착/해제. 소유 검증은 호출부(socket/shop.js)가 한 뒤 호출.
 // cosmeticId === null 이면 해당 슬롯 해제.
 async function setEquipped(userId, slot, cosmeticId) {
+    if (!Number.isInteger(userId) || EQUIP_SLOTS.indexOf(slot) === -1) return;
+    await writeEquippedSlot(userId, slot, cosmeticId);
+}
+
+// 데구리 장착 — 슬롯 값을 통째로 저장(위 DEGURI_EQUIP_SLOTS 형식). 소유 검증은 호출부(socket/deguri.js).
+async function setDeguriEquipped(userId, slot, value) {
+    if (!Number.isInteger(userId) || DEGURI_EQUIP_SLOTS.indexOf(slot) === -1) return;
+    await writeEquippedSlot(userId, slot, value);
+}
+
+// prefs.equipped 객체의 단일 슬롯만 갱신 (기존 equipped/다른 prefs 키 보존). 슬롯 화이트리스트는 호출부가 확인한다
+async function writeEquippedSlot(userId, slot, value) {
     const pool = getPool();
-    if (!pool || !Number.isInteger(userId) || EQUIP_SLOTS.indexOf(slot) === -1) return;
-    // prefs.equipped 객체의 단일 슬롯만 갱신 (기존 equipped/다른 prefs 키 보존)
+    if (!pool) return;
     await pool.query(
         `UPDATE users
             SET prefs = jsonb_set(
                 jsonb_set(COALESCE(prefs, '{}'::jsonb), '{equipped}', COALESCE(prefs->'equipped', '{}'::jsonb), true),
                 $1, $2::jsonb, true)
           WHERE id = $3`,
-        [`{equipped,${slot}}`, JSON.stringify(cosmeticId), userId]
+        [`{equipped,${slot}}`, JSON.stringify(value), userId]
     );
 }
 
-module.exports = { getOwned, getEquipped, getEquippedMap, setEquipped, EQUIP_SLOTS, PUBLIC_HORSE_SLOTS, AD_EQUIP_SLOTS };
+module.exports = { getOwned, getEquipped, getEquippedMap, setEquipped, setDeguriEquipped, EQUIP_SLOTS, PUBLIC_HORSE_SLOTS, AD_EQUIP_SLOTS };

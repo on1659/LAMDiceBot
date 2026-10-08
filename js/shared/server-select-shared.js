@@ -379,8 +379,8 @@ const ServerSelectModule = (function () {
 
         // 토큰 만료 감지 — 만료(auth 거부)면 AuthToken.renew(js/shared/auth-token-shared.js)로 자동
         // 연장을 1회 시도하고, 그래도 안 되면(유예 기간 초과) 로그아웃 + 재로그인 안내.
-        // token 없는 구세대 userAuth 는 조용히 부트스트랩만 시도한다(실패해도 로그아웃하지 않음).
-        // 사용자 결정 2026-09-22: 플레이 중인 유저는 아무것도 안 해도 상점을 바로 쓸 수 있어야 한다.
+        // token 없는 구세대 userAuth 는 같은 경로로 로그아웃 + 재로그인 안내 — 이름만으로 토큰을 받던 길을
+        // 2026-10-09 닫았다(데구리 스킨 계정 귀속). PIN 으로 한 번 다시 로그인하면 토큰이 생긴다.
         // 콜백 성공/무응답이면 아무것도 하지 않는다 (오탐 로그아웃 방지).
         const _expireLogin = () => {
             localStorage.removeItem('userAuth'); // 로그아웃 처리 (이름 키는 유지)
@@ -402,8 +402,8 @@ const ServerSelectModule = (function () {
         };
         if (_authRestore && _authRestore.token) {
             _validateToken(_authRestore.token, true);
-        } else if (_authRestore && _authRestore.name && window.AuthToken) {
-            window.AuthToken.renew(() => {});
+        } else if (_authRestore && _authRestore.name) {
+            _expireLogin();
         }
     }
 

@@ -18,6 +18,7 @@
     var PRICE = 60, REFUND = 30;   // 표시용 — 서버 socket/deguri.js GACHA_PRICE / GACHA_REFUND 와 같은 값
     var ODDS_TEXT = '일반 40% · 레어 35% · 에픽 18% · 전설 7% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';   // 서버 GACHA_WEIGHTS 와 같은 값
     var STAY_COIN = 10;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
+    var STAY_DONE_TEXT = '오늘 머문 시간 코인은 다 받았어요';   // 로그인 계정은 하루 +60 까지(서버 STAY_DAILY_MAX) — 다 받으면 지갑 응답의 stayNextMs 가 null
     var TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
     var LAMP_CELL = { off: 0, rare: 1, epic: 2, legend: 3, common: 4 };   // 일반 칸은 시트 맨 뒤에 덧붙였다(make-gacha-common.py)
     var TIERS = ['common', 'rare', 'epic', 'legend'];
@@ -83,6 +84,7 @@
     var _anim = null;      // { res, item, t0, done }
     var _busy = false, _balance = null;
     var _nextStayAt = 0, _stayTimer = 0, _tickTimer = 0, _pollTimer = 0;   // 다음 머문 시간 보상 시각(클라 시계) — 그때 잔고를 다시 받는다
+    var _stayDone = false;               // 오늘 머문 시간 보상을 다 받음(로그인 계정)
     var WALLET_POLL_MS = 30000;   // 상점 구매 등 다른 경로로 바뀐 잔고를 알약에 맞추는 주기
     var _walletListened = null;   // wallet:updated 를 건 소켓(재연결마다 connect 가 다시 불려 중복 등록 방지)
 
@@ -767,6 +769,7 @@
     }
     // "N분 뒤에 10코인이 들어와요" — 분 단위 올림, 1분 미만은 "1분 안에"
     function stayTipText() {
+        if (_stayDone) return STAY_DONE_TEXT;
         if (!_nextStayAt) return '방에 있으면 5분마다 ' + STAY_COIN + '코인이 들어와요';
         var sec = Math.max(0, Math.ceil((_nextStayAt - Date.now()) / 1000));
         return (sec < 60 ? '1분 안에' : Math.ceil(sec / 60) + '분 뒤에') + ' ' + STAY_COIN + '코인이 들어와요';
@@ -794,14 +797,17 @@
     function applyWallet(w) {
         if (!w || !w.ok) return;
         setBalance(w.balance);
+        _stayDone = w.stayNextMs === null;
         if (typeof w.stayNextMs === 'number') _nextStayAt = Date.now() + w.stayNextMs;
+        else if (_stayDone) _nextStayAt = 0;
         clearTimeout(_stayTimer);
         if (_nextStayAt) _stayTimer = setTimeout(refreshWallet, Math.max(500, _nextStayAt - Date.now() + 400));
     }
     function refreshWallet() { if (_socket) _socket.emit('deguri:shop:get', {}, applyWallet); }
     function tickStay() {
         renderBalance();
-        if (_el && _nextStayAt) _el.stayLine.textContent = '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요 · 다음까지 ' + stayLeftText();
+        if (_el && _stayDone) _el.stayLine.textContent = STAY_DONE_TEXT;
+        else if (_el && _nextStayAt) _el.stayLine.textContent = '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요 · 다음까지 ' + stayLeftText();
     }
     // 방에 들어온 뒤 한 번(js/deguri.js roomCreated/roomJoined) — 알약 표시·1초 카운트다운·주기 갱신 시작
     function onRoomEntered() {

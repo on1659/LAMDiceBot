@@ -395,7 +395,7 @@
     if (firstConnect) {
       firstConnect = false;
       if (auth && auth.token) validateToken(auth.token, true);
-      else if (auth && auth.name && window.AuthToken) window.AuthToken.renew(function () { auth = readJson('userAuth') || auth; });
+      else if (auth && auth.name) expireLogin();   // 토큰 없는 구세대 로그인 — 이름만으로 토큰 받던 길을 닫아서(2026-10-09) PIN 재로그인
       restoreLastServer();
       if (isLoggedIn()) socket.emit('getServers', { userName: auth.name });
       return;
