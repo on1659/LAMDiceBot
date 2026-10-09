@@ -1,5 +1,7 @@
 # LAMDiceBot
 
+> Claude·Codex 공용 규칙 문서. Claude Code 는 `CLAUDE.md` 가 `@AGENTS.md` 한 줄로 이 파일을 불러온다 — 규칙은 여기만 고친다.
+
 Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/사다리/데구리 등).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
@@ -9,14 +11,15 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 
 | 파일 | 로드 방식 | 역할 |
 |------|-----------|------|
-| [guidelines.md](.Codex/rules/guidelines.md) | 항상 | 코드 수정 공통 규칙 |
-| [docs.md](.Codex/rules/docs.md) | 항상 | 문서 작성 규칙 |
-| [backend.md](.Codex/rules/backend.md) | `socket/` `db/` `routes/` `utils/` 편집 시 | 백엔드 규칙 |
-| [frontend.md](.Codex/rules/frontend.md) | `*.html` `css/` `js/` 편집 시 | 프론트엔드 규칙 |
-| [horse-app.md](.Codex/rules/horse-app.md) | `horse-app/` 편집 시 | horse-app (React) 규칙 |
+| [guidelines.md](.claude/rules/guidelines.md) | 항상 | 코드 수정 공통 규칙 |
+| [docs.md](.claude/rules/docs.md) | 항상 | 문서 작성 규칙 |
+| [backend.md](.claude/rules/backend.md) | `socket/` `db/` `routes/` `utils/` 편집 시 | 백엔드 규칙 |
+| [frontend.md](.claude/rules/frontend.md) | `*.html` `css/` `js/` 편집 시 | 프론트엔드 규칙 |
+| [horse-app.md](.claude/rules/horse-app.md) | `horse-app/` 편집 시 | horse-app (React) 규칙 |
 
-`.Codex/rules/*.md`는 frontmatter `paths:`가 있으면 해당 경로 편집 시에만 로드되고,
+`.claude/rules/*.md`는 frontmatter `paths:`가 있으면 해당 경로 편집 시에만 로드되고,
 없으면 매 세션 로드된다. 새 규칙을 추가할 땐 항상-로드가 정말 필요한지 먼저 따져라.
+(자동 로드는 Claude Code 기준. Codex 는 표의 "로드 방식" 조건에 맞으면 그 파일을 직접 읽는다.)
 
 ## 온디맨드로 읽을 것 (작업 시작 전)
 
@@ -67,8 +70,11 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - `fairness-guard` — 클라이언트 JS의 `Math.random()` 경고 (게임 결과는 서버에서만 결정)
 - `mobile-guard` — viewport 누락, 고정 너비, `@media` 부재 경고
 - `check-main-branch` / `check-push-branch` — main 브랜치 편집·푸시 경고
-- `ui-check` / `file-type-reminder` — UI·파일 타입 리마인더
+- `ui-check` — 색 토큰 검사(THEME-DARK.md §5-1, 이번 편집으로 새로 들어간 줄만 — 같은 라이트 값 토큰을 알려 준다)·AdSense 누락 경고
+- `file-type-reminder` — 파일 타입 리마인더 (사용자 화면에만 보임)
+- 경고 훅은 `hookSpecificOutput.additionalContext` JSON 으로 낸다 — 평문 출력·`decision:"allow"` 는 에이전트에게 전달되지 않는다
 - `goal-archive` (Stop) — 아래 큐를 비우며 goal 문서를 `applied/`로 이동
+- Codex 는 같은 이름의 훅 스크립트가 `.codex/hooks/` 에 있고 `.codex/hooks.json` 이 건다(goal 큐도 같은 `.claude/.goal-applied-queue`)
 
 ## 항상 적용
 
@@ -80,7 +86,7 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - 작업 중 새 함정·실수를 발견하면 보고 말미에 "💡 lesson 후보:"로 정리하고
   `docs/GameGuide/lessons/`에 추가할지 사용자에게 물어라
 - **goal 완료 시 아카이브**: `docs/goal/*.md` 명세의 작업을 끝냈으면 그 파일 경로를
-  (프로젝트 루트 기준, 예 `docs/goal/foo.md`) `.Codex/.goal-applied-queue`에 한 줄 append.
+  (프로젝트 루트 기준, 예 `docs/goal/foo.md`) `.claude/.goal-applied-queue`에 한 줄 append.
   Stop 훅이 `docs/goal/applied/`로 옮기고 큐를 비운다. 미완 상태에서는 적지 않는다
 - **R&D·목업은 실제 게임에 닿지 않는다**(2026-10-09 사용자): 홈 리뉴얼 같은 목업·R&D 는 새 파일로만 만든다.
   기존 게임 페이지·`js/*`·`js/shared/*`·`css/theme.css`·`socket/*` 를 고쳐야 하면 멈추고 사용자에게 묻는다 —
@@ -90,7 +96,16 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 
 ## 이력
 
+- 2026-10-09: 규칙 문서를 `AGENTS.md` 하나로 합침 — `CLAUDE.md` 는 `@AGENTS.md` 로 불러온다. 따로 고치던 Codex 사본은 규칙 링크가 없는 `.Codex/rules/` 를 가리켰고 Design System·10-07 이력이 빠져 있었다
 - 2026-10-09: R&D 목업 인게임 재설계가 실제 게임 4페이지·`js/deguri.js`·`js/horse-race.js` 를 고친 채 `feature/marble-run` 에 병합돼 있던 것을 되돌림(`2d693148`, 목업은 `feature/home-proto` 에 남음). 위 "R&D·목업" 규칙 추가
+- 2026-10-07: 안 쓰는 파이프라인 전부 제거 — `/qa`·`/review` 커맨드, 역할 스킬 `skills/skill-*.md` 8종, `mcp.json`, Windows 잔재. 리뷰는 빌트인 `/code-review`, QA 는 `AutoTest/qa-*.js` + goal Acceptance Criteria. 전역 bkit·AgentCrow·meeting 변형도 끔(`~/.claude/backups/harness-cleanup-2026-10-07/`)
 - 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
   가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
 - 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수
+
+## Design System
+
+UI·화면 결정 전에 항상 `DESIGN.md`를 읽는다. 서체·색·간격·모서리·움직임의 기준값이 거기 있다.
+사용자 승인 없이 벗어나지 않는다. QA·리뷰에서는 DESIGN.md와 다른 코드를 지적한다.
+DESIGN.md 맨 위 "UX 원칙"(적게 읽기·스텝 안 늘리기)이 최우선이고, 화면을 내기 전에 `node mockups/measure.js` 로 수치를 확인한다.
+홈 리뉴얼 목업 10종은 `mockups/`(테스트 서버 `/main`, `/1`~`/10`)에서 비교 중이다.

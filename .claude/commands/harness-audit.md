@@ -67,7 +67,7 @@ for f in "$CLAUDE_PROJECT_DIR/.claude/agents/"*.md \
     refs=$(grep -rln "$name" --include="*.md" \
         "$CLAUDE_PROJECT_DIR/.claude/" \
         "$CLAUDE_PROJECT_DIR/docs/" \
-        "$CLAUDE_PROJECT_DIR/CLAUDE.md" 2>/dev/null \
+        "$CLAUDE_PROJECT_DIR/CLAUDE.md" "$CLAUDE_PROJECT_DIR/AGENTS.md" 2>/dev/null \
         | grep -v "^$f$" | wc -l)
     [ $refs -eq 0 ] && echo "ORPHAN: $f"
 done
@@ -82,7 +82,7 @@ done
 ```bash
 # 마크다운 링크에서 .md 경로 추출 후 존재 검증
 grep -hoE '\]\([^)]+\.md\)' \
-    "$CLAUDE_PROJECT_DIR/CLAUDE.md" \
+    "$CLAUDE_PROJECT_DIR/CLAUDE.md" "$CLAUDE_PROJECT_DIR/AGENTS.md" \
     "$CLAUDE_PROJECT_DIR/.claude/rules/"*.md \
     "$CLAUDE_PROJECT_DIR/.claude/agents/"*.md 2>/dev/null \
     | sed 's/.*(\(.*\))/\1/' \
@@ -169,4 +169,4 @@ find "$CLAUDE_PROJECT_DIR/.claude/agents" -name "*.md" -mtime +60 \
 
 - 자세 가이드: `docs/harness/harness-audit.html`
 - 짝꿍: `.claude/commands/memory-audit.md`
-- 하네스 룰 본체: `CLAUDE.md` (구 `rules/harness.md`·`rules/workflow.md`는 2026-08-19 `docs/harness/archive/rules/`로 아카이브)
+- 하네스 룰 본체: `AGENTS.md`(`CLAUDE.md` 가 `@AGENTS.md` 로 불러옴, Claude·Codex 공용) (구 `rules/harness.md`·`rules/workflow.md`는 2026-08-19 `docs/harness/archive/rules/`로 아카이브)
