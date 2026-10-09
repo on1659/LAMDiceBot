@@ -10,10 +10,6 @@
       "mcp__filesystem__write_file",
       "mcp__filesystem__edit_file",
       "mcp__filesystem__move_file"
-    ],
-    "additionalDirectories": [
-      "d:\\Work\\LAMDiceBot\\.claude",
-      "d:\\Work\\LAMDiceBot\\docs"
     ]
   },
   "hooks": {
@@ -28,7 +24,7 @@
         ]
       },
       {
-        "matcher": "Bash|PowerShell",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",

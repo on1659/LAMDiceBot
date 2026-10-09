@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LAMDice</title>
+<!-- 홈 프로토타입 (docs/goal/home-proto.prompt.md) — 목업 10번 "그림 네 개"를 실제 방 생성·합류에 연결. 광고 없음(실서버 전환 때 따로). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/ui-icons.css">
+<link rel="stylesheet" href="/css/home.css?v=1">
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <span class="logo"><i class="ui ui-dice"></i>LAMDice</span>
+    <button type="button" class="acct" id="acct">로그인</button>
+  </header>
+
+  <!-- 홈: 그림 네 개 -->
+  <main id="s-home">
+    <button type="button" class="where" id="where" hidden><span id="whereName">자유 방</span> ▾</button>
+    <p class="kicker">방 만들기</p>
+    <h1>뭘로 정할까?</h1>
+    <div class="tiles">
+      <button type="button" class="tile" data-game="horse-race"><i class="veh px"></i><b>경마</b></button>
+      <button type="button" class="tile" data-game="dice"><i class="ui ui-dice ic"></i><b>주사위</b></button>
+      <button type="button" class="tile" data-game="roulette"><i class="ui ui-slot ic"></i><b>룰렛</b></button>
+      <button type="button" class="tile" data-game="deguri"><i class="mb px"></i><b>데구리</b></button>
+    </div>
+    <button type="button" class="rooms-link" id="toRooms">열린 방 <span id="roomCount">0 ›</span></button>
+  </main>
+
+  <!-- 열린 방: 줄을 누르면 들어감 -->
+  <main id="s-rooms" class="narrow" hidden>
+    <button type="button" class="back" data-go="home" aria-label="뒤로">‹</button>
+    <h1 class="h-top">열린 방</h1>
+    <ul class="list" id="roomList"></ul>
+    <p class="empty" id="roomEmpty" hidden>아직 열린 방이 없어요</p>
+  </main>
+</div>
+
+<!-- 이름: 처음 온 사람에게만 한 번 -->
+<div class="sheet" id="nameSheet" hidden>
+  <form class="panel" id="nameForm">
+    <h2>이름</h2>
+    <input class="txt" id="nameInput" maxlength="8" autocomplete="off" aria-label="이름">
+    <button type="submit" class="btn ink">들어가기</button>
+  </form>
+</div>
+
+<!-- 계정: 로그인 · 회원가입 -->
+<div class="sheet" id="acctSheet" hidden>
+  <form class="panel" id="acctForm">
+    <h2 id="acctTitle">로그인</h2>
+    <input class="txt" id="acctName" maxlength="20" placeholder="이름" autocomplete="username" aria-label="이름">
+    <input class="txt" id="acctPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="숫자 암호 4~6자리" autocomplete="current-password" aria-label="암호코드">
+    <p class="err" id="acctErr" hidden></p>
+    <button type="submit" class="btn ink" id="acctGo">로그인</button>
+    <button type="button" class="alt" id="acctAlt">처음이면 회원가입</button>
+  </form>
+</div>
+
+<!-- 서버 바꾸기: 화면이 아니라 목록 한 장 -->
+<div class="sheet" id="srvSheet" hidden>
+  <div class="panel">
+    <h2>어디서?</h2>
+    <ul class="list" id="srvList"></ul>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/shared/auth-token-shared.js"></script>
+<script src="/js/home.js?v=1"></script>
+</body>
+</html>

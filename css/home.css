@@ -1,0 +1,103 @@
+/*
+  home.css — 홈 프로토타입 (docs/goal/home-proto.prompt.md)
+  mockups/10.html 의 CSS 를 가져와서 시작. 종이·잉크·도장 토큰은 DESIGN.md 값 그대로(라이트만).
+  기준: 폰 375×812 첫 화면 글자 60자 이하 · 조작 요소 6개 이하 · 방까지 1탭.
+*/
+@font-face { font-family: 'Galmuri11'; src: url(/mockups/assets/galmuri11-sub.woff) format('woff'); font-display: swap; }
+:root {
+  color-scheme: light;
+  --display: 'Bagel Fat One', 'Apple SD Gothic Neo', sans-serif;
+  --body: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --num: 'Galmuri11', ui-monospace, monospace;
+  --paper: #FBF8F1; --counter: #ECE6D8; --ink: #14110F; --ink-2: #6B6455; --ink-3: #9A9283; --line: #D9D2C2;
+  --stamp: #C8281A; --stamp-soft: #F8DDD8; --pen: #1F5FE0; --pen-soft: #DCE6FB;
+  --horse-soft: #F8E6D8; --dice-soft: #E9ECFC; --roulette-soft: #DFF3E7; --deguri-soft: #E1F5E6;
+  --off: 4px 4px 0 var(--ink);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--counter); }
+body { margin: 0; background: var(--counter); color: var(--ink); font: 500 16px/1.4 var(--body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+img { display: block; max-width: 100%; }
+.px, .ui { image-rendering: pixelated; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+
+.app { max-width: 880px; margin: 0 auto; min-height: 100vh; background: var(--paper); border-inline: 2px solid var(--ink); padding: 0 16px 28px; }
+.top { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 22px; }
+.logo .ui { width: 26px; height: 26px; vertical-align: middle; }
+.acct { border: 2px solid var(--ink); background: #fff; height: 36px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; font-weight: 700; font-size: 14px; box-shadow: 2px 2px 0 var(--ink); }
+
+.kicker { margin: 14px 0 0; font-weight: 700; font-size: 14px; color: var(--ink-2); }
+h1 { margin: 2px 0 16px; font: 400 clamp(34px, 9vw, 52px)/1.05 var(--display); letter-spacing: -.01em; }
+h1.h-top { margin-top: 0; }
+.where { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; max-width: 100%; border: 2px solid var(--ink); background: #fff; height: 34px; padding: 0 10px; font-weight: 700; font-size: 14px; }
+.where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 그림 네 개 = 버튼 네 개. 누르면 바로 방. */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tile { position: relative; display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; gap: 6px; height: clamp(150px, 26vh, 210px); padding: 14px 10px 12px; border: 2px solid var(--ink); background: var(--soft); box-shadow: var(--off); transition: transform .1s, box-shadow .1s; }
+.tile:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.tile:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.tile b { font: 400 24px/1 var(--display); }
+.tile .ic { width: 86px; height: 86px; }
+.tile[data-game="horse-race"] { --soft: var(--horse-soft); }
+.tile[data-game="dice"] { --soft: var(--dice-soft); }
+.tile[data-game="roulette"] { --soft: var(--roulette-soft); }
+.tile[data-game="deguri"] { --soft: var(--deguri-soft); }
+/* 경마 말 2프레임 — 실제 게임 에셋(assets/horse-race/vehicles/horse) */
+.veh { width: 128px; height: 96px; background: url(/assets/horse-race/vehicles/horse/base-run-1.webp) center / contain no-repeat; animation: gallop .34s steps(1) infinite; }
+@keyframes gallop { 50% { background-image: url(/assets/horse-race/vehicles/horse/base-run-2.webp); } }
+/* 데구리 고슴도치 idle — 실제 게임 시트(assets/deguri/creatures/hedgehog.webp, 4열×5행 160px, idle = 0행) */
+.mb { width: 100px; height: 100px; background: url(/assets/deguri/creatures/hedgehog.webp) 0 0 / 400% 500% no-repeat; animation: idle .58s steps(4) infinite; }
+@keyframes idle { to { background-position: 133.34% 0; } }
+.tile:hover .ic { animation: wob .4s ease; }
+@keyframes wob { 30% { transform: rotate(-8deg); } 60% { transform: rotate(6deg); } }
+
+.rooms-link { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 16px; height: 48px; padding: 0 14px; border: 2px solid var(--ink); background: #fff; font-weight: 700; }
+.rooms-link span, .n { font-family: var(--num); font-weight: 400; }
+
+.back { border: 0; background: transparent; font-size: 28px; line-height: 1; padding: 6px 10px 6px 0; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 54px; border: 2px solid var(--ink); background: #fff; font-weight: 800; font-size: 17px; box-shadow: var(--off); transition: transform .1s, box-shadow .1s; }
+.btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn.ink { background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: .35; box-shadow: none; cursor: not-allowed; }
+.btn.sm { height: 44px; font-size: 15px; box-shadow: 2px 2px 0 var(--ink); }
+input.txt { width: 100%; height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: #fff; font: 700 16px var(--body); color: var(--ink); }
+input.txt:focus { outline: none; box-shadow: 0 0 0 3px var(--pen-soft); border-color: var(--pen); }
+input.txt::placeholder { color: var(--ink-3); font-weight: 500; }
+
+/* 목록 (열린 방 · 서버) — 줄 전체가 버튼 */
+.list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: #fff; text-align: left; font-weight: 700; box-shadow: 3px 3px 0 var(--ink); }
+.item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .sq { width: 44px; height: 44px; border: 2px solid var(--ink); display: grid; place-items: center; background: var(--soft, #fff); font: 400 18px var(--display); }
+.item .sq .ui { width: 30px; height: 30px; vertical-align: middle; }
+.item .r { font-family: var(--num); font-weight: 400; font-size: 14px; white-space: nowrap; }
+.item .r.live { color: var(--stamp); } .item .r.ok { color: var(--pen); }
+.item.dash { border-style: dashed; box-shadow: none; }
+.item.now { background: var(--pen-soft); }
+.sub { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 8px 0 2px 12px; border-left: 2px dashed var(--line); margin-left: 14px; }
+.sub .btn.sm { width: auto; padding: 0 14px; }
+.sub.col { grid-template-columns: 1fr; }
+.empty { margin: 8px 0 0; color: var(--ink-2); font-weight: 700; }
+
+/* 시트 */
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(20,17,15,.5); display: grid; place-items: end center; }
+.panel { width: min(480px, 100%); max-height: 88vh; overflow: auto; background: var(--paper); border: 2px solid var(--ink); border-bottom: 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; animation: up .18s ease; }
+@keyframes up { from { transform: translateY(20px); opacity: 0; } }
+.panel h2 { margin: 0; font: 400 24px var(--display); }
+.panel .alt { border: 0; background: transparent; text-decoration: underline; font-size: 14px; color: var(--ink-2); justify-self: center; }
+.panel .err { margin: -4px 0 0; color: var(--stamp); font-weight: 700; font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px); background: var(--ink); color: var(--paper); padding: 10px 14px; font-weight: 700; font-size: 14px; border: 2px solid var(--paper); box-shadow: 3px 3px 0 var(--stamp); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: up .18s ease; }
+
+@media (min-width: 721px) {
+  .app { margin-top: 18px; border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); min-height: 0; padding: 0 32px 36px; }
+  .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sheet { place-items: center; }
+  .panel { border-bottom: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+  .narrow { max-width: 520px; }
+}
+@media (prefers-reduced-motion: reduce) { .veh, .mb, .tile:hover .ic { animation: none; } .tile, .btn, .item { transition: none; } }

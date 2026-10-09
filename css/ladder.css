@@ -16,6 +16,7 @@
     --horse-600: var(--ladder-fill-hover);
     --horse-accent: var(--ladder-accent);
     --horse-gradient: var(--ladder-gradient);
+    --horse-on-gradient: var(--text-primary);   /* 라이트 그라디언트가 밝은 주황이라 흰 글자는 2.2:1 — 짙은 글자 */
     --horse-50: rgba(var(--ladder-500-rgb), 0.08);
     --horse-100: rgba(var(--ladder-500-rgb), 0.16);
     --horse-200: rgba(var(--ladder-500-rgb), 0.24);

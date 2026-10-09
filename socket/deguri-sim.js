@@ -133,6 +133,16 @@ const EAGLE_DROP_MIN_ABOVE_HF = 40;   // 낙하 높이는 랜덤(사용자 2026-
 const EAGLE_DROP_LATE_W = 0.6;       // 후반일수록 낮게: 낮은 정도 = 진행도(골인 비율)×이 값 + 랜덤×(1−이 값). 초반 0~40%, 막판 60~100% 구간
 const EAGLE_DROP_DX = 130;        // 시소 좌우 이만큼 떨어진 자리(쪽은 시드)
 const EAGLE_MISS_P = 0.5;         // 헛발톱 확률(사용자 2026-09-23 "독수리 킹받는다"): 급강하는 똑같이 하되 못 채고 빈 발로 같은 곡선을 날아오른다. 동물은 제자리, 출격 예산·쉬는 시간·재도전 금지는 잡은 것과 같이 친다
+// ─── 1등 룰(opts.target === 'first') 전용 — 꼴등 룰 타임라인은 바이트 단위로 그대로 (docs/goal/deguri-first-rule-flow.md, 사용자 2026-10-06) ───
+// 1등 룰은 첫 공이 골에 들어가는 순간 경주가 끝나고(당첨 = 벌칙 = 먼저 들어온 주인), 나머지는 낙하산으로 스탠드까지 내려온다. 착지 순서 = 2위 이하 순위.
+const FIRST_EAGLE_EXTRA = 1, EAGLE_COUNT_MAX = 3;   // 독수리 +1(최대 3) — 결승전(첫 공이 통로에 내려온 순간부터)에 걷는 선두를 채 가는 횟수를 늘린다
+const DEEP_SLEEP_P = 0.8;          // 햇볕잔디 낮잠이 깊은 잠(안 깸 = 이번 판 못 들어감)이 될 확률 — 캡·마지막 공 보호(canEliminate) 뒤에 적용
+const PIT_STUCK_P = 0.1;           // 간헐천 분출 때 한 마리씩 그대로 남을(온천에서 잠듦) 확률
+const ELIM_MAX = n => (n <= 8 ? 1 : 2);   // 판당 탈락 캡(공 수 기준). 탈락 = 그 주인은 안심(당첨=벌칙)이라 사건으로만 남긴다. 한 사람의 마지막 공은 절대 탈락 안 함(2인 방 붕괴 방지)
+const CHUTE_DEPLOY_MS = 600, CHUTE_HOVER_MS = 400;   // 첫 골인 → 그 자리에 멈춤 → 낙하산 펴짐 → 떠 있다가 수직 낙하 시작
+const CHUTE_SPEED_MIN = 160, CHUTE_MAX_DESCENT_MS = 4000;   // 낙하 속도(px/s) 하한 / 제일 높은 공도 이 안에 통로에 닿도록 속도를 올린다(전원 같은 속도). 제 x 그대로 내려와 통로에 서면 평소처럼 걷는다(사용자 2026-10-06 "공중낙하 느낌")
+const CHUTE_SWAY_PX = 8, CHUTE_SWAY_MS = 900;   // 낙하 중 좌우 흔들림(통로에 가까울수록 작게) — 프레임에 굽는다(클라 물리 없음)
+const SLOW_RIVAL_PX = 100;         // 1등 룰 슬로모: 선두가 골 앞 SLOW_ZONE_PX 에 들었을 때 통로 안 이 거리 뒤에 다른 공이 있어야 건다(혼자 들어오면 슬로모 없음)
 // ⑦-d 워프 파이프 방(갈래 골짜기 끊긴 경사로 아래, docs/goal/deguri-warp-pipes.md): 마리오식 서 있는 파이프 6개가 한 화면에.
 //    윗줄 [1][2][3] / 통나무 한 줄 / 아랫줄 [4][5][6], 짝 1↔6·2↔5·3↔4(대각선 교차). 들어가면 짝 파이프에서 위로 뿅 튀어나온다 —
 //    윗줄로 들어가면 범퍼를 건너뛰고 반대편으로(지름길), 아랫줄로 들어가면 윗줄로 되돌아가 범퍼를 다시(손해). 순위 규칙 예외 없음(위치 이동뿐).
@@ -172,6 +182,7 @@ const WINDHALL_FAN_BAND = 120;         // 바람 복도 선풍기 띠 — 3대�
 const PEND_LEN = 140, PEND_AMP_DEG = 50, PEND_PERIOD_MS = 2600, PEND_R = 20;   // 진자 통나무: 밧줄·진폭·주기·통나무 반지름(LOG_R). 끝 속도 ≈ 295px/s
 const PISTON_EXT = 200, PISTON_HEAD = 24, PISTON_H = 64, PISTON_PERIOD_MS = 3000, PISTON_OUT_MS = 1200;   // 밀대: 돌출·머리 폭·머리 높이·주기·왕복 시간(나머지는 들어가 있음). 최대 523px/s
 const TRAMP_E = 1.15, TRAMP_KICK = 80;   // 트램펄린: 반발(1 넘으면 온 것보다 높이, MAX_SPEED 캡)·튈 때 좌우 시드 킥(기울기와 함께 제자리 무한 튕김 방지)
+const TRAMP_LIFE_MIN = 3, TRAMP_LIFE_MAX = 5;   // 트램펄린 한 장이 버티는 튕김 수 — 장마다 이 사이 랜덤(맵 시드). life 번째에 찢어져 없어지고 그 뒤로는 그냥 떨어진다(사용자 2026-10-06: 200 길이로 판당 27번 튕겨 너무 오래 붙잡았다 → 3번 고정 → 3~5번 랜덤). 조각에 life 로 실어 클라가 찢어짐을 그린다
 const GUST_PERIOD_MS = 2400, GUST_ON_MS = 1200, GUST_ACCEL = 900, GUST_DIRS = 64;   // 돌풍: 주기·부는 시간·가속·방향 수열 길이(트랙 만들 때 시드로 뽑아 조각에 싣는다)
 const QUAKE_PERIOD_MS = 3500, QUAKE_DUR_MS = 700, QUAKE_VX = 500, QUAKE_VY = 300;   // 지진: 주기·흔들리는 시간·시작 순간 킥(좌우 ±VX/2, 위로 0~VY)
 // 구멍 앞 몸싸움(연출, 순위 무관): 닫힌 뚜껑 위에 둘 이상이 멈춰 기다리면 구멍 중심에 가장 가까운 둘이 서서 밀어내기 → 뚜껑이 열리면 화들짝 낙하
@@ -496,11 +507,12 @@ function pistonsSection(top) {
     return { pieces: p, height: H, bounds: [{ y1: top + 80, y2: top + 520, x1: 250, x2: 550 }] };
 }
 // 트램펄린 — 살짝 기운 천 둘. 닿으면 온 것보다 높이 튀고 좌우로 조금 흔들려 결국 안쪽 끝으로 굴러 떨어진다
-function trampolinesSection(top) {
+function trampolinesSection(top, rng) {
     const p = [], decor = decorFn(p, top), H = SECTION_H.trampolines;
+    const life = () => TRAMP_LIFE_MIN + Math.floor(rng() * (TRAMP_LIFE_MAX - TRAMP_LIFE_MIN + 1));   // 모듈 서브 rng — 다른 모듈 배치는 안 바뀐다
     sideWalls(wallFn(p), top, H);
-    p.push({ kind: 'trampoline', x1: 200, y1: top + 180, x2: 400, y2: top + 200, e: TRAMP_E });
-    p.push({ kind: 'trampoline', x1: 400, y1: top + 380, x2: 600, y2: top + 360, e: TRAMP_E });
+    p.push({ kind: 'trampoline', x1: 200, y1: top + 180, x2: 400, y2: top + 200, e: TRAMP_E, life: life() });
+    p.push({ kind: 'trampoline', x1: 400, y1: top + 380, x2: 600, y2: top + 360, e: TRAMP_E, life: life() });
     decor('bush-big', 80, 300); decor('tree', 730, 120);
     return { pieces: p, height: H };
 }
@@ -779,8 +791,11 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp|quake
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp(n = 그 천의 몇 번째 튕김, life 면 찢어짐)|quake
  *              scuffle/scuffleEnd 는 ball 대신 { a, b, hole } (a = 왼쪽 공). scuffleEnd.startled = 뚜껑이 열려 떨어진 것(→ land.dizzy)
+ *              1등 룰(opts.target 'first')에만: nap.deep = 깊은 잠(안 깸) / pitStuck = 분출 때 온천에 남음 /
+ *              chute { x, y, tx, ty, t0, t1, deep? } = 첫 골인 뒤 그 자리에 멈춤(t0 에 펴짐, t1 에 통로 착지 예정 — 제 x 로 수직 낙하) → 착지는 land(걷기 시작) 또는 chuteLand(자는 공: 통로에 눕고 끝까지 안 깬다)
+ *  opts.target = 'first' | 'last'(기본). 'last' 는 opts 없음과 결과가 같다(회귀 가드: AutoTest/deguri-first-rule-test.js)
  */
 async function simulate(balls, seed, track, opts) {
     const capMs = (opts && opts.capMs) || SIM_CAP_MS;   // 도구 전용(AutoTest/deguri-sim-dump.js 전부-배치 프리셋): 서버는 안 넘긴다 — 실제 경주 캡은 SIM_CAP_MS
@@ -788,18 +803,22 @@ async function simulate(balls, seed, track, opts) {
     const n = balls.length;
     const sampleMs = n <= SAMPLE_FEW_MAX ? SAMPLE_MS_FEW : SAMPLE_MS_MANY;
     const dt = SIM_DT_MS / 1000;
+    const first = !!(opts && opts.target === 'first');   // 1등 룰 — 아래 first 분기 밖은 꼴등 룰과 바이트 단위로 같아야 한다
+    if (first) track.eagles = Math.min(EAGLE_COUNT_MAX, (track.eagles || 1) + FIRST_EAGLE_EXTRA);   // 트랙에 써 둔다 — reveal 의 track 으로 클라가 같은 마릿수를 그린다(대기 미니맵엔 독수리가 없다)
 
     // 상태
     const B = balls.map(b => ({
         id: b.id, x: b.x, y: b.y, vx: 0, vy: 0,
         state: 'roll',            // roll | nap | pit | mud | done
         r: BALL_R,
+        deep: false, deepKind: '',   // 1등 룰 영구 탈락: 'sleep'(햇볕잔디 깊은 잠) | 'pit'(온천에 남음) — 안 깨고 낙하산 때 자는 채로 내려온다
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
         stuckSince: 0, lidAt: -1e9, lidHole: -1, lidSince: 0, scuffle: -1, scuffled: false, moleAt: -1e9, springAt: -1e9, springOnSince: -1, ffDone: false,
         warpDone: {}, warpUntil: 0, warpOut: null,
-        carry: null, eagled: false, eagledBy: {}    // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 채인 적 있음 / 노린 적 있는 독수리 index → true
+        carry: null, eagled: false, eagledBy: {},   // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 채인 적 있음 / 노린 적 있는 독수리 index → true
+        chute: null                               // 1등 룰 낙하산 { x0, y0, tf, v, t1 } — tf 부터 v 로 수직 낙하
     }));
 
     // 조각 분류
@@ -818,7 +837,7 @@ async function simulate(balls, seed, track, opts) {
             case 'shutter': shutters.push(pc); break;
             case 'pendulum': pendulums.push(pc); break;
             case 'piston': pistons.push(pc); break;
-            case 'trampoline': trampolines.push(pc); break;
+            case 'trampoline': trampolines.push({ pc, hits: 0 }); break;   // 튕긴 수는 조각(pc)에 적지 않는다 — 조각은 타임라인에 그대로 실려 클라로 간다
             case 'gust': gusts.push(pc); break;
             case 'quake': quakes.push(pc); break;
             case 'spring': springs.push({ pc, readyAt: 0, onSince: -1 }); break;
@@ -851,7 +870,12 @@ async function simulate(balls, seed, track, opts) {
     const bounds = track.bounds || [];
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
     const eagles = Array.from({ length: track.eagles || 1 }, () => ({ nextAt: -1 }));
-    let eagleFinal = false, eagleCount = 0;   // 결승전(남은 ≤ EAGLE_FINAL_ALIVE) 진입 여부 — 진입 순간 전체 카운터 리셋
+    let eagleFinal = false, eagleCount = 0;   // 결승전(남은 ≤ EAGLE_FINAL_ALIVE) 진입 여부 — 진입 순간 전체 카운터 리셋. 1등 룰은 첫 공이 통로에 내려온 순간(firstLandT)
+    let firstLandT = -1, firstFinishT = -1, chutesDeployed = false;   // 1등 룰: 첫 통로 진입(독수리 결승전) / 첫 골인(경주 결정) / 낙하산 펼침 완료
+    // 1등 룰 탈락 자격: 판당 캡 안이고, 그 주인에게 안 자는 공이 둘 이상 남아 있을 때만(마지막 공은 절대 탈락 안 함). 꼴등 룰에선 늘 false
+    const ownerOf = balls.map(b => b.owner);
+    let eliminated = 0;
+    const canEliminate = b => first && eliminated < ELIM_MAX(n) && B.filter(o => ownerOf[o.id] === ownerOf[b.id] && !o.deep).length >= 2;
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
@@ -887,7 +911,19 @@ async function simulate(balls, seed, track, opts) {
     const finishBall = (t, b) => {
         b.state = 'done'; b.vx = 0; b.vy = 0;
         finishOrder.push(b.id); finishedCount++;
+        if (first && firstFinishT < 0) firstFinishT = t;   // 1등 룰: 여기서 당첨 확정 — 다음 스텝에 나머지 전원 낙하산
         pushEvent(t, 'finish', b);
+    };
+    // 통로 착지 → 걷기 시작. 도착(finishBall)은 걷기 루프에서 골 x 를 지날 때. 굴러 내려온 공과 1등 룰 낙하산 공이 같이 쓴다
+    const landInLane = (t, b) => {
+        b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
+        b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
+        b.walkRow = Math.floor(rng() * lane.rows);
+        const dizzy = b.scuffled;   // 몸싸움하다 화들짝 떨어진 놈은 숨 고르기 위에 SCUFFLE_DIZZY_MS 기절을 더 얹는다 — 걷기 시작이 늦어질 뿐(순위는 통로에서 갈린다)
+        if (dizzy) b.scuffled = false;
+        b.stallKind = dizzy ? 'dizzy' : 'rest'; b.stallAt = t; b.stallUntil = t + LAND_REST_MS + (dizzy ? SCUFFLE_DIZZY_MS : 0);
+        if (firstLandT < 0) firstLandT = t;   // 1등 룰 독수리 결승전 트리거
+        pushEvent(t, 'land', b, dizzy ? { speed: b.walkSpeed, row: b.walkRow, dizzy: true } : { speed: b.walkSpeed, row: b.walkRow });
     };
 
     // 공 vs 선분(정지 벽)
@@ -998,6 +1034,22 @@ async function simulate(balls, seed, track, opts) {
         const t = step * SIM_DT_MS;
         if (step % SIM_YIELD_EVERY === 0) await new Promise(r => setImmediate(r));
 
+        // ── 1등 룰: 첫 골인 다음 스텝에 통로 밖 전원 낙하산 — 그 자리에 멈춰 CHUTE_DEPLOY_MS 뒤 펴지고, CHUTE_HOVER_MS 떠 있다가 제 x 그대로 통로까지 수직 낙하.
+        //    통로에 서면 평소처럼 걷는다(사용자 2026-10-06). 자는 공은 자는 채로 내려와 통로에 눕고 끝까지 안 깬다. 이미 통로에서 걷는 놈은 그대로 ──
+        if (first && firstFinishT >= 0 && !chutesDeployed && lane) {
+            chutesDeployed = true;
+            const t0 = t + CHUTE_DEPLOY_MS, tf = t0 + CHUTE_HOVER_MS;
+            const rest = B.filter(b => b.state !== 'done' && b.state !== 'walk');
+            const farthest = rest.reduce((m, b) => Math.max(m, lane.y - b.y), 0);
+            const v = Math.max(CHUTE_SPEED_MIN, farthest / (CHUTE_MAX_DESCENT_MS / 1000));
+            for (const b of rest) {   // 들린 공은 그 자리에서 놓이고, 파이프 속 공은 출구 자리(x,y 가 이미 그곳), 구덩이 공은 구덩이에서 뜬다. x 는 통로 폭 안으로
+                const x0 = Math.max(lane.x0 + BALL_R, Math.min(LANE_END_X - BALL_R, b.x));
+                b.state = 'chute'; b.x = x0; b.vx = 0; b.vy = 0; b.carry = null; b.r = BALL_R; b.scuffle = -1;
+                b.chute = { x0, y0: b.y, tf, v, t1: tf + Math.max(0, lane.y - b.y) / v * 1000 };
+                pushEvent(t, 'chute', b, Object.assign({ x: Math.round(x0), y: Math.round(b.y), tx: Math.round(x0), ty: lane.y, t0, t1: Math.round(b.chute.t1) }, b.deep ? { deep: true } : {}));
+            }
+        }
+
         // ── 장치 타이머(공 무관) ──
         const ss = seesaw ? seesawSegment(seesaw, t) : null;
         const beesOn = beesAt >= 0 && t < beesAt + BEE_MS;
@@ -1035,7 +1087,9 @@ async function simulate(balls, seed, track, opts) {
         }
         // 간헐천 분출: 빠진 놈이 있고 주기가 찼으면 전원 위로 뿜어낸다
         if (pit && pitLastErupt >= 0 && t - pitLastErupt >= PIT_ERUPT_PERIOD_MS) {
-            const trapped = B.filter(b => b.state === 'pit').sort((a, c) => a.id - c.id);
+            let trapped = B.filter(b => b.state === 'pit' && !b.deep).sort((a, c) => a.id - c.id);
+            // 1등 룰: 분출 직전 한 마리씩 PIT_STUCK_P 로 그대로 남는다(온천에서 잠듦 = 못 들어감). 남은 놈은 이후 분출에서도 빠진다
+            if (first && trapped.length) trapped = trapped.filter(b => { if (rng() < PIT_STUCK_P && canEliminate(b)) { b.deep = true; b.deepKind = 'pit'; eliminated++; pushEvent(t, 'pitStuck', b); return false; } return true; });
             if (trapped.length) {
                 pushEvent(t, 'pitErupt', null, { x: pit.zone.x + pit.zone.w / 2, y: pit.zone.y + pit.zone.h / 2, count: trapped.length });
                 // 같은 자리에 겹쳐 있던 공을 그대로 풀면 공끼리 밀어내기가 한 스텝에 수십 px 라 채널 벽을 뚫고 밖으로 샌다 →
@@ -1079,8 +1133,8 @@ async function simulate(balls, seed, track, opts) {
         }
 
         // ── 독수리(마릿수 단계별 1~3마리): 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리씩 채 간다 ──
-        if (holefield && !eagleFinal && finishedCount >= n - EAGLE_FINAL_ALIVE) { eagleFinal = true; eagleCount = 0; }
-        if (holefield) for (let ei = 0; ei < eagles.length; ei++) {
+        if (holefield && !eagleFinal && (first ? firstLandT >= 0 : finishedCount >= n - EAGLE_FINAL_ALIVE)) { eagleFinal = true; eagleCount = 0; }   // 1등 룰: 첫 공이 통로에 내려온 다음 스텝부터 결승전(걷는 선두 우선·예산 리셋)
+        if (holefield && !(first && firstFinishT >= 0)) for (let ei = 0; ei < eagles.length; ei++) {   // 1등 룰은 당첨이 정해지면 독수리도 쉰다 — 스탠드로 걸어가는 놈을 다시 위로 올리지 않는다
             const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? Math.min(EAGLE_MAX_FINAL, eagles.length) : Math.max(EAGLE_MAX_EARLY_MIN, Math.floor(n * EAGLE_MAX_EARLY_RATIO)))) break;   // 결승전 예산은 독수리 수를 넘지 않는다(소인원 1마리 → 1회)
             const cands = [], wWalk = eagleFinal ? EAGLE_WALK_WEIGHT : 1, wWait = eagleFinal ? 1 : EAGLE_WAIT_WEIGHT_EARLY;
             for (const b of B) {
@@ -1115,8 +1169,20 @@ async function simulate(balls, seed, track, opts) {
                 if (t >= c.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
                 continue;
             }
+            if (b.state === 'chute') {   // 1등 룰 낙하산: tf 까지 제자리, 그 뒤 제 x 로 수직 낙하(흔들림은 통로에 가까울수록 작게). 통로에 닿으면 착지
+                const c = b.chute, down = t >= c.tf;
+                if (down) b.y = Math.min(lane.y, c.y0 + (t - c.tf) / 1000 * c.v);
+                const k = down ? Math.max(0, 1 - (b.y - c.y0) / Math.max(1, lane.y - c.y0)) : 1;
+                b.x = c.x0 + Math.sin(t / CHUTE_SWAY_MS * 2 * Math.PI + b.id) * CHUTE_SWAY_PX * k;
+                if (down && b.y >= lane.y) {
+                    b.x = c.x0; b.chute = null;
+                    if (b.deep) { b.state = 'nap'; b.r = NAP_R; b.napAt = t; pushEvent(t, 'chuteLand', b, { deep: true }); }   // 자는 채로 통로에 눕는다 — 걷는 놈들은 겹쳐 지나간다(통로는 충돌 없음)
+                    else landInLane(t, b);
+                }
+                continue;
+            }
             if (b.state === 'nap') {
-                if (t - b.napAt >= NAP_MAX_MS) wakeBall(t, b, 0, WAKE_KICK_Y);
+                if (!b.deep && t - b.napAt >= NAP_MAX_MS) wakeBall(t, b, 0, WAKE_KICK_Y);   // 깊은 잠(1등 룰)은 안 깬다
                 else continue;
             }
             if (b.state === 'mud') {
@@ -1237,10 +1303,11 @@ async function simulate(balls, seed, track, opts) {
                 collideSegmentVel(t, b, ps.x, top, fx, top, WALL_RESTITUTION, ps.dir * o.v, 0);
                 collideSegmentVel(t, b, ps.x, bot, fx, bot, WALL_RESTITUTION, ps.dir * o.v, 0);
             }
-            for (const tr of trampolines) {   // 트램펄린: 반발 1 넘는 선분. 내려오다 튀어 오른 순간 좌우 시드 킥 + 이벤트(천 연출)
+            for (const tw of trampolines) {   // 트램펄린: 반발 1 넘는 선분. 내려오다 튀어 오른 순간 좌우 시드 킥 + 이벤트(천 연출). life 번째 튕김 뒤로는 찢어져 없다
+                const tr = tw.pc; if (tw.hits >= tr.life) continue;
                 if (b.y < Math.min(tr.y1, tr.y2) - BALL_R - 4 || b.y > Math.max(tr.y1, tr.y2) + BALL_R + 4 || b.x < tr.x1 - BALL_R || b.x > tr.x2 + BALL_R) continue;
                 const vy0 = b.vy;
-                if (collideSegment(t, b, tr.x1, tr.y1, tr.x2, tr.y2, tr.e) && vy0 > 150 && b.vy < 0) { b.vx += (rng() - 0.5) * 2 * TRAMP_KICK; pushEvent(t, 'tramp', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
+                if (collideSegment(t, b, tr.x1, tr.y1, tr.x2, tr.y2, tr.e) && vy0 > 150 && b.vy < 0) { tw.hits++; b.vx += (rng() - 0.5) * 2 * TRAMP_KICK; pushEvent(t, 'tramp', b, { x: Math.round(b.x), y: Math.round(b.y), n: tw.hits }); }   // n = 이 천이 몇 번째로 튕겼나(= life 면 찢어짐)
             }
             for (const sh of shutters) {   // 셔터 문: 닫혀 있는 동안(여닫는 중 포함) 문 선이 벽. 열리면 그냥 떨어진다
                 if (Math.abs(b.y - sh.y1) > BALL_R + 4 || b.x < sh.x1 - BALL_R || b.x > sh.x2 + BALL_R || lidCover(sh, t) <= 0) continue;
@@ -1258,7 +1325,9 @@ async function simulate(balls, seed, track, opts) {
                 const sp = Math.hypot(b.vx, b.vy);
                 if (sp < NAP_SPEED && rng() < NAP_P) {
                     b.state = 'nap'; b.napAt = t; b.hasNapped = true; b.vx = 0; b.vy = 0; b.r = NAP_R;
-                    pushEvent(t, 'nap', b);
+                    // 1등 룰: DEEP_SLEEP_P 로 깊은 잠 — 안 깨고 이번 판 못 들어감(돗자리 + Zz). 캡·마지막 공 보호는 canEliminate
+                    if (first && rng() < DEEP_SLEEP_P && canEliminate(b)) { b.deep = true; b.deepKind = 'sleep'; eliminated++; pushEvent(t, 'nap', b, { deep: true }); }
+                    else pushEvent(t, 'nap', b);
                     continue;
                 }
             }
@@ -1293,17 +1362,8 @@ async function simulate(balls, seed, track, opts) {
             }
             if (b.state !== 'roll') continue;
 
-            // 통로 착지 → 걷기 시작. 도착(finishBall)은 걷기 루프에서 골 x 를 지날 때
-            if (lane && b.y >= lane.y) {
-                b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
-                b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
-                b.walkRow = Math.floor(rng() * lane.rows);
-                const dizzy = b.scuffled;   // 몸싸움하다 화들짝 떨어진 놈은 숨 고르기 위에 SCUFFLE_DIZZY_MS 기절을 더 얹는다 — 걷기 시작이 늦어질 뿐(순위는 통로 경주에서)
-                if (dizzy) b.scuffled = false;
-                b.stallKind = dizzy ? 'dizzy' : 'rest'; b.stallAt = t; b.stallUntil = t + LAND_REST_MS + (dizzy ? SCUFFLE_DIZZY_MS : 0);
-                pushEvent(t, 'land', b, dizzy ? { speed: b.walkSpeed, row: b.walkRow, dizzy: true } : { speed: b.walkSpeed, row: b.walkRow });
-                continue;
-            }
+            // 통로 착지 → 걷기 시작(landInLane). 도착(finishBall)은 걷기 루프에서 골 x 를 지날 때
+            if (lane && b.y >= lane.y) { landInLane(t, b); continue; }
 
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
@@ -1321,13 +1381,13 @@ async function simulate(balls, seed, track, opts) {
         // ── 공-공 충돌(해시) ──
         const grid = new Map();
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried') continue;   // pit = 땅속(간헐천), warp = 파이프 속, carried = 독수리 발톱 — 장애물 아님
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried' || b.state === 'chute') continue;   // pit = 땅속(간헐천), warp = 파이프 속, carried = 독수리 발톱, chute = 낙하산(공중) — 장애물 아님
             const k = (Math.floor(b.x / CELL) + 4096) * 65536 + Math.floor((b.y + 8192) / CELL);
             if (!grid.has(k)) grid.set(k, []);
             grid.get(k).push(b);
         }
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried') continue;
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried' || b.state === 'chute') continue;
             const cx = Math.floor(b.x / CELL) + 4096, cy = Math.floor((b.y + 8192) / CELL);
             for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
                 const cell = grid.get((cx + ox) * 65536 + (cy + oy));
@@ -1359,8 +1419,8 @@ async function simulate(balls, seed, track, opts) {
                             bump(t, dyn, vn);
                             dyn.vx += sx * (1 + STATIC_RESTITUTION) * vn * nx;
                             dyn.vy += sx * (1 + STATIC_RESTITUTION) * vn * ny;
-                            // 잠든 공만 깨어남(구덩이 공은 밟혀도 그대로)
-                            if (st.state === 'nap' && t - st.napAt >= NAP_MIN_MS) {
+                            // 잠든 공만 깨어남(구덩이 공은 밟혀도 그대로, 깊은 잠(1등 룰)도 그대로)
+                            if (st.state === 'nap' && !st.deep && t - st.napAt >= NAP_MIN_MS) {
                                 wakeBall(t, st, dyn.vx * 0.5, Math.max(WAKE_KICK_Y, dyn.vy * 0.5));
                             }
                         }
@@ -1407,6 +1467,12 @@ async function simulate(balls, seed, track, opts) {
         if (step % sampleEvery === 0) record();
 
         if (finishedCount === n) { simEndMs = t; if (step % sampleEvery !== 0) record(); break; }
+        // 1등 룰: 안 자는 공이 다 들어오고 자는 공도 다 내려앉았으면 끝 — 자는 공은 골에 가까운 순으로 맨 뒤에 정산(스탠드에 자는 채로 앉는다)
+        if (first && chutesDeployed && !B.some(b => b.state !== 'done' && (!b.deep || b.state === 'chute'))) {
+            const asleep = B.filter(b => b.state !== 'done').sort((a, c) => (c.x - a.x) || (a.id - c.id));
+            for (const b of asleep) finishBall(t, b);
+            simEndMs = t; if (step % sampleEvery !== 0) record(); break;
+        }
     }
 
     // 캡 도달: 미도착 공을 진행도(y, 통로 안이면 x) 내림차순으로 정산 (덜 간 공이 더 늦게 도착)
@@ -1415,6 +1481,23 @@ async function simulate(balls, seed, track, opts) {
         for (const b of rest) finishBall(capMs, b);
         simEndMs = capMs;
         record();
+    }
+
+    if (first) {
+        // ─── 1등 룰 마무리: 재생 길이 = 마지막 도착(자는 공 정산 포함) + 여유. 2배속·컷 없음 — 낙하산 뒤 걷기는 평소처럼 보여 준다(사용자 2026-10-06).
+        // 슬로모: 1등이 통로에서 골 앞 SLOW_ZONE_PX 에 처음 든 샘플에 통로 안 SLOW_RIVAL_PX 뒤까지 다른 공이 있으면 거기서 첫 골인까지 SLOW_RATE. 혼자면 없음
+        const t1 = firstFinishT >= 0 ? firstFinishT : simEndMs, firstId = finishOrder[0], gx = track.goalX, gy = track.goalY;
+        let slow = null;
+        for (let k = 0; k * sampleMs <= t1 && k < frames.length; k++) {
+            const fr = frames[k], x = fr[firstId * 2], y = fr[firstId * 2 + 1];
+            if (x < 0 || Math.abs(y - gy) > LANE_H / 2 || x < gx - SLOW_ZONE_PX) continue;
+            let rival = false;
+            for (let i = 0; i < n && !rival; i++) { if (i === firstId) continue; const rx = fr[i * 2], ry = fr[i * 2 + 1]; rival = rx >= 0 && Math.abs(ry - gy) <= LANE_H / 2 && rx >= x - SLOW_RIVAL_PX; }
+            if (rival && k * sampleMs < t1) slow = { startMs: k * sampleMs, rate: SLOW_RATE, endMs: t1 };
+            break;
+        }
+        const slowExtra = slow ? (slow.endMs - slow.startMs) * (1 / SLOW_RATE - 1) : 0;
+        return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, fast: null, cutMs: null, durationMs: Math.round(simEndMs + slowExtra + FINALE_HOLD_MS) };
     }
 
     // 슬로모 시작 시각: 뒤에서 두 번째 공이 골인한 뒤, 마지막 공이 골 앞 SLOW_ZONE_PX 에 처음 들어온 샘플

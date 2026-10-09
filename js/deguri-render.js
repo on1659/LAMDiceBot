@@ -48,6 +48,8 @@ var DeguriRender = (function () {
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
     var TRAMP_FX_MS = 260;           // 트램펄린 천 눌림→튕김 프레임 시간
+    var TRAMP_SNAP_MS = 220;         // 트램펄린이 찢어진 뒤 두 반쪽이 기둥 쪽으로 말려 들어가는 시간
+    var TRAMP_BURST_MS = 450, TRAMP_BURST_FRAMES = 5;   // 찢어지는 효과(fx trampoline-burst 192×192 ×5) 길이·칸 수
     var QUAKE_SHAKE_PX = 6;          // 지진 카메라 흔들림 진폭(감쇠)
     var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
     var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
@@ -79,6 +81,13 @@ var DeguriRender = (function () {
     var MINIMAP_MAX_W_NARROW = 28;   // 모바일(HUD 단위 = CSS px)에서의 미니맵 최대 폭 — 60 이면 전체화면에서 60×500 으로 커져 트랙을 덮는다(사용자 2026-10-02)
     var MINIMAP_MAX_H_NARROW = 0.50; // 모바일 미니맵 아래 끝(캔버스 높이 비율) — 결승 프레임이 캔버스를 꽉 채우면 홈통이 ≈77%, 스탠드 1·2위 자리가 그 아래 왼쪽에 오므로 그 위에서 끝낸다. 0.70 은 화면 왼쪽을 너무 가려 절반까지만(사용자 2026-10-02)
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
+    // 1등 룰 결말(docs/goal/deguri-first-rule-flow.md): 첫 골인 뒤 나머지는 낙하산(서버가 프레임에 구움), 깊은 잠은 돗자리, 탈락 자막, 축하 카메라는 잠깐만
+    var PARA_POP_MS = 250;           // 낙하산 펴지는 시간(서버 chute.t0 부터)
+    var PARA_SWAY_MS = 450;          // 캐노피 흔들림 셀(좌·중·우) 전환 간격
+    var PARA_LINE_PX = 18;           // 캐노피 아랫변 → 공 꼭대기 줄 길이(표시 px)
+    var MAT_UNROLL_MS = 400;         // 돗자리 펼침(4셀)
+    var ELIM_TOAST_MS = 3000;        // 탈락 자막 표시 시간
+    var CELEBRATE_CAM_MS = 1800;     // 1등 축하 카메라가 왕관 동물에 머무는 시간 — 그 뒤 결승 프레임으로 돌아가 낙하산 착지(첫 골인 +1.5~5s)를 본다. 왕관·색종이는 계속
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
     var HUD_ICON_PX = 18;            // 순위표 동물 얼굴 아이콘 크기
@@ -125,6 +134,7 @@ var DeguriRender = (function () {
     var ROLL_SPIN_MAX = 34;          // 구르는 각속도 상한(rad/s) — 60fps 에서 프레임당 ≈32°. 넘기면 무늬가 거꾸로 도는 것처럼 보인다. 빠를수록 이 값에 붙는다(tanh)
     var ROLL_SPIN_TAU_MS = 90;       // 목표 각속도에 붙는 시간 — 핀에 튕길 때마다 회전이 뚝뚝 바뀌지 않게
     var ROLL_GRIP_MIN = 0.12, ROLL_GRIP_FULL = 0.37;   // 진행 방향의 가로 성분 비율: 이 아래(거의 수직 낙하)는 돌던 대로, 이 위는 굴러가는 쪽으로 돈다
+    var ROLL_FALL_SPIN_MIN = 0.2, ROLL_FALL_SPIN_MAX = 0.55, ROLL_FALL_TAU_MS = 300;   // 수직 낙하 회전: 굴림 회전 대비 비율(마리마다 이 사이 랜덤) / 붙는 시간(느리게 — 벽에 튕길 때마다 방향이 바뀌어 보이지 않게)
     var ROLL_REST_SPEED = 12;        // 이 속도(px/s) 아래는 멈춘 것 — 회전도 선다
     var ROLL_JUMP_SPEED = 4000;      // 샘플 사이가 이보다 빠르면 순간이동(워프) — 회전·속도에 안 쓴다
     var STEP_STRIDE_BASE = 10, STEP_STRIDE_PER_SPEED = 0.13;   // 한 걸음 거리(px) = 기본 + 속도(px/s) × 계수 — 빠를수록 보폭이 길다(60px/s → 17.8px·초당 3.4걸음, 140 → 28.2px·5걸음)
@@ -189,7 +199,9 @@ var DeguriRender = (function () {
             'mole-v2': A + 'pieces/mole-v2.webp', 'dam-water': A + 'pieces/dam-water.webp', 'beaver-v2': A + 'pieces/beaver-v2.webp', 'pit-surface': A + 'pieces/pit-surface.webp',   // 5차
             // N차(2026-09-26, 의뢰서 docs/spritemake-request/2026-09-26-deguri-moving-gimmicks-n.md) — 움직이는 장애물
             'pendulum-log': A + 'pieces/pendulum-log.webp', 'pendulum-pivot': A + 'pieces/pendulum-pivot.webp', 'piston-head': A + 'pieces/piston-head.webp', 'piston-shaft': A + 'pieces/piston-shaft.webp',
-            'trampoline-post': A + 'pieces/trampoline-post.webp', 'wind-vane': A + 'pieces/wind-vane.webp'
+            'trampoline-post': A + 'pieces/trampoline-post.webp', 'wind-vane': A + 'pieces/wind-vane.webp',
+            // 트램펄린 찢어짐(2026-10-06, 의뢰서 docs/spritemake-request/2026-10-06-deguri-trampoline-break.md)
+            'trampoline-tear': A + 'pieces/trampoline-tear.webp', 'trampoline-stub': A + 'pieces/trampoline-stub.webp'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.webp', 'meadow-tile': A + 'stage/meadow-tile.webp',   // 알파 없는 배경 2장은 손실 WebP — sky q92 44K, meadow q85 160K (PNG 1.2~1.3MB)
@@ -202,7 +214,8 @@ var DeguriRender = (function () {
             'bee-swarm': A + 'fx/bee-swarm.webp', 'zz': A + 'fx/zz.webp', 'wake': A + 'fx/wake.webp', 'cheer': A + 'fx/cheer.webp', 'wind': A + 'fx/wind.webp',   // 4차 suck-swirl 미도착 — 오면 여기 등록
             'eagle-shadow': A + 'fx/eagle-shadow.webp', 'mole-alert': A + 'fx/mole-alert.webp', 'dam-burst-v2': A + 'fx/dam-burst-v2.webp', 'geyser': A + 'fx/geyser.webp',   // 5차
             'dizzy-swirl': A + 'fx/dizzy-swirl.webp',   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
-            'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp'   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
+            'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp',   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
+            'trampoline-burst': A + 'fx/trampoline-burst.webp'   // 트램펄린 찢어짐 192×192 ×5
         },
         ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=3') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
@@ -213,7 +226,8 @@ var DeguriRender = (function () {
         warn: 24, info: 25, book: 26, home: 27, flag: 28, sun: 29, hole: 30, dash: 31, x: 32 };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48],
+        'parachute': [128, 96], 'mat': [192, 64] };   // 1등 룰 소품(지연 로드 ensureFx) — 낙하산 캐노피 ×4(좌·중·우 흔들림·접힘), 돗자리 ×4(말림 → 펼침, 자는 동물(≈36px)보다 넓게 48px)
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -296,6 +310,17 @@ var DeguriRender = (function () {
         if (onLoad && im && !im.complete) im.addEventListener('load', onLoad, { once: true });
         return im;
     }
+    // 1등 룰 소품(낙하산·돗자리) — 처음 쓸 때 지연 로드. ASSETS.fx 에 넣으면 모든 입장에서 받으므로(에셋 미도착이면 매번 404 헛요청) 여기서만 든다. 없으면 drawSprite 가 false → 코드 도형
+    // theme.css 고정색 토큰을 캔버스에서 쓴다(값은 처음 읽을 때 한 번) — 1등 룰 소품 코드 도형·자막
+    var tokCache = {};
+    function tok(name) {
+        if (tokCache[name] == null) tokCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return tokCache[name];
+    }
+    function ensureFx(name) {
+        var k = imgKey('fx', name);
+        if (images[k] === undefined) { var im = new Image(); im.src = A + 'fx/' + name + '.webp' + ASSET_VER; images[k] = im; }
+    }
     function loadAll(onDone) {
         if (loadStarted) { if (onDone) onDone(); return; }
         loadStarted = true;
@@ -376,7 +401,8 @@ var DeguriRender = (function () {
         var onCameraModeCb = null;
         var view = { w: TRACK_W, h: 600, scale: 1, ui: 1, narrow: false, cssW: TRACK_W, fs: false };   // ui = HUD/라벨 배율(폰에서 >1), narrow = 모바일 카메라, cssW = 캔버스 CSS 폭(HUD 단위 ↔ CSS px 환산), fs = 전체화면
         var pieces = {};          // kind → 조각 배열
-        var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
+        var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만 — 1등 룰은 매 납치)
+        var leftMats = [], toasts = [];   // 1등 룰: 낙하산으로 떠난 깊은 잠 자리에 남는 돗자리 {x,y} / 탈락 자막 { t0, text } — 둘 다 시크·재로드 때 비운다(이벤트 재적용으로 다시 찬다)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
         var lastFrameWall = 0;
         var startWall = 0;        // 재생 기준 performance.now()
@@ -430,6 +456,12 @@ var DeguriRender = (function () {
             firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
             mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
         }
+        // 조각에 적어 두는 연출 상태(스프링 발사·쿨타임, 트램펄린 눌림) 비우기 — 되감을 때와 새 타임라인을 걸 때.
+        // 다시 보기는 같은 reveal 객체를 다시 거는데, 안 비우면 지난 재생의 마지막 발사 시각이 남아 안 밟힌 스프링에도 '발사!'가 떴다(2026-10-06)
+        function resetPieceFx() {
+            (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; });
+            (pieces.trampoline || []).forEach(function (q) { q.hitAt = -1e9; q.tears = []; q.brokenAt = null; q.breakX = null; });   // tears = 맞은 자리 찢어진 자국 [{ x, n }], brokenAt = life 번째 튕김(찢어짐) 시각
+        }
         R.setTimeline = function (payload, me) {
             myName = me || '';
             balls = payload.balls.map(makeBall);
@@ -440,8 +472,8 @@ var DeguriRender = (function () {
             var spawnIv = extras.length ? (SPAWN_END_MS - SPAWN_START_MS) / extras.length : 0;
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
-            applyTrack(payload);
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {};
+            applyTrack(payload); resetPieceFx();
+            evCursor = 0; lastT = -1; fxList = []; leftMats = []; toasts = []; cam.init = false; cam.target = null; cam.loserSeen = false; if (manual.on) setManual(false); reacts = {};
             hudInfo = { remaining: balls.length, rows: [] };
             R.resize();
             updateCamButton();
@@ -454,13 +486,14 @@ var DeguriRender = (function () {
         R.play = function (countdownMs) {
             setTouchCapture(true);   // 경주 중엔 캔버스 위 터치가 페이지 스크롤이 아니라 카메라 조작
             startWall = performance.now() + (countdownMs == null ? COUNTDOWN_MS : countdownMs);
+            pausedAt = null;
             phase = 'countdown';
             updateCamButton();
             lastFrameWall = performance.now();
             if (rafId) cancelAnimationFrame(rafId);
             var loop = function () {
                 var now = performance.now();
-                var t = now - startWall;
+                var t = pausedAt != null ? pausedAt : now - startWall;
                 R.render(t, (now - lastFrameWall) / 1000);
                 lastFrameWall = now;
                 rafId = requestAnimationFrame(loop);
@@ -469,6 +502,20 @@ var DeguriRender = (function () {
         };
         R.stop = function () { if (rafId) cancelAnimationFrame(rafId); rafId = null; setTouchCapture(false); };
         R.isPlaying = function () { return !!rafId; };
+
+        // ─── 멈춤·이동 (데구리 단독판 3a8c02e 역반영 — 다시 보기 조작줄 js/deguri.js 가 쓴다. 보는 사람 화면만, 소켓으로 나가지 않는다) ───
+        // 멈춰도 루프는 같은 시각을 계속 그린다 — 멈춘 장면에서도 카메라 끌기·확대가 먹게. 뒤로 옮기면 applyEventsUpTo 가 공 상태를 처음부터 다시 쌓는다
+        var pausedAt = null;   // 멈춘 재생 시각(ms). null = 흐르는 중
+        R.time = function () { return pausedAt != null ? pausedAt : performance.now() - startWall; };
+        R.isPaused = function () { return pausedAt != null; };
+        R.pause = function () { if (pausedAt == null) pausedAt = performance.now() - startWall; };
+        R.resume = function () { if (pausedAt != null) { startWall = performance.now() - pausedAt; pausedAt = null; } };
+        R.seek = function (tPlay) {
+            if (pausedAt != null) pausedAt = tPlay; else startWall = performance.now() - tPlay;
+            cam.init = false;   // 트랙을 가로질러 미끄러지지 않고 그 장면으로 바로
+            // 결승 뒤에서 앞으로 오면 render 가 finale·done 을 다시 매긴다. done 이 풀어 둔 터치 카메라(setTouchCapture)도 다시 잡는다 — 끝으로 가면 render 가 또 푼다
+            if (phase !== 'idle') { phase = tPlay < 0 ? 'countdown' : 'play'; setTouchCapture(true); }
+        };
 
         // ─── 수동 카메라 (데구리 dea6fd5·6628dd3 역반영 — 보는 사람 화면 상태만, 소켓으로 나가지 않는다) ───
         // 자동 카메라는 선두/후미·내 동물·결승 프레임을 알아서 따라간다. 캔버스를 끌거나(마우스·터치)·핀치하거나·ctrl+휠·순위표 행을 누르면 수동으로 바뀌고,
@@ -547,6 +594,9 @@ var DeguriRender = (function () {
             manual.follow = b; manual.zoom = Math.max(manual.zoom, view.narrow ? MOBILE_ZOOM_MIN : 1);
             updateCamButton();
         }
+        // 강조(금색 링·이름표·미니맵 흰 테두리)를 받는 주인 — 순위표로 남의 동물을 따라가는 동안은 그 사람, 아니면 나.
+        // 내 이름에 고정해 두면 관전 카메라로 다른 동물을 봐도 링이 내 동물에 남았다(사용자 2026-10-05). 따라가기가 풀리면(setManual(false)) 다시 나
+        function watchedOwner() { return manual.follow ? manual.follow.owner : myName; }
         function rankHitAt(p) {   // p = 캔버스 기준 CSS px
             var k = logicalPerCss() / view.ui, hx = p.x * k, hy = p.y * k;
             for (var i = 0; i < rankHits.length; i++) { var r = rankHits[i]; if (hx >= r.x && hx <= r.x + r.w && hy >= r.y && hy <= r.y + r.h) return r; }
@@ -643,13 +693,20 @@ var DeguriRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); (pieces.trampoline || []).forEach(function (q) { q.hitAt = -1e9; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; leftMats = []; toasts = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; b.deep = false; b.deepKind = ''; b.matAt = 0; b.onLane = false; }); resetPieceFx(); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
                 var b = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
-                    case 'nap': b.state = 'nap'; b.napAt = e.t; break;
+                    case 'nap': b.state = 'nap'; b.napAt = e.t; if (e.deep) { b.deep = true; b.deepKind = 'sleep'; b.matAt = e.t; pushToast(b, e.t); } break;   // deep(1등 룰) = 안 깸 → 돗자리 + 자막
+                    case 'pitStuck': b.deep = true; b.deepKind = 'pit'; pushToast(b, e.t); break;   // 1등 룰: 분출 때 온천에 남음(상태는 pit 그대로) → Zz + 자막
+                    case 'chute':   // 1등 룰 낙하산: 그 자리에 멈췄다가 t0 에 펴지고 제 x 로 통로까지 수직 낙하 — 위치는 프레임에 있고 carry 는 캐노피 연출용. 깊은 잠 자리엔 돗자리를 남긴다. 착지는 land(걷기) / chuteLand(자는 공)
+                        b.state = 'chute'; b.walkKind = ''; b.scuffle = -1; b.startledAt = -1e9;
+                        b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t0, t1: e.t1 };
+                        if (b.deepKind === 'sleep') leftMats.push({ x: e.x, y: e.y });
+                        break;
+                    case 'chuteLand': b.state = 'nap'; b.napAt = e.t; b.onLane = true; b.carry = null; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;   // 자는 공이 통로에 내려앉음 — 돗자리 없이 그대로 잔다, 끝에 finish 로 스탠드
                     case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
@@ -657,7 +714,13 @@ var DeguriRender = (function () {
                     case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160;
                         (pieces.spring || []).forEach(function (sp) { if (Math.abs(sp.x + Math.cos(sp.angle) * sp.len - e.x) < 3) { sp.firedAt = e.t; sp.readyAt = e.readyAt || (e.t + sp.cooldown); } }); break;
                     case 'flip': ffDir = e.dir; break;
-                    case 'tramp': { var tp = (pieces.trampoline || []).find(function (q) { return e.x >= q.x1 - 20 && e.x <= q.x2 + 20 && Math.abs(e.y - (q.y1 + (q.y2 - q.y1) * ((e.x - q.x1) / (q.x2 - q.x1 || 1)))) < 40; }); if (tp) tp.hitAt = e.t; if (b) b.squashUntil = e.t + 160; break; }   // 천 눌림→튕김 프레임
+                    case 'tramp': { var tp = (pieces.trampoline || []).find(function (q) { return e.x >= q.x1 - 20 && e.x <= q.x2 + 20 && Math.abs(e.y - (q.y1 + (q.y2 - q.y1) * ((e.x - q.x1) / (q.x2 - q.x1 || 1)))) < 40; }); if (tp) tp.hitAt = e.t; if (b) b.squashUntil = e.t + 160;   // 천 눌림→튕김 프레임
+                        // n = 그 천의 몇 번째 튕김, life = 그 천이 버티는 수(서버 TRAMP_LIFE_MIN~MAX 랜덤). life 번째면 찢어져 없어지고(반쪽이 기둥으로 말려 들어감 + 찢어지는 효과), 그 전엔 맞은 자리에 찢어진 자국(절반 전엔 작게·절반부터 크게)
+                        if (tp && e.n) {
+                            if (tp.life && e.n >= tp.life) { tp.brokenAt = e.t; tp.breakX = e.x; fxList.push({ type: 'trampBurst', x: e.x, y: tp.y1 + (tp.y2 - tp.y1) * clamp((e.x - tp.x1) / (tp.x2 - tp.x1 || 1), 0, 1), t0: e.t, dur: TRAMP_BURST_MS }); }
+                            else (tp.tears = tp.tears || []).push({ x: e.x, n: e.n });
+                        }
+                        break; }
                     case 'quake': fxList.push({ type: 'quake', x: e.x, y: e.y, t0: e.t, dur: e.dur }); break;   // 카메라 흔들림(R.render) + 먼지·금
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
@@ -741,10 +804,15 @@ var DeguriRender = (function () {
                     if (b.state === 'roll') {
                         // 미끄럼 없이 구르기: 각속도 = 속도 / 반지름, 가는 쪽으로. 거의 수직으로 떨어질 땐(grip 0) 돌던 대로 둔다
                         var grip = spd < ROLL_REST_SPEED ? 1 : clamp((Math.abs(vx) / spd - ROLL_GRIP_MIN) / (ROLL_GRIP_FULL - ROLL_GRIP_MIN), 0, 1);
-                        var want = spd < ROLL_REST_SPEED ? 0 : (vx > 0 ? 1 : -1) * ROLL_SPIN_MAX * Math.tanh(spd / BALL_R / ROLL_SPIN_MAX);
-                        if (!stepping) b.spin = want * grip;
+                        var mag = spd < ROLL_REST_SPEED ? 0 : ROLL_SPIN_MAX * Math.tanh(spd / BALL_R / ROLL_SPIN_MAX);
+                        // 거의 수직으로 떨어질 땐 굴러가는 쪽이 없다 — 돌던 쪽(처음이면 마리마다 정해진 쪽)으로 굴림 회전의 ROLL_FALL_SPIN 만큼 천천히 돈다(출발 직후 첫 낙하가 회전 없이 미끄러져 보였다)
+                        // 처음 도는 방향·세기는 마리마다 랜덤 — 공 id 해시라 모든 화면에서 같다(Math.random 은 화면마다 달라진다)
+                        var fallDir = Math.abs(b.spin) > 0.5 ? (b.spin > 0 ? 1 : -1) : (hash01(b.id * 7.31 + 2.9) < 0.5 ? -1 : 1);
+                        var fallK = lerp(ROLL_FALL_SPIN_MIN, ROLL_FALL_SPIN_MAX, hash01(b.id * 3.17 + 8.1));
+                        var want = grip * (vx > 0 ? 1 : -1) * mag + (1 - grip) * fallDir * mag * fallK;
+                        if (!stepping) b.spin = want;
                         else {
-                            b.spin += (want - b.spin) * grip * (1 - Math.exp(-dtMs / ROLL_SPIN_TAU_MS));
+                            b.spin += (want - b.spin) * (1 - Math.exp(-dtMs / (grip > 0 ? ROLL_SPIN_TAU_MS : ROLL_FALL_TAU_MS)));
                             b.angle += b.spin * dtMs / 1000;
                         }
                     }
@@ -755,7 +823,7 @@ var DeguriRender = (function () {
 
         // ─── 카메라 ───
         // 진행도: 굴러오는 동안은 y, 통로에 내려 걷는 동안은 골 x 까지의 거리 (통로 안 동물은 y 가 모두 같다)
-        function progress(b) { return b.state === 'walk' ? data.track.goalY + b.x : b.y; }
+        function progress(b) { return b.state === 'walk' ? data.track.goalY + b.x : b.y; }   // 낙하산(1등 룰)은 수직 낙하라 y 가 그대로 진행도 — 통로에 서면 걷는 공과 같은 식
         function updateCamera(t, dt) {
             var goalY = data.track.goalY;
             var focus = null, remaining = 0, lead = null, rear = null;
@@ -769,6 +837,7 @@ var DeguriRender = (function () {
             var finalK = Math.min(Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO)), Math.max(1, Math.floor(balls.length / 3)));
             var rearMode = remaining <= finalK && data.target !== 'first';
             var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done'), celNow = null;
+            var firstB = byId[data.finishOrder[0]], decided = data.target === 'first' ? !!(firstB && firstB.state === 'done') : loserDone;   // 당첨 확정 순간 — 1등 룰은 첫 골인, 꼴등 룰은 꼴찌 골인
             var hf = (pieces.holefield || [])[0];
             // 결승 프레임 위쪽 여유 — 폰은 세로 캔버스에 맞춘 짧은 값. '내 동물 따라가기' 해제 기준도 같은 값이라 구멍밭 위 400~280 구간에서 카메라가 튀지 않는다
             var frameAbove = view.narrow ? MOBILE_FRAME_ABOVE_PX : FRAME_ABOVE_PX;
@@ -785,22 +854,24 @@ var DeguriRender = (function () {
                 }
                 myFocus = myDone ? myRear : myLead;
                 if (myFocus && hf && myFocus.y >= hf.zone.y - frameAbove) myFocus = null;
+                if (myFocus && decided && data.target === 'first') myFocus = null;   // 1등 룰: 당첨이 정해지면 내 낙하산 대신 왕관 → 결승 프레임(착지)을 본다
             }
             var wallP = (pieces.dumpwall || [])[0];
             // 결승 프레임: 선두가 구멍밭 위 frameAbove 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
-            var frameMode = hf && lead && lead.y >= hf.zone.y - frameAbove;
+            var frameMode = hf && (lead ? lead.y >= hf.zone.y - frameAbove : data.target === 'first');   // 1등 룰은 전원 착지 뒤에도 결승 프레임(스탠드 전체) — 골 앞 클로즈업은 꼴등 룰 비석 장면용
             cam.mode = frameMode ? 'frame' : (rearMode ? 'rear' : 'lead');
             focus = rearMode ? rear : lead;
             var camTarget = frameMode ? null : focus;   // 순위표 카메라 표시용 — 지금 카메라가 따라가는 동물(결승 프레임처럼 전원을 한 화면에 잡을 땐 없음)
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
-            if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
+            if (data.target === 'first') { for (var ci0 = 0; ci0 < balls.length; ci0++) if (balls[ci0].state === 'carried') { carried = balls[ci0]; break; } }   // 1등 룰: 매 납치 추적 — 결승전(통로) 탈환이 핵심 장면
+            else if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
             if (t < 0) { targetY = data.track.startY * 0.5 + 60; camTarget = null; }
             else if (carried) { targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
             else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; camTarget = myFocus; }   // 내 동물 따라가기
-            else if (loserDone && (celNow = celebration(t)) && celNow.since >= 0) { cam.mode = 'celebrate'; targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = celNow.ball; }   // 1등 당첨 축하: 비석에서 스탠드의 1등 동물로 건너간다
-            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = loserB; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
-            else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
+            else if (decided && (celNow = celebration(t)) && celNow.since >= 0 && (celNow.since < CELEBRATE_CAM_MS || !focus)) { cam.mode = 'celebrate'; targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = celNow.ball; }   // 1등 당첨 축하: 왕관 동물로 잠깐 → 결승 프레임에서 낙하산 착지 → 전원 앉으면(focus 없음) 다시 스탠드로(왕관·색종이는 계속)
+            else if (loserDone && data.target !== 'first') { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = loserB; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로. 1등 룰은 비석 없음
+            else if (!focus && !frameMode) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
                 var top = hf.zone.y - frameAbove, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
@@ -812,7 +883,8 @@ var DeguriRender = (function () {
                 if (view.narrow && fitZoom < MOBILE_ZOOM_MIN) {   // 폰: 줌 하한 때문에 프레임이 다 안 들어가면 초점 공(선두 / 꼴등 룰 마지막 1/3 은 후미)을 프레임 안에서 세로로 따라간다
                     targetZoom = MOBILE_ZOOM_MIN;
                     var half = view.h / 2 / targetZoom, follow = focus || rear || lead;
-                    targetY = clamp(follow.y + view.h * CAM_LEAD / targetZoom, top + half, Math.max(top + half, bottom - half)); camTarget = follow;
+                    if (follow) { targetY = clamp(follow.y + view.h * CAM_LEAD / targetZoom, top + half, Math.max(top + half, bottom - half)); camTarget = follow; }
+                    else targetY = clamp(bottom - half, top + half, Math.max(top + half, bottom - half));   // 전원 착지(1등 룰 끝): 스탠드 쪽
                 }
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
                     var kk = clamp((rear.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
@@ -827,7 +899,7 @@ var DeguriRender = (function () {
                 if (targetZoom > 1.01) targetY = focus.y + view.h * CAM_LEAD / targetZoom;
             }
             // 꼴찌가 확정되는 순간 한 번 자동으로 돌아가 비석·축하 장면을 놓치지 않게 한다. 그 뒤(결과 화면)에 순위표를 누르면 다시 따라간다
-            if (!loserDone) cam.loserSeen = false;
+            if (!decided) cam.loserSeen = false;
             else if (!cam.loserSeen) { cam.loserSeen = true; if (manual.on) setManual(false); }
             if (manual.on && !manual.follow && !manual.held && Date.now() - manual.lastInput > MANUAL_IDLE_RETURN_MS) setManual(false);   // 손으로 옮긴 뒤 입력이 없으면 자동으로
             if (manual.on && manual.follow) {   // 순위표에서 고른 동물 따라가기
@@ -1364,11 +1436,42 @@ var DeguriRender = (function () {
                 if (!visible((tr.y1 + tr.y2) / 2, 60)) return;
                 var tk = (t - (tr.hitAt != null ? tr.hitAt : -1e9)) / TRAMP_FX_MS, tfr = tk < 0 || tk >= 1 ? 0 : (tk < 0.5 ? 1 : 2);
                 var tlen = Math.hypot(tr.x2 - tr.x1, tr.y2 - tr.y1), tang = Math.atan2(tr.y2 - tr.y1, tr.x2 - tr.x1), tim = img('pieces', 'trampoline');
+                // 찢어짐(서버 life 번째 튕김): 찢어진 자리에서 두 반쪽이 TRAMP_SNAP_MS 동안 기둥 쪽으로 말려 들어가 사라지고, 기둥엔 천 자락만 남는다
+                var broken = tr.brokenAt != null && t >= tr.brokenAt, snapK = broken ? clamp((t - tr.brokenAt) / TRAMP_SNAP_MS, 0, 1) : 0;
+                var bd = broken ? clamp((tr.breakX - tr.x1) / (tr.x2 - tr.x1 || 1), 0, 1) * tlen : 0;
+                var tsag = broken ? 0 : tfr === 1 ? 5 : tfr === 2 ? -3 : 0;
                 ctx.save(); ctx.translate(tr.x1, toScreenY(tr.y1)); ctx.rotate(tang);
-                // 천은 평상 프레임 무늬를 8px 조각으로 깔고, 눌림(아래 5)·튕김(위 3)은 띠 전체를 한 곡선(sin)으로 휜다 — 칸마다 휜 프레임을 이으면 물결로 보인다
-                if (tim) { var tsag = tfr === 1 ? 5 : tfr === 2 ? -3 : 0; for (var td = 0; td < tlen; td += 8) { var tw = Math.min(8, tlen - td); ctx.drawImage(tim, (td % 32) * 4, 0, tw * 4, 48, td, -12 + tsag * Math.sin(Math.PI * (td + tw / 2) / tlen), tw, 12); } }
-                else { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(0, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), tlen, 8); ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
+                // 천은 평상 프레임 무늬를 8px 조각으로 깔고, 눌림(아래 5)·튕김(위 3)은 띠 전체를 한 곡선(sin)으로 휜다 — 칸마다 휜 프레임을 이으면 물결로 보인다.
+                // cloth(from, to) = 거리 from~to 구간만 — 무늬 위상은 왼쪽 끝 기준이라 찢어진 반쪽도 원래 자리 무늬 그대로
+                var cloth = function (from, to) {
+                    if (!tim) { ctx.fillStyle = tfr === 1 ? '#2f7bd6' : '#4aa3ff'; ctx.fillRect(from, -10 + (tfr === 1 ? 4 : tfr === 2 ? -3 : 0), to - from, 8); return; }
+                    for (var td = Math.floor(from / 8) * 8; td < to; td += 8) {
+                        var ta = Math.max(td, from), tb = Math.min(td + 8, to, tlen); if (tb <= ta) continue;
+                        ctx.drawImage(tim, (ta - td + td % 32) * 4, 0, (tb - ta) * 4, 48, ta, -12 + tsag * Math.sin(Math.PI * (ta + tb) / 2 / tlen), tb - ta, 12);
+                    }
+                };
+                if (!broken) {
+                    cloth(0, tlen);
+                    // 맞은 자리 찢어진 자국 — 계약: trampoline-tear 32×12 ×2(소스 128×48, 작게·크게, 천 칸과 같은 높이·배율). 절반 넘게 맞으면 큰 자국(3번짜리 = 1번 작게·2번 크게, 5번짜리 = 1·2번 작게·3·4번 크게). 없으면 어두운 틈
+                    var ttear = img('pieces', 'trampoline-tear');
+                    (tr.tears || []).forEach(function (tt) {
+                        var d = clamp(clamp((tt.x - tr.x1) / (tr.x2 - tr.x1 || 1), 0, 1) * tlen, 16, tlen - 16), dy = tsag * Math.sin(Math.PI * d / tlen), big = tt.n * 2 >= tr.life;
+                        if (ttear) ctx.drawImage(ttear, (big ? 1 : 0) * 128, 0, 128, 48, d - 16, -12 + dy, 32, 12);
+                        else { var hw = big ? 8 : 4; ctx.fillStyle = '#14243d'; ctx.beginPath(); ctx.moveTo(d - hw, -6 + dy); ctx.lineTo(d - hw / 2, -9 + dy); ctx.lineTo(d, -5 + dy); ctx.lineTo(d + hw / 2, -9 + dy); ctx.lineTo(d + hw, -6 + dy); ctx.lineTo(d + hw / 2, -3 + dy); ctx.lineTo(d - hw / 2, -3 + dy); ctx.closePath(); ctx.fill(); }
+                    });
+                }
+                else if (snapK < 1) { cloth(0, bd * (1 - snapK)); cloth(bd + (tlen - bd) * snapK, tlen); }
+                if (!tim) { ctx.fillStyle = '#1f3d66'; ctx.fillRect(-4, -14, 6, 20); ctx.fillRect(tlen - 2, -14, 6, 20); }
                 ctx.restore();
+                if (broken && snapK >= 1) {   // 기둥에 남은 천 자락 — 계약: trampoline-stub 16×16(왼쪽 기둥용, 위 왼쪽 = 묶인 점, 오른쪽은 반전). 없으면 짧게 늘어진 파란 띠
+                    var tstub = img('pieces', 'trampoline-stub');
+                    [[tr.x1, tr.y1, 1], [tr.x2, tr.y2, -1]].forEach(function (pp) {
+                        ctx.save(); ctx.translate(pp[0] + pp[2] * 2, toScreenY(pp[1]) - 12); ctx.scale(pp[2], 1);
+                        if (tstub) ctx.drawImage(tstub, 0, -2, 16, 16);
+                        else { ctx.rotate(1.1); ctx.fillStyle = '#4aa3ff'; ctx.fillRect(0, -3, 9, 5); }
+                        ctx.restore();
+                    });
+                }
                 var tpost = img('pieces', 'trampoline-post');   // 양 끝 기둥 64×96(표시 16×24, 하단 정렬) — 고정쇠가 천 쪽을 보게 오른쪽 끝은 뒤집는다
                 if (tpost) [[tr.x1, tr.y1, 1], [tr.x2, tr.y2, -1]].forEach(function (pp) { ctx.save(); ctx.translate(pp[0], toScreenY(pp[1]) + 10); ctx.scale(pp[2], 1); ctx.drawImage(tpost, -8, -24, 16, 24); ctx.restore(); });
             });
@@ -1614,6 +1717,61 @@ var DeguriRender = (function () {
             drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
             if (b.balloon && overlayQ) overlay(drawBalloon, [b, b.x, toScreenY(b.y + 4) - BALL_R - 1, mine]);   // 채 간 공에도 야식은 매달려 간다
             if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
+        }
+        // 1등 룰 낙하산(docs/goal/deguri-first-rule-flow.md): 위치는 서버가 프레임에 구운 그대로. 공(말린 채 — 자는 공은 sleep 시트 + Zz) 위에 캐노피와 줄 둘.
+        // 펴질 땐 PARA_POP_MS 동안 커지고, 캐노피는 좌·중·우 셀로 흔들린다. 이름표는 공 아래(위는 캐노피). 야식 풍선은 캐노피와 겹쳐 안 단다
+        // 캐노피 시트 fx/parachute.webp 128×96 ×4(좌·중·우·접힘, 아래 가운데 = 줄 시작) — 없으면 코드 도형(반원 + 고어 선)
+        function drawParachute(b, t, mine) {
+            ensureFx('parachute');
+            var c = b.carry, open = !c || t >= c.t0;   // 펴지기 전(그 자리에 멈춘 CHUTE_DEPLOY_MS)엔 공만
+            var pop = c ? clamp((t - c.t0) / PARA_POP_MS, 0, 1) : 1, sc = 0.3 + 0.7 * (1 - (1 - pop) * (1 - pop));
+            var ph = Math.sin((t - (c ? c.t0 : 0)) / PARA_SWAY_MS * Math.PI), cell = ph > 0.33 ? 2 : ph < -0.33 ? 0 : 1;
+            var bodyTop = b.deep ? b.y - 22 : b.y - BALL_R, top = bodyTop - PARA_LINE_PX * sc;
+            if (open && !drawSprite('fx', 'parachute', b.x, top, 128, 96, { sx: cell * 128, sw: 128, anchor: 'bottom', scale: sc })) {
+                // 코드 도형: 빨강·하양 번갈이 고어 4개의 반원 캐노피(사용자 2026-10-06 "하얀색과 빨간색")
+                var r = 16 * sc, cols = [tok('--deguri-chute-red'), tok('--deguri-chute-white')];
+                ctx.save(); ctx.translate(b.x + (cell - 1) * 1.5, toScreenY(top)); ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1.5;
+                for (var g = 0; g < 4; g++) {
+                    var a0 = Math.PI + g * Math.PI / 4, a1 = a0 + Math.PI / 4;
+                    ctx.fillStyle = cols[g % 2]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, a0, a1); ctx.closePath(); ctx.fill();
+                }
+                ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); ctx.closePath(); ctx.stroke();
+                ctx.restore();
+            }
+            if (open) {
+                ctx.save(); ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1; ctx.beginPath();
+                ctx.moveTo(b.x - 11 * sc, toScreenY(top)); ctx.lineTo(b.x - 4, toScreenY(bodyTop + 3));
+                ctx.moveTo(b.x + 11 * sc, toScreenY(top)); ctx.lineTo(b.x + 4, toScreenY(bodyTop + 3));
+                ctx.stroke(); ctx.restore();
+            }
+            if (b.deep) {
+                var sl = sheet('sleep', b);
+                if (sl) { var sf = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sl, sf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
+                else drawCreatureFrame(b, 4, 2, b.x, b.y - 4);
+                var zt = t % 900; overlay(drawZz, [b.x + 14, b.y - 20 - zt / 45, Math.floor(zt / 225), 1 - zt / 900, zt < 450 ? 'z' : 'Z']);
+            }
+            else drawCreatureFrame(b, 2, 0, b.x, b.y, Math.sin(t / 300) * 0.1, 1);
+            drawRing(b, b.x, b.y, (b.deep ? NAP_R : BALL_R) + 1, mine, true);
+            drawNameTag(b, b.x, toScreenY(b.y) + BALL_R + 12, mine);
+        }
+        // 돗자리(1등 룰 깊은 잠): fx/mat.webp 192×64 ×4(말림 → 펼침, 표시 48×16), 공 발밑(y+12) 가운데 앵커. 자는 동물(≈36px)보다 넓어 양옆으로 보인다. k = 펼침 정도 0~1. 없으면 줄무늬 둥근 네모
+        function drawMat(x, y, k) {
+            ensureFx('mat');
+            var cell = Math.min(3, Math.floor(k * 4)), my = y + 12;
+            if (drawSprite('fx', 'mat', x, my, 192, 64, { sx: cell * 192, sw: 192 })) return;
+            var w = 14 + 34 * k, h = 12;
+            ctx.save(); ctx.translate(x, toScreenY(my));
+            ctx.fillStyle = tok('--deguri-chute-red'); roundRect(-w / 2, -h / 2, w, h, 3); ctx.fill();
+            ctx.fillStyle = tok('--deguri-mat-stripe'); for (var s = -w / 2 + 4; s < w / 2 - 3; s += 8) ctx.fillRect(s, -h / 2 + 1, 3, h - 2);
+            ctx.strokeStyle = tok('--deguri-sprite-line'); ctx.lineWidth = 1; roundRect(-w / 2, -h / 2, w, h, 3); ctx.stroke();
+            ctx.restore();
+        }
+        // 탈락 자막(1등 룰) — "{주인}의 {동물}가 잠들었다… 이번 판 못 들어감". 받침에 따라 이/가. 내 공이면 "(휴)" — 당첨 = 벌칙이라 탈락은 안심
+        function pushToast(b, t0) {
+            var who = Array.from(String(b.owner || '')); who = who.length > 6 ? who.slice(0, 6).join('') + '…' : who.join('');
+            var animal = b.skinName || CREATURE_NAMES[b.creature] || '동물', last = animal.charCodeAt(animal.length - 1);
+            var ga = (last >= 0xAC00 && last <= 0xD7A3 && (last - 0xAC00) % 28) ? '이' : '가';
+            toasts.push({ t0: t0, text: who + '의 ' + animal + ga + (b.deepKind === 'pit' ? ' 온천에서' : '') + ' 잠들었다… 이번 판 못 들어감' + (b.owner === myName ? ' (휴)' : '') });
         }
         // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
         function eaglePatrol(tt, ei) {
@@ -1878,18 +2036,19 @@ var DeguriRender = (function () {
         }
 
         function drawBalls(t) {
-            var i, b, mine;
+            var i, b, mine, hlOwner = watchedOwner();
             ballClock = (phase === 'idle') ? idleClock : t;   // 재생 중엔 재생 시각 — 모든 클라가 같은 각도로 흔들린다
             var hf0 = (pieces.holefield || [])[0];
             // 그림자 먼저
-            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
+            for (i = 0; i < leftMats.length; i++) if (visible(leftMats[i].y, 40)) drawMat(leftMats[i].x, leftMats[i].y, 1);   // 낙하산으로 떠난 깊은 잠 자리의 돗자리(1등 룰) — 바닥 장식이라 그림자보다 먼저
+            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || b.state === 'chute' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
             var rearByOwner = {};
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done') continue; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
             // z-order: 화면 아래(y 큰 쪽)가 앞 — y 오름차순으로 그려 겹치면 아래 놈이 위 놈을 가린다(같은 y 면 x·id 순으로 고정, 프레임마다 안 바뀜).
             // 독수리에 들린 놈은 공중이라 모든 몸 위에, 이름표·zz 같은 머리 위 표식은 overlayQ 로 맨 위에
             overlayQ = [];
-            var order = balls.slice().sort(function (a, c) { return a.y - c.y || a.x - c.x || a.id - c.id; }), carried = [];
+            var order = balls.slice().sort(function (a, c) { return a.y - c.y || a.x - c.x || a.id - c.id; }), carried = [], chuted = [];
             if (t < 0 && phase === 'idle') {   // 대기 화면: 서성임·몸싸움으로 그려지는 자리가 칸과 달라 실제 자리 기준으로 다시 — 싸우는 둘은 맨 앞
                 var ip = {};
                 for (i = 0; i < balls.length; i++) ip[balls[i].id] = idlePose(balls[i]);
@@ -1901,8 +2060,9 @@ var DeguriRender = (function () {
             for (i = 0; i < order.length; i++) {
                 b = order[i];
                 if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
-                mine = b.owner === myName;
+                mine = b.owner === hlOwner;
                 if (b.state === 'carried') { carried.push(b); continue; }
+                if (b.state === 'chute') { chuted.push(b); continue; }   // 낙하산(1등 룰)도 공중 — 모든 몸 위에
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
@@ -1959,9 +2119,11 @@ var DeguriRender = (function () {
                     for (var bi = 0; bi < 3; bi++) { var bt = ((t / 500) + hash01(b.id * 5 + bi)) % 1; ctx.beginPath(); ctx.arc(b.x - 10 + bi * 10 + Math.sin(t / 150 + bi) * 2, toScreenY(b.y + 6) - bt * 18, 2 + (1 - bt) * 1.5, 0, Math.PI * 2); ctx.fill(); }
                     ctx.restore();
                     drawBadge(b, b.x, b.y + 4, mine);
+                    if (b.deep) { var pz = t % 900; overlay(drawZz, [b.x + 14, b.y - 16 - pz / 45, Math.floor(pz / 225), 1 - pz / 900, pz < 450 ? 'z' : 'Z']); }   // 온천에 남음(1등 룰): 잠듦과 같은 문법 — Zz
                     continue;
                 }
                 if (b.state === 'nap') {
+                    if (b.deep && b.deepKind === 'sleep' && !b.onLane) drawMat(b.x, b.y, clamp((t - b.matAt) / MAT_UNROLL_MS, 0, 1));   // 깊은 잠(1등 룰): 돗자리가 밑에서 펼쳐진다 — 이 판엔 안 일어난다는 표시. 낙하산으로 통로에 내려앉은 뒤엔 돗자리 없음(잔디에 남았다)
                     // 잠든 포즈 — 2차 sleep 스트립 없으면 1차 faceplant col 2(엎어짐) 프레임
                     var sl = sheet('sleep', b);
                     if (sl) { var sf = Math.floor(t / 400) % 2; ctx.save(); ctx.translate(b.x, toScreenY(b.y)); ctx.drawImage(sl, sf * CELL, 0, CELL, CELL, -20, -22, 40, 40); ctx.restore(); }
@@ -2039,7 +2201,8 @@ var DeguriRender = (function () {
                 drawCreatureFrame(b, 2, col, b.x, b.y, col === 1 ? 0 : b.angle);
                 drawRing(b, b.x, b.y, BALL_R + 1, mine);   // 구를 때만 링 — 공 스프라이트(지름 28)에 딱 맞게
             }
-            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === myName);   // 공중 — 모든 몸 위
+            for (i = 0; i < carried.length; i++) drawEagleCarry(carried[i], t, carried[i].owner === hlOwner);   // 공중 — 모든 몸 위
+            for (i = 0; i < chuted.length; i++) drawParachute(chuted[i], t, chuted[i].owner === hlOwner);
             // 후미 깃발 (내 이름은 공마다 붙는 이름표 알약이 이미 보여준다 — 예전 흰 글자 이름은 알약과 겹쳐 두 번 떠 보여 뺌, 사용자 2026-09-21)
             Object.keys(rearByOwner).forEach(function (owner) {
                 var rb = rearByOwner[owner]; if (!visible(rb.y, 60) || t < 0) return;
@@ -2104,22 +2267,16 @@ var DeguriRender = (function () {
         var celCache = null;
         function celebration(t) {
             if (!data || data.target !== 'first' || !data.result || !data.result.selected || !data.finishOrder.length) return null;
-            var loserB = byId[data.finishOrder[data.finishOrder.length - 1]];
-            if (!loserB || loserB.state !== 'done') { celCache = null; return null; }
-            if (celCache && celCache.loserAt === loserB.finishAt) { celCache.since = t - celCache.startT; return celCache; }
+            // 1등 룰: 첫 골인 동물(finishOrder[0]) = 당첨자의 동물. 왕관은 꼴찌가 아니라 이 공이 홈통을 굴러 자리에 앉는 순간부터 — 낙하산들은 그 뒤에 내려온다(docs/goal/deguri-first-rule-flow.md)
+            var firstB = byId[data.finishOrder[0]];
+            if (!firstB || firstB.state !== 'done') { celCache = null; return null; }
+            if (celCache && celCache.loserAt === firstB.finishAt) { celCache.since = t - celCache.startT; return celCache; }
             var L = standLayout(); if (!L) return null;
-            var owner = data.result.selected, crownB = null, crownSlot = null, arrival = 0;
-            for (var i = 0; i < balls.length; i++) {
-                var b = balls[i];
-                if (b.owner !== owner || b.state !== 'done' || b.id === loserB.id) continue;
-                var slot = standSlot(L, b.finishIdx);
-                if (!slot) continue;
-                if (!crownB || b.finishIdx < crownB.finishIdx) { crownB = b; crownSlot = slot; }
-            }
-            if (crownB && L.chute) arrival = crownB.finishAt + ((L.chute.y - L.ln.y) + (L.chute.x - (L.z.x + 4))) / CHUTE_SPEED * 1000 + POOF_FX_MS;   // 홈통을 다 굴러 자리에 앉은 뒤
+            var owner = data.result.selected, crownB = firstB, crownSlot = standSlot(L, firstB.finishIdx), arrival = 0;
+            if (L.chute) arrival = crownB.finishAt + ((L.chute.y - L.ln.y) + (L.chute.x - (L.z.x + 4))) / CHUTE_SPEED * 1000 + POOF_FX_MS;   // 홈통을 다 굴러 자리에 앉은 뒤
             var x = crownSlot ? crownSlot.x : L.z.x + L.z.w / 2, y = crownSlot ? crownSlot.y : L.z.y + 18;
-            var startT = Math.max(loserB.finishAt + GRAVE_DROP_MS + CROWN_DELAY_MS, arrival);
-            celCache = { owner: owner, ball: crownB, x: x, y: y, startT: startT, loserAt: loserB.finishAt, crownLanded: false, since: t - startT };
+            var startT = Math.max(firstB.finishAt + CROWN_DELAY_MS, arrival);
+            celCache = { owner: owner, ball: crownB, x: x, y: y, startT: startT, loserAt: firstB.finishAt, crownLanded: false, since: t - startT };
             return celCache;
         }
         // 1등 당첨 축하 연출: 왕관이 위에서 떨어져 1등 동물 머리에 얹히고(쿵 → 먼지), 색종이가 흩날리며 "1등 확정… 당첨!"
@@ -2186,7 +2343,7 @@ var DeguriRender = (function () {
                 var b = balls[i2];
                 if (b.state !== 'done') continue;
                 var idx = b.finishIdx;
-                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 앞 판자벽 자리 비석(drawLastBall)
+                if (b.id === lastId && idx === total - 1 && data.target !== 'first') continue;   // 꼴찌는 골 앞 판자벽 자리 비석(drawLastBall). 1등 룰은 비석 없이 전원 착석
                 var slot = standSlot(L, idx);
                 if (!slot) continue;
                 var x2 = slot.x, y2 = slot.y;
@@ -2199,7 +2356,7 @@ var DeguriRender = (function () {
                         else { px = chute.x - (dist - d0); py = chute.y; }
                         if (!visible(py, 40)) continue;
                         drawCreatureFrame(b, 2, 0, px, py, -dist / (BALL_R * 0.85), 0.85);
-                        drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
+                        drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === watchedOwner());
                         continue;
                     }
                     since -= (d0 + d1) / CHUTE_SPEED * 1000;   // 끝에 닿은 뒤 경과 = 자리에 나타난 뒤 경과
@@ -2219,7 +2376,13 @@ var DeguriRender = (function () {
                     ctx.beginPath(); ctx.arc(x2, toScreenY(y2 - 6 - hop), BALL_R * 0.85 + 2, 0, Math.PI * 2); ctx.stroke();
                     ctx.restore();
                 }
-                if (!drawReaction(b, x2, y2 - 6 - hop, false, 0.85)) drawCreatureFrame(b, 3, frame, x2, y2 - 6 - hop, 0, 0.85);   // 눌렀으면 반응(12)
+                if (b.deep) {   // 탈락(자는) 공(1등 룰)은 스탠드에서도 잔다 — 응원 프레임·깡충 없음
+                    var sls = sheet('sleep', b), sfs = Math.floor(t / 400) % 2;
+                    if (sls) { ctx.save(); ctx.translate(x2, toScreenY(y2 - 4)); ctx.drawImage(sls, sfs * CELL, 0, CELL, CELL, -17, -19, 34, 34); ctx.restore(); }
+                    else drawCreatureFrame(b, 4, 2, x2, y2 - 6, 0, 0.85);
+                    var zs = t % 900; overlay(drawZz, [x2 + 10, y2 - 22 - zs / 45, Math.floor(zs / 225), 1 - zs / 900, zs < 450 ? 'z' : 'Z']);
+                }
+                else if (!drawReaction(b, x2, y2 - 6 - hop, false, 0.85)) drawCreatureFrame(b, 3, frame, x2, y2 - 6 - hop, 0, 0.85);   // 눌렀으면 반응(12)
                 // 순위 + 주인 이름 알약(플레이어 색): "3 호스트" — 머리 위 (사용자 2026-09-21: 숫자만으론 누구 동물인지 안 읽힘).
                 // 이름은 앞 6자(standTagText). 칸 폭(colW)보다 넓으면 옆 알약과 조금 겹친다 — 홀수 칸 한 단 올리던 지그재그는 겹침보다 더 어색했다(데구리 6628dd3).
                 // 왕관 쓴 1등 동물은 알약 대신 아래 큰 글자(왕관과 겹침)
@@ -2230,7 +2393,7 @@ var DeguriRender = (function () {
                     var tagTxt = standTagText(idx), tagW = Math.min(colW * 1.6, ctx.measureText(tagTxt).width + 7 * f), tagH = 12 * f;
                     var tagY = toScreenY(y2 - hop) - 23;
                     ctx.fillStyle = ringColor(b); roundRect(x2 - tagW / 2, tagY - tagH / 2, tagW, tagH, 6 * f); ctx.fill();
-                    if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물은 흰 테두리
+                    if (b.owner === watchedOwner()) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2 * f; ctx.stroke(); }   // 내 동물(따라가는 중이면 그 동물)은 흰 테두리
                     ctx.fillStyle = '#fff'; ctx.fillText(tagTxt, x2, tagY + 0.5);
                     ctx.restore();
                 }
@@ -2322,6 +2485,13 @@ var DeguriRender = (function () {
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
                     case 'spring': if (!visible(y, 40)) return; drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 }); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
+                    case 'trampBurst': {   // 트램펄린 찢어짐 — 계약: fx trampoline-burst 48×48 ×5(터짐 → 천 조각·고리 흩어짐 → 떨어짐). 없으면 별 효과 크게
+                        if (!visible(y, 60)) return;
+                        var tbf = Math.min(TRAMP_BURST_FRAMES - 1, Math.floor(k * TRAMP_BURST_FRAMES));
+                        if (!drawSprite('fx', 'trampoline-burst', x, y - 6, 192, 192, { sx: tbf * 192, sw: 192 })) drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96, scale: 1.6 });
+                        label('찌익!', x - 10, y - 30 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15);
+                        break;
+                    }
                     case 'quake': {   // 지진: 구역 안 먼지 6개(시드 자리) + 땅 금(에셋 없으면 코드 금) + 라벨. 카메라 흔들림은 R.render
                         if (!visible(y, 400)) return;
                         for (var qi = 0; qi < 6; qi++) {
@@ -2390,6 +2560,7 @@ var DeguriRender = (function () {
             for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state !== 'done') rem++; rows.push({ owner: b.owner, ball: b, done: b.state === 'done' }); }
             rows.sort(function (a, b) {
                 if (a.done !== b.done) return a.done ? -1 : 1;
+                if (!a.done && !!a.ball.deep !== !!b.ball.deep) return a.ball.deep ? 1 : -1;   // 탈락(자는) 공(1등 룰)은 안 끝난 공 중 맨 뒤 — 착지도 맨 뒤라 순위와 맞다
                 return a.done ? a.ball.finishIdx - b.ball.finishIdx : progress(b.ball) - progress(a.ball);
             });
             hudInfo = { remaining: rem, rows: rows };
@@ -2453,10 +2624,10 @@ var DeguriRender = (function () {
             ctx.drawImage(mmCache.canvas, x0, y0, w, h);
             // 공: 마리 수가 적으면 동물 공 아이콘(플레이어 색 테두리, 내 공은 흰 테두리 추가), 많으면 색 점. 내 공은 맨 위에
             var useIcon = balls.length <= MINIMAP_ICON_MAX;
-            var mine = [];
+            var mine = [], hlOwner = watchedOwner();   // 따라가는 중이면 그 사람 공이 강조
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i]; if (b.state === 'done' || t < 0) continue;
-                if (b.owner === myName) { mine.push(b); continue; }
+                if (b.owner === hlOwner) { mine.push(b); continue; }
                 if (useIcon) drawMiniIcon(b, mx(b.x), my(b.y), MINIMAP_ICON_PX, false);
                 else { ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(mx(b.x), my(b.y), 1.7, 0, Math.PI * 2); ctx.fill(); }
             }
@@ -2475,10 +2646,11 @@ var DeguriRender = (function () {
 
         // 순위표 카메라 표시 — 카메라 버튼과 같은 픽셀 카메라 아이콘(로드 전이면 생략). 내 줄 강조(흰 글씨·강조 아이콘)와 모양이 다르다
         var camMarkImg = null;
-        function drawCamMark(cx, cy) {
+        function drawCamMark(cx, cy, size) {
             if (!camMarkImg) { camMarkImg = new Image(); camMarkImg.src = CAM_ICONS.auto; }
             if (!camMarkImg.complete || !camMarkImg.naturalWidth) return;
-            ctx.imageSmoothingEnabled = false; ctx.drawImage(camMarkImg, cx - 8, cy - 8, 16, 16); ctx.imageSmoothingEnabled = true;
+            size = size || 16;
+            ctx.imageSmoothingEnabled = false; ctx.drawImage(camMarkImg, cx - size / 2, cy - size / 2, size, size); ctx.imageSmoothingEnabled = true;
         }
         // 출발 카운트다운: 준비!(첫 1초) → 3 → 2 → 1(1초씩) → 출발 순간 START! — 화면 가운데 큰 글자, 매 초 커졌다 줄며 톡 튀어나온다(데구리 6628dd3)
         var COUNT_START_SHOW_MS = 700;
@@ -2506,16 +2678,33 @@ var DeguriRender = (function () {
             // 왼쪽 위 상태 문구 — 전체화면이 아닐 땐 2배속 구간에만('출발 준비…'·'남은 동물 N마리'·'꼴찌 확정!' 은 순위표·카운트다운·결승 글자와 겹치는 정보라 뺐다, 데구리 8b14a1c).
             // 전체화면에서는 캔버스 밖 HTML 상태가 안 보여 유일한 진행 정보이므로 지금처럼 계속 보인다. 대기 화면 문구('출발대 대기 N마리')는 유지
             var txt = null;
+            var lead0 = hudInfo.rows && hudInfo.rows.length ? hudInfo.rows[0] : null;
+            // 1등 룰 선두 문구 — 전체화면이 아니어도 보인다(사용자 2026-10-06). 당첨이 정해진 뒤엔 결승 글자("1등 확정… 당첨!")가 있어 평소 화면에선 뺀다. 이름은 순위표와 같은 7자까지
+            var leadTxt = null;
+            if (t >= 0 && phase !== 'idle' && data.target === 'first' && lead0 && !lead0.done) { var ln = Array.from(String(lead0.owner || '')); leadTxt = '선두 ' + (ln.length > HUD_RANK_NAME_MAX ? ln.slice(0, HUD_RANK_NAME_MAX).join('') + '…' : ln.join('')); }
             if (phase === 'idle') txt = balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대';
             else if (view.fs) {
                 var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-                txt = t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : (data.target === 'first' && data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : '꼴찌 확정!'));
+                txt = t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리'
+                    : data.target === 'first' ? (leadTxt || (data.result && data.result.selected ? '1등 ' + data.result.selected + ' 님 당첨!' : null))   // 1등 룰: 남은 마릿수는 꼴등 지표 — 선두 주인을 보여준다
+                    : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : '꼴찌 확정!');
             }
+            else if (leadTxt) txt = leadTxt;
             else if (t >= 0 && inFast(t)) txt = '▷▷ 2배속';
             if (txt) {
                 var sw = ctx.measureText(txt).width + 20;
                 ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, sw, 26, 8); ctx.fill();
                 ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
+            }
+            // 탈락 자막(1등 룰) — 아래 가운데(위 오른쪽 순위표·왼쪽 미니맵과 안 겹치게), 최근 것 하나만 ELIM_TOAST_MS 동안. 재생 시각 기준이라 시크해도 같은 자리에 다시 뜬다
+            for (var ti = toasts.length - 1; ti >= 0; ti--) {
+                var to = toasts[ti], age = t - to.t0; if (age < 0 || age >= ELIM_TOAST_MS) continue;
+                var ta = age < 200 ? age / 200 : age > ELIM_TOAST_MS - 400 ? (ELIM_TOAST_MS - age) / 400 : 1;
+                ctx.save(); ctx.globalAlpha = ta; ctx.font = 'bold 13px "Jua", sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
+                var tw = Math.min(hw - 16, ctx.measureText(to.text).width + 20), tcx = hw / 2, tty = hh - 64;
+                ctx.fillStyle = 'rgba(' + tok('--deguri-hud-rgb') + ', 0.6)'; roundRect(tcx - tw / 2, tty, tw, 24, 8); ctx.fill();
+                ctx.fillStyle = tok('--deguri-toast-ink'); ctx.fillText(to.text, tcx, tty + 5, tw - 12); ctx.restore();
+                break;
             }
             // 당첨 룰 배지 — 오른쪽 위, 순위표 바로 위(19). 순위표가 있으면 둘을 같은 폭·같은 왼쪽 끝으로 맞춘다. 캔버스 위 HTML 배너는 전체화면·스크롤에서 안 보이니 경주 내내 캔버스 안에 띄운다
             var ruleH = (phase !== 'idle' && data.target) ? HUD_RULE_H : 0;
@@ -2539,20 +2728,22 @@ var DeguriRender = (function () {
                 var compact = view.narrow && !rankOpen;
                 var rowH = compact ? HUD_RANK_COMPACT_ROW : HUD_RANK_ROW, hdrH = compact ? 22 : 26, nameMax = compact ? HUD_RANK_COMPACT_NAME_MAX : HUD_RANK_NAME_MAX;
                 var rowFont = 'bold ' + (compact ? 11 : 12) + 'px "Jua", sans-serif', hdrFont = 'bold ' + (compact ? 12 : 14) + 'px "Jua", sans-serif', hdrIcon = compact ? 14 : 16;
-                var xRank = compact ? 32 : 44, xIcon = compact ? 45 : 56, xName = compact ? 57 : 68;   // 묶음 안 가로 자리: 순위 오른쪽 끝·얼굴 가운데·이름 왼쪽 끝
                 ctx.font = rowFont;
+                // 묶음 안 가로 자리: 순위 오른쪽 끝·얼굴 가운데·이름 왼쪽 끝 — 순위 칸은 실제 글자 폭('꼴찌'·'N위' 중 넓은 것)으로. 예전엔 카메라 표시 칸(14)과 넉넉한 순위 칸을 늘 비워 둬 왼쪽이 휑했다
+                var iconPx = compact ? HUD_RANK_COMPACT_ICON_PX : HUD_ICON_PX, padX = compact ? 6 : 8;
+                var xRank = Math.ceil(Math.max(ctx.measureText('꼴찌').width, ctx.measureText(hudInfo.rows.length + '위').width)), xIcon = xRank + 4 + iconPx / 2, xName = xRank + 4 + iconPx + 4;
                 var y = hudTop, rows = hudInfo.rows, n = rows.length;   // 당첨 룰은 따로 배지 없이 순위표 머리줄로(사용자 2026-09-24)
                 var multi = balls.some(function (b) { return b.num > 1; });   // 한 사람 여러 마리일 때만 'N번'(그 사람의 몇 번째 동물) — 1마리 경주는 늘 1번이라 뺀다(17)
                 var shortName = function (nm) { return nm.length > nameMax ? nm.slice(0, nameMax) + '…' : nm; };
                 var rankText = function (r) { return shortName(r.ball.owner) + (compact ? '' : r.done ? ' 도착' : multi ? ' ' + r.ball.num + '번' : ''); };
                 // 폭 = 이름 앞(카메라 표시·순위·얼굴 68) + 가장 긴 이름 + 뒤 꼬리(' 도착'·' 9번' 중 긴 것 — 경주 중 폭이 들썩이지 않게) + 오른쪽 여백. 상한 HUD_RANK_W_MAX
                 var tailW = compact ? 0 : Math.max(ctx.measureText(' 도착').width, multi ? ctx.measureText(' 9번').width : 0);
-                var textW = ctx.measureText('순위표').width + 17 - (xName - 8);
+                var textW = 0;
                 rows.forEach(function (r) { textW = Math.max(textW, ctx.measureText(shortName(r.ball.owner)).width + tailW); });
-                var blockW = Math.ceil(textW + xName - 6);   // 카메라 표시(6~20)·순위(~38)·얼굴(50)·이름(62~) 묶음 폭
+                var blockW = Math.ceil(textW + xName), titleW0 = ctx.measureText('순위표').width + 17;   // 순위·얼굴·이름 묶음 폭 / 머리줄 '순위표'(아이콘 포함) 폭
                 var hdrRuleW = ruleW; if (compact && ruleH) { ctx.font = hdrFont; hdrRuleW = ctx.measureText(ruleText).width + hdrIcon + 4 + 14; ctx.font = rowFont; }
-                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + 14), hdrRuleW), L = hw - w - 8;
-                var X = L + Math.round((w - blockW) / 2) - 6;   // 묶음을 패널 가운데로
+                var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + padX * 2), hdrRuleW, ruleH ? 0 : Math.ceil(titleW0) + padX * 2), L = hw - w - 8;
+                var X = L + Math.round((w - blockW) / 2);   // 묶음 왼쪽 끝 — 패널 가운데로
                 badgeDone = true;
                 var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
                 var maxRows = Math.max(1, Math.floor((panelMaxH - hdrH - HUD_RANK_TOGGLE_H) / rowH));
@@ -2607,10 +2798,11 @@ var DeguriRender = (function () {
                     var isTarget = data.target === 'first' ? idx === 0 : idx === n - 1;
                     if (isTarget) { ctx.fillStyle = 'rgba(255,209,102,0.22)'; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.fill(); }
                     if (manual.follow === b) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(L + 4, top + 1, w - 8, rowH - 2, 5); ctx.stroke(); }   // 순위표에서 눌러 따라가는 동물
-                    if (!compact && cam.target === b) drawCamMark(X + 13, cy);   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11)
+                    var camRow = !compact && cam.target === b;   // 지금 카메라가 보는 동물 — 자동 카메라일 때도(11). 얼굴 왼쪽 위에 작은 표시(칸을 따로 비우지 않는다)
                     ctx.fillStyle = isTarget ? '#ffd166' : '#bdbdbd'; ctx.textAlign = 'right';
-                    ctx.fillText(idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + xRank, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만
-                    drawMiniIcon(b, X + xIcon, cy, compact ? HUD_RANK_COMPACT_ICON_PX : HUD_ICON_PX, mineRow);
+                    ctx.fillText(!r.done && b.deep ? '잠듦' : idx === n - 1 && n > 1 && data.target !== 'first' ? '꼴찌' : (idx + 1) + '위', X + xRank, cy + 1);   // 1등 룰 판은 꼴찌 표기 없이 등수만. 탈락(자는) 공은 착지 전까지 '잠듦'
+                    drawMiniIcon(b, X + xIcon, cy, iconPx, mineRow);
+                    if (camRow) drawCamMark(X + xIcon - iconPx / 2 + 1, cy - iconPx / 2 + 2, 11);
                     ctx.fillStyle = mineRow ? '#fff' : '#e8e8e8'; ctx.textAlign = 'left';   // 내 줄 강조: 흰 글씨 + 강조 아이콘(흰 바깥 링)
                     ctx.fillText(rankText(r), X + xName, cy + 1);
                     rankHits.push({ x: L, y: top, w: w, h: rowH, ball: b });
@@ -2657,7 +2849,7 @@ var DeguriRender = (function () {
             drawBalls(t);
             drawCheerStand(t);
             drawBasketFront(t);
-            drawLastBall(t);
+            if (data.target !== 'first') drawLastBall(t);   // 1등 룰은 비석 없음 — 마지막 착지 공도 스탠드에 앉는다
             drawWinnerCelebration(t);
             drawFx(t);
             ctx.restore();

@@ -32,83 +32,43 @@ async function getMyOrderedMenus(serverId, userName) {
     }
 }
 
-// ─── 종합 랭킹 ───
+// ─── 통합 랭킹 (사람 × 게임 집계) ───
 
-async function getOverallRanking(serverId) {
+// 필터(게임)·정렬·등수·내 순위는 클라가 계산한다 — 서버 멤버 규모라 사람×게임 행을 전부 내려도 작다.
+// 테이블명은 파라미터화할 수 없어 보간 대신 완성된 쿼리를 상수로 둔다 (사용자 입력 미개입)
+const PLAYER_COLUMNS = `
+        user_name, game_type,
+        COUNT(*) AS games,
+        COUNT(*) FILTER (WHERE is_winner = true) AS wins`;
+
+const PLAYERS_SQL_LIVE = `SELECT ${PLAYER_COLUMNS} FROM server_game_records WHERE server_id = $1 GROUP BY user_name, game_type`;
+const PLAYERS_SQL_FREE = `SELECT ${PLAYER_COLUMNS} FROM server_game_records WHERE server_id IS NULL GROUP BY user_name, game_type`;
+const PLAYERS_SQL_ARCHIVE = `SELECT ${PLAYER_COLUMNS} FROM season_archives WHERE server_id = $1 AND season = $2 GROUP BY user_name, game_type`;
+
+// serverId=null → 자유 랭킹, season=null → 현재 시즌(라이브 테이블), season=N → 아카이브된 그 시즌
+// 반환: [{ name, byGame: { [gameType]: { games, wins } } }]
+async function getRankingPlayers(serverId, season) {
     const pool = getPool();
-    if (!pool) return { mostPlayed: [], mostWins: [], winRate: [], avgRank: [] };
+    if (!pool) return [];
 
-    const condition = serverId ? 'server_id = $1' : 'server_id IS NULL';
-    const params = serverId ? [serverId] : [];
+    let result;
+    if (!serverId) result = await pool.query(PLAYERS_SQL_FREE);
+    else if (season) result = await pool.query(PLAYERS_SQL_ARCHIVE, [serverId, season]);
+    else result = await pool.query(PLAYERS_SQL_LIVE, [serverId]);
 
-    const result = await pool.query(`
-        WITH stats AS (
-            SELECT user_name,
-                COUNT(*) AS games,
-                COUNT(*) FILTER (WHERE is_winner = true) AS wins,
-                ROUND(AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL), 1) AS avg_rank,
-                COUNT(*) FILTER (WHERE game_rank IS NOT NULL AND game_rank <= 3) AS top3_count
-            FROM server_game_records
-            WHERE ${condition}
-            GROUP BY user_name
-        )
-        SELECT user_name, games, wins, avg_rank, top3_count,
-            CASE WHEN games > 0 THEN ROUND(wins::numeric / games * 100, 1) ELSE 0 END AS win_rate
-        FROM stats
-        ORDER BY games DESC
-    `, params);
-
-    const rows = result.rows;
-    return {
-        mostPlayed: rows.slice(0, 10).map(r => ({ name: r.user_name, games: parseInt(r.games) })),
-        mostWins: [...rows].sort((a, b) => b.wins - a.wins).slice(0, 10).map(r => ({ name: r.user_name, wins: parseInt(r.wins) })),
-        winRate: rows.filter(r => parseInt(r.games) >= 5).sort((a, b) => parseFloat(b.win_rate) - parseFloat(a.win_rate)).slice(0, 10)
-            .map(r => ({ name: r.user_name, winRate: parseFloat(r.win_rate), games: parseInt(r.games), wins: parseInt(r.wins) })),
-        avgRank: rows.filter(r => r.avg_rank !== null).sort((a, b) => parseFloat(a.avg_rank) - parseFloat(b.avg_rank)).slice(0, 10)
-            .map(r => ({ name: r.user_name, avgRank: parseFloat(r.avg_rank), top3: parseInt(r.top3_count), games: parseInt(r.games) }))
-    };
+    const byName = new Map();
+    result.rows.forEach(r => {
+        if (!byName.has(r.user_name)) byName.set(r.user_name, { name: r.user_name, byGame: {} });
+        byName.get(r.user_name).byGame[r.game_type] = { games: parseInt(r.games, 10), wins: parseInt(r.wins, 10) };
+    });
+    return [...byName.values()];
 }
 
-// ─── 게임별 랭킹 ───
+// ─── 경마 탈것 등수 분포 ───
 
-async function getGameRanking(serverId, gameType) {
+async function getVehicleStats() {
     const pool = getPool();
-    if (!pool) return { winners: [], players: [] };
-
-    const condition = serverId ? 'server_id = $1' : 'server_id IS NULL';
-    const params = serverId ? [serverId, gameType] : [gameType];
-    const typeParam = serverId ? '$2' : '$1';
-
-    const result = await pool.query(`
-        WITH stats AS (
-            SELECT user_name,
-                COUNT(*) AS games,
-                COUNT(*) FILTER (WHERE is_winner = true) AS wins
-            FROM server_game_records
-            WHERE ${condition} AND game_type = ${typeParam}
-            GROUP BY user_name
-        )
-        SELECT user_name, games, wins
-        FROM stats
-        ORDER BY wins DESC
-        LIMIT 10
-    `, params);
-
-    return {
-        winners: result.rows.map(r => ({ name: r.user_name, wins: parseInt(r.wins), games: parseInt(r.games) })),
-        players: [...result.rows].sort((a, b) => b.games - a.games).slice(0, 10)
-            .map(r => ({ name: r.user_name, games: parseInt(r.games) }))
-    };
-}
-
-// ─── 경마 특화 (탈것 등수 분포) ───
-
-async function getHorseRaceStats(serverId) {
-    const pool = getPool();
-    if (!pool) return { winners: [], vehicles: [] };
-
-    // 기본 게임 랭킹
-    const gameRanking = await getGameRanking(serverId, 'horse');
+    if (!pool) return [];
 
     // vehicle_stats는 배포 전역 누적 테이블 (server_id는 VARCHAR).
     // 기록은 recordVehicleRaceResult(getServerId(), ...) = process.env.SERVER_ID||'default' 키로만 쌓이므로,
@@ -122,7 +82,7 @@ async function getHorseRaceStats(serverId) {
         ORDER BY rank_1 DESC, appearance_count DESC
     `, [vehicleServerId]);
 
-    const vehicles = vehicleResult.rows.map(r => ({
+    return vehicleResult.rows.map(r => ({
         id: r.vehicle_id,
         appearances: parseInt(r.appearance_count),
         picks: parseInt(r.pick_count),
@@ -131,11 +91,6 @@ async function getHorseRaceStats(serverId) {
             parseInt(r.rank_4), parseInt(r.rank_5), parseInt(r.rank_6)
         ]
     }));
-
-    return {
-        winners: gameRanking.winners,
-        vehicles
-    };
 }
 
 // ─── 주문 랭킹 ───
@@ -191,150 +146,6 @@ async function getMyTopOrders(serverId, userName) {
     return result.rows.map(r => ({ menu: r.menu_text, count: parseInt(r.order_count) }));
 }
 
-// ─── 특정 유저 랭킹 (동점 시 같은 등수, 내 랭킹/검색용) ───
-
-async function getMyRank(serverId, userName) {
-    const pool = getPool();
-    if (!pool || !userName) return null;
-
-    const condition = serverId ? 'server_id = $1' : 'server_id IS NULL';
-    const params = serverId ? [serverId, userName] : [userName];
-    const userParam = serverId ? '$2' : '$1';
-
-    const result = { overall: {}, dice: {}, horse: {}, roulette: {} };
-
-    // overall: mostPlayed (games DESC)
-    const mostPlayedRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) AS games
-            FROM server_game_records WHERE ${condition} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, games, DENSE_RANK() OVER (ORDER BY games DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.games
-        FROM ranked r WHERE r.user_name = ${userParam}
-    `, params);
-    if (mostPlayedRow.rows[0]) {
-        const r = mostPlayedRow.rows[0];
-        result.overall.mostPlayed = { rank: parseInt(r.rank), total: parseInt(r.total), games: parseInt(r.games) };
-    }
-
-    // overall: mostWins (wins DESC)
-    const mostWinsRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) FILTER (WHERE is_winner = true) AS wins
-            FROM server_game_records WHERE ${condition} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, wins, DENSE_RANK() OVER (ORDER BY wins DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.wins FROM ranked r WHERE r.user_name = ${userParam}
-    `, params);
-    if (mostWinsRow.rows[0]) {
-        const r = mostWinsRow.rows[0];
-        result.overall.mostWins = { rank: parseInt(r.rank), total: parseInt(r.total), wins: parseInt(r.wins) };
-    }
-
-    // overall: winRate (5게임+)
-    const winRateRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) AS games, COUNT(*) FILTER (WHERE is_winner = true) AS wins,
-                CASE WHEN COUNT(*) > 0 THEN ROUND(COUNT(*) FILTER (WHERE is_winner = true)::numeric / COUNT(*) * 100, 1) ELSE 0 END AS win_rate
-            FROM server_game_records WHERE ${condition} GROUP BY user_name HAVING COUNT(*) >= 5
-        ),
-        ranked AS (SELECT user_name, win_rate, DENSE_RANK() OVER (ORDER BY win_rate DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.win_rate FROM ranked r WHERE r.user_name = ${userParam}
-    `, params);
-    if (winRateRow.rows[0]) {
-        const r = winRateRow.rows[0];
-        result.overall.winRate = { rank: parseInt(r.rank), total: parseInt(r.total), winRate: parseFloat(r.win_rate) };
-    }
-
-    // overall: avgRank
-    const avgRankRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, ROUND(AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL), 1) AS avg_rank
-            FROM server_game_records WHERE ${condition} GROUP BY user_name
-            HAVING AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL) IS NOT NULL
-        ),
-        ranked AS (SELECT user_name, avg_rank, DENSE_RANK() OVER (ORDER BY avg_rank ASC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.avg_rank FROM ranked r WHERE r.user_name = ${userParam}
-    `, params);
-    if (avgRankRow.rows[0]) {
-        const r = avgRankRow.rows[0];
-        result.overall.avgRank = { rank: parseInt(r.rank), total: parseInt(r.total), avgRank: parseFloat(r.avg_rank) };
-    }
-
-    // game type param
-    const typeParams = serverId ? [serverId, userName, 'dice'] : [userName, 'dice'];
-    const typeUserParam = serverId ? '$2' : '$1';
-    const typeCond = serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2';
-
-    const diceWinsRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) FILTER (WHERE is_winner = true) AS wins
-            FROM server_game_records WHERE ${typeCond} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, wins, DENSE_RANK() OVER (ORDER BY wins DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.wins FROM ranked r WHERE r.user_name = ${typeUserParam}
-    `, serverId ? [serverId, userName, 'dice'] : [userName, 'dice']);
-    if (diceWinsRow.rows[0]) {
-        const r = diceWinsRow.rows[0];
-        result.dice.wins = { rank: parseInt(r.rank), total: parseInt(r.total), wins: parseInt(r.wins) };
-    }
-
-    const diceGamesRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) AS games FROM server_game_records
-            WHERE ${serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2'} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, games, DENSE_RANK() OVER (ORDER BY games DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.games FROM ranked r WHERE r.user_name = ${typeUserParam}
-    `, serverId ? [serverId, userName, 'dice'] : [userName, 'dice']);
-    if (diceGamesRow.rows[0]) {
-        const r = diceGamesRow.rows[0];
-        result.dice.games = { rank: parseInt(r.rank), total: parseInt(r.total), games: parseInt(r.games) };
-    }
-
-    const horseWinsRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) FILTER (WHERE is_winner = true) AS wins
-            FROM server_game_records WHERE ${serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2'} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, wins, DENSE_RANK() OVER (ORDER BY wins DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.wins FROM ranked r WHERE r.user_name = ${typeUserParam}
-    `, serverId ? [serverId, userName, 'horse'] : [userName, 'horse']);
-    if (horseWinsRow.rows[0]) {
-        const r = horseWinsRow.rows[0];
-        result.horse.wins = { rank: parseInt(r.rank), total: parseInt(r.total), wins: parseInt(r.wins) };
-    }
-
-    const rouletteWinsRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) FILTER (WHERE is_winner = true) AS wins
-            FROM server_game_records WHERE ${serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2'} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, wins, DENSE_RANK() OVER (ORDER BY wins DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.wins FROM ranked r WHERE r.user_name = ${typeUserParam}
-    `, serverId ? [serverId, userName, 'roulette'] : [userName, 'roulette']);
-    if (rouletteWinsRow.rows[0]) {
-        const r = rouletteWinsRow.rows[0];
-        result.roulette.wins = { rank: parseInt(r.rank), total: parseInt(r.total), wins: parseInt(r.wins) };
-    }
-
-    const rouletteGamesRow = await pool.query(`
-        WITH stats AS (
-            SELECT user_name, COUNT(*) AS games
-            FROM server_game_records WHERE ${serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2'} GROUP BY user_name
-        ),
-        ranked AS (SELECT user_name, games, DENSE_RANK() OVER (ORDER BY games DESC) AS rn FROM stats)
-        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.games FROM ranked r WHERE r.user_name = ${typeUserParam}
-    `, serverId ? [serverId, userName, 'roulette'] : [userName, 'roulette']);
-    if (rouletteGamesRow.rows[0]) {
-        const r = rouletteGamesRow.rows[0];
-        result.roulette.games = { rank: parseInt(r.rank), total: parseInt(r.total), games: parseInt(r.games) };
-    }
-
-    return result;
-}
-
 // ─── TOP 3 배지 조회 (채팅용) ───
 
 /**
@@ -386,30 +197,11 @@ async function getTop3Badges(serverId) {
 // ─── 전체 랭킹 데이터 (API용) ───
 
 async function getFullRanking(serverId, userName, isPrivate) {
-    const overall = await getOverallRanking(serverId);
-    const dice = await getGameRanking(serverId, 'dice');
-    const horseRace = await getHorseRaceStats(serverId);
-    const roulette = await getGameRanking(serverId, 'roulette');
-    const ladder = await getGameRanking(serverId, 'ladder');
-    const spinArena = await getGameRanking(serverId, 'spin-arena');
-    const pirate = await getGameRanking(serverId, 'pirate');
-    const deguri = await getGameRanking(serverId, 'deguri');
-
     const result = {
         serverType: isPrivate ? 'private' : 'public',
-        overall,
-        dice,
-        horseRace,
-        roulette,
-        ladder,
-        'spin-arena': spinArena,
-        'pirate': pirate,
-        'deguri': deguri
+        players: await getRankingPlayers(serverId, null),
+        vehicles: await getVehicleStats()
     };
-
-    if (userName) {
-        result.myRank = await getMyRank(serverId, userName);
-    }
 
     // 서버가 있으면 주문 랭킹 포함 (최다 주문자 제외, 인기 메뉴·내 TOP 메뉴만)
     if (serverId) {
@@ -513,38 +305,6 @@ async function getSeasonList(serverId) {
     }));
 }
 
-async function getSeasonRanking(serverId, season) {
-    const pool = getPool();
-    if (!pool) return { mostPlayed: [], mostWins: [], winRate: [], avgRank: [] };
-
-    const result = await pool.query(`
-        WITH stats AS (
-            SELECT user_name,
-                COUNT(*) AS games,
-                COUNT(*) FILTER (WHERE is_winner = true) AS wins,
-                ROUND(AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL), 1) AS avg_rank,
-                COUNT(*) FILTER (WHERE game_rank IS NOT NULL AND game_rank <= 3) AS top3_count
-            FROM season_archives
-            WHERE server_id = $1 AND season = $2
-            GROUP BY user_name
-        )
-        SELECT user_name, games, wins, avg_rank, top3_count,
-            CASE WHEN games > 0 THEN ROUND(wins::numeric / games * 100, 1) ELSE 0 END AS win_rate
-        FROM stats
-        ORDER BY games DESC
-    `, [serverId, season]);
-
-    const rows = result.rows;
-    return {
-        mostPlayed: rows.slice(0, 10).map(r => ({ name: r.user_name, games: parseInt(r.games) })),
-        mostWins: [...rows].sort((a, b) => b.wins - a.wins).slice(0, 10).map(r => ({ name: r.user_name, wins: parseInt(r.wins) })),
-        winRate: rows.filter(r => parseInt(r.games) >= 5).sort((a, b) => parseFloat(b.win_rate) - parseFloat(a.win_rate)).slice(0, 10)
-            .map(r => ({ name: r.user_name, winRate: parseFloat(r.win_rate), games: parseInt(r.games), wins: parseInt(r.wins) })),
-        avgRank: rows.filter(r => r.avg_rank !== null).sort((a, b) => parseFloat(a.avg_rank) - parseFloat(b.avg_rank)).slice(0, 10)
-            .map(r => ({ name: r.user_name, avgRank: parseFloat(r.avg_rank), top3: parseInt(r.top3_count), games: parseInt(r.games) }))
-    };
-}
-
 // ─── 날짜별 당첨자 (달력 뷰) ───
 
 // 한 판 = game_session_id 하나. sessionId 없이 기록되는 경로(socket/horse.js 등)가 있어
@@ -607,17 +367,13 @@ async function getWinnerCalendar(serverId, season) {
 module.exports = {
     recordOrder,
     getMyOrderedMenus,
-    getOverallRanking,
-    getGameRanking,
-    getHorseRaceStats,
+    getRankingPlayers,
     getOrderRanking,
     getMyTopOrders,
-    getMyRank,
     getFullRanking,
     getTop3Badges,
     startNewSeason,
     getCurrentSeason,
     getSeasonList,
-    getSeasonRanking,
     getWinnerCalendar
 };

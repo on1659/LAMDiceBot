@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — deguri.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=7">
-    <link rel="stylesheet" href="/css/deguri.css?v=36">
+    <link rel="stylesheet" href="/css/deguri.css?v=37">
     <link rel="stylesheet" href="/css/deguri-gacha.css?v=22">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -258,11 +258,11 @@
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: var(--deguri-accent); font-size: 16px; margin: 0;"><i class="mi mi-burger"></i> 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; font-size: 16px; margin: 0;"><i class="mi mi-burger"></i> 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--deguri-gradient); color: var(--text-primary); font-weight: 600;"><i class="mi mi-list"></i> 주문리스트</button>
-                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
-                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; margin-top: 0; padding: 8px 16px; font-size: 14px; background: var(--deguri-gradient); color: var(--horse-on-gradient); font-weight: 600;"><i class="mi mi-list"></i> 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="width: auto; margin-top: 0; padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="width: auto; margin-top: 0; padding: 6px 10px; font-size: 12px; background: var(--horse-600); color: var(--text-on-accent); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
 
@@ -278,7 +278,7 @@
                         </div>
                         <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
                                 style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--order-star-idle); padding:0 4px; margin-left:auto;">★</button>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--deguri-accent); border: 1px solid var(--deguri-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--green-700); border: 1px solid var(--deguri-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
 
                     <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--deguri-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
@@ -301,7 +301,7 @@
                             <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
                             <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
                         </div>
-                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: var(--text-primary); font-weight: 600;" disabled>저장</button>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; font-weight: 600;" disabled>저장</button>
                     </div>
                 </div>
 
@@ -309,7 +309,7 @@
                     <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
                 </div>
                 <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
-                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">관전자 주문</div>
+                    <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 5px;">관전자 주문</div>
                     <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
                 </div>
             </div>
@@ -382,8 +382,20 @@
                     <div id="raceChatOverlay"></div>
                     <!-- 다시 보기 중 표시 (나만 보임) -->
                     <div id="deguriReplayBadge" style="display: none;"><i class="mi mi-replay"></i> 다시 보는 중 — 나만 보여요</div>
+                    <!-- GIF 녹화 영역(js/deguri-replay-gif.js) — 고르는 동안만 캔버스 입력을 막고, 고른 뒤엔 테두리만 남는다(캔버스에 그리지 않으니 GIF 에는 안 찍힌다) -->
+                    <div id="deguriGifArea" class="deguri-gif-area" hidden><div id="deguriGifAreaRect" class="deguri-gif-area__rect" hidden></div><p class="deguri-gif-area__hint">녹화할 곳을 끌어서 고르세요<button type="button" id="deguriGifAreaFull" class="deguri-gif-area__full">화면 전체</button></p></div>
                     <!-- 전체화면 끝내기 — 전체화면일 때만 보인다(css/deguri.css) -->
                     <button type="button" id="deguriFullscreenBtn" onclick="toggleDeguriFullscreen()" title="전체화면 끝내기" aria-label="전체화면 끝내기"><i class="mi mi-expand"></i></button>
+                </div>
+                <!-- 다시 보기 조작줄 — 다시 보기 중에만(js/deguri.js setReplayUi). 재생·멈춤 · 이동 막대 · 시간 · GIF 녹화(영역 → 구간 → 실시간 녹화, js/deguri-replay-gif.js). 끝내기는 아래 [그만 보기] -->
+                <div id="deguriReplayBar" class="deguri-replay-bar" hidden>
+                    <button type="button" id="deguriReplayToggle" class="deguri-replay-bar__btn" onclick="toggleReplayPause()" aria-label="멈춤" title="멈춤"><span class="deguri-replay-bar__glyph" aria-hidden="true"></span></button>
+                    <div class="deguri-replay-bar__track">
+                        <input type="range" id="deguriReplaySeek" class="deguri-replay-seek" min="0" max="1000" step="10" value="0" aria-label="다시 보기 위치" oninput="onReplaySeekInput()" onchange="onReplaySeekChange()">
+                        <div id="deguriGifRange" class="deguri-gif-range" hidden><div id="deguriGifRangeFill" class="deguri-gif-range__fill"></div><input type="range" id="deguriGifRangeStart" aria-label="녹화 시작 지점"><input type="range" id="deguriGifRangeEnd" aria-label="녹화 끝 지점"></div>
+                    </div>
+                    <span id="deguriReplayTime" class="deguri-replay-bar__time">0:00 / 0:00</span>
+                    <span class="deguri-replay-bar__gif"><span id="deguriGifStatus" class="deguri-gif-status" aria-live="polite"></span><button type="button" id="deguriGifCancel" class="deguri-gif-cancel" hidden>취소</button><button type="button" id="deguriGifButton" class="deguri-gif-button"><span class="deguri-gif-button__dot" aria-hidden="true"></span>GIF 녹화</button></span>
                 </div>
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
                 <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
@@ -473,6 +485,14 @@
         </div>
     </div>
 
+    <!-- 다시 보기 GIF(js/deguri-replay-gif.js) — 녹화가 끝나면 만드는 동안 열리고, 다 되면 미리보기와 [GIF 저장](PC 내려받기, 폰 공유 시트 → 안 되면 내려받기) -->
+    <dialog id="deguriGifDialog" class="deguri-gif-dialog" aria-labelledby="deguriGifDialogTitle">
+        <h2 id="deguriGifDialogTitle">다시 보기 GIF</h2>
+        <img id="deguriGifPreview" class="deguri-gif-dialog__preview" alt="녹화한 다시 보기 GIF" hidden>
+        <p id="deguriGifInfo" class="deguri-gif-dialog__info" aria-live="polite"></p>
+        <div class="deguri-gif-dialog__actions"><button type="button" id="deguriGifClose" class="deguri-after-btn">닫기</button><button type="button" id="deguriGifSave" class="deguri-after-btn deguri-after-btn-host" disabled>GIF 저장</button></div>
+    </dialog>
+
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(var(--shadow-rgb),0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
@@ -500,8 +520,9 @@
     <script src="/js/shared/shop-shared.js?v=7"></script>
     <script src="/js/deguri-shop.js?v=13"></script>
     <script src="/js/deguri-gacha.js?v=46"></script>
-    <script src="/js/deguri-render.js?v=100"></script>
-    <script src="/js/deguri.js?v=53"></script>
+    <script src="/js/deguri-render.js?v=105"></script>
+    <script src="/js/deguri-replay-gif.js?v=1"></script>
+    <script src="/js/deguri.js?v=54"></script>
 
     <script>
         // ============================================

@@ -10,7 +10,7 @@ const {
 const { register: authRegister, login: authLogin, getUserByName, getChatLayoutStats } = require('../db/auth');
 const { issueToken, refreshToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
-const { getFullRanking, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking, getWinnerCalendar } = require('../db/ranking');
+const { getFullRanking, startNewSeason, getCurrentSeason, getSeasonList, getRankingPlayers, getWinnerCalendar } = require('../db/ranking');
 const { getSeasonVehicleStats } = require('../db/vehicle-stats');
 
 // Rate Limiting (Server API 전용)
@@ -551,8 +551,8 @@ router.get('/ranking/:serverId(\\d+)/season/:season(\\d+)', async (req, res) => 
         if (isNaN(season) || season <= 0) {
             return res.status(400).json({ error: '유효하지 않은 시즌 번호' });
         }
-        const ranking = await getSeasonRanking(serverId, season);
-        res.json({ overall: ranking, season });
+        const players = await getRankingPlayers(serverId, season);
+        res.json({ players, season });
     } catch (e) {
         res.status(500).json({ error: '시즌 랭킹 조회 실패' });
     }

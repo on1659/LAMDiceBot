@@ -67,7 +67,9 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 - `fairness-guard` — 클라이언트 JS의 `Math.random()` 경고 (게임 결과는 서버에서만 결정)
 - `mobile-guard` — viewport 누락, 고정 너비, `@media` 부재 경고
 - `check-main-branch` / `check-push-branch` — main 브랜치 편집·푸시 경고
-- `ui-check` / `file-type-reminder` — UI·파일 타입 리마인더
+- `ui-check` — 색 토큰 검사(THEME-DARK.md §5-1, 이번 편집으로 새로 들어간 줄만 — 같은 라이트 값 토큰을 알려 준다)·AdSense 누락 경고
+- `file-type-reminder` — 파일 타입 리마인더 (사용자 화면에만 보임)
+- 경고 훅은 `hookSpecificOutput.additionalContext` JSON 으로 낸다 — 평문 출력·`decision:"allow"` 는 에이전트에게 전달되지 않는다
 - `goal-archive` (Stop) — 아래 큐를 비우며 goal 문서를 `applied/`로 이동
 
 ## 항상 적용
@@ -85,6 +87,7 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/�
 
 ## 이력
 
+- 2026-10-07: 안 쓰는 파이프라인 전부 제거 — `/qa`·`/review` 커맨드, 역할 스킬 `skills/skill-*.md` 8종, `mcp.json`, Windows 잔재. 리뷰는 빌트인 `/code-review`, QA 는 `AutoTest/qa-*.js` + goal Acceptance Criteria. 전역 bkit·AgentCrow·meeting 변형도 끔(`~/.claude/backups/harness-cleanup-2026-10-07/`)
 - 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
   가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
 - 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수

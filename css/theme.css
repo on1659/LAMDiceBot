@@ -441,45 +441,17 @@
   --free-loading-ladder: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   --free-loading-spin-arena: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
   --free-loading-deguri: linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%);
-  /* 랭킹 팝업 (ranking-shared.js) — 라이트·다크 모두 같은 어두운 팝업이 의도라 다크 섹션에서 재정의하지 않는다 */
-  --rk-bg-start: #1a1a2e;
-  --rk-bg-end: #16213e;
-  --rk-accent: #667eea;
-  --rk-accent-rgb: 102, 126, 234;
-  --rk-accent-light: #8B9CF7;
-  --rk-accent-purple: #764ba2;
-  --rk-accent-purple2: #9B59B6;
-  --rk-gold: #FFD700;
-  --rk-gold-rgb: 255, 215, 0;
-  --rk-gold-end: #FFA500;
-  --rk-silver: #C0C0C0;
-  --rk-silver-rgb: 192, 192, 192;
-  --rk-silver-end: #A8A8A8;
-  --rk-bronze: #CD7F32;
-  --rk-bronze-rgb: 205, 127, 50;
-  --rk-bronze-end: #B87333;
-  --rk-red-rgb: 239, 68, 68;
-  --rk-blue-rgb: 59, 130, 246;
-  --rk-success-rgb: 40, 167, 69;
-  --rk-error-rgb: 220, 53, 69;
-  --rk-text: rgba(255,255,255,0.85);
-  --rk-text-dim: rgba(255,255,255,0.5);
-  --rk-text-muted: rgba(255,255,255,0.4);
-  --rk-border: rgba(255,255,255,0.08);
-  --rk-border-light: rgba(255,255,255,0.12);
-  --rk-surface: rgba(255,255,255,0.06);
-  --rk-surface-hover: rgba(255,255,255,0.03);
-  --rk-btn-bg: rgba(255,255,255,0.2);
-  --rk-btn-hover: rgba(255,255,255,0.3);
-  --rk-me-line: rgba(255,215,0,0.6);
-  --rk-me-bg: rgba(255,215,0,0.07);
-  --rk-select-bg: #212529;  /* 시즌 선택 상자 — 고정 (--gray-900 은 다크에서 밝은 색으로 뒤집힘) */
-  --rk-tab-participant: #27ae60;  /* 탭 칩 (흰 글자) — 순위·주사위 칩은 --rk-accent */
-  --rk-tab-horse: #e67e22;
-  --rk-tab-roulette: #7c4dff;
-  --rk-tab-ladder: #f59e0b;
-  --rk-tab-deguri: #3fa65b;
-  --rk-tab-orders: #e91e63;
+  /* 랭킹 팝업 (ranking-shared.js) — 크롬은 공통 토큰(--bg-white·--gray-*·--purple-*)을 쓰고 여기엔 메달·게임별 당첨 비율 막대만 */
+  --rank-gold: #f2c14e;
+  --rank-silver: #c3c9d1;
+  --rank-bronze: #d39a62;
+  --rank-medal-ink: #212529;          /* 메달·1등 칸 위 글자 */
+  --rank-game-dice: #667eea;
+  --rank-game-horse: #e67e22;
+  --rank-game-roulette: #7c4dff;
+  --rank-game-ladder: #f59e0b;
+  --rank-game-deguri: #3fa65b;
+  --rank-game-other: #adb5bd;         /* 기타 게임(다리건너기·해적룰렛 옛 기록)·회전 칼날 */
   /* 여러 게임이 같이 쓰는 것 (게임별로 따로 만들던 것을 합침) */
   --bg-subtle: rgba(0, 0, 0, 0.05);           /* 예약 창 '현재 예약' 상자 등 은은한 면 */
   --alert-error: rgb(239, 68, 68);            /* 알림·확인 창 종류별 테두리·버튼·제목 */
@@ -617,6 +589,12 @@
   --deguri-fullscreen-bg: #000;                   /* 전체화면 캔버스 둘레 */
   --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);   /* 결과 카드 하늘→잔디 머리 */
   --deguri-result-head-ink: #2b2416;
+  /* 1등 룰 캔버스 소품(낙하산·돗자리·탈락 자막) — 그림이 없을 때 코드로 그리는 색, 스킨과 무관하게 고정 */
+  --deguri-chute-red: #e8574f;                    /* 낙하산 고어·돗자리 바탕 */
+  --deguri-chute-white: #fff6f0;                  /* 낙하산 고어(하양) */
+  --deguri-mat-stripe: #fff3d6;                   /* 돗자리 줄무늬 */
+  --deguri-sprite-line: #5a3d52;                  /* 동물 시트와 같은 외곽선·낙하산 줄 */
+  --deguri-toast-ink: #ffe9a8;                    /* 캔버스 아래 탈락 자막 글자(바탕은 --deguri-hud-rgb) */
   --deguri-result-head-sub: #4f5f3a;
   --deguri-result-sprite-bg: #fff;
   --deguri-result-sprite-shadow-rgb: 138, 90, 43;
@@ -997,6 +975,17 @@
   --free-loading-ladder: var(--dark-ground-ladder);
   --free-loading-spin-arena: var(--dark-ground-dice);
   --free-loading-deguri: var(--dark-ground-deguri);
+  /* 랭킹 팝업 — 메달·게임 막대 (채도 낮춘 톤, 스킨 공용) */
+  --rank-gold: #c9a548;
+  --rank-silver: #a2a7ae;
+  --rank-bronze: #b98558;
+  --rank-medal-ink: #1a1918;
+  --rank-game-dice: #9298dc;
+  --rank-game-horse: #d0925c;
+  --rank-game-roulette: #ab93de;
+  --rank-game-ladder: #d4aa55;
+  --rank-game-deguri: #6fb882;
+  --rank-game-other: #6f6d66;
   --alert-error: var(--red-500);              /* 다크: 테두리·버튼은 알림창 규칙이 덮고, 제목 글자에만 쓰인다 → 글자용 톤 */
   --alert-warning: var(--yellow-500);
   --alert-success: var(--green-500);
@@ -1121,6 +1110,11 @@
   --deguri-fullscreen-bg: #000;
   --deguri-result-head-bg: linear-gradient(180deg, #bfe7ff 0%, #dbf1ff 42%, #cdefc0 100%);
   --deguri-result-head-ink: #2b2416;
+  --deguri-chute-red: #e8574f;
+  --deguri-chute-white: #fff6f0;
+  --deguri-mat-stripe: #fff3d6;
+  --deguri-sprite-line: #5a3d52;
+  --deguri-toast-ink: #ffe9a8;
   --deguri-result-head-sub: #4f5f3a;
   --deguri-result-sprite-bg: #fff;
   --deguri-result-sprite-shadow-rgb: 138, 90, 43;

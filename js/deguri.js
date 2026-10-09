@@ -11,6 +11,7 @@ var TARGET_LABEL = { first: '1등', last: '꼴등' };   // 당첨 순위 표기 
 var FS_SETTLE_MS = 400;
 var RESIZE_DEBOUNCE_MS = 120;      // resize/orientationchange 묶기            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
+var REPLAY_BAR_TICK_MS = 100;      // 다시 보기 조작줄(이동 막대·시간)을 재생 시각에 맞추는 간격
 var REVEAL_SCROLL_RETRY_MS = 500;  // 경주 화면으로 부드러운 스크롤이 시작도 못 했으면 이 뒤에 즉시 옮긴다(revealStage)
 var RESULT_SCROLL_RECHECK_MS = 60; // 결과 카드 당첨 줄 스크롤을 한 번 더 맞추는 지연
 var RESULT_NAME_MAX = 6;           // 결과 카드 이름 글자 수 — 스탠드 이름표와 같은 규칙, 넘으면 … (전체 이름은 title)
@@ -282,7 +283,7 @@ window.addEventListener('DOMContentLoaded', function () {
                 if (ic) renderer.drawCreatureIcon(ic, cid);
             });
             startPickerIconAnim();
-            if (!isDeguriActive) renderer.drawIdle(deguriState.preview, currentUser);
+            if (showsIdleCanvas()) renderer.drawIdle(deguriState.preview, currentUser);
             DeguriYard.init('deguriYard'); DeguriYard.setLooks(deguriYardLooks());   // 시트가 다 온 뒤에 — 마당은 렌더러가 받은 같은 시트를 CSS 배경으로 쓴다
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
@@ -1083,13 +1084,61 @@ window.toggleMyHighlight = toggleMyHighlight;
 
 // 경주 다시 보기 — 서버가 보낸 타임라인(deguriState.reveal)을 카운트다운·소리 없이 혼자 다시 재생한다.
 // 방장이 다음 판을 준비(roundReset)하거나 새 reveal 이 오면 끝난다. 다른 사람 화면과 무관(나만 보임).
+// 다시 보기 중에만 캔버스 아래 조작줄(재생·멈춤 · 이동 막대 · 시간 · GIF 녹화 js/deguri-replay-gif.js)이 뜬다(데구리 단독판 3a8c02e 역반영).
+// 단독판 조작줄의 정지 버튼은 두지 않는다 — 바로 아래 [그만 보기](stopReplay(true))가 같은 일(끝 장면으로)을 한다
 var replaying = false, replayEndTimer = null;
+var replayBarEl = document.getElementById('deguriReplayBar'), replayToggleEl = document.getElementById('deguriReplayToggle');
+var replaySeekEl = document.getElementById('deguriReplaySeek'), replayTimeEl = document.getElementById('deguriReplayTime');
+var replayTicker = null, replayDragging = false, replayGif = null;
+function replayClockText(ms) { var s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function syncReplayBar() {
+    if (!renderer || !deguriState.reveal || !replayBarEl) return;
+    var paused = renderer.isPaused(), end = deguriState.reveal.durationMs, now = Math.max(0, Math.min(end, renderer.time()));
+    replayToggleEl.classList.toggle('is-paused', paused);
+    replayToggleEl.setAttribute('aria-label', paused ? '재생' : '멈춤');
+    replayToggleEl.title = paused ? '재생' : '멈춤';
+    replaySeekEl.max = Math.round(end);
+    if (!replayDragging) replaySeekEl.value = Math.round(now);
+    replayTimeEl.textContent = replayClockText(now) + ' / ' + replayClockText(end);
+}
 function setReplayUi(on) {
     var btn = document.getElementById('deguriReplayButton');
     if (btn) btn.innerHTML = on ? '<i class="mi mi-stop"></i> 그만 보기' : '<i class="mi mi-play"></i> 경주 다시 보기';
     var badge = document.getElementById('deguriReplayBadge');
     if (badge) badge.style.display = on ? '' : 'none';
+    if (!replayBarEl) return;
+    replayBarEl.hidden = !on;
+    if (replayTicker) { clearInterval(replayTicker); replayTicker = null; }
+    if (on) { replayDragging = false; syncReplayBar(); replayTicker = setInterval(syncReplayBar, REPLAY_BAR_TICK_MS); }
+    else if (replayGif) replayGif.stop();   // 걷힐 때(끝·그만 보기·새 판·리셋) 녹화 중이면 찍은 데까지 GIF 로, 고르는 중이면 걷는다
 }
+// 끝 타이머는 렌더러 재생 시각에서 남은 만큼 건다 — 멈추면 걷고, 다시 재생하거나 이동 막대로 옮기면 다시 건다(단독판 scheduleRaceEnd)
+function scheduleReplayEnd() {
+    clearTimeout(replayEndTimer); replayEndTimer = null;
+    if (!replaying || !renderer || !deguriState.reveal || renderer.isPaused()) return;
+    replayEndTimer = setTimeout(function () { if (replaying) stopReplay(false); }, Math.max(0, deguriState.reveal.durationMs + REPLAY_END_GRACE_MS - renderer.time()));   // 재생기가 끝에서 스스로 멈추면 버튼만 되돌린다
+}
+function pauseReplay() { renderer.pause(); scheduleReplayEnd(); syncReplayBar(); }
+function resumeReplay() { renderer.resume(); scheduleReplayEnd(); syncReplayBar(); }
+function seekReplay(ms) { renderer.seek(ms); scheduleReplayEnd(); syncReplayBar(); }
+// GIF 녹화가 영역·구간을 고르는 동안은 재생·이동을 잠근다(녹화 중엔 멈춤만 된다)
+function replayGifLocked() { var gif = replayBarEl && replayBarEl.getAttribute('data-gif'); return gif === 'area' || gif === 'range'; }
+function toggleReplayPause() {
+    if (!replaying || !renderer || replayGifLocked()) return;
+    if (renderer.isPaused()) resumeReplay(); else pauseReplay();
+}
+// 끄는 동안은 끝 타이머를 걷어 둔다 — 끝까지 끌었다고 바로 다시 보기가 끝나지 않게. 손을 떼면(change) 다시 건다
+function onReplaySeekInput() {
+    if (!replaying || !renderer || replayBarEl.hasAttribute('data-gif')) { syncReplayBar(); return; }
+    replayDragging = true;
+    var ms = Number(replaySeekEl.value);
+    renderer.seek(ms); clearTimeout(replayEndTimer); replayEndTimer = null;
+    replayTimeEl.textContent = replayClockText(ms) + ' / ' + replayClockText(deguriState.reveal.durationMs);
+}
+function onReplaySeekChange() { if (!replayDragging) return; replayDragging = false; if (replaying) seekReplay(Number(replaySeekEl.value)); }
+window.toggleReplayPause = toggleReplayPause;
+window.onReplaySeekInput = onReplaySeekInput;
+window.onReplaySeekChange = onReplaySeekChange;
 function replayRace() {
     if (!renderer || !deguriState.reveal) return;
     if (replaying) { stopReplay(true); return; }
@@ -1099,9 +1148,16 @@ function replayRace() {
     renderer.setTimeline(data, currentUser);
     renderer.onFinale(function () {});
     renderer.play(0);
+    // GIF 녹화기는 처음 다시 볼 때 한 번 만든다(조작줄·대화상자에 이벤트를 단다). 재생 제어는 위 함수들 — 끝 타이머도 같이 다시 건다
+    if (!replayGif && window.DeguriReplayGif) replayGif = DeguriReplayGif.create({
+        time: function () { return renderer.time(); },
+        duration: function () { return deguriState.reveal ? deguriState.reveal.durationMs : 0; },
+        seekTo: seekReplay,
+        pause: pauseReplay,
+        resume: resumeReplay
+    });
     setReplayUi(true);
-    clearTimeout(replayEndTimer);
-    replayEndTimer = setTimeout(function () { if (replaying) stopReplay(false); }, data.durationMs + REPLAY_END_GRACE_MS);   // 재생기가 끝에서 스스로 멈추면 버튼만 되돌린다
+    scheduleReplayEnd();
     revealStage();
 }
 // jumpToEnd: 도중에 끊었으면 마지막 화면(비석)으로 되돌린다
@@ -1406,6 +1462,7 @@ socket.on('roomCreated', function (data) {
     window.isHost = true; isHost = true;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
+    everPlayedUsers = Array.isArray(data.everPlayedUsers) ? data.everPlayedUsers.slice() : [];   // 주문 목록 참여자/관전자 구분
     sessionStorage.setItem('deguriActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     deguriInitModules();
     if (window.DeguriGacha) DeguriGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
@@ -1424,6 +1481,7 @@ socket.on('roomJoined', function (data) {
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
+    everPlayedUsers = Array.isArray(data.everPlayedUsers) ? data.everPlayedUsers.slice() : [];   // 주문 목록 참여자/관전자 구분
     sessionStorage.setItem('deguriActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName, password: currentRoomPassword }));
     deguriInitModules();
     if (window.DeguriGacha) DeguriGacha.onRoomEntered();   // 방 지갑 알약(코인·다음 +10 남은 시간)
@@ -1471,10 +1529,12 @@ socket.on('roomJoined', function (data) {
             isDeguriActive = true;
         } else if (mb.phase === 'playing') {
             // 진행 중 재입장 — 타임라인은 server-only 라 재생 불가. 다음 판까지 관전 안내만.
+            // 캔버스는 처음 들어온 사람과 같은 출발대 화면 — 프리뷰는 deguri:stateUpdated 가 실어 와 거기서 그린다(전엔 빈 그라디언트로 덮었다, 사용자 2026-10-05)
             isDeguriActive = true;
+            deguriState.reveal = null;   // 놓친 판 — 지난 판 타임라인으로 마지막 화면·다시 보기를 그리지 않게
             showStage(true);
             setGameStatus('경주가 진행 중이에요 — 다음 판부터 함께 볼 수 있어요', 'active');
-            if (renderer) renderer.drawIdle(null, currentUser);
+            if (renderer && assetsLoaded && deguriState.preview) renderer.drawIdle(deguriState.preview, currentUser);
         } else if (mb.phase === 'finished') {
             var lastEntry = localHistory.length ? localHistory[localHistory.length - 1] : null;
             setGameStatus('');
@@ -1667,7 +1727,7 @@ socket.on('readyUsersUpdated', function (rUsers) {
     readyUsers = rUsers || [];
     updateStartButton(); renderPickStatus(); renderVoteSection();
     // 출발대 프리뷰는 준비 인원으로 그린다 — 서버에 다시 받는다 (라운드 리셋 직후는 roundReset 이 요청)
-    if (deguriState.phase !== 'playing' && !isDeguriActive) socket.emit('deguri:requestState');   // finished 땐 안내 숫자만 갱신(프리뷰 없음)
+    if (deguriState.phase !== 'playing' && !isDeguriActive) socket.emit('deguri:requestState');   // finished 땐 안내 숫자만 갱신(프리뷰는 마지막 화면이 없는 늦게 온 사람만 그린다 — showsIdleCanvas)
 });
 
 // ============================================
@@ -1724,6 +1784,9 @@ socket.on('deguri:error', function (message) {
     showCustomAlert(typeof message === 'string' ? message : '오류가 발생했습니다.', 'error');
 });
 
+// 캔버스에 대기 화면(출발대)을 그릴 때 — 대기 단계이거나, 이 화면에 경주 타임라인이 없을 때(경주 중·끝난 뒤 들어와 본 판이 없음).
+// 본 판이 있으면(경주 중·마지막 화면·다시 보기) 그 장면을 덮지 않는다
+function showsIdleCanvas() { return (deguriState.phase === 'idle' && !isDeguriActive) || !deguriState.reveal; }
 socket.on('deguri:stateUpdated', function (data) {
     if (!data) return;
     deguriState.picks = data.picks || {};
@@ -1744,7 +1807,7 @@ socket.on('deguri:stateUpdated', function (data) {
     renderPickStatus();
     renderVoteSection();
     updateStartButton();
-    if (deguriState.phase === 'idle' && !isDeguriActive && renderer && assetsLoaded) renderer.drawIdle(deguriState.preview, currentUser);
+    if (showsIdleCanvas() && renderer && assetsLoaded) renderer.drawIdle(deguriState.preview, currentUser);
     if (startKeyDir && renderer) renderer.setIdleX(currentUser, startKeyDir < 0 ? START_X_MIN : START_X_MAX);   // ← → 를 누르고 있는 중에 프리뷰가 갱신돼도 계속 걷는다
 });
 
@@ -1784,6 +1847,11 @@ socket.on('deguri:reveal', function (data) {
     deguriState.reveal = data;
     deguriState.target = data.target || 'last';
     isDeguriActive = true;
+    // 이번 판 참가자가 누적 참여자에 들어왔다 — 주문 목록을 다시 나눈다(관전자 → 참여자)
+    if (Array.isArray(data.everPlayedUsers)) {
+        everPlayedUsers = data.everPlayedUsers.slice();
+        OrderModule.renderOrders();
+    }
     if (document.body) document.body.classList.add('race-running');   // 스티키 광고 숨김
     closeResultOverlay();
     showAfterRace(false);

@@ -1,62 +1,24 @@
 # LAMDiceBot 하네스 문서
 
-> Claude 기준 멀티에이전트 + Hook 기반 작업 하네스 문서 묶음
->
-> 마지막 정리: 2026-04-24
-
----
+> 마지막 정리: 2026-10-07
 
 ## 현재 상태
 
-`/build` 중심 최소 운영 하네스는 적용 완료됐다.  
-문서상 확장 목표는 남아 있지만, 지금부터의 작업은 새 설계를 더 쓰는 단계보다 운영 안정화와 범위 정리에 가깝다.
+파이프라인(`/build`·Scout→Coder→Reviewer→QA·meeting 변형·`/qa`·`/review`·역할 스킬)은 전부 제거됐다.
+지금 하네스는 세 층뿐이다.
 
-| 구분 | 상태 | 설명 |
-|------|------|------|
-| `/build` 파이프라인 | 완료 | `Ether -> Scout -> Coder -> Reviewer -> QA` 흐름과 하네스 진입점 반영 |
-| 하네스 전용 에이전트 | 완료 | `scout`, `coder`, `reviewer`, `qa`와 Codex 보조 에이전트 반영 |
-| 운영 Hook | 완료 | `security`, `fairness`, `css-var`, `mobile` 연결 |
-| `/meeting` | 완료 | gstack식 Scope/Planning/Engineering/Design/QA/PD Gate 하네스로 승격, 기존 경량 명령은 `/meeting-light`로 보존 |
-| Playwright MCP QA | 준비 필요 | 문서 정리는 완료됐지만 실제 `.claude/mcp.json` 연결은 미완 |
-| `tdd-guard`, `format-guard` | 준비 필요 | 확장 단계로 남아 있음 |
-| Hook 실행 안정화 | 준비 필요 | 셸 의존성과 경고 스크립트 정리가 더 필요 |
+| 층 | 위치 | 설명 |
+|----|------|------|
+| 규칙 | `CLAUDE.md`, `.claude/rules/*.md` | 항상 또는 경로별 로드 |
+| 가드 훅 | `.claude/hooks/*`, `.claude/settings.json` | 차단 1(security-guard)·경고 4·브랜치 가드 2·goal 아카이브 1 |
+| 검증 | `AutoTest/qa-*.js`, goal 문서 Acceptance Criteria | 리뷰는 빌트인 `/code-review` |
 
----
+훅 목록과 역할은 `CLAUDE.md` "자동 가드" 절이 정본이다.
 
-## 현행 기준 문서
+## 유지 도구
 
-아래 문서를 현재 기준으로 본다.
+- [harness-audit.html](harness-audit.html) — `/harness-audit` 커맨드의 룰 설명
 
-- [current-status-2026-04-13.md](current-status-2026-04-13.md)
-- [build-pipeline.md](build-pipeline.md)
-- [agent-mapping.md](agent-mapping.md)
-- [hooks-spec.md](hooks-spec.md)
-- [playwright-mcp.md](playwright-mcp.md)
+## 아카이브
 
----
-
-## 보조 문서
-
-- [meeting-pipeline.md](meeting-pipeline.md)
-- [meeting-gstack-adaptation-2026-04-24.md](meeting-gstack-adaptation-2026-04-24.md)
-- [codex-comment-harness-review-2026-04-13.md](codex-comment-harness-review-2026-04-13.md)
-- [codex-comment-harness-refinement-direction.md](codex-comment-harness-refinement-direction.md)
-- [codex-comment-harness-options.md](codex-comment-harness-options.md)
-
----
-
-## 완료된 계획 및 핸드오프 이력
-
-아래 문서는 삭제 대상이 아니라, 이미 반영된 계획과 당시 판단을 보존하는 이력 문서로 유지한다.
-
-- [claude-handoff-harness-2026-04-13.md](claude-handoff-harness-2026-04-13.md)
-- [claude-planned-dot-claude-changes-2026-04-13.md](claude-planned-dot-claude-changes-2026-04-13.md)
-
----
-
-## 문서 운영 원칙
-
-- 현행 상태 판단은 `current-status-2026-04-13.md`를 우선 기준으로 본다.
-- 과거 계획 문서는 지우지 않고 이력으로 남긴다.
-- 실제 `.claude/` 상태와 문서가 어긋나면 현행 상태 문서를 먼저 갱신한다.
-- 문서상 `future` 항목은 실제 파일과 연결되기 전까지 완료로 올리지 않는다.
+`archive/` — 제거된 파이프라인의 에이전트·커맨드·훅·규칙·스킬과 당시 설계 문서(`archive/docs/`). 이력 보존용이며 현행 기준이 아니다.

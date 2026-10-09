@@ -287,6 +287,10 @@ async function startDeguri(room, gameState, io, ctx) {
     // 참가자 = 현재 방에 있고 준비한 사용자 (입장 순서)
     const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
     const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
+    // 누적 참여자 목록 — 주문 목록이 이 기준으로 참여자/관전자를 나눈다(경마와 같은 규칙)
+    participants.forEach(name => {
+        if (!gameState.everPlayedUsers.includes(name)) gameState.everPlayedUsers.push(name);
+    });
 
     gameState.orderAutoTriggered = false;
 
@@ -320,7 +324,7 @@ async function startDeguri(room, gameState, io, ctx) {
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed), mb.startX);   // 고른 자리(deguri:moveTo)에서 출발 — 겹치면 여기서 서로 밀려 펴진다
         const track = sim.buildTrack(balls.length, sim.mulberry32(ensureTrackSeed(mb) ^ 0x9e3779b9), mb.crowd, { fixed: mb.randomTrack === false, order: mb.trackOrder });   // 배치(모듈 순서·좌우반전·댐 틈·독수리 수)는 방의 trackSeed — 대기 화면 미리보기와 같은 맵
-        result = await sim.simulate(balls, seed, track);
+        result = await sim.simulate(balls, seed, track, { target: mb.target });   // 1등 룰은 첫 골인에서 끝나고 낙하산·탈락·독수리 결승전이 붙는다(docs/goal/deguri-first-rule-flow.md). 꼴등 룰 결과는 opts 없음과 동일
         attachCosmetics(balls, gameState);   // 시뮬 뒤 — 스킨·풍선은 물리·순위에 절대 안 들어간다
     } catch (e) {
         console.warn('[데구리] 시뮬 실패:', e.message);
@@ -346,6 +350,7 @@ async function startDeguri(room, gameState, io, ctx) {
         cutMs: result.cutMs,          // 꼴찌가 혼자 통로에 내려온 순간(나머지 전원 골인) — 클라는 여기서 세상을 멈추고 비석. null 이면 골 진입 때
         ballsPerPlayer,
         target: mb.target,            // 당첨 순위 'first' | 'last' — 클라는 배너·피날레 문구·결과 표기만 바꾼다
+        everPlayedUsers: gameState.everPlayedUsers.slice(),   // 주문 목록 참여자/관전자 구분용 — 이번 판 참가자까지 포함
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };
     mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
@@ -451,6 +456,7 @@ module.exports = (socket, io, ctx) => {
     // 상태 동기화 (server-only 정보 미포함). phase 는 경주 중 새로 들어온 사람이 "진행 중" 안내를 띄우는 용도.
     // ballsPerPlayer = 현재 준비 인원 기준으로 crowd 프리셋을 환산한 인당 마릿수(안내용 — 시작 시점에 다시 계산).
     // preview = 대기 화면용 출발대 배치(사람당 1마리 — 복제는 카운트다운 연출에서). 결과와 무관한 순수 배치라 공정성 문제 없음.
+    // 경주 중·끝난 뒤에도 보낸다 — 그때 들어온 사람은 타임라인이 없어 이걸로 출발대를 본다(전엔 null 이라 빈 화면, 사용자 2026-10-05). 그 맵은 지금 판(reveal 이 이미 실은) 맵이다.
     // 준비 인원이 바뀌면 클라가 deguri:requestState 로 다시 받는다.
     // votes = 당첨 순위 투표 현황(이름→'first'|'last') — 재입장·준비 변동 때 막대를 다시 그리는 용도.
     // crowdInfo = 프리셋별 인당 마릿수(표시용 — 동물수 버튼 말풍선 '지금 N명이면 한 사람당 M마리'). 클라가 CROWD_PRESETS 를 복제하지 않도록 서버 값 하나로
@@ -465,7 +471,6 @@ module.exports = (socket, io, ctx) => {
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
         const mb = gameState.deguri;
-        if (mb.phase !== 'idle') return null;
         const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
         const participants = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name);
         const picks = {};

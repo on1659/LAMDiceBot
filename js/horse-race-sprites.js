@@ -3,7 +3,7 @@
 // 프레임 마크업은 <svg> 한 겹 안의 <image> 하나다 — 호출부가 여는 태그의 width/height 를 고치고(썸네일),
 // 넘어짐·진화 빌더가 안쪽 마크업을 감싼다. 중첩 <svg> 금지(넘어짐 빌더의 안쪽 추출이 첫 </svg> 에서 끊긴다).
 // <image> 는 width/height="100%" — 전역 치환(width="60")에 걸리지 않고 여는 태그 크기를 따라간다.
-const VEHICLE_SPRITE_VER = 5; // 2: 2컷 겹침 맞춤, 3: 약한 9종 달리기, 4: 발 재의뢰, 5: 상태별 행동(15종 7상태·넘어짐 그림·꼴찌)
+const VEHICLE_SPRITE_VER = 6; // 2: 2컷 겹침 맞춤, 3: 약한 9종 달리기, 4: 발 재의뢰, 5: 상태별 행동(15종 7상태·넘어짐 그림·꼴찌), 6: 15종 run 보폭 재작업
 const VEHICLE_SPRITE_BASE_PATH = '/assets/horse-race/vehicles';
 // 탈것마다 그린 상태 — 15종 전부 같은 7상태(2026-09-28 사용자: 상태마다 그 행동이 보여야 한다).
 // fallen 은 그린 그림이 있으면 ensureVehicleFallenState 가 회전 생성 대신 그대로 쓴다(1컷 고꾸라짐 → 2컷 엎어짐, 순서 재생).

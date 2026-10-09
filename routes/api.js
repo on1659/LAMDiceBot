@@ -74,6 +74,14 @@ function setupRoutes(app) {
         res.redirect('/game');
     });
 
+    // 홈 프로토타입(docs/goal/home-proto.prompt.md) — 목업 10번을 실제 방 생성·합류에 연결한 새 입구. `/` 는 바꾸지 않는다.
+    app.get('/home', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'home.html'));
+    });
+
     app.get('/game', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');

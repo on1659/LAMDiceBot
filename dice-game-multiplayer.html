@@ -1583,6 +1583,20 @@
                 font-size: 11px;
                 line-height: 1.6;
             }
+
+            /* 주문받기 머리줄: 제목·주문리스트 버튼은 윗줄, 정렬 버튼 셋은 아랫줄 — 한 줄에 다 넣으면 정렬 버튼이 한 글자씩 꺾인다 */
+            #ordersSection .history-title-wrapper {
+                flex-wrap: wrap;
+                row-gap: 8px;
+            }
+            #ordersSection .order-header-actions {
+                display: contents;
+            }
+            #ordersSection .sort-buttons {
+                width: 100%;
+                justify-content: flex-end;
+                flex-wrap: wrap;
+            }
         }
         
         .chat-section {
@@ -1627,6 +1641,13 @@
         .sort-buttons {
             display: flex;
             gap: 5px;
+        }
+
+        /* 주문받기 머리줄 오른쪽 묶음(주문리스트 + 정렬). 모바일에선 묶음을 풀어 두 줄로 — 768px 미디어 쿼리 */
+        .order-header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
 
         .sort-button {
@@ -2262,8 +2283,8 @@
             <div class="orders-section" id="ordersSection">
                 <div class="history-title-wrapper">
                     <div class="users-title"><i class="ui ui-burger"></i> 주문받기</div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" class="order-button" style="background: var(--dice-gradient); padding: 8px 16px; font-size: 14px;"><i class="ui ui-list"></i> 주문리스트 보기</button>
+                    <div class="order-header-actions">
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" class="order-button" style="width: auto; background: var(--dice-gradient); padding: 8px 16px; font-size: 14px;"><i class="ui ui-list"></i> 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -2330,7 +2351,7 @@
                 
                 <!-- 관전자 주문 목록 -->
                 <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-light);">
-                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-tertiary); font-size: 14px;"><i class="ui ui-eye"></i> 관전자 주문</div>
                     <div class="order-list" id="spectatorOrderList">
                     </div>
                 </div>
@@ -6036,6 +6057,7 @@
                         everPlayedUsers.push(player);
                     }
                 });
+                OrderModule.renderOrders(); // 주문받기 중에 시작했으면 관전자 → 참여자로 다시 나눈다
             }
             
             // 애니메이션 완료 플래그 초기화 (게임 재시작 시 이전 값이 남아있지 않도록)

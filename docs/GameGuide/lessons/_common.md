@@ -421,9 +421,10 @@ socket.on('updateUsers', (data) => {
 
 - `js/shared/ranking-shared.js`의 오버레이는 `document.body`에 append되므로 **호스트 페이지의 전역 셀렉터가 그대로 뚫고 들어온다.** `#ranking-overlay` 안을 막아주는 blanket reset은 **없다.**
 - `css/horse-race.css`의 `button { width: 100%; margin-top: 10px; padding: 12px 25px; background: var(--horse-gradient); ... }`가 대표적이다. 이 시트를 로드하는 페이지는 **경마·사다리·해적·회전칼날·다리건너기 5개**. 요소 셀렉터(0,0,1)는 클래스(0,1,0)에 지므로 **모듈이 선언한 속성만** 이긴다 — 선언하지 않은 `width`/`margin-top`/`padding`은 그대로 샌다.
-- 그래서 주사위·룰렛·free에서는 멀쩡한데 **저 5개 페이지에서만 버튼이 폭 100%로 늘어지고 아래로 밀린다.** 기존 `.rk-back-btn`(:204)·`.rk-reset-btn`(:490)은 `margin-top:0`을 손으로 넣어 이미 상쇄 중이고, `.rk-tab`·`.rk-game-chip`·`.rk-confirm-yes/no`는 아직 새고 있다.
+- 그래서 주사위·룰렛·free에서는 멀쩡한데 **저 5개 페이지에서만 버튼이 폭 100%로 늘어지고 아래로 밀린다.** (2026-10-04 통합 랭킹 개편 뒤 랭킹 팝업의 버튼은 전부 `width·margin·padding`을 명시한다)
 - `<input>`도 같다. `css/theme.css`의 `input, select, textarea { background: var(--bg-white) }`가 **모든 순수 HTML 소비 페이지**에 걸려 있어, 다크 팝업 안에 밝은 상자가 뜬다. 스위치용 체크박스는 `position:absolute; opacity:0; width:0; height:0`로 완전히 숨겨야 안전하다.
-- **해결:** 새 버튼에 `width`·`margin-top`·`padding`·`background`를 **전부 명시**한다.
+- **hover 도 샌다.** 같은 시트의 `button:hover { transform: translateY(-2px); box-shadow: … }`는 우선순위가 (0,1,1)이라 **클래스 하나짜리 규칙(0,1,0)을 이긴다.** 누른 칩·탭이 마우스를 올린 채로 들뜨고 주황 그림자가 생긴다(2026-10-04 통합 랭킹 스크린샷에서 발견). `.x:hover { transform: none; box-shadow: none; }`(0,2,0)로 상쇄하고, 눌림 축소(`.x:active { transform: scale(.95) }`)는 그 **뒤에** 둬야 이긴다.
+- **해결:** 새 버튼에 `width`·`margin-top`·`padding`·`background`를 **전부 명시**하고 hover 상쇄도 같이 넣는다.
 - **검증:** 하니스 페이지에 `css/horse-race.css`와 `css/theme.css`를 얹은 뒤 `getComputedStyle`로 실측 — 시트 유무와 무관하게 같은 값이 나와야 한다.
 - (출처: 2026-08-23 ranking-winner-calendar — 정찰에서 발견, 실측으로 확인)
 
@@ -569,6 +570,35 @@ socket.on('updateUsers', (data) => {
 - **여러 게임이 같은 색을 따로 토큰화하기 쉽다**(주문 꺼진 별·예약 칸·알림 색이 게임마다 4벌 생김). 공통이면 `common`에 하나만.
 - **검증**: C-51(수정 전 버전과 계산된 색 비교)로 라이트 불변, 다크·스킨 대비 감사, 실행 중에만 생기는 화면(알림·결과·상점)은 기준본·작업본에 같은 조건으로 띄워 비교.
 - (출처: 2026-10-03 — THEME-DARK.md 5-1절)
+
+---
+
+## C-55. 아이콘 + 짧은 이름이 들어가는 좁은 칸은 눈대중 말고 실측으로 폭을 정하라
+
+- 랭킹 달력 칸(모바일 약 46px)에 게임 아이콘을 이름 앞에 붙이자 **세 글자 이름이 "김…"처럼 한 글자만 남았다.** 재 보니 이름 칸 `clientWidth` 27px, 이름 `scrollWidth` 28px — **딱 1px 차이**였다. 말줄임표가 자리를 먹어 한 글자만 남는다.
+- 맥(Apple SD Gothic Neo)에서 맞춰도 끝이 아니다. 안드로이드 한글 폰트(Noto Sans CJK)는 글자 폭이 거의 1em이라 같은 칸에서 다시 잘린다. **세 글자 = 약 3em**을 기준으로 여유를 잡는다.
+- **해결(랭킹 달력):** 칸 좌우 여백 2px → 1px, 칸 간격 4px → 3px, 이름 자간 -0.2px, 달력 묶음만 본문 여백 밖으로 6px씩 확장(`.rk-cal-month { margin: 0 -6px }`). 이름 칸이 27px → 32px가 됐다.
+- **검증:** 실제 이름 길이(2·3·6글자)를 넣고 `el.clientWidth`와 `el.scrollWidth`를 비교 — 세 글자는 `scrollWidth ≤ clientWidth`, 그보다 긴 이름만 말줄임. 측정용 CSS를 `<head>`에 넣어도 오버레이 안 `<style>`이 뒤에 와서 이긴다 — 변형을 시험할 땐 모듈 CSS 자체를 고쳐서 잰다.
+- (출처: 2026-10-04 unified-ranking)
+
+---
+
+## C-56. (AutoTest) 첫 페이지(`/`)에서 공유 팝업을 띄워 테스트하면 서버 선택 창이 위를 덮는다
+
+- `/`(index)는 `#serverSelectOverlay`를 띄워 두는데, 이게 랭킹 오버레이(`z-index: 9999`)보다 위에 있어 **클릭이 전부 가로막힌다.** 스크린샷도 서버 선택 화면만 찍힌다. Playwright 로그는 `… from <div id="serverSelectOverlay">… subtree intercepts pointer events`.
+- 실제 사용 경로(게임 방·로비에서 랭킹 버튼)에선 그 창이 닫혀 있어 문제가 없다 — **하니스에서만 생기는 가짜 실패**다.
+- **해결:** 하니스에서 모듈을 주입하기 전에 `document.getElementById('serverSelectOverlay')?.remove()`. 또는 처음부터 게임 페이지(`/ladder?createRoom=true` 등)에서 띄운다.
+- (출처: 2026-10-04 unified-ranking)
+
+---
+
+## C-57. (AutoTest) 서버 API는 IP당 15분에 100회 — 테스트를 연달아 돌리면 429로 화면이 조용히 빈다
+
+- `routes/server.js`의 `serverApiLimiter`가 `/api/ranking/*`·`/api/server/*` 등에 **15분 100회**를 건다(`server.js` 전역은 1분 300회). 랭킹 팝업 하나를 열고 달력·시즌을 넘기면 5~8회씩 쓰므로, 스크린샷·대비 측정 스크립트를 몇 번 돌리면 금방 바닥난다.
+- 429가 나면 달력은 "불러올 수 없습니다" 대신 **기다리다 타임아웃**하거나 빈 화면처럼 보여, 방금 고친 코드가 깨진 것으로 오진하기 쉽다.
+- **확인:** `curl -s -D - -o /dev/null localhost:<포트>/api/ranking/<id>/calendar` — `HTTP/1.1 429`, `X-RateLimit-Remaining: 0`, `Retry-After`. 기다리며 `curl`로 폴링하면 그 요청도 횟수를 먹어 안 풀린다.
+- **해결:** 제한은 메모리에만 있으니 **로컬 서버를 재시작**하면 바로 풀린다. 스크립트는 한 번에 필요한 상태만 찍게 묶는다.
+- (출처: 2026-10-04 unified-ranking — 기존 메모 "브라우저 테스트 연속 실행 시 429"를 제한 위치·확인법까지 구체화)
 
 ---
 

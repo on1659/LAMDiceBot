@@ -22,7 +22,8 @@ if echo "$FILE" | grep -qE '\.js$'; then
   CONTENT=$(cat "$FILE" 2>/dev/null)
 
   if echo "$CONTENT" | grep -q "Math.random"; then
-    echo "{\"decision\":\"allow\",\"reason\":\"⚠️ 클라이언트 코드에서 Math.random() 감지. 게임 결과를 결정하는 용도라면 반드시 서버 측에서 수행해야 합니다. 연출용(애니메이션, UI 효과)이면 무시해도 됩니다.\"}"
+    # PostToolUse 경고는 additionalContext 로 — decision:"allow"+reason 은 에이전트에게 전달되지 않는다
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"⚠️ 클라이언트 코드에서 Math.random() 감지. 게임 결과를 결정하는 용도라면 반드시 서버 측에서 수행해야 합니다. 연출용(애니메이션, UI 효과)이면 무시해도 됩니다.\"}}"
     exit 0
   fi
 fi
