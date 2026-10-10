@@ -140,6 +140,47 @@
     body.mobile-ui .ad-container.ad-sticky { position: relative !important; z-index: auto !important; left: auto !important; right: auto !important; bottom: auto !important; transform: none !important; width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; margin: 16px auto !important; }
     body.mobile-ui .ad-container.ad-sticky .ad-sticky-unit { max-width: 100% !important; }
     body.mobile-ui .ad-sticky-bottom, body.mobile-ui #stickyBottomAd { bottom: var(--mobile-game-bottom, 140px); }
+    /* Horse is a state-focused room. These rules do not apply to the other game apps. */
+    body.mobile-horse-focus #mobileGameHeader { height: 60px; }
+    body.mobile-horse-focus.mobile-game-active > .container { height: calc(100dvh - 60px - var(--mobile-game-bottom, 130px)); padding-inline: 16px !important; }
+    body.mobile-horse-focus #mobileGameWorkspace { gap: 12px; }
+    body.mobile-horse-focus #mobileGameWorkspace > #horseSelectionSection { border: 0 !important; background: transparent !important; padding: 2px 0 0 !important; border-radius: 0 !important; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-header { margin-bottom: 10px; min-height: 44px; padding-right: 0; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-header > .users-title { font-size: 20px !important; letter-spacing: -.5px; }
+    body.mobile-horse-focus #mobileGameWorkspace #horseSelectionGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); overflow: visible; gap: 8px; padding: 0; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button { width: 100%; height: 78px !important; min-height: 78px; margin: 0; background: var(--mobile-card); color: var(--mobile-ink); }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.random-select { grid-column: 1 / -1; order: 1; height: 44px !important; min-height: 44px; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.random-select > div,
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.random-select .vehicle-card-content { flex-direction: row !important; gap: 8px !important; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button > div:not(.vehicle-display) { font-size: 12px !important; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button > div:not(.vehicle-display) > span { display: none; }
+    body.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.random-select > div > span { display: inline; }
+    body.mobile-horse-focus #mobileHorseOwnSelection { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    body.mobile-horse-focus #mobileHorseOwnSelection[hidden],
+    body.mobile-horse-focus #mobileSelectionToggle[hidden] { display: none !important; }
+    body.mobile-horse-focus #mobileHorseOwnIcon { display: grid; place-items: center; flex: 0 0 44px; height: 44px; font-size: 28px; border-radius: 14px; background: var(--mobile-card); }
+    body.mobile-horse-focus #mobileHorseOwnLabel { font-size: 15px; overflow-wrap: anywhere; }
+    body.mobile-horse-focus .horse-selection-header:has(#mobileHorseOwnSelection:not([hidden])) > .users-title { display: none; }
+    body.mobile-horse-focus #mobileGameWorkspace #mobileSelectionToggle { position: static; border: 0; background: var(--mobile-card); border-radius: 12px; }
+    body.mobile-horse-focus #mobileSelectionToggle::after { content: none; }
+    body.mobile-horse-focus #mobileGameWorkspace > #mobileGameReadySummary { font-size: 11px; padding: 0; align-self: center; }
+    body.mobile-horse-focus #mobileGameWorkspace > #raceTrackWrapper > .track-top-btn-row { min-height: 44px; gap: 6px; margin-bottom: 6px; }
+    body.mobile-horse-focus:not(.mobile-app-running):not(.mobile-app-fullscreen) #mobileGameWorkspace > #raceTrackWrapper #raceTrackContainer { height: 252px; border-radius: 18px; }
+    body.mobile-horse-focus #mobileGameDock { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    body.mobile-horse-focus #mobileGameDock button { flex-direction: row; gap: 6px; font-size: 12px; min-height: 44px; border-radius: 12px; }
+    body.mobile-horse-focus #mobileGameDock i { font-size: 18px; }
+    body.mobile-horse-focus #mobileGameDock [aria-pressed=true] { background: var(--mobile-soft); }
+    body.mobile-horse-focus #mobileGameFooter { padding-top: 8px; }
+    body.mobile-horse-focus #mobileGameAction { margin-bottom: 4px; }
+    body.mobile-horse-focus #mobileGameSheet { position: fixed; z-index: 900; inset: auto 0 0; height: min(78dvh, 680px); min-height: 0; overflow: auto; overscroll-behavior: contain; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; border-bottom: 0; box-shadow: var(--mobile-shadow); }
+    body.mobile-horse-focus #mobileGameSheet #trackLengthSelector { flex-wrap: wrap; margin: 12px 0 !important; }
+    body.mobile-horse-focus #mobileGameSheet #trackLengthSelector > span { width: 100%; font-weight: 700; }
+    body.mobile-horse-focus #mobileGameSheet #trackLengthSelector > button { flex: 1; min-width: 0; min-height: 44px; padding-inline: 4px !important; font-size: 12px !important; }
+    body.mobile-horse-focus #mobileGameSheetClose { min-height: 44px; }
+    body.mobile-horse-focus #mobileGameSheetBody { padding: 16px; }
+    body.mobile-horse-focus #mobileGameSheet #chatMessages { height: 36dvh; }
+    body.mobile-horse-focus.mobile-app-running #mobileGameWorkspace > #gameStatus { align-self: center; padding: 6px 10px !important; }
+    body.mobile-horse-focus.mobile-app-running #mobileGameFooter { background: var(--mobile-canvas); }
     @media (max-width: 350px) {
         body.mobile-ui #mobileGameHeader { gap: 7px; }
         body.mobile-ui .mobile-game-identity strong { font-size: 17px; }
