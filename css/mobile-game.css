@@ -181,27 +181,70 @@
     @media (orientation: portrait) {
         body.mobile-horse-focus #raceFsStage { padding-top: 60px !important; }
     }
-    body.mobile-horse-focus #mobileGameDock { grid-template-columns: repeat(3,minmax(0,1fr)); }
-    body.mobile-horse-focus #mobileGameDock button { flex-direction: row; gap: 6px; font-size: 12px; min-height: 44px; border-radius: 12px; }
+    body.mobile-horse-focus #mobileGameDock { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; }
+    body.mobile-horse-focus #mobileGameDock button { flex-direction: column; gap: 3px; font-size: 11px; min-height: 48px; border-radius: 12px; }
     body.mobile-horse-focus #mobileGameDock i { font-size: 18px; }
     body.mobile-horse-focus #mobileGameDock [aria-pressed=true] { background: var(--mobile-soft); }
     body.mobile-horse-focus #mobileGameFooter { padding-top: 8px; }
     body.mobile-horse-focus #mobileGameAction { margin-bottom: 4px; }
-    body.mobile-horse-focus #mobileGameSheet { position: fixed; z-index: 900; inset: auto 0 0; height: min(78dvh, 680px); min-height: 0; overflow: auto; overscroll-behavior: contain; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; border-bottom: 0; box-shadow: var(--mobile-shadow); }
+    body.mobile-horse-focus #mobileGameSheet { position: static; inset: auto; height: auto; min-height: 100%; overflow: visible; padding: 0 0 16px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
     body.mobile-horse-focus #mobileGameSheet #trackLengthSelector { flex-wrap: wrap; margin: 12px 0 !important; }
     body.mobile-horse-focus #mobileGameSheet #trackLengthSelector > span { width: 100%; font-weight: 700; }
     body.mobile-horse-focus #mobileGameSheet #trackLengthSelector > button { flex: 1; min-width: 0; min-height: 44px; padding-inline: 4px !important; font-size: 12px !important; }
     body.mobile-horse-focus #mobileGameSheetClose { min-height: 44px; }
-    body.mobile-horse-focus #mobileGameSheetBody { padding: 16px; }
-    body.mobile-horse-focus.mobile-orders-page #mobileGameSheet { position: static; inset: auto; height: auto; min-height: 100%; overflow: visible; padding-bottom: 16px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-    body.mobile-horse-focus.mobile-orders-page #mobileGameSheet .mobile-sheet-heading { padding-inline: 0; background: var(--mobile-canvas); }
-    body.mobile-horse-focus.mobile-orders-page #mobileGameSheetBody { padding-inline: 0; }
-    body.mobile-horse-focus.mobile-orders-page #gameSection.mobile-tab-away { visibility: hidden; }
+    body.mobile-horse-focus { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body.mobile-horse-focus #mobileGameSheet .mobile-sheet-heading { position: static; padding: 10px 0 18px; border: 0; background: transparent; }
+    body.mobile-horse-focus #mobileGameSheetTitle { font-size: 24px; line-height: 1.3; letter-spacing: -.6px; }
+    body.mobile-horse-focus #mobileGameSheetBody { padding: 0; }
+    body.mobile-horse-focus #mobileGameSheetClose[hidden], body.mobile-horse-focus #mobileHorseOrderAction[hidden] { display: none !important; }
+    body.mobile-horse-focus #mobileHorseOrderAction { min-height: 44px; margin-left: auto; padding: 8px 14px; background: var(--mobile-forest); color: var(--mobile-on-forest); border: 0; border-radius: 12px; }
+    body.mobile-horse-focus.mobile-room-page #gameSection.mobile-tab-away { visibility: hidden; }
+    body.mobile-horse-focus #mobileGameSheet .chat-section,
+    body.mobile-horse-focus #mobileGameSheet .users-section,
+    body.mobile-horse-focus #mobileGameSheet .host-controls,
+    body.mobile-horse-focus #mobileGameSheet .history-section { padding: 0 !important; background: transparent !important; color: var(--mobile-ink); border: 0 !important; box-shadow: none !important; }
+    body.mobile-horse-focus #mobileGameMore { gap: 8px; }
+    body.mobile-horse-focus #mobileGameMore button { min-height: 52px; padding: 12px; font-size: 13px; font-weight: 600; }
     body.mobile-horse-focus #showOrderListButton { display: none !important; }
-    body.mobile-horse-focus.mobile-orders-page #orderList { max-height: none !important; overflow-y: visible !important; }
-    body.mobile-horse-focus.mobile-orders-page #ordersSection > div:first-child { flex-wrap: wrap; gap: 8px; }
-    body.mobile-horse-focus.mobile-orders-page #ordersSection > div:first-child > div:last-child { flex-wrap: wrap; }
-    body.mobile-horse-focus #mobileGameSheet #chatMessages { height: 36dvh; }
+    body.mobile-horse-focus #ordersSection { display: none !important; }
+    body.mobile-horse-focus .mobile-horse-order-input { background: transparent !important; border: 0 !important; padding: 0 !important; margin-bottom: 20px !important; }
+    body.mobile-horse-focus .mobile-horse-order-input > div:first-child { font-size: 13px !important; color: var(--mobile-muted) !important; margin-bottom: 8px !important; }
+    body.mobile-horse-focus .mobile-horse-order-input > div:first-child > button { min-height: 44px; background: var(--mobile-soft) !important; color: var(--mobile-ink) !important; border: 1px solid var(--mobile-line) !important; border-radius: 10px !important; }
+    body.mobile-horse-focus .mobile-horse-order-input #defaultStarBtn { min-width: 44px; padding: 8px !important; color: var(--mobile-muted) !important; }
+    body.mobile-horse-focus .mobile-horse-order-input #defaultStarBtn.has-default { background: var(--mobile-accent) !important; color: var(--mobile-on-accent) !important; }
+    body.mobile-horse-focus #menuManager.active { display: block !important; }
+    body.mobile-horse-focus #menuManager { padding: 12px !important; border: 1px solid var(--mobile-line) !important; border-radius: 14px !important; background: var(--mobile-card) !important; }
+    body.mobile-horse-focus #menuManager > div:first-child > span { color: var(--mobile-ink) !important; font-size: 13px; }
+    body.mobile-horse-focus #menuManager button { width: auto; min-height: 44px; margin: 0; padding: 8px 12px !important; border: 0 !important; border-radius: 10px !important; background: var(--mobile-soft) !important; color: var(--mobile-ink) !important; }
+    body.mobile-horse-focus #menuManager input { min-width: 0; min-height: 44px; margin: 0; padding: 8px !important; font-size: 16px; border: 1px solid var(--mobile-line) !important; border-radius: 10px !important; background: var(--mobile-card); color: var(--mobile-ink); }
+    body.mobile-horse-focus #menuList { max-height: none !important; overflow: visible !important; }
+    body.mobile-horse-focus #menuList .menu-tag { display: inline-flex; align-items: center; max-width: 100%; min-height: 44px; overflow-wrap: anywhere; background: var(--mobile-soft) !important; color: var(--mobile-ink) !important; border-color: var(--mobile-line) !important; }
+    body.mobile-horse-focus #menuList .delete-btn { display: inline-flex; flex: 0 0 44px; align-items: center; justify-content: center; min-height: 44px; color: var(--mobile-ink) !important; cursor: pointer; }
+    body.mobile-horse-focus .order-input-group { display: flex; gap: 8px; margin: 0; }
+    body.mobile-horse-focus .order-input-wrapper { min-width: 0; flex: 1; }
+    body.mobile-horse-focus #myOrderInput, body.mobile-horse-focus #chatInput { margin: 0; min-height: 48px; border: 1px solid var(--mobile-line); border-radius: 14px; background: var(--mobile-card); color: var(--mobile-ink); }
+    body.mobile-horse-focus #orderSaveButton { min-height: 48px; padding: 8px 14px !important; background: var(--mobile-accent); color: var(--mobile-on-accent); border: 0; border-radius: 14px; }
+    body.mobile-horse-focus #mobileHorseOrdersSummary { background: var(--mobile-card); border: 1px solid var(--mobile-line); border-radius: 16px; padding: 14px; }
+    body.mobile-horse-focus .mobile-order-summary-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    body.mobile-horse-focus #mobileHorseOrdersHeading { margin: 0; font-size: 17px; }
+    body.mobile-horse-focus #mobileHorseOrdersTotals { margin-left: auto; font-size: 12px; color: var(--mobile-muted); font-variant-numeric: tabular-nums; }
+    body.mobile-horse-focus .mobile-order-summary-heading > div { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 6px !important; }
+    body.mobile-horse-focus .mobile-order-summary-heading .sort-btn { min-height: 44px; background: var(--mobile-soft) !important; color: var(--mobile-ink) !important; border-radius: 10px !important; }
+    body.mobile-horse-focus .mobile-order-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+    body.mobile-horse-focus .mobile-order-table caption { padding: 16px 0 8px; text-align: left; font-size: 13px; font-weight: 700; color: var(--mobile-ink); }
+    body.mobile-horse-focus .mobile-order-table th { color: var(--mobile-muted); font-size: 11px; font-weight: 600; }
+    body.mobile-horse-focus .mobile-order-table th, body.mobile-horse-focus .mobile-order-table td { text-align: left; vertical-align: top; padding: 10px 4px; border-bottom: 1px solid var(--mobile-line); overflow-wrap: anywhere; }
+    body.mobile-horse-focus .mobile-order-table th:first-child { width: 40%; }
+    body.mobile-horse-focus .mobile-order-table th:nth-child(2) { width: 14%; text-align: center; }
+    body.mobile-horse-focus .mobile-order-table td:nth-child(2) { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+    body.mobile-horse-focus .mobile-order-table th:last-child { width: 46%; }
+    body.mobile-horse-focus .mobile-orders-empty { margin: 20px 0; font-size: 13px; color: var(--mobile-muted); text-align: center; }
+    body.mobile-horse-focus #notOrderedSection { margin: 16px 0 0 !important; padding: 12px !important; border-radius: 14px; background: var(--mobile-soft) !important; }
+    body.mobile-horse-focus #notOrderedSection > div:first-child { color: var(--mobile-muted) !important; font-size: 12px !important; }
+    body.mobile-horse-focus #notOrderedList .not-rolled-tag { padding: 5px 8px; background: var(--mobile-card); border: 1px solid var(--mobile-line); border-radius: 8px; color: var(--mobile-ink); font-size: 12px; }
+    body.mobile-horse-focus #mobileGameSheet .chat-section > div:first-child { display: none; }
+    body.mobile-horse-focus #mobileGameSheet #chatMessages { height: calc(100dvh - 270px); min-height: 180px; max-height: none !important; margin-bottom: 10px; border: 0; border-radius: 14px; background: var(--mobile-card); }
+    body.mobile-horse-focus #mobileGameSheet .chat-section > div:last-child { position: sticky; bottom: 0; padding: 8px 0; background: var(--mobile-canvas); }
     body.mobile-horse-focus.mobile-app-running #mobileGameWorkspace > #gameStatus { align-self: center; padding: 6px 10px !important; }
     body.mobile-horse-focus.mobile-app-running #mobileGameFooter { background: var(--mobile-canvas); }
     @media (max-width: 350px) {

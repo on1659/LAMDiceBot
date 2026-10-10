@@ -17,10 +17,13 @@
     let sheet, sheetBody, footer, header, lobbyLink, currentPanel = '', currentTab = 'game';
     let gameAttributes = null, diceAttributes = null, selectionToggle = null, workspace = null, adsGroup = null, lastSelection = null;
     const TAB_KEYS = ['game', 'chat', 'orders', 'more'];
+    const HORSE_TAB_KEYS = ['game', 'orders', 'chat', 'more'];
     const isDice = !!byId('diceIdleEmoji');
     const isHorse = !!byId('raceTrack');
-    let horseCountdown = false, sheetOpener = null, horseChoiceFocused = false;
+    let horseCountdown = false, horseChoiceFocused = false;
     let horsePreview = null, horsePreviewRoot = null, horseViewButton = null, horseAutoFsOwned = false, horseViewAttempted = false;
+    let horseOrdersSummary = null, horseOrderInput = null, horseMenuInput = null, horseOrderSort = 'asc', horseOrdersSignature = '';
+    const horseOrderSortListeners = [];
     const mobileMatches = () => media.matches || (isHorse && landscapeMedia.matches);
     const title = byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
     const node = (tag, text, attrs) => {
@@ -63,6 +66,11 @@
         panels.set(key, wrapper);
     }
     function restore() {
+        horseOrdersSummary?.remove(); horseOrdersSummary = null;
+        horseOrderInput?.classList.remove('mobile-horse-order-input'); horseOrderInput = null;
+        if (horseMenuInput) { horseMenuInput.id = 'newMenuInput'; horseMenuInput = null; }
+        horseOrderSortListeners.splice(0).forEach(({ target, handler }) => target.removeEventListener('click', handler));
+        horseOrdersSignature = ''; horseOrderSort = 'asc';
         if (horseAutoFsOwned && typeof raceFsExit === 'function') raceFsExit();
         horseAutoFsOwned = false;
         horseViewButton?.remove(); horseViewButton = null;
@@ -194,7 +202,77 @@
         if (horsePreviewRoot.style.transform !== transform) horsePreviewRoot.style.transform = transform;
         if (horsePreview.style.height !== height) horsePreview.style.height = height;
     }
-    function closeSheet() { if (enabled && sheet) showPanel('game'); }
+    function buildHorseOrders() {
+        // Match the existing shared command's input ID only while the mobile adapter owns this form.
+        horseMenuInput = byId('newMenuInput');
+        if (horseMenuInput) horseMenuInput.id = 'menuInput';
+        const input = byId('myOrderInput');
+        horseOrderInput = input?.closest('.order-input-group')?.parentElement;
+        if (horseOrderInput) {
+            move('orders', horseOrderInput);
+            horseOrderInput.classList.add('mobile-horse-order-input');
+        }
+        horseOrdersSummary = node('section', '', { id: 'mobileHorseOrdersSummary', 'aria-labelledby': 'mobileHorseOrdersHeading' });
+        const heading = node('div', '', { class: 'mobile-order-summary-heading' });
+        heading.append(node('h3', '정리표', { id: 'mobileHorseOrdersHeading' }), node('span', '', { id: 'mobileHorseOrdersTotals', 'aria-live': 'polite' }));
+        const sorts = byId('showOrderListButton')?.parentElement;
+        if (sorts) {
+            move('orders', sorts); heading.append(sorts);
+            sorts.querySelectorAll('.sort-btn').forEach((target, index) => {
+                const handler = () => { horseOrderSort = index === 0 ? 'asc' : 'count'; schedule(); };
+                target.addEventListener('click', handler);
+                horseOrderSortListeners.push({ target, handler });
+            });
+        }
+        horseOrdersSummary.append(heading, node('div', '', { id: 'mobileHorseOrderTables' }));
+        panels.get('orders')?.append(horseOrdersSummary);
+        move('orders', byId('notOrderedSection'));
+    }
+    function syncHorseOrders() {
+        const activeOrder = typeof isOrderActive !== 'undefined' && isOrderActive;
+        const action = byId('mobileHorseOrderAction');
+        const source = byId(activeOrder ? 'endOrderButton' : 'startOrderButton');
+        action.hidden = currentPanel !== 'orders' || !nativeVisible(source);
+        const actionText = activeOrder ? '마감' : '주문 받기';
+        if (action.textContent !== actionText) action.textContent = actionText;
+        action.disabled = !!source?.disabled;
+        if (!horseOrdersSummary) return;
+        const data = typeof ordersData !== 'undefined' && ordersData ? ordersData : {};
+        const players = typeof everPlayedUsers !== 'undefined' && Array.isArray(everPlayedUsers) ? everPlayedUsers : [];
+        const signature = JSON.stringify([data, players, horseOrderSort]);
+        if (signature === horseOrdersSignature) return;
+        horseOrdersSignature = signature;
+        const groups = [new Map(), new Map()], menus = new Set();
+        let quantity = 0;
+        Object.entries(data).forEach(([name, value]) => {
+            if (typeof value !== 'string' || !value.trim()) return;
+            const menu = value.trim(), key = menu.toLowerCase();
+            const group = groups[players.includes(name) ? 0 : 1];
+            if (!group.has(key)) group.set(key, { menu, users: [] });
+            group.get(key).users.push(name); menus.add(key); quantity++;
+        });
+        byId('mobileHorseOrdersTotals').textContent = menus.size + '개 메뉴 · ' + quantity + '명';
+        const content = byId('mobileHorseOrderTables');
+        content.replaceChildren();
+        groups.forEach((group, index) => {
+            if (!group.size) return;
+            const table = node('table', '', { class: 'mobile-order-table', 'data-order-group': index === 0 ? 'players' : 'spectators' });
+            table.append(node('caption', index === 0 ? '참여자' : '관전자'));
+            const head = node('thead'), headerRow = node('tr');
+            ['메뉴', '수량', '주문자'].forEach(label => headerRow.append(node('th', label, { scope: 'col' })));
+            head.append(headerRow); table.append(head);
+            const body = node('tbody');
+            const ordered = [...group.values()].sort((a, b) => horseOrderSort === 'count' ? b.users.length - a.users.length : a.menu.localeCompare(b.menu, 'ko'));
+            ordered.forEach(item => {
+                const row = node('tr');
+                row.append(node('td', item.menu, { 'data-order-menu': '' }), node('td', String(item.users.length), { 'data-order-count': '' }), node('td', item.users.join(', '), { 'data-order-users': '' }));
+                body.append(row);
+            });
+            table.append(body); content.append(table);
+        });
+        if (!quantity) content.append(node('p', '주문 없음', { class: 'mobile-orders-empty' }));
+    }
+    function closeSheet() { if (enabled && sheet) showPanel(isHorse && !HORSE_TAB_KEYS.includes(currentPanel) ? 'more' : 'game'); }
     function scrollTo(target) {
         showPanel('game');
         target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -211,30 +289,33 @@
         if (isHorse) {
             const open = key !== 'game';
             const ordersPage = key === 'orders';
-            const enteringOrders = ordersPage && !document.body.classList.contains('mobile-orders-page');
-            if (open && sheet.hidden) sheetOpener = document.activeElement;
             game.inert = open;
-            header.inert = footer.inert = open && !ordersPage;
+            header.inert = footer.inert = false;
             game.setAttribute('aria-hidden', String(open));
-            game.classList.toggle('mobile-tab-away', ordersPage);
+            game.classList.toggle('mobile-tab-away', open);
             document.body.classList.toggle('mobile-orders-page', ordersPage);
-            sheet.setAttribute('role', ordersPage ? 'region' : 'dialog');
-            if (ordersPage) sheet.removeAttribute('aria-modal');
-            else sheet.setAttribute('aria-modal', 'true');
-            const names = { chat: '채팅', orders: '주문', people: '참여자', history: '게임 기록', settings: '화면·소리', host: '방장 설정', rules: '게임 규칙', more: '방 메뉴' };
+            document.body.classList.toggle('mobile-room-page', open);
+            sheet.setAttribute('role', 'tabpanel');
+            sheet.setAttribute('aria-labelledby', 'mobileGameTab-' + currentTab);
+            sheet.removeAttribute('aria-modal');
+            const names = { chat: '채팅', orders: '주문', people: '참여자', history: '게임 기록', settings: '화면·소리', host: '방장 설정', rules: '게임 규칙', more: '메뉴' };
             byId('mobileGameSheetTitle').textContent = names[key] || '방 메뉴';
             sheetBody.querySelectorAll('.mobile-native-panel').forEach(panel => { panel.hidden = true; });
             byId('mobileGameMore').hidden = key !== 'more';
             if (panels.has(key)) panels.get(key).hidden = false;
             sheet.hidden = !open;
-            byId('mobileGameDock').querySelectorAll('button').forEach(tool => tool.setAttribute('aria-pressed', String(open && tool.dataset.mobilePanel === currentTab)));
+            byId('mobileGameSheetClose').hidden = HORSE_TAB_KEYS.includes(key);
+            byId('mobileGameSheetClose').textContent = '‹ 메뉴';
+            byId('mobileGameDock').querySelectorAll('button').forEach(tool => {
+                const selected = tool.dataset.mobilePanel === currentTab;
+                tool.setAttribute('aria-selected', String(selected));
+                tool.setAttribute('aria-pressed', String(selected));
+                tool.tabIndex = selected ? 0 : -1;
+            });
             refreshPanelStatus(); sync();
-            if (enteringOrders) {
-                document.querySelector('body > .container')?.scrollTo({ top: 0, behavior: 'instant' });
-                window.scrollTo({ top: 0, behavior: 'instant' });
-            }
-            if (open) byId('mobileGameSheetClose').focus({ preventScroll: true });
-            else if (sheetOpener?.isConnected) { sheetOpener.focus({ preventScroll: true }); sheetOpener = null; }
+            document.querySelector('body > .container')?.scrollTo({ top: 0, behavior: 'instant' });
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            if (open) sheet.focus({ preventScroll: true });
             return;
         }
         const mainVisible = currentTab === 'game' || (isDice && currentTab === 'chat');
@@ -265,7 +346,7 @@
     function refreshPanelStatus() {
         const status = byId('mobileGamePanelStatus');
         if (!status) return;
-        const noOrders = currentPanel === 'orders' && !nativeVisible(byId('ordersSection'));
+        const noOrders = !isHorse && currentPanel === 'orders' && !nativeVisible(byId('ordersSection'));
         status.hidden = !noOrders;
         byId('mobileGameStartOrder').hidden = !nativeVisible(byId('hostControls'));
     }
@@ -288,16 +369,15 @@
             schedule();
         }, { id: 'mobileGameAction' });
         footer.append(action);
-        const dock = node('nav', '', { id: 'mobileGameDock', role: isHorse ? 'toolbar' : 'tablist', 'aria-label': isHorse ? '방 도구' : '방 탭' });
-        const tools = isHorse ? [['chat', '채팅', 'chat'], ['orders', '주문', 'burger'], ['more', '메뉴', 'list']] : [['game', '게임', 'play'], ['chat', '채팅', 'chat'], ['orders', '주문', 'burger'], ['more', '더보기', 'list']];
+        const dock = node('nav', '', { id: 'mobileGameDock', role: 'tablist', 'aria-label': '방 탭' });
+        const tools = isHorse ? [['game', '게임', 'play'], ['orders', '주문', 'burger'], ['chat', '채팅', 'chat'], ['more', '메뉴', 'list']] : [['game', '게임', 'play'], ['chat', '채팅', 'chat'], ['orders', '주문', 'burger'], ['more', '더보기', 'list']];
         tools.forEach(([key, label, icon]) => {
-            const attrs = isHorse ? { 'aria-pressed': 'false' } : { role: 'tab', 'aria-selected': String(key === 'game'), tabindex: key === 'game' ? '0' : '-1' };
-            const tool = button('', () => showPanel(isHorse && key === 'orders' && currentPanel === 'orders' ? 'game' : key), { 'data-mobile-panel': key, id: 'mobileGameTab-' + key, 'aria-controls': key === 'game' || (isDice && key === 'chat') ? 'gameSection' : 'mobileGameSheet', ...attrs });
+            const attrs = { role: 'tab', 'aria-selected': String(key === 'game'), tabindex: key === 'game' ? '0' : '-1' };
+            const tool = button('', () => showPanel(key), { 'data-mobile-panel': key, id: 'mobileGameTab-' + key, 'aria-controls': key === 'game' || (isDice && key === 'chat') ? 'gameSection' : 'mobileGameSheet', ...attrs });
             tool.append(node('i', '', { class: 'ui ui-' + icon, 'aria-hidden': 'true' }), node('span', label));
             dock.append(tool);
         });
         dock.addEventListener('keydown', event => {
-            if (isHorse) return;
             if (event.key === 'Tab' && !event.shiftKey) {
                 event.preventDefault();
                 const selected = dock.querySelector('[aria-selected=true]');
@@ -306,15 +386,19 @@
             }
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
-            const index = TAB_KEYS.indexOf(currentTab);
-            const next = event.key === 'Home' ? 0 : event.key === 'End' ? TAB_KEYS.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + TAB_KEYS.length) % TAB_KEYS.length;
-            showPanel(TAB_KEYS[next]); byId('mobileGameTab-' + TAB_KEYS[next]).focus();
+            const keys = isHorse ? HORSE_TAB_KEYS : TAB_KEYS;
+            const index = keys.indexOf(currentTab);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? keys.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + keys.length) % keys.length;
+            showPanel(keys[next]); byId('mobileGameTab-' + keys[next]).focus();
         });
         footer.append(dock); document.body.append(footer);
         sheet = node('section', '', { id: 'mobileGameSheet', class: 'mobile-game-chrome', role: 'tabpanel', tabindex: '0', 'aria-labelledby': 'mobileGameTab-more', hidden: '' });
-        if (isHorse) { sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-labelledby', 'mobileGameSheetTitle'); }
         const sheetHead = node('div', '', { class: 'mobile-sheet-heading' });
         sheetHead.append(node('h2', '', { id: 'mobileGameSheetTitle' }), button('게임으로', closeSheet, { id: 'mobileGameSheetClose' }));
+        if (isHorse) sheetHead.append(button('주문 받기', () => {
+            const source = byId(typeof isOrderActive !== 'undefined' && isOrderActive ? 'endOrderButton' : 'startOrderButton');
+            if (nativeVisible(source)) source.click();
+        }, { id: 'mobileHorseOrderAction', hidden: '' }));
         sheetBody = node('div', '', { id: 'mobileGameSheetBody' });
         sheetBody.append(node('div', '', { id: 'mobileGameMore' }));
         const panelStatus = node('div', '', { id: 'mobileGamePanelStatus', hidden: '' });
@@ -337,18 +421,12 @@
             else if (window.HorseShop?.openShop) window.HorseShop.openShop();
             else scrollTo(byId('horseSelectionSection') || byId('deguriPickSection'));
         }, { id: 'mobileGameShopMenu' });
-        addMore('친구 초대', () => { closeSheet(); const invite = byId('freeInviteFab') || byId('freeInviteBar')?.querySelector('button'); if (invite) invite.click(); });
+        addMore('친구 초대', () => { closeSheet(); const invite = byId('freeInviteFab') || byId('freeInviteBar'); if (invite) invite.click(); });
         lobbyLink = node('a', '‹ 모바일 로비', { href: '/mobile', id: 'mobileGameLobbyLink', class: 'mobile-game-chrome' });
         document.body.prepend(lobbyLink);
         document.addEventListener('keydown', event => {
             if (!enabled || sheet.hidden) return;
             if (event.key === 'Escape' && (!isHorse || sheet.contains(document.activeElement))) closeSheet();
-            if (isHorse && currentPanel !== 'orders' && event.key === 'Tab' && sheet.contains(document.activeElement)) {
-                const focusable = [...sheet.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
-                const first = focusable[0], last = focusable[focusable.length - 1];
-                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-            }
         });
     }
     function enable() {
@@ -366,6 +444,7 @@
         move('people', byId('roomExpirySection'));
         if (isHorse) move('people', byId('notSelectedVehicleSection'));
         move('orders', byId('ordersSection'));
+        if (isHorse) buildHorseOrders();
         move('history', byId('historySection') || byId('historyList')?.closest('.history-section'));
         move('host', byId('hostControls'));
         move('rules', byId('gameRulesSection'));
@@ -373,8 +452,8 @@
         move('settings', document.querySelector('.horse-selection-header-right'));
         const game = byId('gameSection');
         gameAttributes = new Map(['role', 'tabindex', 'aria-labelledby', 'aria-hidden', 'inert'].map(name => [name, game.getAttribute(name)]));
-        game.setAttribute('role', isHorse ? 'region' : 'tabpanel'); game.setAttribute('tabindex', '0');
-        if (isHorse) game.setAttribute('aria-labelledby', 'mobileGameTitle');
+        game.setAttribute('role', 'tabpanel'); game.setAttribute('tabindex', '0');
+        if (isHorse) game.setAttribute('aria-labelledby', 'mobileGameTab-game');
         buildWorkspace();
         const selection = byId('horseSelectionSection') || byId('deguriPickSection');
         if (selection) {
@@ -416,7 +495,7 @@
             diceAttributes?.forEach((value, key) => { if (value === null) die.removeAttribute(key); else die.setAttribute(key, value); });
         }
         lastSelection = null;
-        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app', 'mobile-horse-focus', 'mobile-orders-page');
+        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app', 'mobile-horse-focus', 'mobile-orders-page', 'mobile-room-page');
         document.body.removeAttribute('data-mobile-phase');
         document.documentElement.style.removeProperty('--mobile-game-bottom');
     }
@@ -453,7 +532,11 @@
         const selected = selection?.querySelector('.horse-selection-button.selected, .deguri-creature-btn.selected');
         // The native map is filled by the server's private confirmation, including index 0.
         const ownIndex = isHorse && typeof userHorseBets !== 'undefined' && typeof currentUser !== 'undefined' ? userHorseBets[currentUser] : undefined;
-        const ownSelection = isHorse ? (ownIndex !== undefined ? String(ownIndex) : (typeof mySelectedHorse !== 'undefined' && mySelectedHorse === -999 ? '-999' : null)) : selected?.getAttribute('data-creature') || null;
+        const result = !running && (byId('resultOverlay')?.classList.contains('visible') || nativeVisible(byId('endGameSection')));
+        const waitingSelection = isHorse && !running && !result && !(typeof isReplayActive !== 'undefined' && isReplayActive);
+        // The private index can remain in a cancellation response; the server's selected-user list owns waiting membership.
+        const ownConfirmed = !waitingSelection || (typeof selectedUsersFromServer !== 'undefined' && typeof currentUser !== 'undefined' && selectedUsersFromServer.includes(currentUser));
+        const ownSelection = isHorse ? (ownConfirmed ? (typeof mySelectedHorse !== 'undefined' && mySelectedHorse === -999 ? '-999' : ownIndex !== undefined ? String(ownIndex) : null) : null) : selected?.getAttribute('data-creature') || null;
         if (ownSelection !== lastSelection) {
             lastSelection = ownSelection;
             const collapsed = !!ownSelection;
@@ -469,6 +552,7 @@
             if (isHorse) selectionToggle.hidden = ownSelection === null;
         }
         if (isHorse) {
+            syncHorseOrders();
             const chosen = ownSelection !== null;
             const own = byId('mobileHorseOwnSelection');
             if (own.hidden === chosen) own.hidden = !chosen;
@@ -479,7 +563,6 @@
             if (byId('mobileHorseOwnLabel').textContent !== name) byId('mobileHorseOwnLabel').textContent = name;
             const icon = ownSelection === '-999' ? '🎲' : vehicle?.emoji || '✓';
             if (byId('mobileHorseOwnIcon').textContent !== icon) byId('mobileHorseOwnIcon').textContent = icon;
-            const result = !running && (byId('resultOverlay')?.classList.contains('visible') || nativeVisible(byId('endGameSection')));
             const phase = running ? 'running' : result ? 'result' : chosen ? 'selected' : 'selecting';
             if (document.body.dataset.mobilePhase !== phase) document.body.dataset.mobilePhase = phase;
             syncHorseView(running);
