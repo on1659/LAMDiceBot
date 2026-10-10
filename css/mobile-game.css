@@ -193,6 +193,14 @@
     body.mobile-horse-focus #mobileGameSheet #trackLengthSelector > button { flex: 1; min-width: 0; min-height: 44px; padding-inline: 4px !important; font-size: 12px !important; }
     body.mobile-horse-focus #mobileGameSheetClose { min-height: 44px; }
     body.mobile-horse-focus #mobileGameSheetBody { padding: 16px; }
+    body.mobile-horse-focus.mobile-orders-page #mobileGameSheet { position: static; inset: auto; height: auto; min-height: 100%; overflow: visible; padding-bottom: 16px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    body.mobile-horse-focus.mobile-orders-page #mobileGameSheet .mobile-sheet-heading { padding-inline: 0; background: var(--mobile-canvas); }
+    body.mobile-horse-focus.mobile-orders-page #mobileGameSheetBody { padding-inline: 0; }
+    body.mobile-horse-focus.mobile-orders-page #gameSection.mobile-tab-away { visibility: hidden; }
+    body.mobile-horse-focus #showOrderListButton { display: none !important; }
+    body.mobile-horse-focus.mobile-orders-page #orderList { max-height: none !important; overflow-y: visible !important; }
+    body.mobile-horse-focus.mobile-orders-page #ordersSection > div:first-child { flex-wrap: wrap; gap: 8px; }
+    body.mobile-horse-focus.mobile-orders-page #ordersSection > div:first-child > div:last-child { flex-wrap: wrap; }
     body.mobile-horse-focus #mobileGameSheet #chatMessages { height: 36dvh; }
     body.mobile-horse-focus.mobile-app-running #mobileGameWorkspace > #gameStatus { align-self: center; padding: 6px 10px !important; }
     body.mobile-horse-focus.mobile-app-running #mobileGameFooter { background: var(--mobile-canvas); }

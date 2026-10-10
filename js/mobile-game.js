@@ -210,10 +210,17 @@
         const game = byId('gameSection');
         if (isHorse) {
             const open = key !== 'game';
+            const ordersPage = key === 'orders';
+            const enteringOrders = ordersPage && !document.body.classList.contains('mobile-orders-page');
             if (open && sheet.hidden) sheetOpener = document.activeElement;
             game.inert = open;
-            header.inert = footer.inert = open;
+            header.inert = footer.inert = open && !ordersPage;
             game.setAttribute('aria-hidden', String(open));
+            game.classList.toggle('mobile-tab-away', ordersPage);
+            document.body.classList.toggle('mobile-orders-page', ordersPage);
+            sheet.setAttribute('role', ordersPage ? 'region' : 'dialog');
+            if (ordersPage) sheet.removeAttribute('aria-modal');
+            else sheet.setAttribute('aria-modal', 'true');
             const names = { chat: '채팅', orders: '주문', people: '참여자', history: '게임 기록', settings: '화면·소리', host: '방장 설정', rules: '게임 규칙', more: '방 메뉴' };
             byId('mobileGameSheetTitle').textContent = names[key] || '방 메뉴';
             sheetBody.querySelectorAll('.mobile-native-panel').forEach(panel => { panel.hidden = true; });
@@ -222,6 +229,10 @@
             sheet.hidden = !open;
             byId('mobileGameDock').querySelectorAll('button').forEach(tool => tool.setAttribute('aria-pressed', String(open && tool.dataset.mobilePanel === currentTab)));
             refreshPanelStatus(); sync();
+            if (enteringOrders) {
+                document.querySelector('body > .container')?.scrollTo({ top: 0, behavior: 'instant' });
+                window.scrollTo({ top: 0, behavior: 'instant' });
+            }
             if (open) byId('mobileGameSheetClose').focus({ preventScroll: true });
             else if (sheetOpener?.isConnected) { sheetOpener.focus({ preventScroll: true }); sheetOpener = null; }
             return;
@@ -281,7 +292,7 @@
         const tools = isHorse ? [['chat', '채팅', 'chat'], ['orders', '주문', 'burger'], ['more', '메뉴', 'list']] : [['game', '게임', 'play'], ['chat', '채팅', 'chat'], ['orders', '주문', 'burger'], ['more', '더보기', 'list']];
         tools.forEach(([key, label, icon]) => {
             const attrs = isHorse ? { 'aria-pressed': 'false' } : { role: 'tab', 'aria-selected': String(key === 'game'), tabindex: key === 'game' ? '0' : '-1' };
-            const tool = button('', () => showPanel(key), { 'data-mobile-panel': key, id: 'mobileGameTab-' + key, 'aria-controls': key === 'game' || (isDice && key === 'chat') ? 'gameSection' : 'mobileGameSheet', ...attrs });
+            const tool = button('', () => showPanel(isHorse && key === 'orders' && currentPanel === 'orders' ? 'game' : key), { 'data-mobile-panel': key, id: 'mobileGameTab-' + key, 'aria-controls': key === 'game' || (isDice && key === 'chat') ? 'gameSection' : 'mobileGameSheet', ...attrs });
             tool.append(node('i', '', { class: 'ui ui-' + icon, 'aria-hidden': 'true' }), node('span', label));
             dock.append(tool);
         });
@@ -332,7 +343,7 @@
         document.addEventListener('keydown', event => {
             if (!enabled || sheet.hidden) return;
             if (event.key === 'Escape' && (!isHorse || sheet.contains(document.activeElement))) closeSheet();
-            if (isHorse && event.key === 'Tab' && sheet.contains(document.activeElement)) {
+            if (isHorse && currentPanel !== 'orders' && event.key === 'Tab' && sheet.contains(document.activeElement)) {
                 const focusable = [...sheet.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
                 const first = focusable[0], last = focusable[focusable.length - 1];
                 if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -405,7 +416,7 @@
             diceAttributes?.forEach((value, key) => { if (value === null) die.removeAttribute(key); else die.setAttribute(key, value); });
         }
         lastSelection = null;
-        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app', 'mobile-horse-focus');
+        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app', 'mobile-horse-focus', 'mobile-orders-page');
         document.body.removeAttribute('data-mobile-phase');
         document.documentElement.style.removeProperty('--mobile-game-bottom');
     }
