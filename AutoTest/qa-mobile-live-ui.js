@@ -6,6 +6,7 @@
  * NODE_PATH=/path/to/node_modules node AutoTest/qa-mobile-live-ui.js
  *   --url http://127.0.0.1:43113 --game all|horse-race|dice|roulette|deguri
  *   --auth          DB-backed login/server/membership flow (isolated local DB only)
+ *   --tab-rounds    complete horse/dice rounds; smoke roulette/deguri
  *   --smoke         create/join/tools/responsive only; round explicitly skipped
  *   --out /tmp/mobile-live-ui-qa
  */
@@ -21,6 +22,10 @@ const OUTPUT = option('--out', '/tmp/mobile-live-ui-qa');
 const GAME = option('--game', 'all');
 const SMOKE = args.includes('--smoke');
 const AUTH = args.includes('--auth');
+const TAB_ROUNDS = args.includes('--tab-rounds');
+const TABS = ['game', 'chat', 'orders'];
+const PANEL_TOP_TOLERANCE = 8;
+const HORSE_ART_MAX_WIDTH = 56;
 const AUTH_PIN = '1234';
 const TIMEOUT = { action: 15000, navigation: 30000, round: 240000 };
 const WIDTHS = [320, 375, 390];
@@ -117,14 +122,53 @@ async function geometry(page, tag) {
     return info;
 }
 
+async function selectTab(page, key) {
+    await page.locator('#mobileGameDock [data-mobile-panel="' + key + '"]').click();
+    await page.waitForFunction(key => document.querySelector('#mobileGameDock [data-mobile-panel="' + key + '"]')?.getAttribute('aria-selected') === 'true', key);
+}
 async function openTool(page, tool) {
-    await page.locator('#mobileGameDock [data-mobile-panel="' + tool + '"]').click();
-    if (tool === 'chat' && await page.locator('#diceIdleEmoji').count()) await page.locator('#chatInput').waitFor({ state: 'visible' });
+    let target = page.locator('#mobileGameDock [data-mobile-panel="' + tool + '"]');
+    if (!await target.count() && ['people', 'ranking'].includes(tool)) {
+        await selectTab(page, 'more');
+        await page.locator('#mobileGameMore button').filter({ hasText: tool === 'people' ? '참여자' : '랭킹' }).click();
+    } else await selectTab(page, tool);
+    if (tool === 'chat') await page.locator('#chatInput').waitFor({ state: 'visible' });
     else await page.locator('#mobileGameSheet').waitFor({ state: 'visible' });
 }
 async function closeTool(page) {
-    if (await page.locator('#mobileGameSheet').isVisible().catch(() => false)) await page.locator('#mobileGameSheetClose').click();
+    await selectTab(page, 'game');
 }
+async function checkTabs(page, tag) {
+    await selectTab(page, 'game');
+    await page.evaluate(() => { window.__qaOriginalCanvases = [...document.querySelectorAll('#gameSection canvas')]; window.scrollTo(0, 0); });
+    const panels = [];
+    for (const key of TABS) {
+        await selectTab(page, key);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const state = await page.evaluate(key => {
+            const tabs = [...document.querySelectorAll('#mobileGameDock [role=tab]')];
+            const selected = tabs.filter(tab => tab.getAttribute('aria-selected') === 'true');
+            const tab = tabs.find(tab => tab.dataset.mobilePanel === key);
+            const panel = document.getElementById(tab?.getAttribute('aria-controls'));
+            const r = panel?.getBoundingClientRect();
+            const action = document.querySelector('#mobileGameAction');
+            return { selected: selected.map(tab => tab.dataset.mobilePanel), panel: panel?.id, role: panel?.getAttribute('role'), top: r?.top, visible: !!(r?.width && r?.height), actionVisible: !!(action?.offsetWidth && action?.offsetHeight), sheetPosition: getComputedStyle(document.querySelector('#mobileGameSheet')).position, retainedCanvases: window.__qaOriginalCanvases.every(canvas => canvas.isConnected && document.querySelector('#gameSection').contains(canvas)) };
+        }, key);
+        assert.deepEqual(state.selected, [key], tag + ' one selected tab');
+        assert(state.visible, tag + ' ' + key + ' associated content visible');
+        assert.equal(state.actionVisible, key === 'game', tag + ' CTA only on game tab');
+        assert(state.retainedCanvases, tag + ' original canvas nodes retained');
+        assert(!['fixed', 'absolute'].includes(state.sheetPosition), tag + ' inline content, not overlay');
+        panels.push({ key, ...state });
+        await geometry(page, tag + '-' + key);
+    }
+    const range = Math.max(...panels.map(panel => panel.top)) - Math.min(...panels.map(panel => panel.top));
+    assert(range <= PANEL_TOP_TOLERANCE, tag + ' content panels share position: ' + JSON.stringify(panels));
+    await selectTab(page, 'game');
+    pass(tag + ' tabs aria/content/CTA/canvas continuity', panels);
+}
+
 async function checkTools(host, guest, game, hostName) {
     const text = '실제채팅-' + hostName;
     await openTool(host, 'chat');
@@ -175,6 +219,13 @@ async function prepareRound(host, guest, game, hostName, guestName) {
             const visibleBets = await page.evaluate(() => (window.__mobileQaEvents || []).filter(e => e.event === 'horseSelectionUpdated').at(-1)?.data[0]?.userHorseBets || {});
             assert(!Object.hasOwn(visibleBets, otherName), 'Other player selection leaked before start: ' + JSON.stringify(visibleBets));
         }
+        const selected = await host.locator('#horseSelectionGrid .horse-selection-button.selected').first().getAttribute('id');
+        const art = await host.locator('#horseSelectionGrid .horse-selection-button:not(.random-select) .vehicle-display').first().boundingBox();
+        assert(art && art.width <= HORSE_ART_MAX_WIDTH, 'Horse art remains compact: ' + JSON.stringify(art));
+        await selectTab(host, 'chat');
+        await selectTab(host, 'game');
+        assert.equal(await host.locator('#horseSelectionGrid .horse-selection-button.selected').first().getAttribute('id'), selected);
+        pass('horse selection remains selected after chat tab and art stays compact', art);
         pass('horse selection protocol hides other player choice');
     } else if (game === 'deguri') {
         await host.locator('[data-creature=hedgehog]').click();
@@ -195,11 +246,15 @@ async function prepareRound(host, guest, game, hostName, guestName) {
 }
 
 async function desktopGate(page, game) {
+    if (game === 'horse-race') await page.locator('#mobileSelectionToggle').click();
+    await selectTab(page, 'chat');
     await page.setViewportSize(DESKTOP);
     await page.waitForFunction(() => !document.body.classList.contains('mobile-ui'));
     const dock = page.locator('#mobileGameDock');
     assert(!(await dock.isVisible().catch(() => false)), 'Desktop shows mobile dock');
-    pass(game + ' 1280px gate restores desktop and hides mobile dock');
+    const restored = await page.evaluate(() => { const game = document.querySelector('#gameSection'); return { role: game.getAttribute('role'), ariaHidden: game.getAttribute('aria-hidden'), labelledBy: game.getAttribute('aria-labelledby'), inert: game.inert, away: game.classList.contains('mobile-tab-away'), collapsed: !!document.querySelector('.mobile-selection-collapsed'), toggle: !!document.querySelector('#mobileSelectionToggle') }; });
+    assert.deepEqual(restored, { role: null, ariaHidden: null, labelledBy: null, inert: false, away: false, collapsed: false, toggle: false });
+    pass(game + ' 1280px gate restores desktop attributes and hides mobile dock', restored);
     // A baseline server is required to claim visual equality, not merely gate presence.
     skip(game + ' desktop visual baseline', 'Gate/DOM restoration only; no unmodified baseline comparison.');
     await page.setViewportSize({ width: 375, height: HEIGHT });
@@ -237,15 +292,24 @@ async function runGame(browser, game) {
             await host.setViewportSize({ width, height: HEIGHT });
             for (const theme of ['light', 'dark']) {
                 await host.evaluate(theme => { if (window.ThemeModule) ThemeModule.set(theme); else document.documentElement.dataset.theme = theme; }, theme);
-                await geometry(host, game + '-' + width + '-' + theme);
+                await checkTabs(host, game + '-' + width + '-' + theme);
                 await host.screenshot({ path: path.join(OUTPUT, game + '-' + width + '-' + theme + '.png') });
             }
         }
         await desktopGate(host, game);
         await checkTools(host, guest, game, names.host);
-        if (SMOKE) skip(game + ' authoritative round', '--smoke explicitly skips gameplay completion');
+        if (SMOKE || (TAB_ROUNDS && !['horse-race', 'dice'].includes(game))) skip(game + ' authoritative round', 'Selected mode skips this unchanged gameplay engine');
         else {
             const after = await prepareRound(host, guest, game, names.host, names.guest);
+            if (game === 'horse-race') {
+                await host.waitForFunction(() => typeof isRaceActive !== 'undefined' && isRaceActive, null, { timeout: TIMEOUT.round });
+                await host.evaluate(() => { window.__qaRaceTrack = document.querySelector('#raceTrack'); });
+                await selectTab(host, 'chat');
+                assert(await host.evaluate(() => document.querySelector('#gameSection').getBoundingClientRect().width > 0 && document.querySelector('#gameSection').inert), 'Offscreen race remains measurable while chat is selected');
+                await selectTab(host, 'game');
+                assert(await host.evaluate(() => window.__qaRaceTrack === document.querySelector('#raceTrack') && window.__qaRaceTrack.isConnected), 'Race stage survives tab round trip');
+                pass('horse active race survives chat and game tab round trip');
+            }
             console.log('WAIT ' + game + ': ' + GAMES[game].end);
             const [hostResult, guestResult] = await Promise.all([host, guest].map(page => waitEvent(page, GAMES[game].end, after, TIMEOUT.round)));
             assert(hostResult && guestResult, 'Empty authoritative result');
@@ -254,7 +318,7 @@ async function runGame(browser, game) {
             for (const [name, page] of [['host', host], ['guest', guest]]) await page.screenshot({ path: path.join(OUTPUT, game + '-result-' + name + '.png') });
         }
         const ownErrors = errors.filter(error => {
-            const source = error.message === 'W' && report.browserErrorSources.find(source => source.context === error.context && Math.abs(source.at - error.at) < ERROR_CORRELATION_MS && /^https:\/\/pagead2\.googlesyndication\.com\//.test(source.file) && /adsbygoogle|TagError/.test(source.message));
+            const source = ['W', 'Y'].includes(error.message) && report.browserErrorSources.find(source => source.context === error.context && Math.abs(source.at - error.at) < ERROR_CORRELATION_MS && /^https:\/\/pagead2\.googlesyndication\.com\//.test(source.file) && /adsbygoogle|TagError/.test(source.message));
             if (source) { report.externalErrors.push({ ...error, source }); return false; }
             return true;
         });
