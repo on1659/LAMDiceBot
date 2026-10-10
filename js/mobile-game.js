@@ -5,6 +5,7 @@
     const SYNC_MS = 120;
     const HORSE_PREVIEW_WIDTH = 700;
     const HORSE_VIEW_ACTION_HEIGHT = 44;
+    const HORSE_SELECTION_SPRITE_WIDTH = 44;
     const PENDING_KEYS = ['pendingHorseRaceRoom', 'pendingHorseRaceJoin', 'pendingRouletteRoom', 'pendingRouletteJoin', 'pendingDeguriRoom', 'pendingDeguriJoin'];
     const ROOM_KEYS = ['diceActiveRoom', 'horseRaceActiveRoom', 'rouletteActiveRoom', 'deguriActiveRoom'];
     const media = matchMedia('(max-width: ' + MOBILE_WIDTH + 'px)');
@@ -561,8 +562,16 @@
             const vehicle = vehicles.find(item => item.id === vehicleId) || (ownIndex !== undefined ? vehicles[ownIndex % vehicles.length] : null);
             const name = ownSelection === '-999' ? '랜덤 선택됨' : (vehicle?.name || '탈것') + ' 선택됨';
             if (byId('mobileHorseOwnLabel').textContent !== name) byId('mobileHorseOwnLabel').textContent = name;
-            const icon = ownSelection === '-999' ? '🎲' : vehicle?.emoji || '✓';
-            if (byId('mobileHorseOwnIcon').textContent !== icon) byId('mobileHorseOwnIcon').textContent = icon;
+            const icon = byId('mobileHorseOwnIcon');
+            const spriteId = ownSelection === '-999' ? 'random' : vehicle?.id || 'unknown';
+            const spriteMode = typeof isVehicleLegacyMode === 'function' && isVehicleLegacyMode() ? 'legacy' : 'raster';
+            const spriteKey = spriteId + ':' + spriteMode;
+            if (icon.dataset.spriteKey !== spriteKey) {
+                const thumb = spriteId !== 'random' && vehicle?.id && typeof vehicleThumbEl === 'function' ? vehicleThumbEl(vehicle.id, HORSE_SELECTION_SPRITE_WIDTH) : null;
+                icon.replaceChildren(thumb || document.createTextNode(spriteId === 'random' ? '🎲' : '✓'));
+                icon.dataset.spriteKey = spriteKey;
+                icon.dataset.vehicleId = spriteId;
+            }
             const phase = running ? 'running' : result ? 'result' : chosen ? 'selected' : 'selecting';
             if (document.body.dataset.mobilePhase !== phase) document.body.dataset.mobilePhase = phase;
             syncHorseView(running);

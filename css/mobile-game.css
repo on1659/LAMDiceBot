@@ -159,6 +159,7 @@
     body.mobile-horse-focus #mobileHorseOwnSelection[hidden],
     body.mobile-horse-focus #mobileSelectionToggle[hidden] { display: none !important; }
     body.mobile-horse-focus #mobileHorseOwnIcon { display: grid; place-items: center; flex: 0 0 44px; height: 44px; font-size: 28px; border-radius: 14px; background: var(--mobile-card); }
+    body.mobile-horse-focus #mobileHorseOwnIcon svg { display: block; width: 44px; height: 33px; image-rendering: pixelated; }
     body.mobile-horse-focus #mobileHorseOwnLabel { font-size: 15px; overflow-wrap: anywhere; }
     body.mobile-horse-focus .horse-selection-header:has(#mobileHorseOwnSelection:not([hidden])) > .users-title { display: none; }
     body.mobile-horse-focus #mobileGameWorkspace #mobileSelectionToggle { position: static; border: 0; background: var(--mobile-card); border-radius: 12px; }
