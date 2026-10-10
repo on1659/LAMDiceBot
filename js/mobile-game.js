@@ -8,10 +8,11 @@
     const media = matchMedia('(max-width: ' + MOBILE_WIDTH + 'px)');
     const byId = id => document.getElementById(id);
     const moved = [];
+    const layoutMoved = [];
     const panels = new Map();
     let enabled = false, timer = null, leaving = false, currentAction = null;
     let sheet, sheetBody, footer, header, lobbyLink, currentPanel = '', currentTab = 'game';
-    let gameAttributes = null, selectionToggle = null;
+    let gameAttributes = null, diceAttributes = null, selectionToggle = null, workspace = null, adsGroup = null, lastSelection = null;
     const TAB_KEYS = ['game', 'chat', 'orders', 'more'];
     const isDice = !!byId('diceIdleEmoji');
     const title = byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
@@ -48,19 +49,76 @@
         if (!target || moved.some(entry => entry.target === target)) return;
         const marker = document.createComment('mobile-game: original position');
         target.before(marker);
-        const wrapper = node('div', '', { class: 'mobile-native-panel', 'data-mobile-native': key });
-        wrapper.hidden = true;
-        sheetBody.append(wrapper);
+        const wrapper = panels.get(key) || node('div', '', { class: 'mobile-native-panel', 'data-mobile-native': key });
+        if (!panels.has(key)) { wrapper.hidden = true; sheetBody.append(wrapper); }
         wrapper.append(target);
         moved.push({ target, marker, wrapper });
         panels.set(key, wrapper);
     }
     function restore() {
+        layoutMoved.splice(0).reverse().forEach(({ target, marker }) => {
+            if (target.id === 'canvasResultCenter' && (target.ownerDocument !== document || target.closest('#raceFsStage'))) {
+                marker.remove(); return;
+            }
+            if (marker.parentNode) marker.replaceWith(nativeAnchor(target));
+        });
+        // Horse presentation can create this native sibling after our workspace was built.
+        // Keep it with the renderer; its own fade callback still owns its contents/cleanup.
+        const center = workspace?.querySelector(':scope > #canvasResultCenter');
+        const stage = byId('raceTrackWrapper');
+        if (center && stage) nativeAnchor(stage).before(center);
+        workspace?.remove(); workspace = null; adsGroup?.remove(); adsGroup = null;
         moved.splice(0).reverse().forEach(({ target, marker, wrapper }) => {
             if (marker.parentNode) marker.replaceWith(target);
             wrapper.remove();
         });
         panels.clear();
+    }
+    function nativeAnchor(target) {
+        if (target._canvasPlaceholder?.parentNode) return target._canvasPlaceholder;
+        if (target.id === 'raceTrackWrapper' && typeof _racePipPlaceholder !== 'undefined' && _racePipPlaceholder?.parentNode) return _racePipPlaceholder;
+        if (target.id === 'raceTrackWrapper' && target.closest('#raceFsStage')) return target.closest('#raceFsStage');
+        return target;
+    }
+    function relocate(target, destination) {
+        if (!target) return;
+        const anchor = nativeAnchor(target);
+        const marker = document.createComment('mobile-app: original position');
+        anchor.before(marker); destination.append(anchor);
+        layoutMoved.push({ target, marker });
+    }
+    function diceKeypress(event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault(); event.currentTarget.click();
+    }
+    function buildWorkspace() {
+        const game = byId('gameSection');
+        workspace = node('div', '', { id: 'mobileGameWorkspace' });
+        game.prepend(workspace);
+        // Move the actual renderer, never recreate it or override its native display gate.
+        const stage = byId('raceTrackWrapper') || byId('deguriStage') || byId('rouletteContainer') || document.querySelector('.chat-history-wrapper');
+        const center = byId('canvasResultCenter');
+        if (center && !center.closest('#raceFsStage')) relocate(center, workspace);
+        relocate(stage, workspace);
+        if (isDice) {
+            const dieStage = node('section', '', { id: 'mobileDiceStage', 'aria-label': '주사위 게임' });
+            workspace.prepend(dieStage);
+            const die = byId('diceIdleEmoji');
+            diceAttributes = new Map(['role', 'tabindex', 'aria-label'].map(name => [name, die.getAttribute(name)]));
+            die.setAttribute('role', 'button'); die.setAttribute('tabindex', '0'); die.setAttribute('aria-label', '주사위 굴리기');
+            die.addEventListener('keydown', diceKeypress);
+            relocate(die, dieStage);
+        }
+        ['targetRankBanner', 'targetRankReason', 'gameStatus'].forEach(id => relocate(byId(id), workspace));
+        workspace.append(node('div', '', { id: 'mobileGameReadySummary', role: 'status' }));
+        relocate(byId('horseSelectionSection') || byId('deguriPickSection'), workspace);
+        // Voting stays directly available even when the art tray is folded.
+        relocate(byId('rankVoteSection'), workspace);
+        ['progressSection', 'notRolledSection', 'replaySection', 'turboSettingSection'].forEach(id => relocate(byId(id), workspace));
+        adsGroup = node('div', '', { id: 'mobileGameAds' });
+        game.append(adsGroup);
+        game.querySelectorAll('.ad-container').forEach(ad => relocate(ad, adsGroup));
+        document.querySelectorAll('body > .ad-container').forEach(ad => relocate(ad, adsGroup));
     }
     function closeSheet() { if (enabled && sheet) showPanel('game'); }
     function scrollTo(target) {
@@ -97,6 +155,7 @@
         sync();
         // Keep the actual canvas mounted and measurable; notify its native resize handler on return.
         if (mainVisible) requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+        document.querySelector('body > .container')?.scrollTo({ top: 0, behavior: 'instant' });
         window.scrollTo({ top: 0, behavior: 'instant' });
     }
     function refreshPanelStatus() {
@@ -116,7 +175,7 @@
             const nativeLeave = byId('leaveBtn');
             if (nativeLeave) { leaving = true; nativeLeave.click(); }
         }, { id: 'mobileGameBack' });
-        header.append(back, identity, button('메뉴', () => showPanel('more')));
+        header.append(back, identity, button('', () => showPanel('people'), { id: 'mobileGamePeople', 'aria-label': '참여자 보기' }));
         document.body.prepend(header);
         footer = node('div', '', { id: 'mobileGameFooter', class: 'mobile-game-chrome' });
         const action = button('', () => {
@@ -180,25 +239,30 @@
         enabled = true;
         if (!header) build();
         document.body.classList.add('mobile-ui');
+        document.body.classList.toggle('mobile-dice-app', isDice);
         document.body.classList.toggle('mobile-debug', new URLSearchParams(location.search).has('debug'));
         // Dice renders authoritative rolls inside chat; keep its chat stage in the main flow.
         if (!isDice) move('chat', byId('chatMessages')?.closest('.chat-section'));
         move('people', byId('usersList')?.closest('.users-section'));
+        move('people', byId('readySection'));
+        move('people', byId('roomExpirySection'));
         move('orders', byId('ordersSection'));
         move('history', byId('historySection') || byId('historyList')?.closest('.history-section'));
         move('host', byId('hostControls'));
         move('rules', byId('gameRulesSection'));
         move('settings', document.querySelector('.control-bar-meta'));
+        move('settings', document.querySelector('.horse-selection-header-right'));
         const game = byId('gameSection');
         gameAttributes = new Map(['role', 'tabindex', 'aria-labelledby', 'aria-hidden', 'inert'].map(name => [name, game.getAttribute(name)]));
         game.setAttribute('role', 'tabpanel'); game.setAttribute('tabindex', '0');
-        const selection = byId('horseSelectionSection');
+        buildWorkspace();
+        const selection = byId('horseSelectionSection') || byId('deguriPickSection');
         if (selection) {
             selectionToggle = button('선택', () => {
                 const collapsed = selection.classList.toggle('mobile-selection-collapsed');
                 selectionToggle.setAttribute('aria-expanded', String(!collapsed));
-            }, { id: 'mobileSelectionToggle', class: 'mobile-game-chrome', 'aria-expanded': 'true', 'aria-controls': 'horseSelectionGrid rankVoteSection horseSelectionInfo' });
-            selection.querySelector('.horse-selection-header')?.append(selectionToggle);
+            }, { id: 'mobileSelectionToggle', class: 'mobile-game-chrome', 'aria-expanded': 'true', 'aria-controls': isDice ? '' : byId('raceTrack') ? 'horseSelectionGrid horseSelectionInfo' : 'deguriPicker deguriPickStatus' });
+            selection.querySelector('.horse-selection-header, .deguri-pick-head')?.append(selectionToggle);
         }
         showPanel('game');
     }
@@ -209,15 +273,23 @@
         const game = byId('gameSection');
         game.classList.remove('mobile-tab-away', 'mobile-dice-chat-only');
         gameAttributes?.forEach((value, key) => { if (value === null) game.removeAttribute(key); else game.setAttribute(key, value); });
-        byId('horseSelectionSection')?.classList.remove('mobile-selection-collapsed');
+        (byId('horseSelectionSection') || byId('deguriPickSection'))?.classList.remove('mobile-selection-collapsed');
         selectionToggle?.remove(); selectionToggle = null;
-        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug');
+        if (isDice) {
+            const die = byId('diceIdleEmoji');
+            die.removeEventListener('keydown', diceKeypress);
+            diceAttributes?.forEach((value, key) => { if (value === null) die.removeAttribute(key); else die.setAttribute(key, value); });
+        }
+        lastSelection = null;
+        document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app');
         document.documentElement.style.removeProperty('--mobile-game-bottom');
     }
     function chooseAction() {
         const visible = ids => ids.map(byId).find(element => nativeVisible(element));
         const reset = visible(['deguriResetButton']);
         if (reset) return reset;
+        const end = byId('endGameSection')?.querySelector('button');
+        if (nativeVisible(end)) return end;
         // Native dice /주사위 handles readiness and one-roll-per-round itself.
         if (isDice && typeof isGameActive !== 'undefined' && isGameActive) return byId('diceIdleEmoji');
         const ready = visible(['readyButton']);
@@ -225,6 +297,33 @@
         const start = visible(['startHorseRaceButton', 'startRouletteButton', 'startDeguriButton', 'startButton']);
         if (start) return start;
         return visible(['readyButton']);
+    }
+    function syncWorkspace() {
+        const count = (byId('usersCount') || byId('userCount'))?.textContent.trim() || '0';
+        const people = byId('mobileGamePeople');
+        const peopleLabel = count + '명';
+        if (people.textContent !== peopleLabel) people.textContent = peopleLabel;
+        people.setAttribute('aria-label', '참여자 ' + peopleLabel + ' 보기');
+        const summary = byId('mobileGameReadySummary');
+        const readyText = '준비 ' + (byId('readyCount')?.textContent.trim() || '0') + '/' + count;
+        if (summary.textContent !== readyText) summary.textContent = readyText;
+        const running = title === '경마' ? typeof isRaceActive !== 'undefined' && isRaceActive : title === '데구리' ? typeof isDeguriActive !== 'undefined' && isDeguriActive : title === '룰렛' ? typeof isSpinning !== 'undefined' && isSpinning : false;
+        if (document.body.classList.contains('mobile-app-running') !== running) document.body.classList.toggle('mobile-app-running', running);
+        const mapVisible = nativeVisible(byId('raceMinimap'));
+        if (document.body.classList.contains('mobile-stage-map-visible') !== mapVisible) document.body.classList.toggle('mobile-stage-map-visible', mapVisible);
+        const selection = byId('horseSelectionSection') || byId('deguriPickSection');
+        const selected = selection?.querySelector('.horse-selection-button.selected, .deguri-creature-btn.selected');
+        const ownSelection = title === '경마' ? (typeof mySelectedHorse !== 'undefined' && mySelectedHorse !== null ? String(mySelectedHorse) : null) : selected?.getAttribute('data-creature') || null;
+        if (ownSelection !== lastSelection) {
+            lastSelection = ownSelection;
+            const collapsed = !!ownSelection;
+            selection?.classList.toggle('mobile-selection-collapsed', collapsed);
+            selectionToggle?.setAttribute('aria-expanded', String(!collapsed));
+        }
+        if (selectionToggle) {
+            const selectionLabel = ownSelection ? '변경' : '선택';
+            if (selectionToggle.textContent !== selectionLabel) selectionToggle.textContent = selectionLabel;
+        }
     }
     function sync() {
         timer = null;
@@ -236,16 +335,19 @@
         if (!inRoom) { sheet.hidden = true; return; }
         const text = (byId('roomNameText') || byId('roomNameDisplay'))?.textContent.trim() || title;
         if (byId('mobileGameTitle').textContent !== text) byId('mobileGameTitle').textContent = text;
+        syncWorkspace();
         refreshPanelStatus();
         byId('mobileGameHostMenu').hidden = !nativeVisible(byId('hostControls'));
         byId('mobileGameShopMenu').hidden = !window.DeguriShop && !window.HorseShop;
         currentAction = chooseAction();
         const action = byId('mobileGameAction');
-        const label = currentAction?.id === 'diceIdleEmoji' ? '주사위 굴리기' : currentAction?.textContent.trim() || '진행을 기다리는 중';
+        const label = currentAction?.id === 'diceIdleEmoji' ? '주사위 굴리기' : currentAction?.closest('#endGameSection') ? '다음 판 준비' : currentAction?.textContent.trim() || '진행을 기다리는 중';
         if (action.textContent !== label) action.textContent = label;
         action.hidden = currentTab !== 'game';
         action.disabled = !currentAction || !!currentAction.disabled;
         const fullscreen = !!document.fullscreenElement || !!document.querySelector('.race-fs-css, .is-pseudo-fs');
+        if (document.body.classList.contains('mobile-app-fullscreen') !== fullscreen) document.body.classList.toggle('mobile-app-fullscreen', fullscreen);
+        header.hidden = fullscreen;
         footer.hidden = fullscreen;
         document.documentElement.style.setProperty('--mobile-game-bottom', fullscreen ? '0px' : Math.ceil(footer.getBoundingClientRect().height) + 'px');
     }

@@ -2,19 +2,19 @@
 .mobile-game-chrome { display: none; }
 @media (max-width: 760px) {
     body.mobile-ui { background: var(--mobile-canvas) !important; color: var(--mobile-ink); padding: 0 !important; }
-    body.mobile-ui.mobile-game-active { padding-bottom: calc(var(--mobile-game-bottom, 140px) + 20px) !important; }
+    body.mobile-ui.mobile-game-active { height: 100dvh; overflow: hidden; padding-bottom: 0 !important; }
     body.mobile-ui .mobile-game-chrome { display: block; }
     body.mobile-ui .mobile-game-chrome[hidden], body.mobile-ui .mobile-native-panel[hidden], body.mobile-ui #mobileGameMore[hidden], body.mobile-ui #mobileGamePanelStatus[hidden], body.mobile-ui #mobileGameStartOrder[hidden], body.mobile-ui #mobileGameAction[hidden] { display: none !important; }
     body.mobile-ui #mobileGameLobbyLink { margin: 16px; padding: 12px 16px; border: 1px solid var(--mobile-line); border-radius: 14px; color: var(--mobile-forest); background: var(--mobile-card); text-decoration: none; font-weight: 700; }
-    body.mobile-ui.mobile-game-active > .container { width: 100% !important; max-width: 100% !important; min-width: 0; max-height: none !important; overflow: visible !important; padding: 0 14px 20px !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+    body.mobile-ui.mobile-game-active > .container { width: 100% !important; max-width: 100% !important; min-width: 0; height: calc(100dvh - 64px - var(--mobile-game-bottom, 140px)); max-height: none !important; overflow-y: auto !important; overflow-x: hidden !important; overscroll-behavior-y: contain; padding: 0 14px 20px !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
     body.mobile-ui #gameSection { width: 100%; min-width: 0; }
     /* Contain the first native child margin so every tab begins at the same frame edge. */
     body.mobile-ui #gameSection.active { display: flow-root; }
     body.mobile-ui.mobile-game-active #controlBarMount { display: none; }
-    body.mobile-ui #mobileGameHeader { display: flex; align-items: center; gap: 10px; padding: 16px 14px 14px; background: var(--mobile-canvas); }
+    body.mobile-ui #mobileGameHeader { display: flex; align-items: center; gap: 10px; height: 64px; box-sizing: border-box; padding: 8px 14px; background: var(--mobile-canvas); }
     body.mobile-ui .mobile-game-identity { min-width: 0; flex: 1; }
-    body.mobile-ui .mobile-game-identity small { display: block; font-family: inherit; font-weight: 700; font-size: 11px; line-height: 1.5; color: var(--mobile-muted); }
-    body.mobile-ui .mobile-game-identity strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; line-height: 1.35; letter-spacing: -.6px; }
+    body.mobile-ui .mobile-game-identity small { display: block; font-family: inherit; font-weight: 700; font-size: 10px; line-height: 1.3; color: var(--mobile-muted); }
+    body.mobile-ui .mobile-game-identity strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; line-height: 1.3; letter-spacing: -.4px; }
     body.mobile-ui .mobile-game-chrome button { width: auto; margin: 0; min-height: 44px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 8px 12px; background: var(--mobile-card); color: var(--mobile-ink); box-shadow: none; font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.4; cursor: pointer; }
     body.mobile-ui .mobile-game-chrome button:disabled { opacity: .55; cursor: default; }
     body.mobile-ui .mobile-game-chrome button:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: 2px; }
@@ -23,11 +23,69 @@
     body.mobile-ui #mobileGameDock { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
     body.mobile-ui #mobileGameDock button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; border: 0; padding: 4px 2px; min-width: 0; font-size: 10px; background: transparent; }
     body.mobile-ui #mobileGameDock i { font-size: 21px; }
-    body.mobile-ui #mobileGameSheet { position: static; min-height: 55dvh; border: 1px solid var(--mobile-line); border-radius: 22px; background: var(--mobile-card); color: var(--mobile-ink); overflow: hidden; }
+    body.mobile-ui #mobileGameSheet { position: static; min-height: calc(100dvh - 84px - var(--mobile-game-bottom, 140px)); border: 1px solid var(--mobile-line); border-radius: 18px; background: var(--mobile-card); color: var(--mobile-ink); overflow: hidden; }
     body.mobile-ui #mobileGameDock [aria-selected=true] { background: var(--mobile-soft); color: var(--mobile-ink); }
     /* Offscreen rather than display:none: renderers retain nonzero dimensions while another tab is open. */
     body.mobile-ui #gameSection.mobile-tab-away { position: fixed !important; top: 0; left: -200vw; width: calc(100vw - 28px); pointer-events: none; }
-    body.mobile-ui #gameSection.mobile-dice-chat-only > :not(.chat-section):not(.chat-history-wrapper) { display: none !important; }
+    body.mobile-ui #gameSection.mobile-dice-chat-only > :not(#mobileGameWorkspace), body.mobile-ui #gameSection.mobile-dice-chat-only #mobileGameWorkspace > :not(.chat-history-wrapper) { display: none !important; }
+
+    body.mobile-ui #mobileGameWorkspace { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    body.mobile-ui #mobileGameWorkspace > * { flex: 0 0 auto; min-width: 0; }
+    body.mobile-ui #mobileGameReadySummary { align-self: flex-start; color: var(--mobile-muted); font-size: 12px; font-weight: 700; padding: 3px 0; }
+    body.mobile-ui.mobile-app-running #mobileGameReadySummary,
+    body.mobile-ui.mobile-app-running #horseSelectionSection,
+    body.mobile-ui.mobile-app-running #deguriPickSection,
+    body.mobile-ui.mobile-app-running #mobileGameWorkspace > #rankVoteSection { display: none !important; }
+    body.mobile-ui #mobileGameWorkspace > #gameStatus { margin: 0 !important; padding: 8px 10px !important; border: 0; background: var(--mobile-soft); color: var(--mobile-ink); border-radius: 10px; font-size: 12px; }
+    body.mobile-ui #mobileGameWorkspace > #gameStatus.waiting { display: none; }
+    body.mobile-ui #mobileGameWorkspace > #targetRankBanner { margin: 0; padding: 8px 12px; font-size: 14px; }
+    body.mobile-ui #mobileGameWorkspace > #targetRankReason { margin: 0; font-size: 11px; }
+    body.mobile-ui #mobileGameWorkspace > #horseSelectionSection,
+    body.mobile-ui #mobileGameWorkspace > #deguriPickSection,
+    body.mobile-ui #mobileGameWorkspace > #rankVoteSection { margin: 0 !important; padding: 10px !important; border: 1px solid var(--mobile-line) !important; border-radius: 16px !important; background: var(--mobile-card) !important; color: var(--mobile-ink) !important; box-shadow: none !important; }
+    body.mobile-ui #mobileGameWorkspace #horseSelectionGrid,
+    body.mobile-ui #mobileGameWorkspace #deguriPicker { display: flex; overflow-x: auto; overscroll-behavior-x: contain; gap: 6px; margin: 0 !important; padding: 2px 0 8px; scroll-snap-type: x proximity; scrollbar-width: none; }
+    body.mobile-ui #mobileGameWorkspace #horseSelectionGrid::-webkit-scrollbar,
+    body.mobile-ui #mobileGameWorkspace #deguriPicker::-webkit-scrollbar { display: none; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-button,
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-btn { flex: 0 0 64px; width: 64px; height: 68px !important; min-height: 68px; scroll-snap-align: start; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-button.random-select { min-height: 68px; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-button.random-select .vehicle-card-content { flex-direction: column !important; gap: 0; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-button.random-select > div { flex-direction: column !important; gap: 2px !important; width: 100%; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-button.random-select > div > span:last-child { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px !important; }
+    body.mobile-ui #mobileGameWorkspace #trackLengthSelector { margin: 0 0 8px !important; gap: 5px !important; }
+    body.mobile-ui #mobileGameWorkspace #trackLengthSelector > span { display: none; }
+    body.mobile-ui #mobileGameWorkspace #trackLengthSelector > button { flex: 1; min-width: 0; width: auto; min-height: 44px; margin: 0; padding: 6px 3px !important; font-size: 11px !important; }
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-icon { width: 36px; height: 36px; }
+    body.mobile-ui #mobileGameWorkspace #horseSelectionInfo,
+    body.mobile-ui #mobileGameWorkspace #deguriPickStatus { font-size: 12px !important; margin-top: 6px !important; }
+    body.mobile-ui #deguriPickSection.mobile-selection-collapsed > :not(.deguri-pick-head) { display: none !important; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-header-right { flex-basis: 100%; }
+    body.mobile-ui #mobileGameWorkspace .horse-selection-header,
+    body.mobile-ui #mobileGameWorkspace .deguri-pick-head { position: relative; min-height: 44px; padding-right: 68px; margin-bottom: 8px; }
+    body.mobile-ui #mobileGameWorkspace .mobile-selection-collapsed .horse-selection-header-right { display: none; }
+    body.mobile-ui #mobileGameWorkspace #mobileSelectionToggle { position: absolute; top: 0; right: 0; }
+    body.mobile-ui #mobileGameWorkspace .rank-vote-title { font-size: 12px; margin-bottom: 7px; }
+    body.mobile-ui #mobileGameWorkspace .rank-vote-hint { display: none; }
+    body.mobile-ui #mobileGameWorkspace .rank-vote-box { min-height: 44px; }
+    body.mobile-ui #mobileGameWorkspace #raceTrackWrapper { margin: 0; }
+    body.mobile-ui #mobileGameWorkspace > #raceTrackWrapper > .track-top-btn-row { position: static; justify-content: flex-end; min-height: 44px; margin-bottom: 6px; }
+    body.mobile-ui #mobileGameWorkspace > #raceTrackWrapper > .track-top-btn-row > button { min-height: 44px; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card); color: var(--mobile-ink); box-shadow: none; }
+    body.mobile-ui #mobileGameWorkspace > #raceTrackWrapper #raceTrackContainer { margin: 0; }
+    body.mobile-ui.mobile-stage-map-visible #mobileGameWorkspace > #raceTrackWrapper #raceTrackContainer { margin-bottom: 44px; }
+    body.mobile-ui #mobileGameWorkspace #deguriStage { margin: 0; }
+    body.mobile-ui #mobileGameWorkspace .chat-history-wrapper { display: block; margin: 0; }
+    body.mobile-ui #mobileGameWorkspace .chat-history-wrapper .chat-section { width: 100%; margin: 0; padding: 10px; border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card); }
+    body.mobile-ui #mobileGameWorkspace .chat-history-wrapper #chatMessages { height: clamp(180px, calc(100dvh - 330px), 480px); max-height: none !important; border: 0 !important; }
+    body.mobile-ui.mobile-dice-app.mobile-game-active .container > div:has(> .brand-title) { display: none !important; }
+    body.mobile-ui #mobileDiceStage { display: grid; place-items: center; min-height: 160px; padding: 20px; border: 1px solid var(--mobile-line); border-radius: 22px; background: var(--mobile-soft); }
+    body.mobile-ui #mobileDiceStage #diceIdleEmoji { display: grid; place-items: center; width: 104px; height: 104px; font-size: 72px !important; border: 1px solid var(--mobile-line); border-radius: 26px; background: var(--mobile-card); color: var(--mobile-ink); }
+    body.mobile-ui #mobileDiceStage #diceIdleEmoji:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: 3px; }
+    body.mobile-ui.mobile-dice-app #gameSection:not(.mobile-dice-chat-only) #chatMessages { height: 210px; }
+    body.mobile-ui.mobile-dice-app #gameSection:not(.mobile-dice-chat-only) .chat-section > div:last-child { display: none !important; }
+    body.mobile-ui.mobile-dice-app .chat-section > div:last-child { grid-template-columns: minmax(0,1fr) auto !important; }
+    body.mobile-ui #mobileGameAds { margin-top: 24px; }
+    body.mobile-ui.mobile-app-fullscreen > .container { height: 100dvh; overflow: visible !important; }
 
     body.mobile-ui .mobile-sheet-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; position: sticky; top: 0; z-index: 2; background: var(--mobile-card); border-bottom: 1px solid var(--mobile-line); }
     body.mobile-ui .mobile-sheet-heading h2 { margin: 0; font-size: 20px; }

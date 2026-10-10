@@ -7,6 +7,7 @@
  *   --url http://127.0.0.1:43113 --game all|horse-race|dice|roulette|deguri
  *   --auth          DB-backed login/server/membership flow (isolated local DB only)
  *   --tab-rounds    complete horse/dice rounds; smoke roulette/deguri
+ *   --app-layout    stage-first horse layout and native result/replay flow
  *   --smoke         create/join/tools/responsive only; round explicitly skipped
  *   --out /tmp/mobile-live-ui-qa
  */
@@ -23,9 +24,14 @@ const GAME = option('--game', 'all');
 const SMOKE = args.includes('--smoke');
 const AUTH = args.includes('--auth');
 const TAB_ROUNDS = args.includes('--tab-rounds');
-const TABS = ['game', 'chat', 'orders'];
+const APP_LAYOUT = args.includes('--app-layout');
+const TABS = ['game', 'chat', 'orders', 'more'];
+const CANVAS_WIDTH_TOLERANCE = 1;
+// Native deguri renderer coalesces resize events for 120ms; measure after its handler.
+const NATIVE_RESIZE_WAIT_MS = 160;
 const PANEL_TOP_TOLERANCE = 8;
 const HORSE_ART_MAX_WIDTH = 56;
+const HORSE_NATIVE_FADE_WAIT_MS = 750;
 const AUTH_PIN = '1234';
 const TIMEOUT = { action: 15000, navigation: 30000, round: 240000 };
 const WIDTHS = [320, 375, 390];
@@ -39,7 +45,7 @@ const GAMES = {
     deguri: { name: '데구리', route: '/deguri', end: 'deguri:gameEnd' }
 };
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
-const report = { base: BASE, started: new Date().toISOString(), smoke: SMOKE, checks: [], games: {}, limitations: [], errors: [], browserErrorSources: [], externalErrors: [] };
+const report = { base: BASE, started: new Date().toISOString(), smoke: SMOKE, appLayout: APP_LAYOUT, checks: [], games: {}, limitations: [], errors: [], browserErrorSources: [], externalErrors: [] };
 const pass = (name, detail) => { report.checks.push({ name, status: 'pass', detail }); console.log('PASS ' + name); };
 const skip = (name, reason) => { report.checks.push({ name, status: 'skip', reason }); console.log('SKIP ' + name + ': ' + reason); };
 const save = () => fs.writeFileSync(path.join(OUTPUT, 'report.json'), JSON.stringify(report, null, 2));
@@ -94,6 +100,7 @@ async function activeRoom(page) {
     }, null, { timeout: TIMEOUT.navigation });
     await page.waitForSelector('body.mobile-ui');
     await attachObserver(page);
+    if (APP_LAYOUT) await page.evaluate(() => { if (document.querySelector('#diceIdleEmoji')) window.__qaNativeDie = document.querySelector('#diceIdleEmoji'); });
 }
 
 async function geometry(page, tag) {
@@ -138,9 +145,13 @@ async function openTool(page, tool) {
 async function closeTool(page) {
     await selectTab(page, 'game');
 }
+async function settleNativeResize(page) {
+    await page.waitForFunction(({ after, delay }) => performance.now() >= after + delay, { after: await page.evaluate(() => performance.now()), delay: NATIVE_RESIZE_WAIT_MS });
+}
 async function checkTabs(page, tag) {
     await selectTab(page, 'game');
-    await page.evaluate(() => { window.__qaOriginalCanvases = [...document.querySelectorAll('#gameSection canvas')]; window.scrollTo(0, 0); });
+    await settleNativeResize(page);
+    await page.evaluate(() => { window.__qaOriginalCanvases = [...document.querySelectorAll('#gameSection canvas')]; window.__qaCanvasWidths = window.__qaOriginalCanvases.map(canvas => canvas.getBoundingClientRect().width); window.scrollTo(0, 0); });
     const panels = [];
     for (const key of TABS) {
         await selectTab(page, key);
@@ -153,12 +164,13 @@ async function checkTabs(page, tag) {
             const panel = document.getElementById(tab?.getAttribute('aria-controls'));
             const r = panel?.getBoundingClientRect();
             const action = document.querySelector('#mobileGameAction');
-            return { selected: selected.map(tab => tab.dataset.mobilePanel), panel: panel?.id, role: panel?.getAttribute('role'), top: r?.top, visible: !!(r?.width && r?.height), actionVisible: !!(action?.offsetWidth && action?.offsetHeight), sheetPosition: getComputedStyle(document.querySelector('#mobileGameSheet')).position, retainedCanvases: window.__qaOriginalCanvases.every(canvas => canvas.isConnected && document.querySelector('#gameSection').contains(canvas)) };
+            return { selected: selected.map(tab => tab.dataset.mobilePanel), panel: panel?.id, role: panel?.getAttribute('role'), top: r?.top, visible: !!(r?.width && r?.height), actionVisible: !!(action?.offsetWidth && action?.offsetHeight), sheetPosition: getComputedStyle(document.querySelector('#mobileGameSheet')).position, retainedNativeDie: !window.__qaNativeDie || (window.__qaNativeDie.isConnected && window.__qaNativeDie === document.querySelector('#diceIdleEmoji')), retainedCanvases: window.__qaOriginalCanvases.every(canvas => canvas.isConnected && document.querySelector('#gameSection').contains(canvas)) };
         }, key);
         assert.deepEqual(state.selected, [key], tag + ' one selected tab');
         assert(state.visible, tag + ' ' + key + ' associated content visible');
         assert.equal(state.actionVisible, key === 'game', tag + ' CTA only on game tab');
         assert(state.retainedCanvases, tag + ' original canvas nodes retained');
+        assert(state.retainedNativeDie, tag + ' original native die span retained');
         assert(!['fixed', 'absolute'].includes(state.sheetPosition), tag + ' inline content, not overlay');
         panels.push({ key, ...state });
         await geometry(page, tag + '-' + key);
@@ -166,7 +178,89 @@ async function checkTabs(page, tag) {
     const range = Math.max(...panels.map(panel => panel.top)) - Math.min(...panels.map(panel => panel.top));
     assert(range <= PANEL_TOP_TOLERANCE, tag + ' content panels share position: ' + JSON.stringify(panels));
     await selectTab(page, 'game');
+    await settleNativeResize(page);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert(await page.evaluate(tolerance => window.__qaOriginalCanvases.every((canvas, index) => Math.abs(canvas.getBoundingClientRect().width - window.__qaCanvasWidths[index]) <= tolerance), CANVAS_WIDTH_TOLERANCE), tag + ' canvas widths survive tab round trip');
     pass(tag + ' tabs aria/content/CTA/canvas continuity', panels);
+}
+
+async function checkAppLayout(page, game, tag) {
+    await selectTab(page, 'game');
+    const layout = await page.evaluate(() => {
+        const workspace = document.querySelector('#mobileGameWorkspace');
+        const header = document.querySelector('#mobileGameHeader')?.getBoundingClientRect();
+        const summary = document.querySelector('#mobileGameReadySummary');
+        const people = document.querySelector('#mobileGamePeople');
+        const nativeStage = document.querySelector('#raceTrackWrapper, #rouletteWheel, #deguriCanvas, #diceIdleEmoji');
+        const stage = nativeStage?.getBoundingClientRect();
+        const selection = document.querySelector('#horseSelectionSection')?.getBoundingClientRect();
+        const grid = document.querySelector('#horseSelectionGrid');
+        const picks = grid ? [...grid.querySelectorAll('.horse-selection-button:not(.random-select)')].map(pick => pick.getBoundingClientRect()) : [];
+        return { workspace: !!workspace, ownsStage: !!(workspace && nativeStage && workspace.contains(nativeStage)), firstMain: workspace?.parentElement.firstElementChild === workspace,
+            headerHeight: header?.height, headerBottom: header?.bottom, ready: summary?.textContent.trim(), people: people?.textContent.trim(),
+            stageTop: stage?.top, stageBottom: stage?.bottom, stageVisible: !!(stage?.width && stage?.height), selectionTop: selection?.top,
+            horizontalTray: !!(grid && getComputedStyle(grid).overflowX === 'auto'), pickRows: [...new Set(picks.map(pick => Math.round(pick.top)))].length };
+    });
+    assert(layout.workspace && layout.ownsStage, tag + ' separate mobile workspace keeps native stage');
+    assert(layout.firstMain, tag + ' workspace is first main content');
+    assert(layout.headerHeight <= 84, tag + ' compact app header: ' + JSON.stringify(layout));
+    assert(/\d/.test(layout.people), tag + ' header contains participant count');
+    assert(layout.ready, tag + ' compact readiness summary present');
+    if (game === 'horse-race') {
+        assert(layout.stageVisible && layout.stageTop >= layout.headerBottom - 1 && layout.stageTop < HEIGHT / 2, tag + ' track starts in first viewport: ' + JSON.stringify(layout));
+        assert(layout.stageTop < layout.selectionTop, tag + ' track before selection');
+        assert(layout.horizontalTray && layout.pickRows === 1, tag + ' choices use one horizontal row: ' + JSON.stringify(layout));
+    }
+    if (game === 'dice') {
+        assert(layout.stageVisible && layout.stageTop >= layout.headerBottom - 1 && layout.stageBottom < HEIGHT / 2, tag + ' actual die appears prominently in first viewport: ' + JSON.stringify(layout));
+        assert(!await page.locator('#chatInput').isVisible(), tag + ' game view reserves composer for Chat tab');
+        const feed = await page.locator('#chatMessages').boundingBox();
+        assert(feed && feed.height <= 280, tag + ' compact authoritative Game feed: ' + JSON.stringify(feed));
+        assert(await page.evaluate(() => window.__qaNativeDie.isConnected && window.__qaNativeDie === document.querySelector('#diceIdleEmoji')), tag + ' exact native die survives responsive layout');
+    }
+    pass(tag + ' app workspace/header/ready/stage layout', layout);
+}
+
+async function checkHorseActiveResize(page, phase) {
+    const before = await page.evaluate(() => {
+        window.__qaHorseNativeNodes = ['raceTrack', 'targetRankBanner', 'targetRankReason', 'rankVoteSection'].map(id => document.getElementById(id));
+        return { width: document.getElementById('raceTrack').getBoundingClientRect().width, center: !!document.getElementById('canvasResultCenter') };
+    });
+    await page.setViewportSize(DESKTOP);
+    await page.waitForFunction(() => !document.body.classList.contains('mobile-ui'));
+    assert(await page.evaluate(() => window.__qaHorseNativeNodes.every(node => node?.isConnected && document.getElementById(node.id) === node && (!node._canvasPlaceholder || node._canvasPlaceholder.isConnected))), phase + ' desktop retains native renderer/target/vote and live placeholders');
+    await page.setViewportSize({ width: 375, height: HEIGHT });
+    await page.waitForSelector('body.mobile-ui');
+    await page.waitForFunction(({ after, delay }) => performance.now() >= after + delay, { after: await page.evaluate(() => performance.now()), delay: HORSE_NATIVE_FADE_WAIT_MS });
+    const after = await page.evaluate(() => ({ width: document.getElementById('raceTrack')?.getBoundingClientRect().width,
+        connected: window.__qaHorseNativeNodes.every(node => node?.isConnected && document.getElementById(node.id) === node && (!node._canvasPlaceholder || node._canvasPlaceholder.isConnected)),
+        center: !!document.getElementById('canvasResultCenter'), activePlaceholders: window.__qaHorseNativeNodes.filter(node => node?._canvasPlaceholder).map(node => node.id) }));
+    assert(after.connected, phase + ' deferred native fades retain same connected target/vote/stage nodes: ' + JSON.stringify(after));
+    assert(Math.abs(before.width - after.width) <= CANVAS_WIDTH_TOLERANCE, phase + ' mobile track width restored: ' + JSON.stringify({ before, after }));
+    assert(!before.center || after.center || !after.activePlaceholders.length, phase + ' active result container survives until native fade completes');
+    pass('horse ' + phase + ' 375/1280/375 native nodes/placeholders/width survive deferred fades', { before, after });
+}
+
+async function checkHorseReplay(page) {
+    await page.locator('#resultOverlay.visible').waitFor({ state: 'visible' });
+    assert(await page.locator('#resultRankings').innerText(), 'Native result contains rankings');
+    await page.screenshot({ path: path.join(OUTPUT, 'horse-race-native-result.png') });
+    await page.locator('#resultOverlay button').click();
+    await page.locator('#mainReplayButton').click();
+    await page.waitForFunction(() => document.querySelector('#replayStopBtn') || document.querySelector('#replaySelectorOverlay'));
+    if (await page.locator('#replaySelectorOverlay').count()) await page.locator('#replaySelectorOverlay button').first().click();
+    await page.locator('#replayStopBtn').waitFor({ state: 'visible' });
+    await checkHorseActiveResize(page, 'replay');
+    const stage = await page.locator('#raceTrack').boundingBox();
+    await selectTab(page, 'chat');
+    await selectTab(page, 'game');
+    assert(await page.locator('#replayStopBtn').isVisible(), 'Native replay survives tab round trip');
+    const returned = await page.locator('#raceTrack').boundingBox();
+    assert(stage && returned && Math.abs(stage.width - returned.width) <= CANVAS_WIDTH_TOLERANCE, 'Replay track width retained');
+    await page.screenshot({ path: path.join(OUTPUT, 'horse-race-native-replay.png') });
+    await page.locator('#replayStopBtn').click();
+    await page.waitForFunction(() => !document.querySelector('#replayStopBtn'));
+    pass('horse native result confirmation/replay/stop and stage continuity');
 }
 
 async function checkTools(host, guest, game, hostName) {
@@ -220,6 +314,13 @@ async function prepareRound(host, guest, game, hostName, guestName) {
             assert(!Object.hasOwn(visibleBets, otherName), 'Other player selection leaked before start: ' + JSON.stringify(visibleBets));
         }
         const selected = await host.locator('#horseSelectionGrid .horse-selection-button.selected').first().getAttribute('id');
+        if (APP_LAYOUT) {
+            await host.waitForFunction(() => document.querySelector('#mobileSelectionToggle')?.getAttribute('aria-expanded') === 'false');
+            await host.locator('#mobileSelectionToggle').click();
+            await host.locator('#horseSelectionGrid').waitFor({ state: 'visible' });
+            assert.equal(await host.locator('#horseSelectionGrid .horse-selection-button.selected').first().getAttribute('id'), selected);
+            pass('horse own selection folds automatically and reopens without losing selection');
+        }
         const art = await host.locator('#horseSelectionGrid .horse-selection-button:not(.random-select) .vehicle-display').first().boundingBox();
         assert(art && art.width <= HORSE_ART_MAX_WIDTH, 'Horse art remains compact: ' + JSON.stringify(art));
         await selectTab(host, 'chat');
@@ -239,7 +340,8 @@ async function prepareRound(host, guest, game, hostName, guestName) {
         // Roll through the visible mobile action, invoking the original dice handler.
         await host.waitForFunction(() => document.querySelector('#mobileGameAction')?.textContent.includes('굴리기'));
         await guest.waitForFunction(() => document.querySelector('#mobileGameAction')?.textContent.includes('굴리기'));
-        await host.locator('#mobileGameAction').click();
+        if (APP_LAYOUT) await host.locator('#diceIdleEmoji').click();
+        else await host.locator('#mobileGameAction').click();
         await guest.locator('#mobileGameAction').click();
     }
     return before;
@@ -254,6 +356,19 @@ async function desktopGate(page, game) {
     assert(!(await dock.isVisible().catch(() => false)), 'Desktop shows mobile dock');
     const restored = await page.evaluate(() => { const game = document.querySelector('#gameSection'); return { role: game.getAttribute('role'), ariaHidden: game.getAttribute('aria-hidden'), labelledBy: game.getAttribute('aria-labelledby'), inert: game.inert, away: game.classList.contains('mobile-tab-away'), collapsed: !!document.querySelector('.mobile-selection-collapsed'), toggle: !!document.querySelector('#mobileSelectionToggle') }; });
     assert.deepEqual(restored, { role: null, ariaHidden: null, labelledBy: null, inert: false, away: false, collapsed: false, toggle: false });
+    if (APP_LAYOUT) {
+        assert.equal(await page.locator('#mobileGameWorkspace, #mobileGameReadySummary').count(), 0, 'Desktop removes mobile workspace/readiness summary');
+        if (game === 'dice') {
+            assert(await page.evaluate(() => { const die = document.querySelector('#diceIdleEmoji'); return die === window.__qaNativeDie && die.isConnected && !!die.closest('.chat-section') && !!die.parentElement.querySelector('#chatInput') && die.nextElementSibling?.tagName === 'BUTTON'; }), 'Desktop restores exact native die to original composer slot');
+            pass('dice desktop restores exact original span and composer slot');
+        }
+        if (game === 'horse-race') {
+            const order = await page.evaluate(() => ['readySection', 'horseSelectionSection', 'raceTrackWrapper', 'replaySection'].map(id => { const element = document.getElementById(id); return { id, parent: element?.parentElement.id, index: [...element.parentElement.children].indexOf(element) }; }));
+            assert(order.every(item => item.parent === 'gameSection'), 'Desktop restores native horse parent: ' + JSON.stringify(order));
+            assert(order.every((item, index) => !index || item.index > order[index - 1].index), 'Desktop restores native horse order: ' + JSON.stringify(order));
+            pass('horse desktop native stage/selection/replay order restored', order);
+        }
+    }
     pass(game + ' 1280px gate restores desktop attributes and hides mobile dock', restored);
     // A baseline server is required to claim visual equality, not merely gate presence.
     skip(game + ' desktop visual baseline', 'Gate/DOM restoration only; no unmodified baseline comparison.');
@@ -293,6 +408,7 @@ async function runGame(browser, game) {
             for (const theme of ['light', 'dark']) {
                 await host.evaluate(theme => { if (window.ThemeModule) ThemeModule.set(theme); else document.documentElement.dataset.theme = theme; }, theme);
                 await checkTabs(host, game + '-' + width + '-' + theme);
+                if (APP_LAYOUT) await checkAppLayout(host, game, game + '-' + width + '-' + theme);
                 await host.screenshot({ path: path.join(OUTPUT, game + '-' + width + '-' + theme + '.png') });
             }
         }
@@ -302,7 +418,12 @@ async function runGame(browser, game) {
         else {
             const after = await prepareRound(host, guest, game, names.host, names.guest);
             if (game === 'horse-race') {
+                if (APP_LAYOUT) {
+                    await host.waitForFunction(() => document.querySelector('#canvasResultCenter') || (typeof isRaceActive !== 'undefined' && isRaceActive), null, { timeout: TIMEOUT.round });
+                    await checkHorseActiveResize(host, 'countdown');
+                }
                 await host.waitForFunction(() => typeof isRaceActive !== 'undefined' && isRaceActive, null, { timeout: TIMEOUT.round });
+                if (APP_LAYOUT) await checkHorseActiveResize(host, 'running');
                 await host.evaluate(() => { window.__qaRaceTrack = document.querySelector('#raceTrack'); });
                 await selectTab(host, 'chat');
                 assert(await host.evaluate(() => document.querySelector('#gameSection').getBoundingClientRect().width > 0 && document.querySelector('#gameSection').inert), 'Offscreen race remains measurable while chat is selected');
@@ -315,6 +436,7 @@ async function runGame(browser, game) {
             assert(hostResult && guestResult, 'Empty authoritative result');
             assert.deepEqual(hostResult, guestResult, 'Clients received different authoritative results');
             pass(game + ' identical authoritative result on both clients', { event: GAMES[game].end, result: hostResult });
+            if (APP_LAYOUT && game === 'horse-race') await checkHorseReplay(host);
             for (const [name, page] of [['host', host], ['guest', guest]]) await page.screenshot({ path: path.join(OUTPUT, game + '-result-' + name + '.png') });
         }
         const ownErrors = errors.filter(error => {
