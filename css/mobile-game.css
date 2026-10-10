@@ -1,6 +1,6 @@
 /* Nothing in this file changes desktop presentation. Tokens live in theme.css. */
 .mobile-game-chrome { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (orientation: landscape) and (max-height: 760px) and (pointer: coarse) {
     body.mobile-ui { background: var(--mobile-canvas) !important; color: var(--mobile-ink); padding: 0 !important; }
     body.mobile-ui.mobile-game-active { height: 100dvh; overflow: hidden; padding-bottom: 0 !important; }
     body.mobile-ui .mobile-game-chrome { display: block; }
@@ -165,7 +165,22 @@
     body.mobile-horse-focus #mobileSelectionToggle::after { content: none; }
     body.mobile-horse-focus #mobileGameWorkspace > #mobileGameReadySummary { font-size: 11px; padding: 0; align-self: center; }
     body.mobile-horse-focus #mobileGameWorkspace > #raceTrackWrapper > .track-top-btn-row { min-height: 44px; gap: 6px; margin-bottom: 6px; }
-    body.mobile-horse-focus:not(.mobile-app-running):not(.mobile-app-fullscreen) #mobileGameWorkspace > #raceTrackWrapper #raceTrackContainer { height: 252px; border-radius: 18px; }
+    body.mobile-horse-focus #mobileHorsePreview { position: relative; min-width: 0; width: 100%; overflow: hidden; border-radius: 18px; }
+    body.mobile-horse-focus #mobileHorsePreviewRoot { transform-origin: top left; }
+    body.mobile-horse-focus #mobileHorseViewButton { position: absolute; bottom: 0; right: 0; width: auto; min-height: 44px; min-width: 44px; margin: 0; padding: 8px 14px; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card); color: var(--mobile-ink); font-family: inherit; font-size: 13px; font-weight: 700; }
+    body.mobile-horse-focus #mobileHorseViewButton:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: -3px; }
+    body.mobile-horse-focus #mobileHorsePreviewRoot > #raceTrackWrapper > .track-top-btn-row { visibility: hidden; }
+    body.mobile-horse-focus #mobileHorsePreviewRoot > #raceTrackWrapper { margin: 0; }
+    body.mobile-horse-focus #mobileHorsePreviewRoot #raceTrackContainer { height: 400px; margin: 0; border-radius: 18px; }
+    body.mobile-horse-focus #mobileHorsePreviewRoot > #raceTrackWrapper > .track-top-btn-row { position: static; min-height: 44px; margin-bottom: 6px; }
+    body.mobile-horse-focus.mobile-app-fullscreen #mobileHorsePreview { overflow: visible; }
+    body.mobile-horse-focus #raceFsStage { background: var(--mobile-canvas); }
+    body.mobile-horse-focus #raceFsScaleRoot { margin-inline: 0; }
+    body.mobile-horse-focus #raceFsStage > #mobileHorseViewButton { top: 8px; bottom: auto; left: 8px; right: auto; z-index: 10002; }
+    body.mobile-horse-focus #raceFsStage #raceFullscreenBtn { visibility: hidden; }
+    @media (orientation: portrait) {
+        body.mobile-horse-focus #raceFsStage { padding-top: 60px !important; }
+    }
     body.mobile-horse-focus #mobileGameDock { grid-template-columns: repeat(3,minmax(0,1fr)); }
     body.mobile-horse-focus #mobileGameDock button { flex-direction: row; gap: 6px; font-size: 12px; min-height: 44px; border-radius: 12px; }
     body.mobile-horse-focus #mobileGameDock i { font-size: 18px; }

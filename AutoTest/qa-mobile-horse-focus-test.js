@@ -73,11 +73,11 @@ async function geometry(page, name) {
         const header = document.getElementById('mobileGameHeader')?.getBoundingClientRect();
         const grid = document.getElementById('horseSelectionGrid')?.getBoundingClientRect();
         const art = [...document.querySelectorAll('#horseSelectionGrid .vehicle-display')].map(e => e.getBoundingClientRect().width);
-        return { width: innerWidth, scrollWidth: document.documentElement.scrollWidth, selectionTop: selection?.top, selectionHeight: selection?.height, headerBottom: header?.bottom, gridTop: grid?.top, artMax: Math.max(0, ...art), children: [...document.querySelector('#mobileGameWorkspace').children].map(e => e.id) };
+        return { width: innerWidth, scrollWidth: document.documentElement.scrollWidth, selectionTop: selection?.top, selectionHeight: selection?.height, headerBottom: header?.bottom, gridTop: grid?.top, artMax: Math.max(0, ...art), children: [...document.querySelector('#mobileGameWorkspace').children].map(e => e.id), selectionBeforeTrack: !!(document.querySelector('#horseSelectionSection').compareDocumentPosition(document.querySelector('#raceTrackWrapper')) & Node.DOCUMENT_POSITION_FOLLOWING) };
     });
     assert(info.scrollWidth <= info.width + 1, name + ' overflow: ' + JSON.stringify(info));
     assert(info.selectionTop >= info.headerBottom - 1 && info.selectionTop < HEIGHT / 2, name + ' selection first viewport: ' + JSON.stringify(info));
-    assert(info.children.indexOf('horseSelectionSection') < info.children.indexOf('raceTrackWrapper'), name + ' selection precedes native renderer');
+    assert(info.selectionBeforeTrack, name + ' selection precedes native renderer');
     assert(info.artMax <= ART_MAX, name + ' art compact: ' + JSON.stringify(info));
     pass(name + ' selection first / compact art / no overflow', info);
 }

@@ -3,9 +3,12 @@
     'use strict';
     const MOBILE_WIDTH = 760;
     const SYNC_MS = 120;
+    const HORSE_PREVIEW_WIDTH = 700;
+    const HORSE_VIEW_ACTION_HEIGHT = 44;
     const PENDING_KEYS = ['pendingHorseRaceRoom', 'pendingHorseRaceJoin', 'pendingRouletteRoom', 'pendingRouletteJoin', 'pendingDeguriRoom', 'pendingDeguriJoin'];
     const ROOM_KEYS = ['diceActiveRoom', 'horseRaceActiveRoom', 'rouletteActiveRoom', 'deguriActiveRoom'];
     const media = matchMedia('(max-width: ' + MOBILE_WIDTH + 'px)');
+    const landscapeMedia = matchMedia('(orientation: landscape) and (max-height: ' + MOBILE_WIDTH + 'px) and (pointer: coarse)');
     const byId = id => document.getElementById(id);
     const moved = [];
     const layoutMoved = [];
@@ -17,6 +20,8 @@
     const isDice = !!byId('diceIdleEmoji');
     const isHorse = !!byId('raceTrack');
     let horseCountdown = false, sheetOpener = null, horseChoiceFocused = false;
+    let horsePreview = null, horsePreviewRoot = null, horseViewButton = null, horseAutoFsOwned = false, horseViewAttempted = false;
+    const mobileMatches = () => media.matches || (isHorse && landscapeMedia.matches);
     const title = byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
     const node = (tag, text, attrs) => {
         const result = document.createElement(tag);
@@ -58,6 +63,14 @@
         panels.set(key, wrapper);
     }
     function restore() {
+        if (horseAutoFsOwned && typeof raceFsExit === 'function') raceFsExit();
+        horseAutoFsOwned = false;
+        horseViewButton?.remove(); horseViewButton = null;
+        if (horsePreviewRoot?.parentNode) {
+            while (horsePreviewRoot.firstChild) horsePreview.before(horsePreviewRoot.firstChild);
+            horsePreview.remove();
+        }
+        horsePreview = horsePreviewRoot = null;
         layoutMoved.splice(0).reverse().forEach(({ target, marker }) => {
             if (target.id === 'canvasResultCenter' && (target.ownerDocument !== document || target.closest('#raceFsStage'))) {
                 marker.remove(); return;
@@ -102,6 +115,7 @@
         const center = byId('canvasResultCenter');
         if (center && !center.closest('#raceFsStage')) relocate(center, workspace);
         relocate(stage, workspace);
+        if (isHorse) buildHorsePreview();
         if (isDice) {
             const dieStage = node('section', '', { id: 'mobileDiceStage', 'aria-label': '주사위 게임' });
             workspace.prepend(dieStage);
@@ -122,6 +136,63 @@
         game.append(adsGroup);
         game.querySelectorAll('.ad-container').forEach(ad => relocate(ad, adsGroup));
         document.querySelectorAll('body > .ad-container').forEach(ad => relocate(ad, adsGroup));
+    }
+    function buildHorsePreview() {
+        const track = byId('raceTrackWrapper');
+        if (horsePreview || !track || track.parentNode !== workspace) return;
+        horsePreview = node('div', '', { id: 'mobileHorsePreview' });
+        horsePreviewRoot = node('div', '', { id: 'mobileHorsePreviewRoot' });
+        horsePreviewRoot.style.width = HORSE_PREVIEW_WIDTH + 'px';
+        track.before(horsePreview); horsePreview.append(horsePreviewRoot); horsePreviewRoot.append(track);
+        horseViewButton = button('크게 보기', () => {
+            clearHorsePreviewFit();
+            if (typeof _raceFsActive !== 'undefined' && _raceFsActive) raceFsExit();
+            else if (typeof raceFsEnter === 'function') raceFsEnter();
+            sync();
+        }, { id: 'mobileHorseViewButton', class: 'mobile-game-chrome' });
+        horsePreview.append(horseViewButton);
+    }
+    function clearHorsePreviewFit() {
+        if (!horsePreviewRoot) return;
+        horsePreviewRoot.style.removeProperty('transform');
+        horsePreview.style.removeProperty('height');
+    }
+    function syncHorseView(running) {
+        const nativeFullscreen = typeof _raceFsActive !== 'undefined' && _raceFsActive;
+        const replay = typeof isReplayActive !== 'undefined' && isReplayActive;
+        const pip = typeof racePipAttached === 'function' && racePipAttached();
+        if (horseAutoFsOwned && !nativeFullscreen) horseAutoFsOwned = false;
+        if (!running) {
+            horseViewAttempted = false;
+            if (horseAutoFsOwned && typeof raceFsExit === 'function') raceFsExit();
+            horseAutoFsOwned = false;
+        } else if (!replay && !horseViewAttempted && sheet.hidden) {
+            horseViewAttempted = true;
+            if (!nativeFullscreen && !pip && typeof raceFsEnter === 'function') {
+                clearHorsePreviewFit();
+                raceFsEnter();
+                horseAutoFsOwned = !!_raceFsActive;
+            }
+        }
+        if ((typeof _raceFsActive !== 'undefined' && _raceFsActive) || pip) {
+            clearHorsePreviewFit();
+            const stage = byId('raceFsStage');
+            if (stage && horseViewButton) {
+                if (horseViewButton.parentNode !== stage) stage.append(horseViewButton);
+                if (horseViewButton.textContent !== '나가기') horseViewButton.textContent = '나가기';
+            }
+            return;
+        }
+        buildHorsePreview();
+        if (!horsePreviewRoot || !horsePreviewRoot.offsetHeight) return;
+        if (horseViewButton?.parentNode !== horsePreview) horsePreview.append(horseViewButton);
+        if (horseViewButton.textContent !== '크게 보기') horseViewButton.textContent = '크게 보기';
+        // Scale the complete native stage; renderer layout measurements remain untouched.
+        const scale = Math.min(1, horsePreview.clientWidth / HORSE_PREVIEW_WIDTH);
+        const transform = 'scale(' + scale + ')';
+        const height = Math.ceil(horsePreviewRoot.offsetHeight * scale + HORSE_VIEW_ACTION_HEIGHT) + 'px';
+        if (horsePreviewRoot.style.transform !== transform) horsePreviewRoot.style.transform = transform;
+        if (horsePreview.style.height !== height) horsePreview.style.height = height;
     }
     function closeSheet() { if (enabled && sheet) showPanel('game'); }
     function scrollTo(target) {
@@ -400,6 +471,7 @@
             const result = !running && (byId('resultOverlay')?.classList.contains('visible') || nativeVisible(byId('endGameSection')));
             const phase = running ? 'running' : result ? 'result' : chosen ? 'selected' : 'selecting';
             if (document.body.dataset.mobilePhase !== phase) document.body.dataset.mobilePhase = phase;
+            syncHorseView(running);
         }
     }
     function sync() {
@@ -409,7 +481,7 @@
         if (document.body.classList.contains('mobile-game-active') !== inRoom) document.body.classList.toggle('mobile-game-active', inRoom);
         header.hidden = footer.hidden = !inRoom;
         lobbyLink.hidden = inRoom;
-        if (!inRoom) { sheet.hidden = true; return; }
+        if (!inRoom) { sheet.hidden = true; if (isHorse) syncHorseView(false); return; }
         const text = (byId('roomNameText') || byId('roomNameDisplay'))?.textContent.trim() || title;
         if (byId('mobileGameTitle').textContent !== text) byId('mobileGameTitle').textContent = text;
         syncWorkspace();
@@ -445,10 +517,12 @@
             if (records.some(record => record.target.closest?.('.mobile-native-panel') || !record.target.closest?.('.mobile-game-chrome'))) schedule();
         });
         observer.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true, attributeFilter: ['class', 'style', 'disabled', 'hidden'] });
-        media.addEventListener('change', () => { if (media.matches) enable(); else disable(); });
+        const updateLayout = () => { if (mobileMatches()) enable(); else disable(); schedule(); };
+        media.addEventListener('change', updateLayout);
+        if (isHorse) landscapeMedia.addEventListener('change', updateLayout);
         window.addEventListener('resize', schedule);
         document.addEventListener('fullscreenchange', schedule);
-        if (media.matches) enable();
+        if (mobileMatches()) enable();
         window.MobileGameUI = { showPanel, refresh: schedule };
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
