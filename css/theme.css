@@ -336,6 +336,21 @@
   --shadow-rgb: 0, 0, 0;        /* 그림자 rgba(var(--shadow-rgb), a) */
   --highlight-rgb: 255, 255, 255;  /* 흰 광택·반투명 흰 막 rgba(var(--highlight-rgb), a) */
 
+  /* [tokens:mobile:light] Concept 7 mobile lobby and native game presentation */
+  --mobile-canvas: #faf9f6;
+  --mobile-card: #ffffff;
+  --mobile-ink: #222520;
+  --mobile-muted: #62685f;
+  --mobile-line: #e6e7df;
+  --mobile-accent: #c8f767;
+  --mobile-on-accent: #19331c;
+  --mobile-forest: #193d35;
+  --mobile-on-forest: #ffffff;
+  --mobile-coral: #c54c36;
+  --mobile-violet: #e9e3ff;
+  --mobile-soft: #eef2e7;
+  --mobile-shadow: 0 12px 35px rgba(24,41,30,.09);
+
   /* [tokens:common:light] 공통 공유 모듈 (js/shared/*·free) */
   --common-ink-faint: #999;        /* 빈 목록 안내·시각 같은 옅은 글자 (채팅·주문·준비) */
   --common-warn-ink: #856404;      /* 노랑 틴트 위 글자 (채팅 멘션 강조) */
@@ -876,6 +891,21 @@
   --game-type-horse-rgb: 189, 154, 124;
 
   /* 하드코딩 색 토큰화 (2026-10-03) — :root 의 같은 섹션과 짝 */
+
+  /* [tokens:mobile:dark] Concept 7 mobile lobby and native game presentation */
+  --mobile-canvas: var(--bg-primary);
+  --mobile-card: var(--bg-white);
+  --mobile-ink: var(--text-primary);
+  --mobile-muted: var(--text-secondary);
+  --mobile-line: var(--border-color);
+  --mobile-accent: #b9d594;
+  --mobile-on-accent: #192719;
+  --mobile-forest: #28483f;
+  --mobile-on-forest: #f5f7f2;
+  --mobile-coral: #e0a092;
+  --mobile-violet: #3b3548;
+  --mobile-soft: #30392d;
+  --mobile-shadow: 0 12px 35px rgba(0,0,0,.2);
 
   /* [tokens:common:dark] 공통 공유 모듈 (js/shared/*·free) */
   --common-ink-faint: var(--text-tertiary);

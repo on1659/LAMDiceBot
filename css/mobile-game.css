@@ -1,0 +1,73 @@
+/* Nothing in this file changes desktop presentation. Tokens live in theme.css. */
+.mobile-game-chrome { display: none; }
+@media (max-width: 760px) {
+    body.mobile-ui { background: var(--mobile-canvas) !important; color: var(--mobile-ink); padding: 0 !important; }
+    body.mobile-ui.mobile-game-active { padding-bottom: calc(var(--mobile-game-bottom, 140px) + 20px) !important; }
+    body.mobile-ui .mobile-game-chrome { display: block; }
+    body.mobile-ui .mobile-game-chrome[hidden], body.mobile-ui .mobile-native-panel[hidden], body.mobile-ui #mobileGameMore[hidden], body.mobile-ui #mobileGamePanelStatus[hidden], body.mobile-ui #mobileGameStartOrder[hidden] { display: none !important; }
+    body.mobile-ui #mobileGameLobbyLink { margin: 16px; padding: 12px 16px; border: 1px solid var(--mobile-line); border-radius: 14px; color: var(--mobile-forest); background: var(--mobile-card); text-decoration: none; font-weight: 700; }
+    body.mobile-ui.mobile-game-active > .container { width: 100% !important; max-width: 100% !important; min-width: 0; max-height: none !important; overflow: visible !important; padding: 0 14px 20px !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+    body.mobile-ui #gameSection { width: 100%; min-width: 0; }
+    body.mobile-ui.mobile-game-active #controlBarMount { display: none; }
+    body.mobile-ui #mobileGameHeader { display: flex; align-items: center; gap: 10px; padding: 16px 14px 14px; background: var(--mobile-canvas); }
+    body.mobile-ui .mobile-game-identity { min-width: 0; flex: 1; }
+    body.mobile-ui .mobile-game-identity small { display: block; font-family: inherit; font-weight: 700; font-size: 11px; line-height: 1.5; color: var(--mobile-muted); }
+    body.mobile-ui .mobile-game-identity strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; line-height: 1.35; letter-spacing: -.6px; }
+    body.mobile-ui .mobile-game-chrome button { width: auto; margin: 0; min-height: 44px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 8px 12px; background: var(--mobile-card); color: var(--mobile-ink); box-shadow: none; font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.4; cursor: pointer; }
+    body.mobile-ui .mobile-game-chrome button:disabled { opacity: .55; cursor: default; }
+    body.mobile-ui .mobile-game-chrome button:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: 2px; }
+    body.mobile-ui #mobileGameFooter { position: fixed; inset: auto 0 0; z-index: 800; padding: 10px 14px max(8px, env(safe-area-inset-bottom)); background: var(--mobile-card); border-top: 1px solid var(--mobile-line); }
+    body.mobile-ui #mobileGameAction { display: block; width: 100%; min-height: 48px; margin-bottom: 7px; background: var(--mobile-accent); color: var(--mobile-on-accent); border: 0; border-radius: 16px; font-size: 15px; }
+    body.mobile-ui #mobileGameDock { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; }
+    body.mobile-ui #mobileGameDock button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; border: 0; padding: 4px 2px; min-width: 0; font-size: 10px; background: transparent; }
+    body.mobile-ui #mobileGameDock i { font-size: 21px; }
+    body.mobile-ui #mobileGameSheet { position: fixed; z-index: 900; left: 10px; right: 10px; bottom: calc(var(--mobile-game-bottom, 140px) + 8px); max-height: calc(100dvh - var(--mobile-game-bottom, 140px) - 35px); border: 1px solid var(--mobile-line); border-radius: 24px; background: var(--mobile-card); color: var(--mobile-ink); box-shadow: var(--mobile-shadow); overflow: auto; overscroll-behavior: contain; }
+    body.mobile-ui .mobile-sheet-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; position: sticky; top: 0; z-index: 2; background: var(--mobile-card); border-bottom: 1px solid var(--mobile-line); }
+    body.mobile-ui .mobile-sheet-heading h2 { margin: 0; font-size: 20px; }
+    body.mobile-ui #mobileGameSheetClose { border: 0; font-size: 24px; background: var(--mobile-soft); border-radius: 50%; width: 42px; }
+    body.mobile-ui #mobileGameSheetBody { padding: 12px; }
+    body.mobile-ui #mobileGameMore { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    body.mobile-ui #mobileGameMore button { text-align: left; padding: 13px; }
+    body.mobile-ui #mobileGameSheet .history-section { position: static !important; width: 100% !important; max-width: 100% !important; max-height: none; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+    body.mobile-ui #mobileGameSheet .control-bar-meta { display: flex; flex-wrap: wrap; gap: 15px; }
+    body.mobile-ui #mobileGameSheet .volume-control { flex-wrap: wrap; max-width: 100%; }
+    body.mobile-ui #mobileGameSheet #chatMessages { max-height: 35dvh !important; }
+    body.mobile-ui #mobileGameSheet input:not([type=checkbox]):not([type=radio]):not([type=range]), body.mobile-ui #gameSection input:not([type=checkbox]):not([type=radio]):not([type=range]) { min-width: 0; max-width: 100%; font-size: 16px !important; }
+    body.mobile-ui #mobileGameSheet .chat-section, body.mobile-ui #mobileGameSheet .orders-section, body.mobile-ui #mobileGameSheet .users-section, body.mobile-ui #mobileGameSheet .host-controls { width: 100%; margin: 0; min-width: 0; }
+    body.mobile-ui #gameSection > .ready-section, body.mobile-ui #gameSection > .horse-selection-section, body.mobile-ui #gameSection > #deguriPickSection, body.mobile-ui #gameSection > .chat-section, body.mobile-ui #gameSection > .game-status, body.mobile-ui #gameSection > .rank-vote-section { border: 1px solid var(--mobile-line) !important; border-radius: 22px !important; padding: 14px !important; background: var(--mobile-card) !important; color: var(--mobile-ink) !important; margin-bottom: 14px !important; box-shadow: none !important; }
+    body.mobile-ui #gameSection .users-title, body.mobile-ui #gameSection .horse-selection-header { color: var(--mobile-ink) !important; font-size: 14px; border: 0; }
+    body.mobile-ui #readySection { background: var(--mobile-soft) !important; }
+    body.mobile-ui #readyUsersList { min-height: 0 !important; }
+    body.mobile-ui #readyButton { min-height: 40px; border-radius: 99px !important; font-size: 12px; padding: 8px 12px !important; background: var(--mobile-forest) !important; color: var(--mobile-on-forest) !important; }
+    body.mobile-ui #horseSelectionGrid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+    body.mobile-ui .horse-selection-button { min-width: 0; border-radius: 15px; padding: 8px 4px; }
+    body.mobile-ui .horse-selection-button.selected { border-color: var(--mobile-forest) !important; background: var(--mobile-soft) !important; }
+    body.mobile-ui .horse-selection-header { flex-wrap: wrap; gap: 8px; }
+    body.mobile-ui .horse-selection-header-right { flex-wrap: wrap; }
+    body.mobile-ui #deguriPicker { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+    body.mobile-ui #deguriPickSection .deguri-pick-head { flex-wrap: wrap; gap: 6px; }
+    body.mobile-ui #deguriPickSection .deguri-pick-title { flex-basis: 100%; }
+    body.mobile-ui #rouletteContainer { width: 100%; max-width: 100%; padding-inline: 0; }
+    body.mobile-ui .roulette-wrapper { max-width: 100%; }
+    body.mobile-ui #roomExpirySection { font-size: 11px; margin: 0 0 10px !important; padding: 5px 9px !important; border: 0 !important; border-radius: 99px !important; background: var(--mobile-soft) !important; }
+    body.mobile-ui #roomExpirySection > div, body.mobile-ui #roomExpiryCountdown { font-size: 10px !important; color: var(--mobile-muted) !important; }
+    body.mobile-ui:not(.mobile-debug) #debugLogSection { display: none !important; }
+    body.mobile-ui .horse-selection-button { border-color: var(--mobile-line) !important; }
+    body.mobile-ui .horse-selection-button.selected { border-color: var(--mobile-forest) !important; }
+    body.mobile-ui #freeInviteFab { bottom: calc(var(--mobile-game-bottom, 140px) + 8px) !important; }
+    body.mobile-ui #gameSection > *, body.mobile-ui #mobileGameSheetBody > * { scroll-margin-bottom: calc(var(--mobile-game-bottom, 140px) + 20px); }
+    body.mobile-ui #raceTrackWrapper:not(.race-fs-css):not(.race-fs-api), body.mobile-ui #deguriStage { border-radius: 22px; }
+    /* Keep the live canvas within its box while the native resize debounce catches up. */
+    body.mobile-ui #deguriCanvasBox:not(:fullscreen):not(:-webkit-full-screen):not(.is-pseudo-fs) #deguriCanvas { max-width: 100%; height: auto !important; }
+    /* A loaded ad can retain its old width after rotation; contain scrolling without cropping it. */
+    body.mobile-ui .ad-container { box-sizing: border-box; max-width: 100%; overflow-x: auto; }
+    /* Keep ads in normal flow: a second fixed bar must never cover game controls. */
+    body.mobile-ui .ad-container.ad-sticky { position: relative !important; z-index: auto !important; left: auto !important; right: auto !important; bottom: auto !important; transform: none !important; width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; margin: 16px auto !important; }
+    body.mobile-ui .ad-container.ad-sticky .ad-sticky-unit { max-width: 100% !important; }
+    body.mobile-ui .ad-sticky-bottom, body.mobile-ui #stickyBottomAd { bottom: var(--mobile-game-bottom, 140px); }
+    @media (max-width: 350px) {
+        body.mobile-ui #mobileGameHeader { gap: 7px; }
+        body.mobile-ui .mobile-game-identity strong { font-size: 17px; }
+        body.mobile-ui #mobileGameHeader button { padding-inline: 9px; font-size: 12px; }
+    }
+}
