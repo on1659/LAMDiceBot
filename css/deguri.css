@@ -1225,17 +1225,18 @@ body.deguri-pseudo-fs {
     font-size: 14px;
 }
 /* Jev 하이라이트(js/deguri-highlight.js) — 순위 목록 자리를 GIF 로 바꿔 보여 준다. 바꿀 때 카드 높이를 지금 높이로 묶고(js), 자리가 GIF 보다 좁으면 머리의 당첨 동물 그림을 접는다(.is-compact) */
-.deguri-highlight {
+.deguri-highlight {   /* 순위 목록 자리 높이(js)에 맞추되 GIF 는 가운데 — 자리가 GIF 보다 크면(20명 판) 남는 공간은 위아래로 나눈다 */
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 8px;
     margin: 0 0 14px;
 }
 .deguri-highlight[hidden] { display: none; }
-.deguri-highlight__frame {
+.deguri-highlight__frame {   /* GIF 크기만큼만(겹침 판이 GIF 에 딱 맞게) — 최대 높이는 js 가 자리 높이에서 이유 줄을 뺀 값으로 준다 */
     position: relative;
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     align-items: center;
     justify-content: center;
     min-height: 0;
