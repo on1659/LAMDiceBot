@@ -2,6 +2,9 @@
 📋 Summit Log - 2026-10-12 밤 (데구리 하이라이트 — 장면 여러 개 릴 + 보고 나서 좋아요·별로예요)
 ========================================
 
+## 추가(같은 날 늦게)
+- socket/deguri-highlight.js MAX_TOTAL_MS 20000 → 16000(사용자: GIF 크기 — 16초 ≈ 6MB). 종단 테스트 상한·update-log 문구 같이
+
 ## 변경 파일
 - socket/deguri-highlight.js: selectScenes(cands, scoreOf, mainId) — 주 장면(Jev 가 고른 것 또는 코드 1등)·결정적 계기·결정 순간은 늘, 나머지는 점수(Jev 확률 또는 코드 점수)가 1등의 KEEP_RATIO(0.4) 이상인 것만 MAX_SCENES(4)까지, 시간순으로 놓고 앞 장면과 겹친 부분을 잘라 내고(MIN_SCENE_MS 1.5초 미만이면 뺌) MAX_TOTAL_MS(20초) 넘으면 보조 장면부터 뺀다
 - socket/jev.js: ask 가 { pick, scores(후보별 Jev 확률) } 를 돌려준다 — 확률이 장면 순위

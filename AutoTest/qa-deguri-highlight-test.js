@@ -1,5 +1,5 @@
 // 데구리 Jev 하이라이트 종단 테스트(docs/goal/deguri-jev-highlight.md) — 서버를 먼저 띄운다(소켓 코드를 고쳤으면 재시작). Jev 키가 없는 로컬 서버 기준(source 'code').
-//  1) 소켓: 경주 시작 → reveal 뒤 6초 안에 deguri:highlight { rid, source, arm, clips[], facts, reasons[] } — 장면 1~4개 시간순·겹침 없음·전체 ≤ 20초, 공 id 유효. gameEnd.highlight 가 같은 rid
+//  1) 소켓: 경주 시작 → reveal 뒤 6초 안에 deguri:highlight { rid, source, arm, clips[], facts, reasons[] } — 장면 1~4개 시간순·겹침 없음·전체 ≤ 16초, 공 id 유효. gameEnd.highlight 가 같은 rid
 //  2) 브라우저 A(데스크톱): 경주 중에 GIF 가 만들어진다(status ready, bytes > 0) → 결과 카드에 버튼 줄 → 3초 뒤 저절로 GIF 로 바뀌고 한 바퀴 뒤 순위로(카드 높이 그대로) → 버튼으로 순위 ↔ GIF
 //     GIF 는 반복 없이 한 번 돌고 멈춘 채 [다시 재생]·[닫기] → 다시 재생은 처음부터, 닫기는 순위로 → 👍 반응 ack ok, 엉뚱한 rid 는 bad_request. 페이지 오류 0
 //  3) 브라우저 B(폰 375): 버튼 줄이 보이고 GIF 가 카드 폭 안
@@ -54,8 +54,8 @@ const REASON_RE = /^(turn(Last|First)(By\.(eagleGrab|pitFall|mud|trip|nap|scuffl
     check(hl && typeof hl.rid === 'string' && hl.rid.length >= 16 && ['jev', 'code'].includes(hl.source) && ['jev', 'code', 'fallback'].includes(hl.arm), '1: deguri:highlight 모양(rid·source·arm)', JSON.stringify({ rid: hl.rid, source: hl.source, arm: hl.arm, delay: hlDelay }));
     check(hlDelay <= 6000, '1: reveal 뒤 6초 안에 도착', hlDelay + 'ms');
     const clips = hl.clips || [], clipTotal = clips.reduce((m, c) => m + (c.end - c.start), 0);
-    const clipsOk = clips.length >= 1 && clips.length <= 4 && clipTotal <= 20000 && clips.every((c, i) => c.start >= 0 && c.end <= rv.durationMs && c.end > c.start && (i === 0 || c.start >= clips[i - 1].end) && Array.isArray(c.ids) && c.ids.length > 0 && c.ids.every(id => ids.includes(id)));
-    check(clipsOk, '1: clips 1~4장면, 시간순·겹침 없음, [0, durationMs] 안, 전체 ≤ 20초, 공 id 유효', clips.map(c => `${c.start}-${c.end}`).join(' ') + ' total=' + clipTotal + ' dur=' + rv.durationMs);
+    const clipsOk = clips.length >= 1 && clips.length <= 4 && clipTotal <= 16000 && clips.every((c, i) => c.start >= 0 && c.end <= rv.durationMs && c.end > c.start && (i === 0 || c.start >= clips[i - 1].end) && Array.isArray(c.ids) && c.ids.length > 0 && c.ids.every(id => ids.includes(id)));
+    check(clipsOk, '1: clips 1~4장면, 시간순·겹침 없음, [0, durationMs] 안, 전체 ≤ 16초, 공 id 유효', clips.map(c => `${c.start}-${c.end}`).join(' ') + ' total=' + clipTotal + ' dur=' + rv.durationMs);
     check(hl.facts && typeof hl.facts === 'object' && Array.isArray(hl.reasons) && hl.reasons.length === clips.length && hl.reasons.every(r => !r || REASON_RE.test(r.key)), '1: facts·reasons(장면마다 키)', JSON.stringify(hl.reasons));
     check(!JSON.stringify(hl).includes(host) && !JSON.stringify(hl).includes('qa봇1'), '1: 브로드캐스트에 참가자 이름 없음');
 

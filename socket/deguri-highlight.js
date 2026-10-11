@@ -27,8 +27,9 @@ const CAUSES = { eagleGrab: 'eagleGrab', pitFall: 'pitFall', mud: 'mud', trip: '
 const COUNTED = ['eagleGrab', 'eagleMiss', 'eagleDrop', 'scuffle', 'trip', 'pitFall', 'bump'];
 // 하이라이트 릴(사용자 2026-10-12: 길이 고정 6초는 아쉽다 — 길어져도 중요 장면은 다 보이게): 후보 중 중요한 것 여러 개를 시간순으로 이어 붙인다
 const MAX_SCENES = 4;         // 릴에 넣는 장면 수 상한
-const MAX_TOTAL_MS = 20000;   // 릴 전체 길이 상한(재생 ms) — GIF 크기(8fps·320px 로 ≈0.4MB/초)와 보는 시간의 타협
+const MAX_TOTAL_MS = 16000;   // 릴 전체 길이 상한(재생 ms) — GIF 크기(8fps·320px 로 ≈0.4MB/초, 16초 ≈ 6MB)와 보는 시간의 타협(사용자 2026-10-12: 20 → 16)
 const MIN_SCENE_MS = 1500;    // 앞 장면과 겹쳐 잘라 낸 뒤 이보다 짧으면 뺀다
+const MIN_SCENE_FLOOR_MS = 3000;   // 길이 상한 때문에 꼭 넣는 장면을 줄일 때의 바닥
 const KEEP_RATIO = 0.4;       // 1등 점수(Jev 확률 또는 코드 점수)의 이 비율 이상인 장면만 더 넣는다 — 시시한 장면으로 길이만 늘리지 않게
 
 // 재생 시각 ↔ 경주(시뮬) 시각 — 2배속(fast)·골 앞 슬로모(slow) 구간 때문에 다르다. js/deguri-render.js simTime 과 같은 식(역함수도 같이)
@@ -237,13 +238,12 @@ function selectScenes(cands, scoreOf, mainId) {
     const score = c => { const v = scoreOf(c); return typeof v === 'number' && isFinite(v) ? v : 0; };
     const ranked = cands.slice().sort((a, b) => score(b) - score(a) || b.start - a.start);
     const top = score(ranked[0]);
+    const mainC = cands.find(c => c.id === mainId) || ranked[0], turnC = ranked.find(c => c.facts.turn), decC = ranked.find(c => c.facts.decided);
+    const essential = new Set([mainC, turnC, decC].filter(Boolean).map(c => c.id));   // 주 장면·계기·결정 — 길이 상한에 걸려도 빼지 않고 줄인다
     const chosen = [];
     const take = c => { if (c && chosen.indexOf(c) < 0 && chosen.length < MAX_SCENES) chosen.push(c); };
-    take(cands.find(c => c.id === mainId) || ranked[0]);
-    take(ranked.find(c => c.facts.turn));
-    take(ranked.find(c => c.facts.decided));
+    take(mainC); take(turnC); take(decC);
     for (const c of ranked) { if (chosen.length >= MAX_SCENES) break; if (score(c) >= top * KEEP_RATIO) take(c); }
-    const essential = new Set(chosen.slice(0, 3).map(c => c.id));   // 주 장면·계기·결정 — 길이 상한에 걸려도 남긴다
     let scenes = chosen.slice().sort((a, b) => a.start - b.start).map(c => ({ start: c.start, end: c.end, ids: c.ids.slice(), facts: c.facts, hero: c.hero, id: c.id, score: score(c) }));
     const trim = list => {
         const out = [];
@@ -256,14 +256,22 @@ function selectScenes(cands, scoreOf, mainId) {
     };
     scenes = trim(scenes);
     const total = list => list.reduce((sum, s) => sum + (s.end - s.start), 0);
-    while (total(scenes) > MAX_TOTAL_MS && scenes.length > 1) {
+    while (total(scenes) > MAX_TOTAL_MS) {   // 상한: 보조 장면부터(점수 낮은 것) 뺀다
         const extras = scenes.filter(s => !essential.has(s.id));
-        const victim = (extras.length ? extras : scenes.filter(s => s.id !== mainId)).sort((a, b) => a.score - b.score)[0];
-        if (!victim) break;
+        if (!extras.length) break;
+        const victim = extras.sort((a, b) => a.score - b.score)[0];
         scenes = trim(scenes.filter(s => s !== victim).map(s => Object.assign({}, s)));
     }
-    if (total(scenes) > MAX_TOTAL_MS) { const last = scenes[scenes.length - 1]; last.end = Math.max(last.start + MIN_SCENE_MS, last.end - (total(scenes) - MAX_TOTAL_MS)); }
-    let main = scenes.findIndex(s => s.id === mainId);
+    if (total(scenes) > MAX_TOTAL_MS) {   // 그래도 넘으면 꼭 넣는 장면을 앞에서부터 줄인다(점수 낮은 것부터, 주 장면은 마지막). 결정 순간은 창 끝 쪽·계기는 가운데쯤이라 앞을 자른다
+        const order = scenes.slice().sort((a, b) => (a.id === mainC.id) - (b.id === mainC.id) || a.score - b.score);
+        for (const s of order) {
+            const excess = total(scenes) - MAX_TOTAL_MS;
+            if (excess <= 0) break;
+            const cut = Math.min(excess, Math.max(0, (s.end - s.start) - MIN_SCENE_FLOOR_MS));
+            s.start += cut;
+        }
+    }
+    let main = scenes.findIndex(s => s.id === mainC.id);
     if (main < 0) main = scenes.reduce((bi, s, i) => s.score > scenes[bi].score ? i : bi, 0);
     return { scenes, main };
 }
