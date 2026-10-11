@@ -144,6 +144,11 @@
     body.mobile-horse-focus #mobileGameHeader { height: 60px; }
     body.mobile-horse-focus.mobile-game-active > .container { height: calc(100dvh - 60px - var(--mobile-game-bottom, 130px)); padding-inline: 16px !important; }
     body.mobile-horse-focus #mobileGameWorkspace { gap: 12px; }
+    body.mobile-horse-focus #mobileHorsePreparationAd { margin: 8px 0; padding: 8px; background: var(--mobile-card); border-radius: 10px; }
+    body.mobile-horse-focus #mobileHorsePreparationAd > .ad-container { margin: 0; padding: 0; background: transparent; }
+    body.mobile-horse-focus.mobile-app-running #mobileHorsePreparationAd,
+    body.mobile-horse-focus.premium #mobileHorsePreparationAd,
+    body.mobile-horse-focus #mobileHorsePreparationAd:has(> .ad-container.ad-hidden) { display: none; }
     body.mobile-horse-focus #mobileGameWorkspace > #horseSelectionSection { border: 0 !important; background: transparent !important; padding: 2px 0 0 !important; border-radius: 0 !important; }
     body.mobile-horse-focus #mobileGameWorkspace .horse-selection-header { margin-bottom: 10px; min-height: 44px; padding-right: 0; }
     body.mobile-horse-focus #mobileGameWorkspace .horse-selection-header > .users-title { font-size: 20px !important; letter-spacing: -.5px; }

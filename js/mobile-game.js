@@ -141,10 +141,17 @@
         // Voting stays directly available even when the art tray is folded.
         relocate(byId('rankVoteSection'), workspace);
         ['progressSection', 'notRolledSection', 'replaySection', 'turboSettingSection'].forEach(id => relocate(byId(id), workspace));
+        // Reuse the footer's existing horizontal slot without changing a requested ad's format or dimensions.
+        const preparationAd = isHorse ? Array.from(document.querySelectorAll('body > .ad-container')).find(ad => !ad.classList.contains('ad-sticky') && ad.querySelector('ins[data-ad-format="horizontal"]')) : null;
         adsGroup = node('div', '', { id: 'mobileGameAds' });
         game.append(adsGroup);
         game.querySelectorAll('.ad-container').forEach(ad => relocate(ad, adsGroup));
-        document.querySelectorAll('body > .ad-container').forEach(ad => relocate(ad, adsGroup));
+        document.querySelectorAll('body > .ad-container').forEach(ad => { if (ad !== preparationAd) relocate(ad, adsGroup); });
+        if (preparationAd) {
+            const placement = node('aside', '', { id: 'mobileHorsePreparationAd', 'aria-label': '광고' });
+            workspace.prepend(placement);
+            relocate(preparationAd, placement);
+        }
     }
     function buildHorsePreview() {
         const track = byId('raceTrackWrapper');

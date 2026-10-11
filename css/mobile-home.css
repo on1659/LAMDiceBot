@@ -2,3 +2,6 @@
 @media(min-width:761px){.mobile-app{border-inline:1px solid var(--mobile-line);box-shadow:var(--mobile-shadow)}}
 @media(max-width:350px){.scroll{padding-inline:14px}.app-head{padding-inline:16px}.lobby-hero h2{font-size:23px;max-width:155px}.hero-horse{width:113px;top:45px}.lobby-hero .primary{width:160px}.item{gap:8px}.r{max-width:60px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}.hero-horse-frame{animation:none}.hero-horse-frame:first-child{opacity:1}.hero-horse-frame:last-child{opacity:0}}
+
+.mobile-home .mobile-lobby-ad{width:100%;min-height:0;overflow-x:auto;margin:12px 0;padding:8px;border:1px solid var(--mobile-line);border-radius:12px;background:var(--mobile-card)}.mobile-home .mobile-lobby-ad .ad-label{margin-bottom:4px;line-height:12px;color:var(--mobile-muted)}
+@media (max-height:700px){.mobile-home .lobby-hero{min-height:140px;padding:12px;margin:12px 0}.mobile-home .lobby-hero h2{font-size:21px;margin:6px 0 8px}.mobile-home .hero-horse{width:100px;top:24px}}
