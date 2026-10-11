@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — deguri.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=7">
-    <link rel="stylesheet" href="/css/deguri.css?v=37">
+    <link rel="stylesheet" href="/css/deguri.css?v=38">
     <link rel="stylesheet" href="/css/deguri-gacha.css?v=22">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -447,7 +447,9 @@
             <!-- Jev 하이라이트(js/deguri-highlight.js, docs/goal/deguri-jev-highlight.md) — 경주 중에 만들어 둔 6초 GIF 를 순위 목록 자리에서 바꿔 보여 준다(카드 높이 그대로).
                  버튼 줄은 다 만들기 전엔 숨김, [하이라이트 보기] ↔ [순위 보기] + [GIF 저장]. 이유 줄 옆 좋아요·별로예요(엄지 그림, 이모지 아님)·저장은 반응으로 서버에 남아 코드 점수 가중치를 고친다. 'Jev' 표는 Jev 가 고른 때만 -->
             <div class="deguri-highlight" id="deguriHighlightView" hidden>
-                <div class="deguri-highlight__frame"><img id="deguriHighlightGif" alt="경주 하이라이트 GIF" hidden><span id="deguriHighlightMaking" class="deguri-highlight__making">GIF 만드는 중…</span></div>
+                <div class="deguri-highlight__frame"><img id="deguriHighlightGif" alt="경주 하이라이트 GIF" hidden><span id="deguriHighlightMaking" class="deguri-highlight__making">GIF 만드는 중…</span>
+                    <!-- GIF 는 한 번만 돌고 마지막 장면에 멈춘다 — 그 위에 겹치는 [다시 재생]·[닫기](사용자 2026-10-12) -->
+                    <div class="deguri-highlight__end" id="deguriHighlightEnd" hidden><button type="button" class="deguri-result-btn deguri-result-btn--small" id="deguriHighlightReplay"><i class="mi mi-play"></i> 다시 재생</button><button type="button" class="deguri-result-btn deguri-result-btn--small" id="deguriHighlightClose">닫기</button></div></div>
                 <div class="deguri-highlight__foot"><p id="deguriHighlightNote" class="deguri-highlight__note"></p><span class="deguri-highlight__vote"><button type="button" id="deguriHighlightUp" aria-pressed="false" aria-label="좋아요" title="좋아요"><svg class="deguri-highlight__thumb" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="10" width="4.2" height="11" rx="1.2"/><path d="M8 10.2 11.6 3.6c.5-.9 1.9-.8 2.3.2.3.7.2 1.5 0 2.3L13 9.6h6.4c1.4 0 2.4 1.3 2 2.7l-1.7 6.5c-.3 1.2-1.3 2-2.5 2H8z"/></svg></button><button type="button" id="deguriHighlightDown" aria-pressed="false" aria-label="별로예요" title="별로예요"><svg class="deguri-highlight__thumb is-down" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="10" width="4.2" height="11" rx="1.2"/><path d="M8 10.2 11.6 3.6c.5-.9 1.9-.8 2.3.2.3.7.2 1.5 0 2.3L13 9.6h6.4c1.4 0 2.4 1.3 2 2.7l-1.7 6.5c-.3 1.2-1.3 2-2.5 2H8z"/></svg></button></span></div>
             </div>
             <div class="deguri-highlight-buttons" id="deguriHighlightButtons" hidden>
@@ -531,8 +533,8 @@
     <script src="/js/deguri-shop.js?v=13"></script>
     <script src="/js/deguri-gacha.js?v=47"></script>
     <script src="/js/deguri-render.js?v=106"></script>
-    <script src="/js/deguri-replay-gif.js?v=2"></script>
-    <script src="/js/deguri-highlight.js?v=1"></script>
+    <script src="/js/deguri-replay-gif.js?v=3"></script>
+    <script src="/js/deguri-highlight.js?v=2"></script>
     <script src="/js/deguri.js?v=55"></script>
 
     <script>

@@ -1,7 +1,8 @@
 // Jev 하이라이트(docs/goal/deguri-jev-highlight.md, 데구리 단독판 js/jev-highlight.js 아랫부분 역반영) — 서버가 고른 6초 장면(deguri:highlight { rid, source, arm, clip, facts, reason })을
 // 같은 경주 기록(deguriState.reveal)으로 화면 밖 캔버스에 다시 그려 GIF 로 만들어 두고(경주 중), 결과 카드에서 순위 목록 자리와 바꿔 보여 준다.
 // 장면 고르기·Jev 호출은 서버(socket/deguri.js pickHighlight)가 방당 한 번 — 이 파일은 그리기·카드 UI·반응(👍/👎·저장 → deguri:highlight:feedback)만. 보는 사람 화면 상태라 소켓으로 나가는 건 반응뿐.
-// 저절로 한 번(사용자 2026-10-12): 결과 카드가 열리고 3초 뒤(GIF 가 덜 됐으면 다 되는 대로, 열린 뒤 10초까지) 하이라이트로 바꿔 처음부터 한 바퀴 보여 주고 순위로 돌아간다. 판마다 한 번, 뭘 누르면 그만둔다.
+// 저절로 한 번(사용자 2026-10-12): 결과 카드가 열리고 3초 뒤(GIF 가 덜 됐으면 다 되는 대로, 열린 뒤 10초까지) 하이라이트로 바꿔 보여 준다. 판마다 한 번, 뭘 누르면 그만둔다.
+// GIF 는 반복 없이 한 번 재생하고 마지막 장면에 멈추며, 그 위에 [다시 재생]·[닫기] 가 뜬다(사용자 2026-10-12 — 한 바퀴 뒤 순위로 저절로 돌아가지 않는다).
 // 경주 결과·시뮬에는 아무 영향이 없다. GIF 는 어디로도 보내지 않는다.
 (function () {
     'use strict';
@@ -13,7 +14,7 @@
     var RENDER_GAP_MS = 40;     // 프레임 하나 그리고 쉬는 틈(최소) — 그리는 데 걸린 시간의 두 배는 쉰다. 화면의 경주 재생이 끊기지 않게
     var AUTO_DELAY_MS = 3000;   // 결과 카드가 열리고 이만큼 뒤에 하이라이트를 한 번 저절로 보여 준다
     var AUTO_WAIT_MS = 10000;   // 그때까지 GIF 가 덜 됐으면 카드가 열린 뒤 이만큼까지만 기다린다 — 한참 뒤에 갑자기 바뀌지 않게
-    var AUTO_BACK_EXTRA_MS = 300;   // 한 바퀴(CLIP_MS) 뒤 순위로 돌아갈 때 여유
+    var END_GRACE_MS = 250;     // GIF 가 마지막 칸에 닿은 뒤 [다시 재생]·[닫기] 를 띄우기까지 여유
     var FILE_NAME = 'deguri-highlight.gif';
     var SHARE_TITLE = '데구리 하이라이트';
     var CREATURE_NAME = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지' };
@@ -37,14 +38,18 @@
     var cur = null;        // { rid, source, arm, clip, facts, reason, status:'rendering'|'ready'|'failed', blob, url, size, timer, enc, vote, saved, autoPlayed }
     var showing = false;   // 결과 카드가 지금 하이라이트를 보여 주는 중
     var auto = null;       // 저절로 보여 주기 { st, openedAt, timer, back }
-    var lockedView = null; // 바꿀 때 재 둔 { ranksH, spriteH }
+    var lockedView = null; // 바꿀 때 재 둔 { ranksH, ranksW, spriteH }
+    var playSeq = 0, endTimer = null;   // 재생 번호(src 조각으로 처음부터 다시) / 끝난 뒤 겹침 버튼 타이머
 
     function bind() {
         if (els) return els;
         var view = $('deguriHighlightView'), row = $('deguriHighlightButtons');
         if (!view || !row) return null;
         els = { view: view, row: row, gif: $('deguriHighlightGif'), making: $('deguriHighlightMaking'), note: $('deguriHighlightNote'), up: $('deguriHighlightUp'), down: $('deguriHighlightDown'),
-            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: document.querySelector('#resultOverlay .deguri-result-card'), body: $('resultRankings') };
+            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: document.querySelector('#resultOverlay .deguri-result-card'), body: $('resultRankings'),
+            end: $('deguriHighlightEnd'), replay: $('deguriHighlightReplay'), close: $('deguriHighlightClose') };
+        els.replay.addEventListener('click', function () { stopAuto(); play(); });
+        els.close.addEventListener('click', function () { stopAuto(); show(false); });
         els.button.addEventListener('click', function () { if (!cur || !cur.clip) return; stopAuto(); show(!showing); });
         els.save.addEventListener('click', function () {
             stopAuto();
@@ -111,7 +116,7 @@
         out.width = OUT_W; out.height = Math.max(2, Math.round(OUT_W * canvas.height / canvas.width));
         st.size = [out.width, out.height];
         var g = out.getContext('2d', { willReadFrequently: true });
-        try { st.enc = window.DeguriReplayGif.encoder(out.width, out.height); } catch (err) { fail(st); return; }
+        try { st.enc = window.DeguriReplayGif.encoder(out.width, out.height, { loop: false }); } catch (err) { fail(st); return; }   // 반복 없음 — 한 번 재생하고 마지막 장면에 멈춘다
         var t = Math.max(0, st.clip.start - PREROLL_MS);
         var step = function () {
             if (cur !== st) return;
@@ -128,7 +133,7 @@
             st.enc.finish().then(function (blob) {
                 if (cur !== st) return;
                 st.enc = null; st.blob = blob; st.url = URL.createObjectURL(blob); st.status = 'ready';
-                if (showing) fill(st);
+                if (showing) { fill(st); play(); }
                 sync();
                 tryAuto();
             }, function () { if (cur === st) fail(st); });
@@ -161,7 +166,6 @@
         if (st.source === 'jev') { var badge = document.createElement('span'); badge.className = 'deguri-highlight__badge'; badge.textContent = 'Jev'; els.note.appendChild(badge); }
         els.note.appendChild(document.createTextNode(reasonText(st)));
         var isReady = st.status === 'ready';
-        if (isReady && String(els.gif.getAttribute('src') || '').split('#')[0] !== st.url) els.gif.setAttribute('src', st.url);
         els.gif.hidden = !isReady;
         els.making.hidden = isReady;
         els.save.disabled = !isReady;
@@ -169,6 +173,15 @@
         els.down.setAttribute('aria-pressed', st.vote === -1 ? 'true' : 'false');
     }
 
+    // 처음부터 한 번 재생 — src 조각을 바꾸면 반복 없는 GIF 가 처음 칸부터 다시 돈다. 다 돌면(CLIP_MS) 마지막 장면에 멈춘 채 [다시 재생]·[닫기] 를 띄운다
+    function play() {
+        if (!cur || cur.status !== 'ready' || !showing) return;
+        clearTimeout(endTimer);
+        els.end.hidden = true;
+        playSeq += 1;
+        els.gif.setAttribute('src', cur.url + '#p' + playSeq);
+        endTimer = setTimeout(function () { if (showing) els.end.hidden = false; }, CLIP_MS + END_GRACE_MS);
+    }
     // 순위 ↔ 하이라이트. 처음 바꿀 때 카드 높이를 지금 높이로 묶어 카드 크기가 그대로이고, 순위 목록 자리가 GIF 보다 좁으면 머리의 당첨 동물 그림을 접어(.is-compact) 그만큼 더 쓴다
     function show(on) {
         if (!els) return;
@@ -187,12 +200,13 @@
         } else {
             els.card.classList.remove('is-compact');
             els.view.style.height = '';
+            clearTimeout(endTimer); els.end.hidden = true;
         }
         if (ranks) ranks.hidden = showing;
         els.view.hidden = !showing;
         els.save.hidden = !showing;
         els.button.setAttribute('aria-pressed', showing ? 'true' : 'false');
-        if (showing) fill(cur);
+        if (showing) { fill(cur); play(); }
         sync();
     }
 
@@ -204,30 +218,28 @@
         if (on) els.button.innerHTML = showing ? BUTTON_RANKING : BUTTON_SHOW;
     }
 
-    // 저절로 한 번 — 카드가 열리고 AUTO_DELAY_MS 뒤(GIF 가 덜 됐으면 다 되는 대로, 열린 뒤 AUTO_WAIT_MS 까지) 하이라이트로 바꿔 처음부터 한 바퀴 보여 주고 순위로.
-    // 판마다 한 번(다시 보기 뒤 다시 열려도 또 하지 않는다). 그사이 하이라이트·저장·👍/👎를 누르거나 카드를 닫으면 그만둔다
+    // 저절로 한 번 — 카드가 열리고 AUTO_DELAY_MS 뒤(GIF 가 덜 됐으면 다 되는 대로, 열린 뒤 AUTO_WAIT_MS 까지) 하이라이트로 바꿔 한 번 재생한다(끝나면 멈춘 채 [다시 재생]·[닫기]).
+    // 판마다 한 번(다시 보기 뒤 다시 열려도 또 하지 않는다). 그 전에 하이라이트·저장·👍/👎를 누르거나 카드를 닫으면 그만둔다
     function stopAuto() {
         if (!auto) return;
-        clearTimeout(auto.timer); clearTimeout(auto.back);
+        clearTimeout(auto.timer);
         auto = null;
     }
     function tryAuto() {
         var a = auto;
-        if (!a || a.timer || a.back || cur !== a.st || !overlayOpen() || showing) return;
+        if (!a || a.timer || cur !== a.st || !overlayOpen() || showing) return;
         if (Date.now() - a.openedAt > AUTO_WAIT_MS) { stopAuto(); return; }
         if (a.st.status !== 'ready' || !a.st.clip) return;
         a.st.autoPlayed = true;
-        show(true);
-        if (!showing) { stopAuto(); return; }
-        els.gif.setAttribute('src', a.st.url + '#auto');   // 처음 장면부터 다시
-        a.back = setTimeout(function () { if (auto === a) { auto = null; if (showing) show(false); } }, CLIP_MS + AUTO_BACK_EXTRA_MS);
+        auto = null;
+        show(true);   // show → play: 처음부터 한 번
     }
     function onResultOpen() {
         if (!bind()) return;
         lockedView = null;
         sync();
         if (!cur || cur.autoPlayed || auto) return;
-        var a = auto = { st: cur, openedAt: Date.now(), timer: null, back: null };
+        var a = auto = { st: cur, openedAt: Date.now(), timer: null };
         a.timer = setTimeout(function () { a.timer = null; tryAuto(); }, AUTO_DELAY_MS);
     }
     function onResultClose() {
@@ -250,6 +262,6 @@
         onResultOpen: onResultOpen,
         onResultClose: onResultClose,
         sync: sync,
-        debug: function () { return cur ? { rid: cur.rid, source: cur.source, arm: cur.arm, status: cur.status, size: cur.size, bytes: cur.blob ? cur.blob.size : 0, showing: showing, auto: !!auto, autoPlayed: cur.autoPlayed, vote: cur.vote, saved: cur.saved, clip: cur.clip } : null; }   // 테스트용(읽기 전용)
+        debug: function () { return cur ? { rid: cur.rid, source: cur.source, arm: cur.arm, status: cur.status, size: cur.size, bytes: cur.blob ? cur.blob.size : 0, showing: showing, auto: !!auto, autoPlayed: cur.autoPlayed, vote: cur.vote, saved: cur.saved, clip: cur.clip, playSeq: playSeq, ended: !!(els && !els.end.hidden) } : null; }   // 테스트용(읽기 전용)
     };
 })();

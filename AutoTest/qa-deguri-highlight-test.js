@@ -1,7 +1,7 @@
 // 데구리 Jev 하이라이트 종단 테스트(docs/goal/deguri-jev-highlight.md) — 서버를 먼저 띄운다(소켓 코드를 고쳤으면 재시작). Jev 키가 없는 로컬 서버 기준(source 'code').
 //  1) 소켓: 경주 시작 → reveal 뒤 6초 안에 deguri:highlight { rid, source, arm, clip, facts, reason } — 창이 [0, durationMs] 안 6초, 공 id 유효. gameEnd.highlight 가 같은 rid
 //  2) 브라우저 A(데스크톱): 경주 중에 GIF 가 만들어진다(status ready, bytes > 0) → 결과 카드에 버튼 줄 → 3초 뒤 저절로 GIF 로 바뀌고 한 바퀴 뒤 순위로(카드 높이 그대로) → 버튼으로 순위 ↔ GIF
-//     → 👍 반응 ack ok, 엉뚱한 rid 는 bad_request. 페이지 오류 0
+//     GIF 는 반복 없이 한 번 돌고 멈춘 채 [다시 재생]·[닫기] → 다시 재생은 처음부터, 닫기는 순위로 → 👍 반응 ack ok, 엉뚱한 rid 는 bad_request. 페이지 오류 0
 //  3) 브라우저 B(폰 375): 버튼 줄이 보이고 GIF 가 카드 폭 안
 // 사용: node AutoTest/qa-deguri-highlight-test.js [port=5174]   스크린샷은 SHOT_DIR(기본 os.tmpdir()/deguri-highlight)
 const { chromium } = require('playwright');
@@ -71,7 +71,7 @@ const REASON_RE = /^(turn(Last|First)(By\.(eagleGrab|pitFall|mud|trip|nap|scuffl
     await pa.waitForFunction(() => document.getElementById('resultOverlay').classList.contains('visible'), null, { timeout: 8000 });
     await wait(700);   // 공용 .result-card 등장 애니메이션(popup 0.5s, scale) 뒤에 재야 높이가 맞다
     const cardH = () => pa.evaluate(() => document.querySelector('#resultOverlay .deguri-result-card').getBoundingClientRect().height);
-    const state = () => pa.evaluate(() => { const d = DeguriHighlight.debug(); const ranks = document.querySelector('#resultRankings .deguri-result-ranks'); const gif = document.getElementById('deguriHighlightGif'); return { showing: d.showing, auto: d.auto, autoPlayed: d.autoPlayed, row: !document.getElementById('deguriHighlightButtons').hidden, view: !document.getElementById('deguriHighlightView').hidden, ranksHidden: !!(ranks && ranks.hidden), gifSrc: !!gif.getAttribute('src'), gifShown: !gif.hidden, save: !document.getElementById('deguriHighlightSave').hidden, btn: document.getElementById('deguriHighlightButton').textContent.trim(), note: document.getElementById('deguriHighlightNote').textContent, compact: document.querySelector('#resultOverlay .deguri-result-card').classList.contains('is-compact') }; });
+    const state = () => pa.evaluate(() => { const d = DeguriHighlight.debug(); const ranks = document.querySelector('#resultRankings .deguri-result-ranks'); const gif = document.getElementById('deguriHighlightGif'); return { showing: d.showing, auto: d.auto, autoPlayed: d.autoPlayed, ended: d.ended, playSeq: d.playSeq, row: !document.getElementById('deguriHighlightButtons').hidden, view: !document.getElementById('deguriHighlightView').hidden, ranksHidden: !!(ranks && ranks.hidden), gifSrc: !!gif.getAttribute('src'), gifShown: !gif.hidden, save: !document.getElementById('deguriHighlightSave').hidden, btn: document.getElementById('deguriHighlightButton').textContent.trim(), note: document.getElementById('deguriHighlightNote').textContent, compact: document.querySelector('#resultOverlay .deguri-result-card').classList.contains('is-compact') }; });
     const s0 = await state(); const h0 = await cardH();
     check(s0.row && !s0.view && !s0.showing && s0.btn.includes('하이라이트 보기'), '2: 결과 카드 — 버튼 줄 보임, 순위부터', JSON.stringify(s0));
     await wait(Math.max(0, 3800 - (Date.now() - tOpen)));
@@ -80,9 +80,22 @@ const REASON_RE = /^(turn(Last|First)(By\.(eagleGrab|pitFall|mud|trip|nap|scuffl
     check(Math.abs(h1 - h0) < 1, '2: 카드 높이 그대로', h0.toFixed(1) + ' → ' + h1.toFixed(1));
     await pa.locator('#resultOverlay .deguri-result-card').screenshot({ path: path.join(SHOT_DIR, 'highlight-card-auto.png') });
     info('2: 이유 줄', s1.note);
+    const gifBytes = await pa.evaluate(async () => { const src = document.getElementById('deguriHighlightGif').getAttribute('src').split('#')[0]; const buf = new Uint8Array(await (await fetch(src)).arrayBuffer()); let s = ''; for (let i = 0; i < Math.min(buf.length, 200); i++) s += String.fromCharCode(buf[i]); return { head: s, len: buf.length }; });
+    check(gifBytes.len > 0 && !gifBytes.head.includes('NETSCAPE2.0'), '2: 하이라이트 GIF 에 반복 블록 없음(한 번만 재생)');
+    const loopDefault = await pa.evaluate(() => new Promise(res => { const enc = DeguriReplayGif.encoder(2, 2); enc.frame(new Uint8Array(16).buffer, 10); enc.frame(new Uint8Array(16).buffer, 10); enc.finish().then(b => b.arrayBuffer()).then(buf => { let s = ''; new Uint8Array(buf).forEach(c => { s += String.fromCharCode(c); }); res(s.includes('NETSCAPE2.0')); }); }));
+    check(loopDefault === true, '2: 다시 보기 녹화 GIF(기본)는 그대로 반복');
     await wait(Math.max(0, 3800 + 6300 + 600 - (Date.now() - tOpen)));
     const s2 = await state();
-    check(!s2.showing && !s2.view && !s2.ranksHidden && s2.autoPlayed, '2: 한 바퀴 뒤 순위로 돌아옴', JSON.stringify({ showing: s2.showing, autoPlayed: s2.autoPlayed }));
+    check(s2.showing && s2.view && s2.ranksHidden && s2.ended && s2.autoPlayed, '2: 한 번 돌고 멈춘 채 [다시 재생]·[닫기] 가 뜸(순위로 안 돌아감)', JSON.stringify({ showing: s2.showing, ended: s2.ended, playSeq: s2.playSeq }));
+    await pa.click('#deguriHighlightReplay'); await wait(300);
+    const s2b = await state();
+    check(s2b.showing && !s2b.ended && s2b.playSeq === s2.playSeq + 1, '2: [다시 재생] → 겹침 버튼 숨고 처음부터(playSeq +1)', JSON.stringify({ ended: s2b.ended, playSeq: s2b.playSeq }));
+    await wait(6300 + 400);
+    const s2c = await state();
+    check(s2c.showing && s2c.ended, '2: 다시 돈 뒤에도 멈춘 채 겹침 버튼');
+    await pa.click('#deguriHighlightClose'); await wait(200);
+    const s2d = await state();
+    check(!s2d.showing && !s2d.ranksHidden && !s2d.ended, '2: [닫기] → 순위로');
     await pa.click('#deguriHighlightButton'); await wait(200);
     const s3 = await state(); const h3 = await cardH();
     check(s3.showing && s3.view && Math.abs(h3 - h0) < 1, '2: 버튼으로 GIF 보기, 높이 그대로', JSON.stringify({ showing: s3.showing, h: h3.toFixed(1) }));

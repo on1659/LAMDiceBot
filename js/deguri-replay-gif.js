@@ -14,16 +14,16 @@
     var MIN_AREA_PX = 24;      // 이보다 작게 끌면 영역으로 치지 않는다
     var FILE_NAME = 'deguri-replay.gif';
     var SHARE_TITLE = '데구리 다시 보기';
-    var WORKER_URL = '/js/deguri-gif-worker.js?v=1';   // 절대 경로 — /deguri/CODE 같은 하위 주소에서도 같은 파일
+    var WORKER_URL = '/js/deguri-gif-worker.js?v=2';   // 절대 경로 — /deguri/CODE 같은 하위 주소에서도 같은 파일
     var DESKTOP = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
 
     function $(id) { return document.getElementById(id); }
     function secText(ms) { return (Math.max(0, ms) / 1000).toFixed(1) + '초'; }
 
     // 인코더 — 워커 하나를 감싼 것. Jev 하이라이트(js/deguri-highlight.js)가 화면 밖에서 그린 프레임으로 GIF 를 만들 때 쓴다(데구리 단독판 replay-gif.js encoder 역반영)
-    function encoder(w, h) {
+    function encoder(w, h, opts) {   // opts.loop=false → 반복 없는 GIF(한 번 재생하고 마지막 칸에 멈춤). 다시 보기 녹화는 기본(무한 반복)
         var worker = new Worker(WORKER_URL);
-        worker.postMessage({ type: 'start', w: w, h: h });
+        worker.postMessage({ type: 'start', w: w, h: h, loop: !(opts && opts.loop === false) });
         return {
             frame: function (buf, delay) { worker.postMessage({ type: 'frame', buf: buf, delay: delay }, [buf]); },
             finish: function () {

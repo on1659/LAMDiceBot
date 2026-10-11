@@ -1233,12 +1233,24 @@ body.deguri-pseudo-fs {
 }
 .deguri-highlight[hidden] { display: none; }
 .deguri-highlight__frame {
+    position: relative;
     display: flex;
     flex: 1 1 auto;
     align-items: center;
     justify-content: center;
     min-height: 0;
 }
+.deguri-highlight__end {   /* GIF 가 한 번 돌고 멈춘 뒤 그 위에 겹치는 [다시 재생]·[닫기] */
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(var(--shadow-rgb), 0.35);
+}
+.deguri-highlight__end[hidden] { display: none; }
 .deguri-highlight__frame img {
     display: block;
     max-width: 100%;

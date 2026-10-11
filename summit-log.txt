@@ -1,4 +1,47 @@
 ========================================
+📋 Summit Log - 2026-10-12 (데구리 — 단독판 역반영 3차 + Jev 하이라이트 GIF)
+========================================
+
+## 변경 파일
+- js/deguri.js: DeguriYard 차분한 모드(calmMode — 동작 줄이기 기기에서 숨기지 않고 걷기·서기·손 흔들기·낮잠·떠나기만 24~40px/s, 장애물은 바위·덤불·통나무만 땅 위에 조용히, 누르면 손 흔들기·낮잠, debug() 추가) / Wake Lock(keepAwake·requestWakeLock — reveal·다시 보기에 걸고 gameEnd·stopReplay·중단·리셋·pagehide 에 풀고 visibilitychange 재요청, window.deguriWakeState) / DeguriHighlight 연결(connect·onReveal·onGameEnd·onResultOpen·onResultClose·cancel 훅)
+- js/deguri-render.js: 확대·축소 알약 `− 100% +`(ZOOM_STEP 1.25, userZoom·cam.autoZoom·manual.base, zb 분기 표식으로 mine/follow/frame 보정, HUD_RANK_BOTTOM_GAP_PILL_PX 100 으로 순위표 여백, 폰·터치 기기 숨김+100%, R.debug 에 userZoom·rankHits) / create(canvas, opts) opts.dpr / R.frameBalls 장면 카메라(clipIds 경계 상자, cam.mode 'clip')
+- js/deguri-gacha.js: loadAll → loadBase(기계·코인·반짝이·좌표·카탈로그) + loadTier(응답 등급 6장, 등급별 캐시), loop 가 tierReady 전엔 TL.pick 에서 대기(건너뛰기는 안 멈춤), 중복 환급 글줄 → '중복!' 도장 + '+30'(showRefund, GAIN_MS 900, 닿으면 renderBalance + is-gain), 잔고는 refunded 전까지 refund 를 빼서 표시(_anim.paid 기준), reducedMotion 이면 즉시 가산, .mgacha-note 제거, loadBase 실패 시 안내 문구
+- css/deguri.css: 위치용 inset 5곳 네 변 지정 / 마당 reduce 숨김 블록 제거 + .deguri-yard-obstacle.is-calm 페이드 / .deguri-zoom-pill* / .deguri-highlight*(frame position relative, __end 겹침 버튼, __badge, __vote, __thumb) / .deguri-result-btn--small / .deguri-result-card.is-compact
+- css/deguri-gacha.css: inset 2곳 네 변, .mgacha-dupe 도장(mgachaStamp)·.mgacha-gain(mgachaGainRise), prefers-reduced-motion 블록
+- deguri-multiplayer.html: 결과 카드 안 #deguriHighlightView(GIF·만드는 중·이유 줄·👍/👎 SVG·#deguriHighlightEnd [다시 재생][닫기])·#deguriHighlightButtons([하이라이트 보기]/[순위 보기]·[GIF 저장]), 스크립트 deguri-highlight.js 추가, 버전 올림(render 106·replay-gif 3·highlight 2·deguri 55·css 38)
+- js/deguri-highlight.js(신규): deguri:highlight 수신 → 화면 밖 렌더러(dpr 1, setTimeline(reveal, null), setHighlight(false), frameBalls, setPhase('play'))로 PREROLL 1초 + 6초를 10fps 360px 로 그려 encoder({ loop: false })로 GIF, 결과 카드 순위 목록 자리와 교체(카드 높이 inline 고정, 순위 목록 폭·높이로 is-compact 판정), play()는 src 조각(#pN)으로 처음부터 한 번 → CLIP_MS+250 뒤 __end 표시, [다시 재생]/[닫기], 자동 1회(onResultOpen 3초 뒤, 10초까지 대기), 반응 deguri:highlight:feedback, REASON 한국어 문장표, debug()
+- js/deguri-replay-gif.js: encoder(w, h, opts{loop})·saveGif(blob, url, name, title) export(수동 녹화 저장 버튼도 같은 함수), WORKER_URL v2
+- js/deguri-gif-worker.js: start 메시지 loop 플래그 — false 면 NETSCAPE2.0 반복 블록 생략
+- socket/deguri-highlight.js(신규): 단독판 js/jev-highlight.js 순수 함수 이식 — segments/simTime/playTime/standings/changes/turningPoint/candidates(가중치 배율)/codePick/payload(순번·동물 id·사건 수만)/reasons/featuresOf, modeOf = tl.target
+- socket/jev.js(신규): TypeSafe Jev 호출(describe 영어 문장, request, ask — 3.5초 타임아웃, 분당 60 상한, deps 주입으로 테스트), hasKey
+- socket/deguri.js: pickHighlight(시뮬 직후 비동기, 가중치 → 후보 → 5판에 1판 코드 → Jev → 코드 점수, mb.highlight { rid randomBytes base64url, source, arm, mode, clip, facts, reason }), emitHighlight(reveal 뒤 deguri:highlight, mb.revealed/sent), gameEnd.highlight, resetDeguri 에서 비움, socket.on('deguri:highlight:feedback')(방 현재 판 rid 만, vote 1|-1|null, saved)
+- db/deguri-highlight-feedback.js(신규): record(upsert rid×viewer, saved 는 OR), recentRows, computeWeights(PRIOR 10·TRUST 30·0.5~2), weights() 5분 캐시, DB 없으면 메모리
+- db/init.js: deguri_highlight_feedback 테이블 / config/index.js: TYPESAFE_API_KEY·JEV_API_URL
+- AutoTest/deguri-highlight-test.js(신규, 순수 34항목)·AutoTest/qa-deguri-highlight-test.js(신규, 소켓+Playwright 데스크톱·폰)
+- docs/goal/applied/deguri-backport-3.md·deguri-backport-2.md·deguri-jev-highlight.md, update-log.md
+
+## 상세 변경 내역
+
+### 단독판 역반영 3차 (커밋 b9c01fb9, 명세 docs/goal/applied/deguri-backport-3.md)
+- 2차 goal 잔여 3개(마당 차분한 모드·inset·확대축소 알약) + Wake Lock + 뽑기 로딩 분할 + 중복 도장. 미니맵 누름은 이미 있어 제외
+- 데구리와 다르게 한 점: 떠나기도 걷기 속도(24~40), 차분한 모드 장애물은 동물 발밑을 피해 나타나고 위에 동물이 있으면 사라지길 미룸, 가로 폰은 hover:none+pointer:coarse 로 숨김, 숨을 때 100%, 세로 앞당김을 배율로 나눔, 결승 프레임 판정은 frameMode 변수가 아니라 실제 탄 분기(zb), 멈춘 다시 보기도 Wake Lock 유지, 뽑기 건너뛰기는 등급 그림을 기다리지 않음, 중복 잔고는 +30 이 닿을 때 더해 보임(서버 잔고엔 이미 포함)
+- 검증: node --check, 색 리터럴 검사, 결정론·뽑기·스킨 상점·계정 지갑 AutoTest, Playwright+소켓 봇 51항목(scratchpad). 헤드리스 크로미움은 Wake Lock 권한 거부(NotAllowedError)라 held 는 실기기 확인 필요
+
+### Jev 하이라이트 (커밋 3942fb77 + 이번 커밋, 명세 docs/goal/applied/deguri-jev-highlight.md)
+- 단독판과 다른 구조: 서버가 타임라인을 가지므로 후보 추출·Jev 호출·코드 고르기를 방당 한 번만 하고 방 전체에 같은 장면을 내린다(비용 1/N, 사람마다 다른 장면 없음). 가중치 배율도 서버에서만 쓰고 클라로 안 보낸다. 반응 행은 서버 기록의 사실·arm 을 쓴다(클라 값 불신)
+- 이번 커밋(사용자 2026-10-12 밤): GIF 반복 제거 — 한 번 재생하고 마지막 장면에 멈춘 채 [다시 재생]·[닫기] 겹침. 자동 재생 뒤 순위로 저절로 돌아가던 것을 없앰. 다시 보기 녹화 GIF 는 그대로 반복
+- 이유 줄은 가장 큰 사실 하나(단독판 결정), 'Jev' 표는 Jev 가 고른 때만. 이름은 결과 카드처럼 6자 줄임
+- 렌더러: 화면 밖 캔버스는 parentElement 가 없어 카메라 버튼·알약을 만들지 않고 800×576 데스크톱 구도, setPhase('play') 로 HUD 를 화면과 같게(idle 이면 '출발대 대기' 문구가 찍힘)
+- 검증: 순수 34항목 ALL PASS, 종단(브로드캐스트 모양·6초 안 도착·경주 중 GIF 완성·자동 1회·한 번 돌고 멈춤·다시 재생·닫기·높이 고정·반응 ack·폰 카드 안·반복 블록 유무) ALL PASS, 기존 데구리 테스트 5종·수동 GIF 녹화 회귀 통과
+- 남은 일: Railway TYPESAFE_API_KEY(사용자가 올림)로 테스트 서버에서 'Jev' 표 확인. GIF 6초 2~4MB(풀밭 무늬, 단독판과 같은 규격)
+
+### 함정 메모
+- 공용 .result-card 는 popup 0.5초 scale 애니메이션 — 열린 직후 getBoundingClientRect 가 틀리다. 숨긴 요소 clientWidth 는 0 — 접기 판정은 보일 때 잰 폭으로
+- config/index.js·db/init.js 는 CRLF — 파이썬 텍스트 모드 편집으로 전체 LF 가 되어 유령 diff(936줄)가 났고 바이너리 모드로 되돌렸다(메모리 project_crlf_files_edit_hazard)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-10-04 (게임 방 화면 스킨 버튼 — 음량 조절과 간격 띄움)
 ========================================
 
