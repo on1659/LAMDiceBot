@@ -25,6 +25,11 @@ const FEATURES = Object.keys(WEIGHTS);
 const CAUSE_BEFORE_MS = 3000; // 꼴찌로 떨어지기 이만큼 전 ~ 0.5초 뒤까지 그 동물에게 일어난 일을 계기로 본다
 const CAUSES = { eagleGrab: 'eagleGrab', pitFall: 'pitFall', mud: 'mud', trip: 'trip', nap: 'nap', doze: 'nap', scuffle: 'scuffle' };
 const COUNTED = ['eagleGrab', 'eagleMiss', 'eagleDrop', 'scuffle', 'trip', 'pitFall', 'bump'];
+// 하이라이트 릴(사용자 2026-10-12: 길이 고정 6초는 아쉽다 — 길어져도 중요 장면은 다 보이게): 후보 중 중요한 것 여러 개를 시간순으로 이어 붙인다
+const MAX_SCENES = 4;         // 릴에 넣는 장면 수 상한
+const MAX_TOTAL_MS = 20000;   // 릴 전체 길이 상한(재생 ms) — GIF 크기(8fps·320px 로 ≈0.4MB/초)와 보는 시간의 타협
+const MIN_SCENE_MS = 1500;    // 앞 장면과 겹쳐 잘라 낸 뒤 이보다 짧으면 뺀다
+const KEEP_RATIO = 0.4;       // 1등 점수(Jev 확률 또는 코드 점수)의 이 비율 이상인 장면만 더 넣는다 — 시시한 장면으로 길이만 늘리지 않게
 
 // 재생 시각 ↔ 경주(시뮬) 시각 — 2배속(fast)·골 앞 슬로모(slow) 구간 때문에 다르다. js/deguri-render.js simTime 과 같은 식(역함수도 같이)
 function segments(tl) {
@@ -223,6 +228,46 @@ function candidates(tl, mult) {
     return picked;
 }
 
+// 릴에 넣을 장면 고르기 — scoreOf(후보) = Jev 확률 또는 코드 점수. mainId = Jev 가 고른 후보(없으면 코드 1등)는 반드시 넣는다.
+// 결정적 계기 장면과 정해지는 순간 장면은(점수 가장 높은 것 하나씩) 늘 넣고, 나머지는 점수 순으로 1등의 KEEP_RATIO 이상인 것만 MAX_SCENES 까지.
+// 시간순으로 놓고 앞 장면과 겹치는 부분은 잘라 낸다(같은 장면을 두 번 보이지 않게). 전체가 MAX_TOTAL_MS 를 넘으면 점수 낮은 보조 장면부터 뺀다.
+// 반환 { scenes: [{ start, end, ids, facts, hero, id, score }] 시간순, main: scenes 안 주 장면 번호 }
+function selectScenes(cands, scoreOf, mainId) {
+    if (!cands.length) return { scenes: [], main: -1 };
+    const score = c => { const v = scoreOf(c); return typeof v === 'number' && isFinite(v) ? v : 0; };
+    const ranked = cands.slice().sort((a, b) => score(b) - score(a) || b.start - a.start);
+    const top = score(ranked[0]);
+    const chosen = [];
+    const take = c => { if (c && chosen.indexOf(c) < 0 && chosen.length < MAX_SCENES) chosen.push(c); };
+    take(cands.find(c => c.id === mainId) || ranked[0]);
+    take(ranked.find(c => c.facts.turn));
+    take(ranked.find(c => c.facts.decided));
+    for (const c of ranked) { if (chosen.length >= MAX_SCENES) break; if (score(c) >= top * KEEP_RATIO) take(c); }
+    const essential = new Set(chosen.slice(0, 3).map(c => c.id));   // 주 장면·계기·결정 — 길이 상한에 걸려도 남긴다
+    let scenes = chosen.slice().sort((a, b) => a.start - b.start).map(c => ({ start: c.start, end: c.end, ids: c.ids.slice(), facts: c.facts, hero: c.hero, id: c.id, score: score(c) }));
+    const trim = list => {
+        const out = [];
+        for (const s of list) {
+            const prev = out[out.length - 1];
+            if (prev && s.start < prev.end) s.start = prev.end;
+            if (s.end - s.start >= MIN_SCENE_MS) out.push(s);
+        }
+        return out;
+    };
+    scenes = trim(scenes);
+    const total = list => list.reduce((sum, s) => sum + (s.end - s.start), 0);
+    while (total(scenes) > MAX_TOTAL_MS && scenes.length > 1) {
+        const extras = scenes.filter(s => !essential.has(s.id));
+        const victim = (extras.length ? extras : scenes.filter(s => s.id !== mainId)).sort((a, b) => a.score - b.score)[0];
+        if (!victim) break;
+        scenes = trim(scenes.filter(s => s !== victim).map(s => Object.assign({}, s)));
+    }
+    if (total(scenes) > MAX_TOTAL_MS) { const last = scenes[scenes.length - 1]; last.end = Math.max(last.start + MIN_SCENE_MS, last.end - (total(scenes) - MAX_TOTAL_MS)); }
+    let main = scenes.findIndex(s => s.id === mainId);
+    if (main < 0) main = scenes.reduce((bi, s, i) => s.score > scenes[bi].score ? i : bi, 0);
+    return { scenes, main };
+}
+
 // 코드 점수로 고르기 — Jev 가 없거나 실패했을 때. 같으면 뒤쪽(막판)
 function codePick(cands) {
     return cands.reduce((best, c) => !best || c.score > best.score || (c.score === best.score && c.start > best.start) ? c : best, null);
@@ -291,4 +336,4 @@ function featuresOf(mode, f) {
     return on;
 }
 
-module.exports = { CLIP_MS, WEIGHTS, FEATURES, modeOf, simTime, playTime, candidates, codePick, payload, reasons, featuresOf };
+module.exports = { CLIP_MS, MAX_SCENES, MAX_TOTAL_MS, WEIGHTS, FEATURES, modeOf, simTime, playTime, candidates, codePick, selectScenes, payload, reasons, featuresOf };

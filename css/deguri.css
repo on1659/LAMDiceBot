@@ -1240,17 +1240,28 @@ body.deguri-pseudo-fs {
     justify-content: center;
     min-height: 0;
 }
-.deguri-highlight__end {   /* GIF 가 한 번 돌고 멈춘 뒤 그 위에 겹치는 [다시 재생]·[닫기] */
+.deguri-highlight__end {   /* GIF 가 한 번 돌고 멈춘 뒤 그 위에 겹치는 판 — "이 장면 어땠어요?" 👍/👎 + [다시 재생]·[닫기] */
     position: absolute;
     top: 0; right: 0; bottom: 0; left: 0;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    background: rgba(var(--shadow-rgb), 0.35);
+    background: rgba(var(--shadow-rgb), 0.5);
 }
 .deguri-highlight__end[hidden] { display: none; }
+.deguri-highlight__ask {
+    margin: 0;
+    color: var(--deguri-hud-cream);
+    font-size: 15px;
+    font-weight: 800;
+}
+.deguri-highlight__end-actions {
+    display: flex;
+    gap: 8px;
+}
 .deguri-highlight__frame img {
     display: block;
     max-width: 100%;
@@ -1300,10 +1311,13 @@ body.deguri-pseudo-fs {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 30px;
+    gap: 5px;
+    width: auto;
+    height: 34px;
     margin: 0;
-    padding: 0;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
     border: 2px solid var(--deguri-wood-soft);
     border-radius: 10px;
     color: var(--deguri-ink);

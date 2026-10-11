@@ -81,7 +81,8 @@ function request(race) {
 
 function hasKey() { return !!config.TYPESAFE_API_KEY; }
 
-// race = socket/deguri-highlight.js payload(). deps(테스트용) = { fetch, apiKey, now }. 반환: 고른 후보 id 또는 null(키 없음·상한·실패·시간 초과·엉뚱한 답)
+// race = socket/deguri-highlight.js payload(). deps(테스트용) = { fetch, apiKey, now }.
+// 반환: { pick: 고른 후보 id, scores: { 후보 id: Jev 확률 } } 또는 null(키 없음·상한·실패·시간 초과·엉뚱한 답). scores 는 장면 여러 개를 고를 때 순위로 쓴다
 async function ask(race, deps) {
     const apiKey = deps && deps.apiKey !== undefined ? deps.apiKey : config.TYPESAFE_API_KEY;
     const fetchFn = (deps && deps.fetch) || (typeof fetch === 'function' ? fetch : null);
@@ -97,7 +98,9 @@ async function ask(race, deps) {
         const body = await res.json().catch(() => null);
         const pick = res.ok && body && body.answers && body.answers.pick ? body.answers.pick.choice : null;
         if (!race.candidates.some(c => c.id === pick)) { console.warn('[데구리] Jev 하이라이트 응답 이상:', res.status); return null; }
-        return pick;
+        const probs = body.answers.pick.probabilities, scores = {};
+        for (const c of race.candidates) scores[c.id] = probs && typeof probs[c.id] === 'number' && isFinite(probs[c.id]) ? Math.round(Math.max(0, Math.min(1, probs[c.id])) * 1000) / 1000 : 0;
+        return { pick, scores };
     } catch (err) {
         console.warn('[데구리] Jev 하이라이트 실패:', err && err.name);
         return null;

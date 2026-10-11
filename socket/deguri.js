@@ -404,9 +404,10 @@ function ensureTrackSeed(mb) {
 }
 
 // ─── Jev 하이라이트(docs/goal/deguri-jev-highlight.md) — 시뮬 직후 서버가 방당 한 번: 후보(socket/deguri-highlight.js) → (5판에 1판 빼고) Jev → 없으면 코드 점수.
-//     reveal 이 나간 뒤 방 전체로 deguri:highlight { rid, source, arm, clip, facts, reason } — 클라이언트는 이것으로 화면 밖에서 GIF 를 만든다. gameEnd 에도 같은 것을 싣는다(늦게 받은 클라용).
+//     reveal 이 나간 뒤 방 전체로 deguri:highlight { rid, source, arm, clips[{start,end,ids}], facts, reasons[] } — 클라이언트는 이것으로 화면 밖에서 장면들을 이어 GIF 를 만든다. gameEnd 에도 같은 것을 싣는다(늦게 받은 클라용).
+//     clips = 중요 장면 여러 개(selectScenes — 주 장면·결정적 계기·결정 순간 + 점수 높은 것, 시간순, 최대 4장면 24초). facts·source 는 주 장면(Jev 가 고른 것) 기준
 //     결과·시드·타임라인에는 아무 영향이 없다. 참가자 이름은 Jev 로 가지 않는다(payload 가 순번·동물 id·사건 수만) ───
-function pubHighlight(h) { return h ? { rid: h.rid, source: h.source, arm: h.arm, clip: h.clip, facts: h.facts, reason: h.reason } : null; }
+function pubHighlight(h) { return h ? { rid: h.rid, source: h.source, arm: h.arm, clips: h.clips, facts: h.facts, reasons: h.reasons } : null; }
 function emitHighlight(room, mb, io, ctx) {
     if (!ctx.rooms[room.roomId] || !mb.highlight || mb.highlight.sent || !mb.revealed) return;
     mb.highlight.sent = true;
@@ -420,19 +421,21 @@ async function pickHighlight(room, mb, timeline, io, ctx) {
     try { cands = highlight.candidates(timeline, mult); } catch (e) { console.warn('[데구리] 하이라이트 후보 실패:', e.message); return; }
     if (!ctx.rooms[room.roomId] || mb.seed !== seed || !cands.length) return;
     const byCode = Math.random() < HIGHLIGHT_CODE_SHARE;   // 서버 RNG 허용 — 반응 비교용 판 가르기(결과와 무관)
-    let pickId = null;
-    if (!byCode && jev.hasKey()) pickId = await jev.ask(highlight.payload(timeline, cands));
+    let answer = null;
+    if (!byCode && jev.hasKey()) answer = await jev.ask(highlight.payload(timeline, cands));
     if (!ctx.rooms[room.roomId] || mb.seed !== seed || mb.phase !== 'playing') return;
-    const chosen = pickId ? cands.find(c => c.id === pickId) : null;
+    const chosen = answer ? cands.find(c => c.id === answer.pick) : null;
     const pick = chosen || highlight.codePick(cands);
+    const scoreOf = chosen ? c => answer.scores[c.id] || 0 : c => c.score;   // 장면 순위 — Jev 가 답했으면 그 확률, 아니면 코드 점수
+    const sel = highlight.selectScenes(cands, scoreOf, pick.id);
     mb.highlight = {
         rid: crypto.randomBytes(16).toString('base64url'),
         source: chosen ? 'jev' : 'code',
         arm: chosen ? 'jev' : byCode ? 'code' : 'fallback',
         mode: highlight.modeOf(timeline),
-        clip: { start: pick.start, end: pick.end, ids: pick.ids.slice() },
+        clips: sel.scenes.map(s => ({ start: s.start, end: s.end, ids: s.ids })),
         facts: Object.assign({}, pick.facts),
-        reason: highlight.reasons(timeline, pick)[0] || null,
+        reasons: sel.scenes.map(s => highlight.reasons(timeline, s)[0] || null),
         sent: false
     };
     emitHighlight(room, mb, io, ctx);

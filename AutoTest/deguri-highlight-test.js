@@ -2,6 +2,7 @@
 //  1) 후보: 5시드 × 꼴등/1등 룰 — 비어 있지 않고, 창이 [0, durationMs] 안 6초(짧은 판은 그보다 작게), 공 id 유효, 같은 입력 두 번 → 완전 동일(결정론), 코드 고르기도 동일
 //  2) Jev payload·문장에 참가자 이름이 없다(이름을 ZZOWNER 로 두고 직렬화 검사), 순번은 1..인원, 동물 id 는 카탈로그 안
 //  3) 이유 키는 정해진 목록 안
+//  3b) 릴 장면 고르기(selectScenes): 1~4장면, 시간순·겹침 없음, 전체 ≤ 24초, 장면 ≥ 1.5초, 계기·결정 장면 포함, 주 장면 번호 유효, 결정론. Jev 확률로도 같은 규칙
 //  4) jev.ask: 스텁 fetch 로 정확히 1번 호출·고른 id 반환, 엉뚱한 답·예외·키 없음 → null(키 없으면 호출 0번)
 //  5) 가중치: 👍만 → 그 사실 배율 > 1, 👎만 → < 1, 비면 전부 1, 0.5~2 안
 // 사용: node AutoTest/deguri-highlight-test.js
@@ -50,6 +51,18 @@ async function timeline(seed, target, players, nReq) {
         check(rs.length >= 1 && rs.every(r => reasonOk(r.key)), `3: seed ${seed} 이유 키 유효`, rs.map(r => r.key).join(','));
         const facts = hl.featuresOf(hl.modeOf(tl), pick.facts);
         check(facts instanceof Set, `3: seed ${seed} featuresOf`, [...facts].join(','));
+        // 3b) 릴 장면 고르기
+        const sel = hl.selectScenes(a, c => c.score, pick.id), sel2 = hl.selectScenes(a, c => c.score, pick.id);
+        const sc = sel.scenes, total = sc.reduce((m, x) => m + (x.end - x.start), 0);
+        const ordered = sc.every((x, i) => i === 0 || x.start >= sc[i - 1].end);
+        const turnId = (a.find(c => c.facts.turn) || {}).id, decId = (a.slice().sort((x, y) => y.score - x.score).find(c => c.facts.decided) || {}).id;
+        check(sc.length >= 1 && sc.length <= hl.MAX_SCENES && ordered && total <= hl.MAX_TOTAL_MS && sc.every(x => x.end - x.start >= 1500) && sel.main >= 0 && sel.main < sc.length,
+            `3b: seed ${seed} 릴 ${sc.length}장면 ${total}ms — 시간순·겹침 없음·상한 안·주 장면 유효`, sc.map(x => `${x.id}:${x.start}-${x.end}`).join(' ') + ' main=' + sel.main);
+        check((!turnId || sc.some(x => x.id === turnId)) && (!decId || sc.some(x => x.id === decId)) && sc.some(x => x.id === pick.id), `3b: seed ${seed} 계기·결정·주 장면 포함`, `turn=${turnId} dec=${decId} main=${pick.id}`);
+        try { assert.deepStrictEqual(sel, sel2); check(true, `3b: seed ${seed} selectScenes 결정론`); } catch (e) { check(false, `3b: seed ${seed} selectScenes 결정론`, e.message.slice(0, 100)); }
+        const lastId = a[a.length - 1].id, probs = {}; a.forEach((c, i) => { probs[c.id] = c.id === lastId ? 0.7 : 0.3 / Math.max(1, a.length - 1); });
+        const selJ = hl.selectScenes(a, c => probs[c.id], lastId);
+        check(selJ.scenes.some(x => x.id === lastId) && selJ.scenes[selJ.main].id === lastId && selJ.scenes.length <= hl.MAX_SCENES, `3b: seed ${seed} Jev 확률로 고르면 Jev 장면이 주 장면`, selJ.scenes.map(x => x.id).join(',') + ' main=' + selJ.scenes[selJ.main].id);
     }
     // 4) jev.ask 스텁
     const tl4 = await timeline(5, 'last', 3, 2), cands4 = hl.candidates(tl4, null), pl4 = hl.payload(tl4, cands4);
@@ -58,7 +71,7 @@ async function timeline(seed, target, players, nReq) {
     const okFetch = async (url, init) => { calls++; lastBody = JSON.parse(init.body); return { ok: true, status: 200, json: async () => ({ answers: { pick: { choice: want, probabilities: { [want]: 0.9 } } } }) }; };
     jev.resetLimiter();
     const got = await jev.ask(pl4, { fetch: okFetch, apiKey: 'test-key' });
-    check(got === want && calls === 1, '4: 스텁 Jev — 1번 호출, 고른 id 반환', `${got} calls=${calls}`);
+    check(got && got.pick === want && got.scores && got.scores[want] === 0.9 && calls === 1, '4: 스텁 Jev — 1번 호출, { pick, scores } 반환', JSON.stringify(got) + ' calls=' + calls);
     check(lastBody && lastBody.model === jev.MODEL && lastBody.questions && lastBody.questions.pick && Object.keys(lastBody.questions.pick.criteria).length === cands4.length && !/ZZOWNER/.test(JSON.stringify(lastBody)), '4: 요청 본문 모양(model·criteria 수)·이름 없음');
     calls = 0;
     const none = await jev.ask(pl4, { fetch: okFetch, apiKey: '' });
