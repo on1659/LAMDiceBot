@@ -3,7 +3,7 @@
 /* 색 토큰(--mgacha-*, 라이트·다크)은 css/theme.css [tokens:deguri] 섹션에 있다 */
 
 .mgacha-overlay {
-    position: fixed; inset: 0; z-index: 1200;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1200;
     display: flex; align-items: center; justify-content: center;
     background: var(--mgacha-dim); padding: 12px;
 }
@@ -88,7 +88,7 @@ body.mgacha-open { overflow: hidden; }
 .mgacha-stage { display: block; width: 100%; height: auto; aspect-ratio: 300 / 420; cursor: pointer; touch-action: manipulation; }   /* 버퍼를 보이는 크기에 맞춰 그린다(fitCanvas) — CSS 늘리기·pixelated 없음 */
 /* 결과 칸 자리 안내(뽑기 전·연출 중) — 부모가 visibility:hidden 이어도 자식은 visible 로 보인다 */
 .mgacha-wait {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
     visibility: visible; font-size: 13px; font-weight: 700; color: var(--mgacha-sub);
 }
 .mgacha-wait[hidden], .mgacha-result:not([hidden]) .mgacha-wait { display: none; }
@@ -102,8 +102,21 @@ body.mgacha-open { overflow: hidden; }
 .mgacha-badge--common { background: var(--mgacha-common); }
 .mgacha-badge--epic { background: var(--mgacha-epic); }
 .mgacha-badge--legend { background: var(--mgacha-legend); }
-.mgacha-note { font-size: 12px; color: var(--mgacha-sub); margin: -4px 0 0; }
-.mgacha-note:empty { display: none; }   /* 중복 환급 안내가 없으면 줄을 접어 이름·장착하기가 붙는다(사용자 2026-09-24) */
+/* 중복 환급(데구리 단독판 f5dc19f 역반영) — 글줄 대신 무대 오른쪽 위(잔고 아래) '중복!' 도장 + 잔고로 올라가는 '+30'. 둘 다 무대 위에 얹어 모달 크기가 뽑기 전후 같다 */
+.mgacha-dupe {
+    position: absolute; top: 40px; right: 8px; z-index: 1; padding: 3px 10px; border: 2px solid var(--text-on-accent); border-radius: 999px;
+    color: var(--text-on-accent); background: var(--mgacha-pull); font-size: 14px; font-weight: 800; line-height: 1.1; white-space: nowrap;
+    box-shadow: 0 2px 0 var(--mgacha-pull-shadow); transform: rotate(-8deg); animation: mgachaStamp 0.26s cubic-bezier(.2, .9, .3, 1.3); pointer-events: none;
+}
+.mgacha-dupe[hidden] { display: none; }
+@keyframes mgachaStamp { from { opacity: 0; transform: rotate(-8deg) scale(1.8); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+.mgacha-gain {
+    position: absolute; top: 42px; right: 14px; z-index: 2; color: var(--mgacha-legend); font-size: 16px; font-weight: 800; line-height: 1;
+    opacity: 0; pointer-events: none;
+}
+.mgacha-gain[hidden] { display: none; }
+.mgacha-gain.is-on { animation: mgachaGainRise 0.9s ease-out forwards; }   /* js GAIN_MS 와 같은 길이 */
+@keyframes mgachaGainRise { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-34px); } }
 .mgacha-modal .mgacha-equip {
     width: auto; margin: 0; display: inline-block; padding: 7px 16px; border-radius: 999px;
     border: 1.5px solid var(--mgacha-ink); background: transparent; color: var(--mgacha-ink);
@@ -124,4 +137,8 @@ body.mgacha-open { overflow: hidden; }
 @media (max-width: 400px) {
     .mgacha-overlay { padding: 8px; }
     .mgacha-modal { padding: 10px 10px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {   /* 도장은 팝 없이, '+30' 은 건너뛰고(js 가 바로 더한다), 잔고 반짝임 없음 */
+    .mgacha-dupe, .mgacha-gain.is-on, .mgacha-coin.is-gain, .deguri-coin-pill.is-gain { animation: none; }
 }
