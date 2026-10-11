@@ -8,8 +8,9 @@
  *     UI 표기는 '야식'(사용자 2026-09-23). 내부 이름(deguri_balloon·balloon-*)은 매다는 방식을 가리키므로 그대로 둔다
  *   - 미리보기(buildPreview hook) — 스킨은 시트(creatures/{creature}-{skin}.webp) idle 첫 칸, 야식은 accessories/{sprite}.webp
  *   - 소유/구매 상태(itemState hook — tier/requires 없음)
- *   - 지갑·구매·장착 전부 방 단위(roomWallet: deguri:shop:get / deguri:shop:buy / deguri:equip) — 계정 DB 지갑·prefs 를 쓰지 않는다.
- *     방에 들어오면 200코인, 한 판 +10, 머문 5분마다 +10, 산 스킨·장착은 그 방에서만 유효하고 나가면 전부 사라진다(사용자 2026-09-22: 1회용). 손님도 동일.
+ *   - 지갑·구매·장착은 데구리 전용 이벤트(roomWallet: deguri:shop:get / deguri:shop:buy / deguri:equip)로만 — 계정이냐 방이냐는 서버가 고른다.
+ *     로그인 계정(소켓 인증됨)은 코인·소유·장착이 계정에 남고 매일 코인 +60, 머문 시간 보상은 하루 +60 까지(2026-10-09).
+ *     손님은 방에 들어오면 200코인, 한 판 +10, 머문 5분마다 +10, 산 스킨·장착은 그 방에서만 유효하고 나가면 전부 사라진다(사용자 2026-09-22: 1회용).
  *   - 장착 스킨 조회(getEquippedSkinFor) — 동물마다 따로 장착된다. js/deguri.js 가 선택 버튼 아이콘·배지에 쓴다
  *
  * 공정성: 스킨·풍선 모두 순수 외형. 서버(socket/deguri.js)가 소유를 확인해 공에 얹고(시뮬 뒤), 클라는 id 만 보낸다.
@@ -85,12 +86,12 @@
         return owned ? { owned: true, buyable: true } : { owned: false, buyable: true };
     }
 
-    // 방 지갑(deguri:shop:get) 조회 — 서버가 준 equipped 가 방 장착값의 권위. 로그인 불필요
+    // 지갑(deguri:shop:get) 조회 — 서버가 준 equipped 가 장착값의 권위. 로그인 불필요(손님은 방 지갑)
     function walletRequest(done) {
         if (!_socket) return done(null);
         _socket.emit('deguri:shop:get', {}, function (res) { done(res); });
     }
-    // 구매 — 방 지갑에서 차감(deguri:shop:buy). 응답 { ok, balance, owned } 은 shop:buy 와 같은 형식
+    // 구매(deguri:shop:buy) — 계정 또는 방 지갑에서 차감. 응답 { ok, balance, owned } 은 shop:buy 와 같은 형식
     function buyRequest(id, done) {
         if (!_socket) return done(null);
         _socket.emit('deguri:shop:buy', { cosmeticId: id }, function (res) { done(res); });
@@ -99,7 +100,7 @@
     function applyRoomEquip(wallet) {
         _roomEquip = Object.assign({}, (wallet || ShopModule.getWallet()).equipped || {});
     }
-    // [장착]/[해제] 클릭 → 서버(방)에만 저장. done(equippedMap) 성공 / done(null) 실패
+    // [장착]/[해제] 클릭 → 서버에 저장(로그인 계정은 계정에, 손님은 방에만). done(equippedMap) 성공 / done(null) 실패
     // item 은 클릭한 카드. 동물 스킨은 동물마다 칸이 따로라, 해제할 때 어느 칸을 비울지 creature 로 알려 준다.
     function equipRequest(slot, id, done, item) {
         if (!_socket) return done(null, 'room');
@@ -124,7 +125,7 @@
         subtitle: '데구리 · 동물 스킨 · 야식',
         autoEquipOnBuy: true,         // 사면 바로 장착(사용자 2026-09-23) — 옷장에 다시 들어가 장착할 필요 없음
         closet: true,                 // 상점(구매)·옷장(장착) 분리 — 데구리만(사용자 2026-09-22). 상점 카드에는 장착 버튼이 없고, 옷장은 소유 스킨만
-        roomWallet: true,             // 방 단위 지갑(사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) — 입장 200코인, 한 판 +10, 나가면 소멸. 로그인 없이(손님도) 사용
+        roomWallet: true,             // 지갑을 데구리 이벤트로 받는다(wallet:get 대신) — 로그인 계정이면 서버가 계정 지갑을, 손님이면 방 1회용 지갑(입장 200코인·나가면 소멸)을 준다
         closetTitle: '옷장',
         closetSubtitle: '데구리 · 내 꾸미기 장착',
         slots: [{ key: SKIN_SLOT, label: '동물 스킨' }, { key: BALLOON_SLOT, label: '🍔 야식' }],   // 둘 → 공유 셸이 탭바를 그린다

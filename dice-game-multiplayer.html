@@ -1952,6 +1952,8 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
+    <link rel="stylesheet" href="/css/mobile-game.css">
+    <script src="/js/mobile-game.js" defer></script>
 </head>
 <body>
     <noscript>
@@ -2619,7 +2621,7 @@
                             roomId: ar.roomId,
                             userName: ar.userName,
                             isHost: false,
-                            password: '',
+                            password: ar.password || '',
                             deviceId: getDeviceId(),
                             tabId: getTabId()
                         });
@@ -3198,7 +3200,7 @@
                             roomId: ar.roomId,
                             userName: ar.userName,
                             isHost: false,
-                            password: '',
+                            password: ar.password || '',
                             deviceId: getDeviceId(),
                             tabId: getTabId()
                         });
@@ -4784,10 +4786,19 @@
             currentRoomId = data.roomId;
             // 서버에서 전달받은 이름 사용 (중복 시 _1, _2 등이 붙을 수 있음)
             currentUser = data.userName;
+            // 같은 방의 재입장 암호만 보존한다. 다른 방의 암호는 넘기지 않는다.
+            let rejoinPassword = '';
+            try {
+                const previousRoom = JSON.parse(sessionStorage.getItem('diceActiveRoom') || 'null');
+                if (previousRoom?.roomId === data.roomId && typeof previousRoom.password === 'string') {
+                    rejoinPassword = previousRoom.password;
+                }
+            } catch (_) {}
             // 새로고침 시 재입장을 위해 방 정보 저장
             sessionStorage.setItem('diceActiveRoom', JSON.stringify({
                 roomId: data.roomId, userName: currentUser,
-                serverId: currentServerId, serverName: currentServerName
+                serverId: currentServerId, serverName: currentServerName,
+                ...(rejoinPassword ? { password: rejoinPassword } : {})
             }));
             initChatModule();
             isHost = data.isHost;

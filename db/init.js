@@ -287,6 +287,22 @@ async function initDatabase() {
             )
         `);
 
+        // ─── 데구리 Jev 하이라이트 반응(👍/👎·GIF 저장) — 코드 점수 가중치 배율용(db/deguri-highlight-feedback.js). 한 판(rid) × 보는 사람 한 줄, 장면 사실은 사건 수만 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS deguri_highlight_feedback (
+                rid        VARCHAR(32) NOT NULL,
+                viewer     VARCHAR(64) NOT NULL,
+                arm        VARCHAR(16) NOT NULL,
+                mode       VARCHAR(8)  NOT NULL,
+                facts      JSONB       NOT NULL,
+                vote       SMALLINT,
+                saved      BOOLEAN     NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (rid, viewer)
+            )
+        `);
+
         // ─── 앱 비밀값 영속 (key/value) — 토큰 서명키 등을 env 없이 DB에 유지 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS app_secrets (

@@ -72,6 +72,8 @@ var DeguriRender = (function () {
     var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
+    var ZOOM_STEP = 1.25;            // 확대·축소 알약 `− 100% +` 한 번에 ×/÷(데구리 7d929c5·9ae84db·ed54523 역반영, 데스크톱만)
+    var HUD_RANK_BOTTOM_GAP_PILL_PX = 100;   // 알약이 보일 때 순위표 아래 여백(CSS px) — 카메라 버튼(≈46) + 알약(≈44). HUD 단위로 환산해 HUD_RANK_BOTTOM_GAP 과 큰 쪽을 쓴다
     var WALL_VIEW_PAD = 25;          // 줌인했을 때 벽 바깥으로 남기는 가로 여유 — 벽 가장자리 자리(스탠드 x 175·625)의 이름표가 화면 끝에서 잘리지 않게
     var ZOOM_RACE_MAX = TRACK_W / (WALL_X1 - WALL_X0 + WALL_VIEW_PAD * 2);   // 경주 중 줌인 상한(≈1.45) — 벽 안쪽이 여유를 두고 화면에 다 들어오는 최대 배율. 이보다 키우면 가로로 따라가야 해서 판이 쏠리고 일부가 안 보인다(사용자 2026-10-02)
     var ZOOM_MIN = 0.5;              // 결승 프레임(범퍼·시소·진흙 + 구멍밭 + 스탠드)을 한 화면에 넣기 위한 줌아웃 하한
@@ -382,7 +384,7 @@ var DeguriRender = (function () {
     // ═══════════════════════════════════════════════════════
     // 렌더러 인스턴스
     // ═══════════════════════════════════════════════════════
-    function create(canvas) {
+    function create(canvas, opts) {   // opts.dpr — 화면 밖 렌더러(Jev 하이라이트 GIF, js/deguri-highlight.js)가 기기 밀도와 상관없이 고정 밀도로 그릴 때
         var ctx = canvas.getContext('2d');
         var R = {};
         var data = null;          // reveal 페이로드
@@ -395,7 +397,8 @@ var DeguriRender = (function () {
         var phase = 'idle';       // idle | countdown | play | finale | done
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead', target: null, loserSeen: false };   // target = 지금 카메라가 따라가는 동물(순위표 카메라 표시용)
         // 수동 카메라(보는 사람 화면 상태 — 소켓으로 안 나간다): 경주 중 드래그·핀치·ctrl+휠·순위표 행 누르기로 켜지고, 카메라 버튼·더블클릭·꼴찌 확정·새 타임라인에서 꺼진다
-        var manual = { on: false, x: 0, y: 0, zoom: 1, follow: null, lastInput: 0, held: false };   // follow = 순위표에서 누른 동물 — 수동 카메라가 그 동물을 따라간다. lastInput·held = 입력 없음 자동 복귀(MANUAL_IDLE_RETURN_MS) 판정
+        var manual = { on: false, x: 0, y: 0, zoom: 1, base: 1, follow: null, lastInput: 0, held: false };   // follow = 순위표에서 누른 동물 — 수동 카메라가 그 동물을 따라간다. lastInput·held = 입력 없음 자동 복귀(MANUAL_IDLE_RETURN_MS) 판정. base = 수동으로 바뀐 순간의 자동 배율(알약 % 기준)
+        var userZoom = 1;         // 확대·축소 알약의 사용자 배율(보는 사람 화면 상태) — 자동 카메라가 고른 배율(cam.autoZoom)에 곱하기만 한다. 자동 복귀·경주 시작·알약 숨김에 1
         var rankOpen = false;   // 순위표 펼침(제목 눌러 토글) — 기본은 접힘
         var rankHits = [];   // 순위표 행 클릭 영역(HUD 단위) { x, y, w, h, ball } — drawHud 가 매 프레임 채운다
         var onCameraModeCb = null;
@@ -416,7 +419,7 @@ var DeguriRender = (function () {
 
         R.loadAssets = loadAll;
         R.setIdleClock = function (ms) { idleClock = ms; idleStart = performance.now() - ms; };   // 테스트·프리뷰용: 대기 애니 시계를 특정 시각으로
-        R.debug = function () { return { idlePose: idlePose, cam: cam, manual: manual, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT), idleClock: idleClock, balls: balls }; };
+        R.debug = function () { return { idlePose: idlePose, cam: cam, manual: manual, userZoom: userZoom, rankHits: rankHits, reacts: reacts, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT), idleClock: idleClock, balls: balls }; };
 
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
@@ -429,7 +432,7 @@ var DeguriRender = (function () {
             var cssH;
             if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
             else { cssH = Math.round(cssW * (cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT)); }
-            var dpr = Math.min(2, window.devicePixelRatio || 1);
+            var dpr = (opts && opts.dpr) || Math.min(2, window.devicePixelRatio || 1);
             canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
             view.scale = canvas.width / TRACK_W;
@@ -438,6 +441,7 @@ var DeguriRender = (function () {
             view.narrow = cssW < NARROW_PX;
             view.cssW = cssW;
             view.fs = fs;
+            updateCamButton();   // 폰↔데스크톱 폭이 바뀌면 확대·축소 알약 표시도 따라간다(데구리 ed54523)
         };
 
         // 공 객체 — 타임라인 balls[] 항목에서. idleSeed = 대기 화면 서성임 위상(만들 때 한 번 정해 두고, 대기 화면 갱신으로 id 가 바뀌어도 유지)
@@ -480,6 +484,8 @@ var DeguriRender = (function () {
         };
         R.setPhase = function (p) { phase = p; updateCamButton(); };
         R.setHighlight = function (on) { highlightMine = !!on; };
+        var clipIds = null;       // 장면 카메라(Jev 하이라이트 GIF — 데구리 단독판 R.frameBalls 역반영): 이 동물들을 한 화면에 담는다. 화면 렌더러는 쓰지 않는다
+        R.frameBalls = function (ids) { clipIds = ids && ids.length ? ids.slice() : null; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
 
         // ─── 재생 ───
@@ -488,6 +494,7 @@ var DeguriRender = (function () {
             startWall = performance.now() + (countdownMs == null ? COUNTDOWN_MS : countdownMs);
             pausedAt = null;
             phase = 'countdown';
+            userZoom = 1;   // 경주·다시 보기 시작은 알약 100%
             updateCamButton();
             lastFrameWall = performance.now();
             if (rafId) cancelAnimationFrame(rafId);
@@ -524,7 +531,8 @@ var DeguriRender = (function () {
         function setManual(on) {
             on = !!on;
             if (manual.on === on) return;
-            if (on) { manual.x = cam.x; manual.y = cam.y; manual.zoom = cam.zoom; manual.lastInput = Date.now(); }   // 지금 보이는 자리에서 이어서 — 튀지 않게
+            if (on) { manual.x = cam.x; manual.y = cam.y; manual.zoom = cam.zoom; manual.base = cam.autoZoom || cam.zoom || 1; manual.lastInput = Date.now(); }   // 지금 보이는 자리에서 이어서 — 튀지 않게. base = 알약 % 의 기준(그 순간의 자동 배율)
+            else userZoom = 1;   // 자동으로 돌아오면 알약 배율도 100%
             manual.on = on; manual.follow = null;
             updateCamButton();
             if (onCameraModeCb) onCameraModeCb(on ? 'manual' : 'auto');
@@ -546,6 +554,35 @@ var DeguriRender = (function () {
             camButton.setAttribute('aria-pressed', manual.on ? 'true' : 'false');
             camButton.setAttribute('aria-label', (manual.on ? '지금 수동 카메라' : '지금 자동 카메라') + ' — 누르면 ' + (manual.on ? '자동' : '수동') + '으로');
             camButton.hidden = !data || phase === 'idle';   // 대기 화면(프리뷰 트랙)은 카메라 입력을 안 받는다 — 실제 경주 트랙과 달라 미리 둘러보면 오해를 부른다
+            updateZoomPill();
+        }
+        // 확대·축소 알약 `− 100% +`(데구리 7d929c5·9ae84db·ed54523 역반영) — 카메라 버튼 바로 위, 데스크톱에서만(폰은 핀치로 충분하고 알약이 트랙만 가린다 — 사용자 2026-09-24).
+        // 폰 판정은 폭(view.narrow) 또는 터치 전용 기기(hover: none + pointer: coarse) — 가로로 눕힌 폰(특히 전체화면)은 폭 600 이상이라 폭만 보면 알약이 다시 보인다
+        var zoomPill = null, zoomPillValue = null, zoomPillShown = false;
+        function phoneLike() { return view.narrow || !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches); }
+        function zoomRatio() { return manual.on ? manual.zoom / (manual.base || 1) : userZoom; }   // 자동: 사용자 배율(100% = 자동 카메라 기본). 수동: 수동으로 바뀐 순간의 자동 배율 대비
+        function updateZoomLabel() { if (zoomPillValue) zoomPillValue.textContent = Math.round(zoomRatio() * 100) + '%'; }
+        function updateZoomPill() {
+            if (!zoomPill) return;
+            var show = !!camButton && !camButton.hidden && !phoneLike();
+            if (zoomPillShown && !show) userZoom = 1;   // 숨는 쪽으로 바뀌면(창이 폰 폭으로 줄어듦) 안 보이는 배율이 남지 않게 — 데구리엔 없는 보완
+            zoomPillShown = show;
+            zoomPill.hidden = !show;
+            updateZoomLabel();
+        }
+        // 자동 카메라: 위치·따라가기·결승 프레임 판단은 그대로 두고 자동 배율에 사용자 배율만 곱한다(updateCamera). 한계(manualZoomMin~ZOOM_MAX)에 막혀 배율이 안 바뀌면 userZoom 도 그대로 — 반대 버튼이 바로 먹게.
+        // 수동·따라가기 중: 핀치처럼 화면 가운데 기준(zoomBy)
+        function zoomStep(dir) {
+            var f = dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+            if (manual.on) { zoomBy(f, (view.cssW || TRACK_W) / 2, canvas.clientHeight / 2); return; }
+            var base = cam.autoZoom || 1, z0 = clamp(base * userZoom, manualZoomMin(), ZOOM_MAX), z1 = clamp(base * userZoom * f, manualZoomMin(), ZOOM_MAX);
+            if (z1 !== z0) userZoom = z1 / base;
+            updateZoomLabel();
+        }
+        function zoomReset() {   // 가운데 % 를 누르면 100% — 자동은 사용자 배율 1, 수동은 화면 가운데 기준으로 그 순간의 자동 배율로
+            if (manual.on) zoomBy((manual.base || 1) / manual.zoom, (view.cssW || TRACK_W) / 2, canvas.clientHeight / 2);
+            else userZoom = 1;
+            updateZoomLabel();
         }
         if (canvas.parentElement && document.createElement) {
             camButton = document.createElement('button');
@@ -558,6 +595,13 @@ var DeguriRender = (function () {
             camButton.hidden = true;
             camButton.addEventListener('click', function () { setManual(!manual.on); });
             canvas.parentElement.appendChild(camButton);
+            zoomPill = document.createElement('div');   // 알약도 캔버스 박스 안 — 전체화면에서도 보인다. 글자는 −(U+2212)·+·% — 아틀라스에 확대·축소 칸이 없고 새 그림도 없다
+            zoomPill.className = 'deguri-zoom-pill'; zoomPill.hidden = true;
+            var mkZoomBtn = function (cls, text, label, onClick) { var b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; b.title = label; b.setAttribute('aria-label', label); b.addEventListener('click', onClick); zoomPill.appendChild(b); return b; };
+            mkZoomBtn('deguri-zoom-pill__btn', '\u2212', '카메라 축소', function () { zoomStep(-1); });
+            zoomPillValue = mkZoomBtn('deguri-zoom-pill__value', '100%', '카메라 배율 100%로 되돌리기', zoomReset);
+            mkZoomBtn('deguri-zoom-pill__btn', '+', '카메라 확대', function () { zoomStep(1); });
+            canvas.parentElement.appendChild(zoomPill);
             new Image().src = CAM_ICONS.manual;   // 처음 토글할 때 아이콘이 늦게 뜨지 않게
             updateCamButton();
         }
@@ -587,6 +631,7 @@ var DeguriRender = (function () {
             var lp = logicalPerCss(), ox = cxCss * lp - view.w / 2, oy = cyCss * lp - view.h / 2;
             manual.x += ox / z0 - ox / z1; manual.y += oy / z0 - oy / z1;
             manual.zoom = z1;
+            updateZoomLabel();   // 핀치·ctrl+휠도 알약 % 에 바로
         }
         // 순위표 행을 누르면 그 동물로 카메라가 부드럽게 옮겨 가서 계속 따라간다. 끌기·카메라 버튼·더블클릭으로 풀린다
         function followBall(b) {
@@ -862,17 +907,18 @@ var DeguriRender = (function () {
             cam.mode = frameMode ? 'frame' : (rearMode ? 'rear' : 'lead');
             focus = rearMode ? rear : lead;
             var camTarget = frameMode ? null : focus;   // 순위표 카메라 표시용 — 지금 카메라가 따라가는 동물(결승 프레임처럼 전원을 한 화면에 잡을 땐 없음)
-            var targetY, targetX = TRACK_W / 2, targetZoom = 1;
+            var targetY, targetX = TRACK_W / 2, targetZoom = 1, zb = 'other';   // zb = 실제로 탄 자동 분기(알약 배율 보정용). frameMode 변수로 가르지 않는다 — 선두가 프레임 구역에 들어와도 내 동물이 위에 있으면 mine 분기를 탄다
             var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
             if (data.target === 'first') { for (var ci0 = 0; ci0 < balls.length; ci0++) if (balls[ci0].state === 'carried') { carried = balls[ci0]; break; } }   // 1등 룰: 매 납치 추적 — 결승전(통로) 탈환이 핵심 장면
             else if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
-            if (t < 0) { targetY = data.track.startY * 0.5 + 60; camTarget = null; }
-            else if (carried) { targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
-            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; camTarget = myFocus; }   // 내 동물 따라가기
+            if (t < 0) { targetY = data.track.startY * 0.5 + 60; camTarget = null; zb = 'start'; }
+            else if (carried) { targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; camTarget = carried; zb = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
+            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; camTarget = myFocus; zb = 'mine'; }   // 내 동물 따라가기
             else if (decided && (celNow = celebration(t)) && celNow.since >= 0 && (celNow.since < CELEBRATE_CAM_MS || !focus)) { cam.mode = 'celebrate'; targetX = celNow.x; targetY = celNow.y + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = celNow.ball; }   // 1등 당첨 축하: 왕관 동물로 잠깐 → 결승 프레임에서 낙하산 착지 → 전원 앉으면(focus 없음) 다시 스탠드로(왕관·색종이는 계속)
             else if (loserDone && data.target !== 'first') { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; camTarget = loserB; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로. 1등 룰은 비석 없음
             else if (!focus && !frameMode) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
+                zb = 'frame';
                 var standP = (pieces.stand || [])[0];
                 var top = hf.zone.y - frameAbove, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
                 // 가로 중심은 결승 콘텐츠(스탠드 왼쪽 벽 ~ 판자벽, x 150~745)의 가운데 — 폰은 시야 폭 ≈630 이라 400 중심이면 골(700)·판자벽(745)이 화면 밖이었다.
@@ -893,6 +939,7 @@ var DeguriRender = (function () {
                 }
             }
             else {
+                zb = 'follow';
                 targetY = focus.y + view.h * CAM_LEAD;
                 var k = clamp((focus.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
                 targetZoom = 1 + (ZOOM_RACE_MAX - 1) * k;
@@ -910,6 +957,34 @@ var DeguriRender = (function () {
                 targetX = manual.x; targetY = manual.y; targetZoom = manual.zoom; cam.mode = 'manual'; camTarget = null;
             }
             else if (view.narrow && t >= 0 && targetZoom < MOBILE_ZOOM_MIN) targetZoom = MOBILE_ZOOM_MIN;   // 모바일 줌 하한 — 폰에서 줌 1 은 공 13px. 이 줌의 시야 폭(640)도 벽 안쪽을 다 담는다
+            if (!manual.on) {   // 확대·축소 알약(userZoom): 자동 카메라가 고른 배율을 기록하고 거기에 곱하기만 한다 — 위치·따라가기·결승 프레임 판단은 그대로(데구리 7d929c5·9ae84db)
+                cam.autoZoom = targetZoom;
+                if (userZoom !== 1) {
+                    var uz = clamp(targetZoom * userZoom, manualZoomMin(), ZOOM_MAX), fz = zb === 'eagle' ? carried : zb === 'mine' ? myFocus : (focus || rear || lead);
+                    targetZoom = uz;
+                    if (fz && (zb === 'eagle' || zb === 'mine' || zb === 'follow' || zb === 'frame')) {
+                        if (uz > 1) targetX = fz.x;   // 확대하면 따라가는 동물을 가로로도 가운데에(벽 안 클램프는 아래) — 가장자리의 내 동물이 화면 밖으로 나가지 않게
+                        if (zb === 'mine' || zb === 'follow') targetY = fz.y + view.h * CAM_LEAD / uz;   // 세로 앞당김을 배율로 나눈다 — 배율 1 식 그대로 곱하면 동물이 화면 위 1/8 에 붙는다
+                        else if (zb === 'frame' && uz > fitZoom + 1e-6) { var fh = view.h / 2 / uz; targetY = clamp(fz.y + view.h * CAM_LEAD / uz, top + fh, Math.max(top + fh, bottom - fh)); camTarget = fz; }   // 프레임이 다 안 들어가면 초점 동물을 프레임 안에서 따라간다. 더 줌아웃이면 프레임 가운데 그대로
+                    }
+                }
+            }
+            if (clipIds && t >= 0) {   // 장면 카메라(R.frameBalls): 장면 동물들의 경계 상자를 가운데에, 다 들어가는 배율로(1~ZOOM_MAX). 아래 세로·가로 한계는 그대로 받는다
+                var CLIP_PAD = 80, bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity;
+                for (var qi = 0; qi < clipIds.length; qi++) {
+                    var qb = byId[clipIds[qi]];
+                    if (!qb || qb.state === 'warp' || (qb.state === 'done' && qb.doneX == null)) continue;   // 파이프 속·스탠드로 간 놈은 빼고(꼴찌 비석 자리는 담는다)
+                    var qx = qb.state === 'done' ? qb.doneX : qb.x, qy = qb.state === 'done' ? qb.doneY : qb.y;
+                    var nx0 = Math.min(bx0, qx), nx1 = Math.max(bx1, qx), ny0 = Math.min(by0, qy), ny1 = Math.max(by1, qy);
+                    if (bx0 !== Infinity && (nx1 - nx0 + CLIP_PAD * 2 > view.w || ny1 - ny0 + CLIP_PAD * 2 > view.h)) continue;   // 앞 놈들과 한 화면에 안 들어가면 뺀다
+                    bx0 = nx0; bx1 = nx1; by0 = ny0; by1 = ny1;
+                }
+                if (bx0 !== Infinity) {
+                    targetX = (bx0 + bx1) / 2; targetY = (by0 + by1) / 2;
+                    targetZoom = clamp(Math.min(view.w / (bx1 - bx0 + CLIP_PAD * 2), view.h / (by1 - by0 + CLIP_PAD * 2)), 1, ZOOM_MAX);
+                    cam.mode = 'clip'; camTarget = null;
+                }
+            }
             // 세로 한계: 출발대 위 140px(하늘 띠) ~ 트랙 끝 20px 아래. 실제 보이는 반높이는 줌을 따르므로 줌으로 나눈다 — 논리 반높이로 조이면 폰(세로 캔버스, view.h 1120)에서
             // 줌 1.36 의 비석·1등 축하 장면이 화면 아래 130px 을 비워 둔 채 바닥에 붙는다(데구리 b37d160). 줌 1(출발·주행)은 변화 없다
             var halfH = view.h / 2 / targetZoom;
@@ -2745,7 +2820,8 @@ var DeguriRender = (function () {
                 var w = Math.max(Math.min(HUD_RANK_W_MAX, blockW + padX * 2), hdrRuleW, ruleH ? 0 : Math.ceil(titleW0) + padX * 2), L = hw - w - 8;
                 var X = L + Math.round((w - blockW) / 2);   // 묶음 왼쪽 끝 — 패널 가운데로
                 badgeDone = true;
-                var panelMaxH = hh - y - HUD_RANK_BOTTOM_GAP; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
+                var bottomGap = zoomPillShown ? Math.max(HUD_RANK_BOTTOM_GAP, Math.round(HUD_RANK_BOTTOM_GAP_PILL_PX * hw / view.cssW)) : HUD_RANK_BOTTOM_GAP;   // 알약이 보이면 카메라 버튼 + 알약 높이만큼(CSS px → HUD 단위) — 순위표 아랫줄이 알약 밑에 깔리지 않게
+                var panelMaxH = hh - y - bottomGap; if (view.narrow) panelMaxH = Math.min(panelMaxH, hh * HUD_RANK_MAX_H_NARROW);   // 폰: 배지+순위표가 캔버스 높이 42% 를 넘지 않게(5)
                 var maxRows = Math.max(1, Math.floor((panelMaxH - hdrH - HUD_RANK_TOGGLE_H) / rowH));
                 var targetIdx = data.target === 'first' ? 0 : n - 1;
                 // 접힌 순위표(기본): 1~3위 + 내 줄 + 당첨 자리 + 따라가는 동물만 — 트랙을 덜 가린다. 결승 프레임(구멍밭)에선 당첨 자리·내 줄·따라가는 동물만 + 더 투명(사용자 2026-09-24)

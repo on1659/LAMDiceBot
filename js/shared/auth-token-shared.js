@@ -7,8 +7,9 @@
  * 아무것도 안 해도 되도록 토큰을 다시 받아 userAuth 에 저장한다(사용자 결정 2026-09-22).
  *
  *   - token 있음 → POST /api/auth/refresh { token }  (서명 유효 + 유예 기간 내 → 새 토큰)
- *   - token 없음(2026-06 토큰 도입 전 로그인) → POST /api/auth/token { name, id }  (구세대 부트스트랩)
- *   - 둘 다 실패(유예 기간 초과·계정 없음) → null → 호출부가 기존 재로그인 흐름을 탄다
+ *   - token 없음(2026-06 토큰 도입 전 로그인) → 요청 없이 null. 이름만으로 발급하던 /api/auth/token 은
+ *     2026-10-09 닫았다(데구리 스킨 계정 귀속) — 호출부가 로그아웃시키고 PIN 으로 다시 로그인하게 한다
+ *   - 연장 실패(유예 기간 초과) → null → 호출부가 기존 재로그인 흐름을 탄다
  *
  * 호출부: js/shared/shop-shared.js(게임 페이지 상점 인증), js/shared/server-select-shared.js(로비 검증).
  */
@@ -16,7 +17,6 @@
     'use strict';
 
     var REFRESH_URL = '/api/auth/refresh';
-    var BOOTSTRAP_URL = '/api/auth/token';
 
     function readAuth() {
         try { return JSON.parse(localStorage.getItem('userAuth') || 'null'); } catch (e) { return null; }
@@ -38,11 +38,8 @@
     // 토큰 재발급 시도 → done(newToken | null). userAuth 자체가 없으면 즉시 null.
     function renew(done) {
         var auth = readAuth();
-        if (!auth || !auth.name) { done(null); return; }
-        var req = auth.token
-            ? post(REFRESH_URL, { token: auth.token })
-            : post(BOOTSTRAP_URL, { name: auth.name, id: auth.id });
-        req.then(function (result) {
+        if (!auth || !auth.name || !auth.token) { done(null); return; }
+        post(REFRESH_URL, { token: auth.token }).then(function (result) {
             done((result && result.token) ? store(auth, result) : null);
         });
     }

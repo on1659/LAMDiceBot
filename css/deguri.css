@@ -150,7 +150,7 @@
 #deguriShopMount .hshop-name,
 #deguriShopMount .hshop-namerow .hshop-name { display: flex; flex: none; align-items: center; justify-content: center; height: 2.4em; margin-top: 5px; font-size: 12px; line-height: 1.2; white-space: normal; word-break: keep-all; overflow: hidden; }
 #deguriShopMount .hshop-price { margin-top: 1px; }
-#deguriShopMount .hshop-buy { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; border-radius: 12px; }   /* z 6 = 등급 배지(5) 위 — 배지를 눌러도 구매 */
+#deguriShopMount .hshop-buy { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 6; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; border-radius: 12px; }   /* z 6 = 등급 배지(5) 위 — 배지를 눌러도 구매 */
 #deguriShopMount .hshop-card:has(.hshop-buy:active),
 #deguriShopMount .hshop-card:has(.hshop-equip:active:not(:disabled)) { transform: scale(0.97); }
 #deguriShopMount .hshop-card:has(.hshop-buy:focus-visible),
@@ -161,7 +161,7 @@
 /* 옷장의 장착/해제 — 카드 전체가 버튼. 버튼을 카드 위에 투명하게 펼치고 글자와 알약(::before)만 아래쪽에 그린다.
    (작은 버튼에 ::after 를 펼치는 방식은 실제 클릭이 버튼으로 가지 않았다 — 버튼 자체를 펼쳐야 한다) */
 #deguriShopMount .hshop-card:has(.hshop-equip:not(.hshop-owned)) { padding-bottom: 32px; }
-#deguriShopMount .hshop-card .hshop-equip:not(.hshop-owned) { position: absolute; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; margin: 0; padding: 0 5px 11px; background: none; border: 0; border-radius: 12px; font-size: 11px; }
+#deguriShopMount .hshop-card .hshop-equip:not(.hshop-owned) { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; margin: 0; padding: 0 5px 11px; background: none; border: 0; border-radius: 12px; font-size: 11px; }
 #deguriShopMount .hshop-card .hshop-equip:not(.hshop-owned)::before { content: ''; position: absolute; left: 5px; right: 5px; bottom: 7px; z-index: -1; height: 22px; box-sizing: border-box; border-radius: 8px; background: var(--horse-500); }
 #deguriShopMount .hshop-card .hshop-equip.is-equipped { color: var(--hshop-equipped-ink); }
 #deguriShopMount .hshop-card .hshop-equip.is-equipped::before { background: var(--hshop-equipped-bg); border: 1px solid var(--hshop-equipped); }
@@ -644,7 +644,7 @@
 /* 구간 손잡이 둘 — 두 range 를 겹치고 손잡이만 누를 수 있게 */
 .deguri-gif-range {
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     display: flex;
     align-items: center;
 }
@@ -702,7 +702,7 @@
 /* 녹화 영역 — 고르는 동안(is-picking)만 입력을 받고, 고른 곳 밖은 어둡게. 캔버스 위 연출이라 스킨과 무관한 HUD 색. 둥근 모서리는 캔버스(14px)와 같게 */
 .deguri-gif-area {
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 4;
     overflow: hidden;
     border-radius: 14px;
@@ -868,6 +868,51 @@
 }
 .deguri-cam-btn:hover { background: rgba(var(--deguri-hud-rgb), 0.96); }
 .deguri-cam-btn:focus-visible { outline: 3px solid var(--deguri-gold); outline-offset: 2px; }
+/* 확대·축소 알약 `− 100% +`(js/deguri-render.js 가 캔버스 박스에 붙인다, 데구리 7d929c5·9ae84db·ed54523 역반영) — 카메라 버튼 바로 위 오른쪽 정렬, 데스크톱에서만(폰은 JS 가 숨긴다).
+   카메라 버튼과 같은 어두운 알약. 가운데 % 는 --deguri-cream 이 아니라 --deguri-hud-cream(다크에서 안 뒤집히는 고정 크림 — 어두운 알약 위) */
+.deguri-zoom-pill {
+    position: absolute;
+    z-index: 3;
+    right: 10px;
+    bottom: 54px;
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 2px;
+    border: 2px solid var(--deguri-gold-deep);
+    border-radius: 999px;
+    background: rgba(var(--deguri-hud-rgb), 0.88);
+    box-shadow: 0 3px 10px rgba(var(--shadow-rgb), 0.25);
+}
+.deguri-zoom-pill[hidden] { display: none; }
+.deguri-zoom-pill__btn,
+.deguri-zoom-pill__value {   /* horse-race.css 의 button { width: 100% } 를 이긴다 */
+    width: auto;
+    height: 24px;
+    margin: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--deguri-gold);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+.deguri-zoom-pill__value {
+    min-width: 46px;
+    padding: 0 4px;
+    color: var(--deguri-hud-cream);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.deguri-zoom-pill__btn:hover,
+.deguri-zoom-pill__value:hover { background: rgba(var(--highlight-rgb), 0.12); }
+.deguri-zoom-pill__btn:focus-visible,
+.deguri-zoom-pill__value:focus-visible { outline: 3px solid var(--deguri-gold); outline-offset: 1px; }
 
 /* 캔버스 위 HUD (JS가 채움) — 클릭은 캔버스로 통과 */
 #deguriHud {
@@ -1174,6 +1219,131 @@ body.deguri-pseudo-fs {
     font-weight: 700;
     cursor: pointer;
 }
+.deguri-result-btn--small {
+    min-height: 38px;
+    padding: 7px 14px;
+    font-size: 14px;
+}
+/* Jev 하이라이트(js/deguri-highlight.js) — 순위 목록 자리를 GIF 로 바꿔 보여 준다. 바꿀 때 카드 높이를 지금 높이로 묶고(js), 자리가 GIF 보다 좁으면 머리의 당첨 동물 그림을 접는다(.is-compact) */
+.deguri-highlight {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 14px;
+}
+.deguri-highlight[hidden] { display: none; }
+.deguri-highlight__frame {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+.deguri-highlight__end {   /* GIF 가 한 번 돌고 멈춘 뒤 그 위에 겹치는 판 — "이 장면 어땠어요?" 👍/👎 + [다시 재생]·[닫기] */
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(var(--shadow-rgb), 0.5);
+}
+.deguri-highlight__end[hidden] { display: none; }
+.deguri-highlight__ask {
+    margin: 0;
+    color: var(--deguri-hud-cream);
+    font-size: 15px;
+    font-weight: 800;
+}
+.deguri-highlight__end-actions {
+    display: flex;
+    gap: 8px;
+}
+.deguri-highlight__frame img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 10px;
+    box-shadow: 0 0 0 2px var(--deguri-wood-line);
+}
+.deguri-highlight__frame img[hidden],
+.deguri-highlight__making[hidden] { display: none; }
+.deguri-highlight__making {
+    color: var(--deguri-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+.deguri-highlight__foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.deguri-highlight__note {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    color: var(--deguri-ink);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+    text-align: left;
+    word-break: keep-all;
+}
+.deguri-highlight__badge {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    color: var(--text-on-accent);
+    background: var(--deguri-gold-deep);
+    font-size: 11px;
+    font-weight: 800;
+}
+.deguri-highlight__vote {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+}
+.deguri-highlight__vote button {   /* horse-race.css 의 button { width: 100% } 를 이긴다 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: auto;
+    height: 34px;
+    margin: 0;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 2px solid var(--deguri-wood-soft);
+    border-radius: 10px;
+    color: var(--deguri-ink);
+    background: var(--deguri-cream);
+    box-shadow: none;
+    cursor: pointer;
+}
+.deguri-highlight__vote button[aria-pressed="true"] {
+    border-color: var(--deguri-gold-deep);
+    background: var(--deguri-gold-soft);
+    color: var(--deguri-gold-soft-ink);
+}
+.deguri-highlight__thumb {
+    width: 17px;
+    height: 17px;
+    fill: currentColor;
+}
+.deguri-highlight__thumb.is-down { transform: rotate(180deg); }
+.deguri-highlight-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 0 0 10px;
+}
+.deguri-highlight-buttons[hidden] { display: none; }
+.deguri-result-card.is-compact .deguri-result-sprite { display: none; }
 .deguri-result-btn:active {
     transform: translateY(3px);
     box-shadow: none;
@@ -1290,7 +1460,7 @@ body.deguri-pseudo-fs {
 }
 .deguri-yard-critter__body {
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     background-repeat: no-repeat;
     transform-origin: 50% 50%;
     image-rendering: pixelated;
@@ -1353,6 +1523,6 @@ body.deguri-pseudo-fs {
     from { background-position: 0 0; opacity: 1; }
     to { background-position: -160px 0; opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) {
-    .deguri-yard { display: none; }
-}
+/* 동작 줄이기 기기에서는 마당을 숨기지 않고 차분한 모드(js/deguri.js DeguriYard calmMode)로 돈다 — 장애물은 떨어지지 않고 제자리에서 서서히 나타난다 */
+.deguri-yard-obstacle.is-calm { animation: deguri-yard-appear 400ms ease-out; }
+@keyframes deguri-yard-appear { from { opacity: 0; } to { opacity: 1; } }

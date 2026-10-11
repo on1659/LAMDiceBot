@@ -18,9 +18,11 @@
     var PRICE = 60, REFUND = 30;   // 표시용 — 서버 socket/deguri.js GACHA_PRICE / GACHA_REFUND 와 같은 값
     var ODDS_TEXT = '일반 40% · 레어 35% · 에픽 18% · 전설 7% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';   // 서버 GACHA_WEIGHTS 와 같은 값
     var STAY_COIN = 10;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
+    var STAY_DONE_TEXT = '오늘 머문 시간 코인은 다 받았어요';   // 로그인 계정은 하루 +60 까지(서버 STAY_DAILY_MAX) — 다 받으면 지갑 응답의 stayNextMs 가 null
     var TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
     var LAMP_CELL = { off: 0, rare: 1, epic: 2, legend: 3, common: 4 };   // 일반 칸은 시트 맨 뒤에 덧붙였다(make-gacha-common.py)
     var TIERS = ['common', 'rare', 'epic', 'legend'];
+    var GAIN_MS = 900;   // 중복 환급 '+30' 이 도장 자리에서 잔고로 올라가는 시간(css mgachaGainRise 와 같은 값) — 닿으면 잔고가 늘며 반짝(is-gain)
 
     // 무대(캔버스) 논리 크기(CSS px). 그림은 화면의 2배로 그려져 있다
     var STAGE_W = 300, STAGE_H = 420;
@@ -83,6 +85,7 @@
     var _anim = null;      // { res, item, t0, done }
     var _busy = false, _balance = null;
     var _nextStayAt = 0, _stayTimer = 0, _tickTimer = 0, _pollTimer = 0;   // 다음 머문 시간 보상 시각(클라 시계) — 그때 잔고를 다시 받는다
+    var _stayDone = false;               // 오늘 머문 시간 보상을 다 받음(로그인 계정)
     var WALLET_POLL_MS = 30000;   // 상점 구매 등 다른 경로로 바뀐 잔고를 알약에 맞추는 주기
     var _walletListened = null;   // wallet:updated 를 건 소켓(재연결마다 connect 가 다시 불려 중복 등록 방지)
 
@@ -92,27 +95,36 @@
         var im = new Image(); im.src = src; _img[key] = im; return im;
     }
     function ready(im) { return im && im.complete && im.naturalWidth > 0; }
-    function loadAll() {
-        if (_loading) return _loading;
-        var files = { machine: 'machine/gacha-machine', globeEmpty: 'machine/gacha-globe-empty', globeBalls: 'machine/gacha-globe-balls', lamp: 'machine/gacha-machine-lamp',
-            crank: 'machine/gacha-crank', railFront: 'machine/gacha-machine-rail-front', sparkle: 'fx/gacha-sparkle', coin: 'fx/gacha-coin',
-            chuteFront: 'machine/gacha-chute-front' };   // O차(2026-09-26): 관의 앞쪽 테두리 반 + 몸통만(입구 속·뒤쪽 테두리는 빈 유리 그림에) — 공 앞에 그려 뽑힌 공이 입구 안에 보이다 앞벽에 가려지며 들어간다(사용자 2026-09-26: 공이 관 뒤로 가 보임)   // coin = 96×96 ×8 한 바퀴(0 앞·2 옆·4 뒤·6 옆, N차 2026-09-26)
-        TIERS.forEach(function (t) {
-            files['cap-' + t] = 'capsule/capsule-' + t; files['open-' + t] = 'capsule/capsule-' + t + '-open'; files['rays-' + t] = 'fx/gacha-rays-' + t;
-            files['cup-' + t] = 'capsule/capsule-' + t + '-cup'; files['lid-' + t] = 'capsule/capsule-' + t + '-lid'; files['lidflip-' + t] = 'capsule/capsule-' + t + '-lidflip';
-        });
-        var waits = Object.keys(files).map(function (k) {
+    function loadFiles(files) {   // key → 경로. 그림은 실패해도 resolve(ready 가드가 못 받은 그림을 건너뛴다)
+        return Object.keys(files).map(function (k) {
             var im = loadImage(k, BASE + files[k] + '.webp' + ASSET_VER);
             return new Promise(function (res) { if (ready(im)) res(); else { im.onload = res; im.onerror = res; } });
         });
+    }
+    // 처음 열 때는 기계·코인·반짝이·좌표만 받고 바로 그린다(데구리 74d979d 역반영 — 등급 4개 캡슐·빛살 24장까지 한꺼번에 받으면 그릴 때까지 빈 무대를 기다렸다).
+    // 캡슐·빛살은 [뽑기] 응답의 등급 것만 그때 받는다(loadTier) — 코인·손잡이 단계(≥3.4초) 안에 보통 끝나고, 못 받았으면 loop 가 공이 캡슐로 바뀌기 직전에 멈춰 기다린다
+    function loadBase() {
+        if (_loading) return _loading;
+        var waits = loadFiles({ machine: 'machine/gacha-machine', globeEmpty: 'machine/gacha-globe-empty', globeBalls: 'machine/gacha-globe-balls', lamp: 'machine/gacha-machine-lamp',
+            crank: 'machine/gacha-crank', railFront: 'machine/gacha-machine-rail-front', sparkle: 'fx/gacha-sparkle', coin: 'fx/gacha-coin',
+            chuteFront: 'machine/gacha-chute-front' });   // O차(2026-09-26): 관의 앞쪽 테두리 반 + 몸통만(입구 속·뒤쪽 테두리는 빈 유리 그림에) — 공 앞에 그려 뽑힌 공이 입구 안에 보이다 앞벽에 가려지며 들어간다(사용자 2026-09-26: 공이 관 뒤로 가 보임)   // coin = 96×96 ×8 한 바퀴(0 앞·2 옆·4 뒤·6 옆, N차 2026-09-26)
         if (window.UIIcons && UIIcons.image) {   // 코인 그림 = 공용 아이콘 아틀라스(캔버스 draw 용 Image 는 CSS 와 별개로 받는다)
             var ai = UIIcons.image();
             waits.push(new Promise(function (res) { if (ready(ai)) res(); else { ai.addEventListener('load', res); ai.addEventListener('error', res); } }));
         }
         waits.push(fetch(BASE + 'gacha-anchors.json' + ASSET_VER).then(function (r) { return r.json(); }).then(function (j) { _anchors = j; }));
         waits.push(fetch('/config/deguri/cosmetics.json').then(function (r) { return r.json(); }).then(function (j) { _catalog = j; }));
-        _loading = Promise.all(waits);
+        _loading = Promise.all(waits).catch(function (e) { _loading = null; throw e; });   // 좌표·카탈로그를 못 받았으면 다음에 열 때 다시 받는다
         return _loading;
+    }
+    var _tierLoading = {};   // 등급 → 그 등급 캡슐·빛살 6장 받기(한 번만)
+    function loadTier(t) {
+        if (_tierLoading[t]) return _tierLoading[t];
+        var files = {};
+        files['cap-' + t] = 'capsule/capsule-' + t; files['open-' + t] = 'capsule/capsule-' + t + '-open'; files['rays-' + t] = 'fx/gacha-rays-' + t;
+        files['cup-' + t] = 'capsule/capsule-' + t + '-cup'; files['lid-' + t] = 'capsule/capsule-' + t + '-lid'; files['lidflip-' + t] = 'capsule/capsule-' + t + '-lidflip';
+        _tierLoading[t] = Promise.all(loadFiles(files));
+        return _tierLoading[t];
     }
     function catalogItem(id) {
         if (!_catalog) return null;
@@ -665,6 +677,7 @@
     function loop(now) {
         if (!_anim) return;
         var t = now - _anim.t0, TL = timeline(_anim.res.tier);
+        if (!_anim.tierReady && t > TL.pick && t < TL.end) { _anim.t0 = now - TL.pick; t = TL.pick; }   // 등급 그림을 아직 못 받았으면 공이 캡슐로 바뀌기 직전에 멈춰 기다린다(건너뛰기는 안 멈춘다 — 결과 화면은 ready 가드가 받는 대로 그린다)
         drawAt(t);
         if (t >= TL.crank0) payShown();   // 코인이 투입구에 들어갔다 → 잔고가 줄어든다
         if (t >= TL.end && !_anim.done) { _anim.done = true; showResult(); }
@@ -699,6 +712,10 @@
         // 잔고 — ✕ 바로 아래(무대 오른쪽 위에 얹음 → 모달 크기 불변): 코인 아이콘 + "N · +10 m:ss"
         var bal = coinLabel('mgacha-coin');
         stageWrap.appendChild(bal);
+        // 중복 환급(데구리 f5dc19f 역반영) — 글줄 대신 무대 오른쪽 위(잔고 아래) '중복!' 도장 + 잔고로 올라가는 '+30'. 무대 위에 얹어 모달 크기가 뽑기 전후 같다
+        var dupe = h('div', 'mgacha-dupe', '중복!'); dupe.hidden = true; dupe.setAttribute('aria-hidden', 'true');
+        var gain = h('div', 'mgacha-gain'); gain.hidden = true; gain.setAttribute('aria-hidden', 'true');
+        stageWrap.appendChild(dupe); stageWrap.appendChild(gain);
         m.appendChild(stageWrap);
         var result = h('div', 'mgacha-result'); result.hidden = true;
         // 결과 칸 자리의 안내 한 줄 — 뽑기 전 / 연출 중(건너뛰기). 결과가 뜨면 CSS 가 숨긴다
@@ -706,9 +723,8 @@
         result.appendChild(hint);
         var badge = h('span', 'mgacha-badge'); var name = h('span', 'mgacha-name');
         var line = h('div', 'mgacha-result-line'); line.appendChild(badge); line.appendChild(name);
-        var note = h('div', 'mgacha-note');
         var equip = h('button', 'mgacha-equip', '장착하기'); equip.type = 'button'; equip.onclick = equipPulled;
-        result.appendChild(line); result.appendChild(note); result.appendChild(equip);
+        result.appendChild(line); result.appendChild(equip);
         m.appendChild(result);
         var pull = h('button', 'mgacha-pull', '뽑기 · ' + PRICE + '코인'); pull.type = 'button'; pull.onclick = pullOnce;
         // 확률 안내 ? — 빨간 버튼 안 오른쪽에 겹쳐 둔다(버튼 속 버튼은 안 되므로 감싼 상자 기준 절대 위치). 말풍선은 위로 뜬다
@@ -728,7 +744,7 @@
         document.body.appendChild(ov);
         _ctx = cv.getContext('2d');
         window.addEventListener('resize', function () { if (_el && !_el.ov.hidden) { fitCanvas(); if (!_raf) drawAt(_anim && _anim.done ? 1e9 : 0); } });
-        _el = { ov: ov, cv: cv, bal: bal, stayLine: stayLine, hint: hint, result: result, badge: badge, name: name, note: note, equip: equip, pull: pull, msg: msg };
+        _el = { ov: ov, cv: cv, bal: bal, stayLine: stayLine, hint: hint, result: result, badge: badge, name: name, dupe: dupe, gain: gain, equip: equip, pull: pull, msg: msg };
         return _el;
     }
     // 코인 아이콘(공용 아틀라스 coin) + 숫자 칸. el.txt 에 글자를 넣는다
@@ -767,6 +783,7 @@
     }
     // "N분 뒤에 10코인이 들어와요" — 분 단위 올림, 1분 미만은 "1분 안에"
     function stayTipText() {
+        if (_stayDone) return STAY_DONE_TEXT;
         if (!_nextStayAt) return '방에 있으면 5분마다 ' + STAY_COIN + '코인이 들어와요';
         var sec = Math.max(0, Math.ceil((_nextStayAt - Date.now()) / 1000));
         return (sec < 60 ? '1분 안에' : Math.ceil(sec / 60) + '분 뒤에') + ' ' + STAY_COIN + '코인이 들어와요';
@@ -782,7 +799,8 @@
         return pill.tip;
     }
     function renderBalance() {
-        var coin = typeof _balance === 'number' ? _balance.toLocaleString('ko-KR') : '…';   // 내부 테스트 200만 코인도 읽히게 쉼표
+        var pending = _anim && _anim.paid && _anim.res.dupe && !_anim.refunded ? _anim.res.refund : 0;   // 중복 환급은 '+30' 이 잔고에 닿는 순간 더해 보인다(서버 잔고에는 이미 들어 있다)
+        var coin = typeof _balance === 'number' ? (_balance - pending).toLocaleString('ko-KR') : '…';   // 내부 테스트 200만 코인도 읽히게 쉼표
         if (_el) _el.bal.txt.textContent = coin;   // 코인만(사용자 2026-09-24) — 다음 +10 까지 남은 시간은 ? 말풍선·방 화면 코인 말풍선에서
         var pill = document.getElementById('deguriCoinPill');
         if (pill && typeof _balance === 'number') {   // 방 화면은 코인만 — 남은 시간은 마우스를 올리면(폰은 누르면) 말풍선(사용자 2026-09-23)
@@ -794,14 +812,17 @@
     function applyWallet(w) {
         if (!w || !w.ok) return;
         setBalance(w.balance);
+        _stayDone = w.stayNextMs === null;
         if (typeof w.stayNextMs === 'number') _nextStayAt = Date.now() + w.stayNextMs;
+        else if (_stayDone) _nextStayAt = 0;
         clearTimeout(_stayTimer);
         if (_nextStayAt) _stayTimer = setTimeout(refreshWallet, Math.max(500, _nextStayAt - Date.now() + 400));
     }
     function refreshWallet() { if (_socket) _socket.emit('deguri:shop:get', {}, applyWallet); }
     function tickStay() {
         renderBalance();
-        if (_el && _nextStayAt) _el.stayLine.textContent = '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요 · 다음까지 ' + stayLeftText();
+        if (_el && _stayDone) _el.stayLine.textContent = STAY_DONE_TEXT;
+        else if (_el && _nextStayAt) _el.stayLine.textContent = '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요 · 다음까지 ' + stayLeftText();
     }
     // 방에 들어온 뒤 한 번(js/deguri.js roomCreated/roomJoined) — 알약 표시·1초 카운트다운·주기 갱신 시작
     function onRoomEntered() {
@@ -810,6 +831,19 @@
         clearInterval(_pollTimer); _pollTimer = setInterval(refreshWallet, WALLET_POLL_MS);
     }
     function setMsg(t) { if (_el) _el.msg.textContent = t || ''; }
+    function reducedMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    // 중복: '+30' 이 도장 자리에서 잔고(무대 오른쪽 위)로 올라가고, 닿으면 잔고가 늘며 반짝인다. 동작 줄이기면 바로 더한다. 창을 닫거나 다음 뽑기를 시작했으면 그대로 둔다
+    function showRefund() {
+        var el = _el, anim = _anim;
+        el.gain.textContent = '+' + anim.res.refund;
+        el.gain.hidden = false; el.gain.classList.remove('is-on'); void el.gain.offsetWidth; el.gain.classList.add('is-on');
+        var land = function () {
+            if (_el !== el || _anim !== anim) return;
+            anim.refunded = true; el.gain.hidden = true; renderBalance();
+            balanceEls().forEach(function (e) { e.classList.remove('is-gain'); void e.offsetWidth; e.classList.add('is-gain'); });
+        };
+        if (reducedMotion()) land(); else setTimeout(land, GAIN_MS);
+    }
 
     function showResult() {
         var res = _anim.res, item = _anim.item || {};
@@ -818,7 +852,8 @@
         _el.badge.textContent = TIER_LABEL[res.tier] || '';
         _el.badge.className = 'mgacha-badge mgacha-badge--' + res.tier;
         _el.name.textContent = item.displayName || item.name || '';
-        _el.note.textContent = res.dupe ? '이미 가진 거라 ' + res.refund + '코인을 돌려받았어요' : '';   // 뻔한 안내는 없음(사용자 2026-09-24) — 중복 환급만 알린다
+        _el.dupe.hidden = !res.dupe;   // 뻔한 안내는 없음(사용자 2026-09-24) — 중복이면 도장 + 올라가는 '+30'(showRefund)만. 다시 열면 도장만(이미 더했다)
+        if (res.dupe && !_anim.refunded) showRefund();
         _el.equip.disabled = false; _el.equip.textContent = '장착하기';
         _el.result.hidden = false;
         _busy = false;
@@ -842,7 +877,9 @@
             var globe = null;   // 유리구 공 움직임을 끝까지 미리 계산 — 실패해도(옛 캐시 등) 연출은 시작한다(공은 쌓인 채로)
             try { if (_anchors && _anchors.machine.globeBalls && _anchors.machine.globeBalls.boundary) globe = simulateGlobe(currentPile(), seed ^ Math.floor(res.balance * 7919), TIER_BALL[res.tier] !== undefined ? TIER_BALL[res.tier] : 2, fx(res.tier).crank); } catch (e) { globe = null; }
             if (globe) _globePile = globe.final;   // 새 더미 = 다음 뽑기의 출발점
-            _anim = { res: res, item: item, t0: performance.now(), done: false, globe: globe, paid: false };
+            _el.dupe.hidden = true; _el.gain.hidden = true;   // 지난 중복 도장·+30 은 걷는다
+            var anim = _anim = { res: res, item: item, t0: performance.now(), done: false, globe: globe, paid: false, tierReady: false, refunded: false };
+            loadTier(res.tier).then(function () { anim.tierReady = true; });   // 나온 등급의 캡슐·빛살 6장만 그때 받는다
             stopLoop(); _raf = requestAnimationFrame(loop);
         });
     }
@@ -866,11 +903,11 @@
         setMsg('');
         refreshWallet();
         tickStay();
-        loadAll().then(function () {
+        Promise.all([loadBase(), _anim ? loadTier(_anim.res.tier) : null]).then(function () {   // 지난 결과가 있으면 그 등급 그림까지 받은 뒤 결과 화면
             if (_el.ov.hidden) return;
             if (_anim && _anim.done) { stopLoop(); _raf = requestAnimationFrame(loop); }   // 지난 결과 화면을 다시(빛살 회전)
             else if (!_anim) drawAt(0);
-        });
+        }, function () { if (!_el.ov.hidden) setMsg('그림을 불러오지 못했어요. 닫았다 다시 열어 주세요.'); });
         _el.pull.disabled = _busy;
     }
     function close() {

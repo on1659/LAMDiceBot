@@ -2,7 +2,7 @@
 //   서버 경로만 검증(소켓 클라이언트, 브라우저 없음):
 //     [refresh]   유효 토큰 → 새 토큰 / 만료(유예 내) 토큰 → 새 토큰으로 socket:authenticate 성공 /
 //                 유예 초과 토큰 401 / 서명 변조 401 / 쓰레기 401
-//     [bootstrap] /api/auth/token — name+id 일치 → 토큰, id 불일치 → 404, name 만 → 토큰(구세대 호환)
+//     [bootstrap 닫힘] /api/auth/token — 2026-10-09 제거(데구리 스킨 계정 귀속): name+id·name 만 모두 토큰 안 나옴(404)
 //   실행: node AutoTest/qa-auth-token-renew-test.js [port]   (서버가 떠 있어야 함, DB 연결 필요)
 //   시드: users 계정(API 등록) — 종료 시 users/wallet 정리. 만료 토큰은 .env 의 AUTH_TOKEN_SECRET 으로 직접 서명.
 require('../config');
@@ -73,17 +73,11 @@ function socketAuth(token) {
         const r6 = await post('/api/auth/refresh', {});
         check(r6.status === 401, 'refresh: 토큰 없음 → 401', 'status=' + r6.status);
 
-        // ── bootstrap ──
+        // ── bootstrap 닫힘 (이름만으로 토큰 발급하던 경로) ──
         const b1 = await post('/api/auth/token', { name, id: userId });
-        check(b1.status === 200 && b1.body.token, 'bootstrap: name+id 일치 → 토큰');
-        const ab1 = await socketAuth(b1.body && b1.body.token);
-        check(ab1 && ab1.ok === true, 'bootstrap: 그 토큰으로 socket:authenticate 성공');
-        const b2 = await post('/api/auth/token', { name, id: userId + 999999 });
-        check(b2.status === 404, 'bootstrap: id 불일치 → 404', 'status=' + b2.status);
-        const b3 = await post('/api/auth/token', { name });
-        check(b3.status === 200 && b3.body.token, 'bootstrap: name 만(구세대 userAuth 에 id 없을 때) → 토큰');
-        const b4 = await post('/api/auth/token', { name: name + '_nope' });
-        check(b4.status === 404, 'bootstrap: 없는 계정 → 404', 'status=' + b4.status);
+        check(b1.status === 404 && !(b1.body && b1.body.token), 'bootstrap 닫힘: name+id → 404, 토큰 없음', 'status=' + b1.status);
+        const b2 = await post('/api/auth/token', { name });
+        check(b2.status === 404 && !(b2.body && b2.body.token), 'bootstrap 닫힘: name 만 → 404, 토큰 없음', 'status=' + b2.status);
     } finally {
         for (const t of ['user_cosmetics', 'coin_ledger', 'user_coins']) {
             await pool.query(`DELETE FROM ${t} WHERE user_id = $1`, [userId]).catch(() => {});

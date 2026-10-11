@@ -109,7 +109,7 @@ node AutoTest/qa-home-proto-server-e2e.js
 - `socket/*` 를 바꾸면 서버를 재시작해야 한다(자동 리로드 없음). 홈 작업은 보통 해당 없음.
 - 데구리 E2E 는 1등 룰 흐름(`c2128806`)이 들어오기 전에 통과했다. 머지 뒤 다시 돌려 볼 것.
 - **테스트 서버 배포:** `feature/marble-run` 에 푸시하면 Railway 가 자동 배포한다(이번엔 약 105초). `assets/**`·`docs/**` 만 바뀐 커밋은 배포를 건너뛴다.
-- 테스트 서버에 올릴 땐 본 폴더를 쓰지 말고, 임시 worktree 에서 `origin/feature/marble-run` 에 `feature/home-proto` 를 **머지 커밋**으로 합쳐 `git push origin HEAD:feature/marble-run`. 이번에도 그렇게 했다.
+- **R&D 는 `feature/marble-run` 에 합치지 않는다(2026-10-09 사용자).** `feature/marble-run` 은 실제 작업 브랜치이자 테스트 서버다. 10-07~08 에 인게임 재설계(실제 게임 4페이지 수정)를 여기 합쳤다가 실제 게임 화면이 바뀌어 되돌렸다(`2d693148`). 테스트 서버에서 보여 줘야 하면 `git diff --stat origin/feature/marble-run...feature/home-proto` 로 새 파일뿐인지 확인하고, 그래도 사용자에게 먼저 묻는다.
 
 ## 7. 이 저장소 규칙 (꼭 지킬 것)
 

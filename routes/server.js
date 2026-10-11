@@ -7,7 +7,7 @@ const {
     getMembers, updateMemberApproval, removeMember, checkMember,
     getServerRecords, comparePassword
 } = require('../db/servers');
-const { register: authRegister, login: authLogin, getUserByName, getChatLayoutStats } = require('../db/auth');
+const { register: authRegister, login: authLogin, getChatLayoutStats } = require('../db/auth');
 const { issueToken, refreshToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, startNewSeason, getCurrentSeason, getSeasonList, getRankingPlayers, getWinnerCalendar } = require('../db/ranking');
@@ -107,27 +107,9 @@ router.post('/auth/refresh', (req, res) => {
     res.json({ user: { id: renewed.userId, name: renewed.name }, token: renewed.token });
 });
 
-// ── 토큰 부트스트랩 (토큰 없는 구세대 userAuth 전용, PIN 없이 발급) ──
-// 상점/지갑 토큰 신원 계층 도입(2026-06) 전에 로그인한 사용자는 userAuth에
-// 토큰이 없다. 이들이 "재로그인 없이" 상점을 쓰도록, 이름·id가 실제 계정과
-// 일치하면 토큰을 발급한다(사용자 결정 2026-09-22 — 클라는 token 필드가 없을 때만 호출).
-// ⚠️ 의도적으로 느슨함(PIN 무검증): 이름은 공개라 사칭이 가능하다. 그래서 이
-//    토큰은 "플레이머니 상점/지갑" 전용 신뢰 등급이다. 현금화/실거래는 절대
-//    이 토큰으로 인가하지 말 것 — 향후 구글 OAuth 검증 게이트로 분리한다.
-router.post('/auth/token', async (req, res) => {
-    try {
-        const { name, id } = req.body || {};
-        if (!name || typeof name !== 'string') return res.status(400).json({ error: '이름이 필요합니다.' });
-        const user = await getUserByName(name);
-        if (!user) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
-        // 로그인 응답으로 저장된 userAuth.id 와 대조 — 이름만 아는 제3자의 발급 요청을 한 단계 더 거른다.
-        if (id !== undefined && Number(id) !== user.id) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
-        const token = issueToken(user.id, user.name);
-        res.json({ user: { id: user.id, name: user.name }, token });
-    } catch (e) {
-        res.status(500).json({ error: '토큰 발급 실패' });
-    }
-});
+// 토큰은 로그인·가입(PIN 확인) 응답과 위 연장으로만 나온다. 이름만으로 발급하던 /auth/token 은
+// 2026-10-09 닫았다(데구리 스킨 계정 귀속 — 이름은 방에서 다 보여 남의 코인을 쓸 수 있었다).
+// 토큰 없는 구세대 userAuth 는 클라가 로그아웃시키고 PIN 으로 한 번 다시 로그인하게 한다.
 
 // 전체 서버 목록 (관리자)
 router.get('/admin/servers', adminAuth, async (req, res) => {

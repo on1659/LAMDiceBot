@@ -47,8 +47,13 @@ const HORSE_SETTLE_GRACE_MS = parseInt(process.env.HORSE_SETTLE_GRACE_MS, 10) ||
 // 준비는 이미 돼 있고 탈것만 안 고른 상태라 예약 발화의 자동 배정이 그대로 맞는다.
 const HORSE_REMATCH_AUTO_START_MS = parseInt(process.env.HORSE_REMATCH_AUTO_START_MS, 10) || 30000;
 
+// Jev 하이라이트(docs/goal/deguri-jev-highlight.md) — TypeSafe Jev 키. 없으면 코드 점수로만 고르고 화면에 'Jev' 표시를 안 한다. 로그·클라이언트로 절대 내보내지 않는다
+const TYPESAFE_API_KEY = process.env.TYPESAFE_API_KEY || '';
+const JEV_API_URL = process.env.JEV_API_URL || 'https://api.typesafe.ai/v1/systemone';
+
 module.exports = {
     PORT, BASE_URL, ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, DEV_GAMES_ENABLED, DEV_GATED_GAMES, IS_LOCAL_DEV,
     SCHEDULE_PRESET_MINUTES, SCHEDULE_TIMEZONE, SCHEDULE_MIN_LEAD_MS,
-    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS
+    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS,
+    TYPESAFE_API_KEY, JEV_API_URL
 };

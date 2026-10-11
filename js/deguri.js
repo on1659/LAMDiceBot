@@ -85,6 +85,8 @@ var assetsLoaded = false;
 // 소켓 연결
 var socket = io({ reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
 window.socket = socket;
+// Jev 하이라이트(js/deguri-highlight.js) — 서버 pick(deguri:highlight)을 받아 경주 기록으로 GIF 를 만들어 결과 카드에 보여 준다. 이름 줄임은 결과 카드와 같은 규칙
+if (window.DeguriHighlight) DeguriHighlight.connect(socket, { reveal: function () { return deguriState.reveal; }, me: function () { return currentUser; }, shortName: function (n) { return resultShortName(n); } });
 var currentServerId = null;
 var currentServerName = null;
 
@@ -400,6 +402,7 @@ function closeResultOverlay() {
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     stopResultAnimation();
+    if (window.DeguriHighlight) DeguriHighlight.onResultClose();   // 다음에 열 때 순위부터, 묶은 카드 높이도 푼다
 }
 // 경주 시작 — 준비했는데 동물을 안 고른 사람이 있으면 팝업으로 "자동 배정하고 시작할지" 묻는다(별도 강제 시작 버튼 없음, 사용자 2026-09-21).
 // 확인하면 force 로 보내 서버가 자동 배정(예약 시작과 같은 규칙).
@@ -491,7 +494,8 @@ function updateCrowdTips() {
 
 // ── 동물 마당(데구리 baacca8·8b14a1c 역반영): '내 동물 고르기' 머리 아래 낮은 띠에서 동물들이 돌아다니고·구르고·낮잠 자고·마주치면 몸싸움하고·구르는 공에 치이면 놀란다. 누르면 반응.
 //    로딩 예산: 방에 나온 동물·스킨(서버 preview.balls — 참가자들이 고른 것)만 등장 — 렌더러가 대기 화면에 이미 받는 시트(기본·-sleep·-scuffle)라 새 다운로드가 없다.
-//    로컬 연출(동기화 없음), 결과와 무관. 종류·타이밍은 시드 PRNG(mulberry32) — Math.random 은 안 쓴다. reduced motion 이면 끄고, 띠가 화면 밖이거나 탭이 숨으면 멈춘다 ──
+//    로컬 연출(동기화 없음), 결과와 무관. 종류·타이밍은 시드 PRNG(mulberry32) — Math.random 은 안 쓴다. 동작 줄이기(reduced motion)가 켜진 기기면 숨기지 않고 차분한 모드(calmMode)로,
+//    띠가 화면 밖이거나 탭이 숨으면 멈춘다 ──
 var DeguriYard = (function () {
     var C = 48, FLOOR = 6;   // 셀 표시 크기 / 발 높이(울타리 아래 가로대 위)
     var SCALE = C / 40;      // 경주 캔버스(셀 40px 표시) 대비 배율 — 걸음·몸싸움 포즈(DeguriRender.stepPose·scufflePose)의 px 값에 곱한다
@@ -499,6 +503,11 @@ var DeguriYard = (function () {
     var SHEETS = { main: ['creatures', '192px 240px'], sleep: ['sleep', '192px 48px'], scuffle: ['scuffle', '192px 96px'], walk: ['walk', '192px 48px'] };
     var WEIGHTS = [['walk', 30], ['idle', 16], ['wave', 8], ['roll', 12], ['nap', 7], ['jump', 10], ['leave', 5]];
     var POKE_ACTS = ['startle', 'nap', 'jump', 'wave', 'trip', 'roll'];
+    // 차분한 모드(동작 줄이기가 켜진 기기 — 데구리 a3bac86·86a853c 역반영, 사용자 2026-09-24: 숨기면 마당이 통째로 안 보이고 세워 두면 멈춘 그림 같았다):
+    //    구르기·점프·넘어짐·몸싸움·놀람·스프링·진흙·낙하를 빼고 걷기·서기·손 흔들기·낮잠·떠나기만 천천히. 누르면 손 흔들기·낮잠만
+    var CALM_WEIGHTS = [['walk', 30], ['idle', 16], ['wave', 8], ['nap', 7], ['leave', 5]];
+    var CALM_POKE_ACTS = ['wave', 'nap'];
+    var CALM_WALK_SPEED = [24, 40];   // 걷기·떠나기 px/s(평소 걷기 38~70·떠나기 55~80). 떠나기도 같은 속도 — 데구리는 55~80 그대로 뒀지만 혼자 빨리 걸으면 튄다
     // ── 장애물(사용자 2026-09-24): 가끔 위에서 떨어져 앉고, 동물은 걸어가다 가장자리에서 비스듬히 타고 올라갔다 내려온다. 스프링 판은 밟으면 높이 튕기고, 진흙은 미끄러진다.
     //    종류는 직전 둘과 다르게 골라 계속 바뀌고, 한동안 있다가 땅으로 꺼진다. 그림은 렌더러가 이미 받은 조각·장식·fx 시트(같은 URL — 새 다운로드 없음). w = 표시 폭, h = 위에 설 때 발 높이
     var OBSTACLES = [
@@ -512,15 +521,15 @@ var DeguriYard = (function () {
     var OBS_MAX = 2, OBS_GAP_MS = [6000, 14000], OBS_STAY_MS = [9000, 18000], OBS_FIRST_MS = [4000, 9000];   // 동시 최대 수 / 다음 낙하까지 / 앉아 있는 시간 / 첫 낙하까지
     var OBS_RAMP = 10, OBS_FALL_FROM = 90, OBS_G = 1100, OBS_LEAVE_MS = 600, OBS_SNAP_MS = 260, OBS_JUMP_H = 40;   // 가장자리 경사 폭 / 낙하 시작 높이 / 중력 px/s² / 꺼지는 시간 / 스프링 판 젖힘 / 튕겨 오르는 높이
     var obstacles = [], nextDropAt = 0, recentKinds = [];
-    var host = null, critters = [], looks = [], width = 0, last = 0, rafId = 0, visible = true, off = false;
+    var host = null, critters = [], looks = [], width = 0, last = 0, rafId = 0, visible = true, calmMode = false;
     var seed = (Date.now() ^ 0x9e3779b9) >>> 0;
     function rand01() { seed = (seed + 0x6D2B79F5) | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
     function rand(a, b) { return a + rand01() * (b - a); }
     function pickLook() { return looks[Math.floor(rand01() * looks.length)]; }
     function pickAct() {
-        var total = 0, i; for (i = 0; i < WEIGHTS.length; i += 1) total += WEIGHTS[i][1];
+        var W = calmMode ? CALM_WEIGHTS : WEIGHTS, total = 0, i; for (i = 0; i < W.length; i += 1) total += W[i][1];
         var r = rand01() * total;
-        for (i = 0; i < WEIGHTS.length; i += 1) { r -= WEIGHTS[i][1]; if (r < 0) return WEIGHTS[i][0]; }
+        for (i = 0; i < W.length; i += 1) { r -= W[i][1]; if (r < 0) return W[i][0]; }
         return 'idle';
     }
     function frame(c, sheet, row, col) { c.sheet = sheet; c.row = row; c.col = col; }
@@ -528,13 +537,13 @@ var DeguriYard = (function () {
     function start(c, act, opts) {
         opts = opts || {};
         c.act = act; c.t = 0; c.rot = 0; c.lift = 0; c.fx = 0; c.napping = false;
-        if (act === 'walk') { c.dur = rand(1800, 4200); c.speed = rand(38, 70); if (!opts.keepDir && rand01() < 0.5) c.dir = -c.dir; c.tripAt = rand01() < 0.12 ? rand(600, c.dur - 200) : -1; }
+        if (act === 'walk') { c.dur = rand(1800, 4200); c.speed = calmMode ? rand(CALM_WALK_SPEED[0], CALM_WALK_SPEED[1]) : rand(38, 70); if (!opts.keepDir && rand01() < 0.5) c.dir = -c.dir; c.tripAt = !calmMode && rand01() < 0.12 ? rand(600, c.dur - 200) : -1; }
         else if (act === 'idle') { c.dur = rand(1200, 3000); c.turnAt = rand01() < 0.5 ? c.dur / 2 : -1; }
         else if (act === 'wave') c.dur = rand(900, 1600);
         else if (act === 'roll') { c.rollDur = rand(900, 2000); c.speed = rand(150, 230); if (rand01() < 0.5) c.dir = -c.dir; }
         else if (act === 'nap') c.dur = rand(2600, 4800);
         else if (act === 'jump') { c.hops = opts.high ? 1 : rand01() < 0.35 ? 2 : 1; c.speed = rand(30, 70); c.jumpH = opts.high ? OBS_JUMP_H : 22; }
-        else if (act === 'leave') { c.dir = c.x < width / 2 ? -1 : 1; c.speed = rand(55, 80); }
+        else if (act === 'leave') { c.dir = c.x < width / 2 ? -1 : 1; c.speed = calmMode ? rand(CALM_WALK_SPEED[0], CALM_WALK_SPEED[1]) : rand(55, 80); }
         else if (act === 'scuffle') { c.win = opts.win; c.dir = opts.dir; }
         else if (act === 'startle') { c.dir = opts.dir; }
     }
@@ -605,6 +614,7 @@ var DeguriYard = (function () {
     }
     // 서로 부딪힘: 구르는 공 → 옆 동물 깜짝, 마주 걸어온 둘 → 밀치기(아니면 하나가 폴짝)
     function meet() {
+        if (calmMode) return;   // 차분한 모드: 부딪혀 놀라기·몸싸움·폴짝 없음
         for (var i = 0; i < critters.length; i += 1) for (var j = i + 1; j < critters.length; j += 1) {
             var a = critters[i], b = critters[j], d = b.x - a.x, ad = Math.abs(d);
             if (a.cool > 0 || b.cool > 0 || ad > 30) continue;
@@ -625,12 +635,12 @@ var DeguriYard = (function () {
         }
     }
     // ── 장애물 ──
-    function pickKind() { var pool = OBSTACLES.filter(function (k) { return recentKinds.indexOf(k.key) < 0; }); return pool[Math.floor(rand01() * pool.length)]; }
-    function spawnObstacle() {
+    function pickKind() { var pool = OBSTACLES.filter(function (k) { return recentKinds.indexOf(k.key) < 0 && !(calmMode && (k.launch || k.slip)); }); return pool[Math.floor(rand01() * pool.length)]; }   // 차분한 모드: 스프링 판·진흙은 안 낸다
+    function spawnObstacle(now) {
         var k = pickKind(), w = k.w, h = Math.round(k.w * k.sh / k.sw), x = 0, ok = false;
-        for (var t = 0; t < 8 && !ok; t++) {   // 이미 앉은 것과 겹치지 않는 자리
+        for (var t = 0; t < 8 && !ok; t++) {   // 이미 앉은 것과 겹치지 않는 자리. 차분한 모드는 동물이 서 있는 곳도 피한다(발밑에 생기면 groundAt 이 발을 한 번에 올려 튀어 보인다) — 없으면 이번엔 건너뛴다
             x = rand(24 + w / 2, Math.max(24 + w / 2, width - 24 - w / 2));
-            ok = obstacles.every(function (o) { return Math.abs(o.x - x) > (o.w + w) / 2 + 10; });
+            ok = obstacles.every(function (o) { return Math.abs(o.x - x) > (o.w + w) / 2 + 10; }) && (!calmMode || critters.every(function (c) { return Math.abs(c.x - x) > (w + C) / 2 + 8; }));
         }
         if (!ok) return;
         recentKinds.push(k.key); if (recentKinds.length > 2) recentKinds.shift();   // 직전 둘과 다른 종류 — 계속 바뀐다
@@ -640,7 +650,9 @@ var DeguriYard = (function () {
         im.style.backgroundImage = 'url("' + DeguriRender.assetUrl(k.group, k.name) + '")';
         im.style.backgroundSize = (w * (k.cols || 1)) + 'px ' + h + 'px';
         el.appendChild(im); host.appendChild(el);
-        obstacles.push({ kind: k, el: el, im: im, x: x, w: w, h: k.h, y: -OBS_FALL_FROM - h, vy: 0, state: 'fall', leaveAt: 0, removeAt: 0, snapAt: -1e9 });
+        var o = { kind: k, el: el, im: im, x: x, w: w, h: k.h, y: -OBS_FALL_FROM - h, vy: 0, state: 'fall', leaveAt: 0, removeAt: 0, snapAt: -1e9 };
+        if (calmMode) { o.y = 0; o.state = 'stay'; o.leaveAt = now + rand(OBS_STAY_MS[0], OBS_STAY_MS[1]); el.classList.add('is-calm'); }   // 차분한 모드: 떨어지지 않고 땅 위에 서서히 나타난다(css is-calm) — 눌림·먼지·놀라기 없음
+        obstacles.push(o);
     }
     function landObstacle(o, now) {
         o.state = 'stay'; o.y = 0; o.leaveAt = now + rand(OBS_STAY_MS[0], OBS_STAY_MS[1]);
@@ -656,14 +668,17 @@ var DeguriYard = (function () {
     function clearObstacles() { obstacles.forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); }); obstacles = []; nextDropAt = 0; }
     function updateObstacles(now, dt) {
         if (!nextDropAt) nextDropAt = now + rand(OBS_FIRST_MS[0], OBS_FIRST_MS[1]);
-        if (obstacles.length < OBS_MAX && now >= nextDropAt) { spawnObstacle(); nextDropAt = now + rand(OBS_GAP_MS[0], OBS_GAP_MS[1]); }
+        if (obstacles.length < OBS_MAX && now >= nextDropAt) { spawnObstacle(now); nextDropAt = now + rand(OBS_GAP_MS[0], OBS_GAP_MS[1]); }
         for (var i = obstacles.length - 1; i >= 0; i--) {
             var o = obstacles[i];
             if (o.state === 'fall') { o.vy += OBS_G * dt / 1000; o.y += o.vy * dt / 1000; if (o.y >= 0) landObstacle(o, now); }
             else if (o.state === 'stay' && now >= o.leaveAt) {   // 땅으로 꺼진다(CSS 전환) — 그동안은 발판이 아니다
-                o.state = 'leave'; o.removeAt = now + OBS_LEAVE_MS; o.el.classList.add('is-leaving');
-                o.el.style.transform = 'translate(' + (o.x - o.w / 2).toFixed(1) + 'px,' + (-FLOOR + 30) + 'px)';
-                continue;
+                if (calmMode && critters.some(function (c) { return Math.abs(c.x - o.x) <= o.w / 2; })) o.leaveAt = now + 500;   // 차분한 모드: 위에 동물이 서 있으면 내려올 때까지 미룬다(발판이 갑자기 없어져 떨어지지 않게)
+                else {
+                    o.state = 'leave'; o.removeAt = now + OBS_LEAVE_MS; o.el.classList.add('is-leaving');
+                    o.el.style.transform = 'translate(' + (o.x - o.w / 2).toFixed(1) + 'px,' + (-FLOOR + (calmMode ? 0 : 30)) + 'px)';   // 차분한 모드는 가라앉지 않고 opacity 로만
+                    continue;
+                }
             }
             else if (o.state === 'leave') { if (now >= o.removeAt) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); obstacles.splice(i, 1); } continue; }
             o.el.style.transform = 'translate(' + (o.x - o.w / 2).toFixed(1) + 'px,' + (-FLOOR + o.y).toFixed(1) + 'px)';
@@ -681,7 +696,7 @@ var DeguriYard = (function () {
         return g;
     }
     function hazards(c, now) {   // 스프링 판을 밟으면 높이 튕기고, 진흙에 들어가면 미끄러져 넘어진다
-        if (c.cool > 0 || !(c.act === 'walk' || c.act === 'leave')) return;
+        if (calmMode || c.cool > 0 || !(c.act === 'walk' || c.act === 'leave')) return;   // 차분한 모드: 종류를 안 내지만 방어로
         for (var i = 0; i < obstacles.length; i++) {
             var o = obstacles[i]; if (o.state !== 'stay') continue;
             if (o.kind.launch && Math.abs(c.x - o.x) < 10) { o.snapAt = now; start(c, 'jump', { high: true }); c.cool = 1500; return; }
@@ -721,10 +736,10 @@ var DeguriYard = (function () {
         rafId = requestAnimationFrame(tick);
     }
     function resume() { if (!rafId && visible && !document.hidden && critters.length) { measure(); last = 0; rafId = requestAnimationFrame(tick); } }
-    // 누르면 반응 — 지금 하던 것 말고 놀람·낮잠·점프·손 흔들기·넘어짐·구르기 중 하나. 잠깐은 다른 동물과 부딪혀도 끊기지 않게
+    // 누르면 반응 — 지금 하던 것 말고 놀람·낮잠·점프·손 흔들기·넘어짐·구르기 중 하나(차분한 모드는 손 흔들기·낮잠만). 잠깐은 다른 동물과 부딪혀도 끊기지 않게
     function poke(c, e) {
         if (e) e.preventDefault();
-        var acts = POKE_ACTS.filter(function (a) { return a !== c.act; }), act = acts[Math.floor(rand01() * acts.length)];
+        var acts = (calmMode ? CALM_POKE_ACTS : POKE_ACTS).filter(function (a) { return a !== c.act; }), act = acts[Math.floor(rand01() * acts.length)];
         start(c, act, { dir: rand01() < 0.5 ? 1 : -1 });
         if (act === 'nap') c.dur = rand(1600, 2400);
         c.cool = 2500;
@@ -751,19 +766,24 @@ var DeguriYard = (function () {
     return {
         init: function (hostId) {
             host = document.getElementById(hostId); if (!host) return;
-            off = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-            if (off) return;
+            calmMode = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);   // 시작할 때 한 번 읽는다 — 바꾸면 새로고침 뒤 반영
             window.addEventListener('resize', populate);
             document.addEventListener('visibilitychange', resume);
             if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; resume(); }).observe(host);   // 띠가 화면 밖(경주 보는 중 스크롤·피커 숨김)이면 멈춘다
         },
         // 방에 나온 동물·스킨 목록('{creature}[-{skin}]'). 빈 목록이면 마당을 비운다(:empty 로 띠도 숨는다)
         setLooks: function (list) {
-            if (!host || off) return;
+            if (!host) return;
             var next = (list || []).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
             if (next.join(',') === looks.join(',')) return;
             looks = next;
             populate();
+        },
+        // 테스트용(읽기 전용): 차분한 모드 여부와 동물·장애물 상태
+        debug: function () {
+            return { calmMode: calmMode,
+                critters: critters.map(function (c) { return { act: c.act, speed: c.speed, lift: c.lift, rot: c.rot, x: c.x }; }),
+                obstacles: obstacles.map(function (o) { return { kind: o.kind.key, state: o.state, y: o.y }; }) };
         }
     };
 })();
@@ -1139,11 +1159,36 @@ function onReplaySeekChange() { if (!replayDragging) return; replayDragging = fa
 window.toggleReplayPause = toggleReplayPause;
 window.onReplaySeekInput = onReplaySeekInput;
 window.onReplaySeekChange = onReplaySeekChange;
+
+// 경주·다시 보기 중 화면 꺼짐 방지(데구리 단독판 776d20a 역반영 — Wake Lock 만, 토스 setAwakeMode 는 없음). 보는 사람 화면 상태라 관전자도 같다.
+// reveal·다시 보기 시작에 걸고, 결과(gameEnd)·그만 보기(stopReplay)·중단·리셋·pagehide 에 푼다. 탭이 가려져 브라우저가 풀었으면 다시 보일 때 다시 건다.
+// navigator.wakeLock 이 없는 브라우저(옛 iOS)는 아무 일도 안 하고, 거부(배터리 절약 등)는 무시한다
+var awakeOn = false, wakeLock = null;
+function requestWakeLock() {
+    if (wakeLock || !navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return;
+    navigator.wakeLock.request('screen').then(function (lock) {
+        if (!awakeOn) { lock.release().catch(function () { /* 무음 */ }); return; }   // 기다리는 사이 풀렸다
+        wakeLock = lock;
+        lock.addEventListener('release', function () { if (wakeLock === lock) wakeLock = null; });
+    }).catch(function () { /* 배터리 절약 모드 등 — 무시 */ });
+}
+function keepAwake(on) {
+    on = !!on;
+    if (on === awakeOn) return;
+    awakeOn = on;
+    if (on) requestWakeLock();
+    else if (wakeLock) { var lock = wakeLock; wakeLock = null; lock.release().catch(function () { /* 무음 */ }); }
+}
+document.addEventListener('visibilitychange', function () { if (awakeOn && document.visibilityState === 'visible') requestWakeLock(); });
+window.addEventListener('pagehide', function () { keepAwake(false); });
+window.deguriWakeState = function () { return { on: awakeOn, held: !!wakeLock }; };   // 테스트용(읽기 전용)
+
 function replayRace() {
     if (!renderer || !deguriState.reveal) return;
     if (replaying) { stopReplay(true); return; }
     var data = deguriState.reveal;
     replaying = true;
+    keepAwake(true);
     closeResultOverlay();
     renderer.setTimeline(data, currentUser);
     renderer.onFinale(function () {});
@@ -1165,6 +1210,7 @@ function stopReplay(jumpToEnd) {
     clearTimeout(replayEndTimer); replayEndTimer = null;
     if (!replaying) return;
     replaying = false;
+    keepAwake(false);
     setReplayUi(false);
     if (!renderer) return;
     renderer.stop();
@@ -1249,6 +1295,7 @@ function showResultOverlay(data) {
     if (overlay) overlay.classList.add('visible');   // 보이게 한 뒤에 재야 목록 높이가 잡힌다
     if (list) revealSelectedRankRow(list);
     if (box && box.querySelector('canvas[data-creature]')) startResultAnimation(box);
+    if (window.DeguriHighlight) DeguriHighlight.onResultOpen();   // 하이라이트 버튼 줄 + 3초 뒤 저절로 한 번
 }
 
 function renderHistory(history) {
@@ -1843,10 +1890,12 @@ socket.on('deguri:reasonHold', function (data) {
 socket.on('deguri:reveal', function (data) {
     if (!data || !renderer) return;
     stopReplay(false);
+    keepAwake(true);   // 카운트다운부터 결과가 뜰 때까지 화면이 꺼지지 않게
     deguriState.phase = 'playing';
     deguriState.reveal = data;
     deguriState.target = data.target || 'last';
     isDeguriActive = true;
+    if (window.DeguriHighlight) DeguriHighlight.onReveal(data);   // 지난 판 하이라이트는 버린다 — 이번 판 것은 deguri:highlight 로 온다
     // 이번 판 참가자가 누적 참여자에 들어왔다 — 주문 목록을 다시 나눈다(관전자 → 참여자)
     if (Array.isArray(data.everPlayedUsers)) {
         everPlayedUsers = data.everPlayedUsers.slice();
@@ -1877,10 +1926,12 @@ socket.on('deguri:reveal', function (data) {
 socket.on('deguri:gameEnd', function (data) {
     deguriState.phase = 'finished';
     isDeguriActive = false;
+    keepAwake(false);
     deguriState.votes = {};    // 서버도 비웠다 — 다음 판 투표는 새로
     localHistory.push({ round: data.round, selected: data.selected, target: data.target });
     renderHistory(localHistory);
     setGameStatus('');   // 당첨은 결과 카드가 보여 준다
+    if (window.DeguriHighlight) DeguriHighlight.onGameEnd(data);   // 경주 중 deguri:highlight 를 못 받았으면 gameEnd 의 highlight 로 지금 만든다
     showResultOverlay(data);
     showStage(false);          // 피커는 다시 열되 캔버스는 마지막 화면(비석) 그대로 — 리셋은 방장이
     showAfterRace(true);
@@ -1893,6 +1944,8 @@ socket.on('deguri:gameEnd', function (data) {
 
 socket.on('deguri:gameAborted', function (data) {
     isDeguriActive = false;
+    keepAwake(false);
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     deguriState.phase = 'idle';
     if (renderer) renderer.stop();
     if (document.body) document.body.classList.remove('race-running');
@@ -1908,6 +1961,8 @@ socket.on('deguri:gameAborted', function (data) {
 
 socket.on('deguri:roundReset', function () {
     stopReplay(false);
+    keepAwake(false);
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     deguriState.phase = 'idle';
     deguriState.reveal = null;
     deguriState.votes = {};

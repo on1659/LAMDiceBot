@@ -10,11 +10,11 @@ var CLEAR_INDEX = 255;   // 둘째 프레임부터 '앞 그림 그대로' 칸
 
 function u16(n) { return [n & 255, (n >> 8) & 255]; }
 
-function header(w, h) {
+function header(w, h, loop) {   // loop=false 면 반복 블록 없이 — 한 번 재생하고 마지막 칸에 멈춘다(Jev 하이라이트)
   var out = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]   // GIF89a
     .concat(u16(w), u16(h), [0x70, 0, 0]);          // 전역 색표 없음(프레임마다 지역 색표)
-  // NETSCAPE2.0 — 무한 반복
-  out = out.concat([0x21, 0xFF, 0x0B], Array.from('NETSCAPE2.0').map(function (c) { return c.charCodeAt(0); }), [3, 1, 0, 0, 0]);
+  // NETSCAPE2.0 — 무한 반복(기본). 하이라이트는 뺀다
+  if (loop !== false) out = out.concat([0x21, 0xFF, 0x0B], Array.from('NETSCAPE2.0').map(function (c) { return c.charCodeAt(0); }), [3, 1, 0, 0, 0]);
   return new Uint8Array(out);
 }
 
@@ -114,7 +114,7 @@ function frame(px, delay) {
 
 self.onmessage = function (e) {
   var m = e.data;
-  if (m.type === 'start') { width = m.w; height = m.h; chunks = [header(width, height)]; prev = null; }
+  if (m.type === 'start') { width = m.w; height = m.h; chunks = [header(width, height, m.loop)]; prev = null; }
   else if (m.type === 'frame') { frame(new Uint8Array(m.buf), m.delay); self.postMessage({ type: 'progress' }); }
   else if (m.type === 'finish') { chunks.push(new Uint8Array([0x3B])); self.postMessage({ type: 'done', blob: new Blob(chunks, { type: 'image/gif' }) }); chunks = []; prev = null; }
 };
