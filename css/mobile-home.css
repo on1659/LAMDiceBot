@@ -5,3 +5,5 @@
 
 .mobile-home .mobile-lobby-ad{width:100%;min-height:0;overflow-x:auto;margin:12px 0;padding:8px;border:1px solid var(--mobile-line);border-radius:12px;background:var(--mobile-card)}.mobile-home .mobile-lobby-ad .ad-label{margin-bottom:4px;line-height:12px;color:var(--mobile-muted)}
 @media (max-height:700px){.mobile-home .lobby-hero{min-height:140px;padding:12px;margin:12px 0}.mobile-home .lobby-hero h2{font-size:21px;margin:6px 0 8px}.mobile-home .hero-horse{width:100px;top:24px}}
+
+.mobile-home .lobby-hero h2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
