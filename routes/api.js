@@ -75,6 +75,12 @@ function setupRoutes(app) {
     });
 
     // 홈 프로토타입(docs/goal/home-proto.prompt.md) — 목업 10번을 실제 방 생성·합류에 연결한 새 입구. `/` 는 바꾸지 않는다.
+    // Live mobile lobby. Native game pages keep their desktop layout.
+    app.get('/mobile', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.sendFile(path.join(__dirname, '..', 'mobile.html'));
+    });
+
     app.get('/home', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
