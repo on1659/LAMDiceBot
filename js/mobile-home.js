@@ -65,7 +65,7 @@
   function show() { $('#s-home').hidden = false; $('#s-rooms').hidden = true; $('#scroller').scrollTop = 0; }
   function toast(msg) {
     var o = $('.toast'); if (o) o.remove();
-    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+    var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-atomic', 'true'); t.textContent = msg; document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, TOAST_MS);
   }
   function closeSheets() { $$('.sheet').forEach(function (s) { s.hidden = true; }); }
