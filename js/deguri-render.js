@@ -384,7 +384,7 @@ var DeguriRender = (function () {
     // ═══════════════════════════════════════════════════════
     // 렌더러 인스턴스
     // ═══════════════════════════════════════════════════════
-    function create(canvas) {
+    function create(canvas, opts) {   // opts.dpr — 화면 밖 렌더러(Jev 하이라이트 GIF, js/deguri-highlight.js)가 기기 밀도와 상관없이 고정 밀도로 그릴 때
         var ctx = canvas.getContext('2d');
         var R = {};
         var data = null;          // reveal 페이로드
@@ -432,7 +432,7 @@ var DeguriRender = (function () {
             var cssH;
             if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
             else { cssH = Math.round(cssW * (cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT)); }
-            var dpr = Math.min(2, window.devicePixelRatio || 1);
+            var dpr = (opts && opts.dpr) || Math.min(2, window.devicePixelRatio || 1);
             canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
             view.scale = canvas.width / TRACK_W;
@@ -484,6 +484,8 @@ var DeguriRender = (function () {
         };
         R.setPhase = function (p) { phase = p; updateCamButton(); };
         R.setHighlight = function (on) { highlightMine = !!on; };
+        var clipIds = null;       // 장면 카메라(Jev 하이라이트 GIF — 데구리 단독판 R.frameBalls 역반영): 이 동물들을 한 화면에 담는다. 화면 렌더러는 쓰지 않는다
+        R.frameBalls = function (ids) { clipIds = ids && ids.length ? ids.slice() : null; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
 
         // ─── 재생 ───
@@ -965,6 +967,22 @@ var DeguriRender = (function () {
                         if (zb === 'mine' || zb === 'follow') targetY = fz.y + view.h * CAM_LEAD / uz;   // 세로 앞당김을 배율로 나눈다 — 배율 1 식 그대로 곱하면 동물이 화면 위 1/8 에 붙는다
                         else if (zb === 'frame' && uz > fitZoom + 1e-6) { var fh = view.h / 2 / uz; targetY = clamp(fz.y + view.h * CAM_LEAD / uz, top + fh, Math.max(top + fh, bottom - fh)); camTarget = fz; }   // 프레임이 다 안 들어가면 초점 동물을 프레임 안에서 따라간다. 더 줌아웃이면 프레임 가운데 그대로
                     }
+                }
+            }
+            if (clipIds && t >= 0) {   // 장면 카메라(R.frameBalls): 장면 동물들의 경계 상자를 가운데에, 다 들어가는 배율로(1~ZOOM_MAX). 아래 세로·가로 한계는 그대로 받는다
+                var CLIP_PAD = 80, bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity;
+                for (var qi = 0; qi < clipIds.length; qi++) {
+                    var qb = byId[clipIds[qi]];
+                    if (!qb || qb.state === 'warp' || (qb.state === 'done' && qb.doneX == null)) continue;   // 파이프 속·스탠드로 간 놈은 빼고(꼴찌 비석 자리는 담는다)
+                    var qx = qb.state === 'done' ? qb.doneX : qb.x, qy = qb.state === 'done' ? qb.doneY : qb.y;
+                    var nx0 = Math.min(bx0, qx), nx1 = Math.max(bx1, qx), ny0 = Math.min(by0, qy), ny1 = Math.max(by1, qy);
+                    if (bx0 !== Infinity && (nx1 - nx0 + CLIP_PAD * 2 > view.w || ny1 - ny0 + CLIP_PAD * 2 > view.h)) continue;   // 앞 놈들과 한 화면에 안 들어가면 뺀다
+                    bx0 = nx0; bx1 = nx1; by0 = ny0; by1 = ny1;
+                }
+                if (bx0 !== Infinity) {
+                    targetX = (bx0 + bx1) / 2; targetY = (by0 + by1) / 2;
+                    targetZoom = clamp(Math.min(view.w / (bx1 - bx0 + CLIP_PAD * 2), view.h / (by1 - by0 + CLIP_PAD * 2)), 1, ZOOM_MAX);
+                    cam.mode = 'clip'; camTarget = null;
                 }
             }
             // 세로 한계: 출발대 위 140px(하늘 띠) ~ 트랙 끝 20px 아래. 실제 보이는 반높이는 줌을 따르므로 줌으로 나눈다 — 논리 반높이로 조이면 폰(세로 캔버스, view.h 1120)에서

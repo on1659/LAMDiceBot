@@ -20,6 +20,41 @@
     function $(id) { return document.getElementById(id); }
     function secText(ms) { return (Math.max(0, ms) / 1000).toFixed(1) + '초'; }
 
+    // 인코더 — 워커 하나를 감싼 것. Jev 하이라이트(js/deguri-highlight.js)가 화면 밖에서 그린 프레임으로 GIF 를 만들 때 쓴다(데구리 단독판 replay-gif.js encoder 역반영)
+    function encoder(w, h) {
+        var worker = new Worker(WORKER_URL);
+        worker.postMessage({ type: 'start', w: w, h: h });
+        return {
+            frame: function (buf, delay) { worker.postMessage({ type: 'frame', buf: buf, delay: delay }, [buf]); },
+            finish: function () {
+                return new Promise(function (resolve, reject) {
+                    worker.onmessage = function (e) { if (e.data.type === 'done') { worker.terminate(); resolve(e.data.blob); } };
+                    worker.onerror = function () { worker.terminate(); reject(new Error('gif')); };
+                    worker.postMessage({ type: 'finish' });
+                });
+            },
+            cancel: function () { worker.terminate(); }
+        };
+    }
+    // GIF 저장 — PC(마우스)는 내려받기, 폰은 공유 시트(파일) → 안 되면 내려받기. url = blob 의 object URL(부르는 쪽이 들고 있다). 다시 보기 GIF 와 하이라이트 GIF 가 같이 쓴다
+    function download(url, name) {
+        var a = document.createElement('a');
+        a.href = url; a.download = name; a.style.display = 'none';
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+    function saveGif(blob, url, name, title) {
+        if (DESKTOP) { download(url, name); return; }
+        var file = null;
+        try { file = new File([blob], name, { type: 'image/gif' }); } catch (err) { file = null; }
+        var canShare = false;
+        try { canShare = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (err) { canShare = false; }
+        if (!canShare) { download(url, name); return; }
+        navigator.share({ files: [file], title: title || SHARE_TITLE }).then(null, function (err) {
+            if (err && err.name === 'AbortError') return;   // 사용자가 공유 시트를 닫았다
+            download(url, name);
+        });
+    }
+
     function create(ctl) {
         var bar = $('deguriReplayBar'), canvas = $('deguriCanvas');
         var button = $('deguriGifButton'), cancelButton = $('deguriGifCancel'), status = $('deguriGifStatus');
@@ -199,24 +234,7 @@
             saveButton.disabled = false;
             info.textContent = Math.max(1, Math.round(blob.size / 1024)) + 'KB' + (DESKTOP ? '' : ' · 저장이 안 되면 그림을 길게 눌러 저장하세요');
         }
-        function download() {
-            var a = document.createElement('a');
-            a.href = gifUrl; a.download = FILE_NAME; a.style.display = 'none';
-            document.body.appendChild(a); a.click(); a.remove();
-        }
-        saveButton.addEventListener('click', function () {
-            if (!gifBlob) return;
-            if (DESKTOP) { download(); return; }
-            var file = null;
-            try { file = new File([gifBlob], FILE_NAME, { type: 'image/gif' }); } catch (err) { file = null; }
-            var canShare = false;
-            try { canShare = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (err) { canShare = false; }
-            if (!canShare) { download(); return; }
-            navigator.share({ files: [file], title: SHARE_TITLE }).then(null, function (err) {
-                if (err && err.name === 'AbortError') return;   // 사용자가 공유 시트를 닫았다
-                download();
-            });
-        });
+        saveButton.addEventListener('click', function () { if (gifBlob) saveGif(gifBlob, gifUrl, FILE_NAME); });
         closeButton.addEventListener('click', function () { dialog.close(); });
 
         button.addEventListener('click', function () {
@@ -230,5 +248,5 @@
         return { stop: function () { if (state === 'rec') finishRec(false); else if (state) cancel(); } };
     }
 
-    window.DeguriReplayGif = { create: create };
+    window.DeguriReplayGif = { create: create, encoder: encoder, saveGif: saveGif };
 })();

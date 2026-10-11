@@ -85,6 +85,8 @@ var assetsLoaded = false;
 // 소켓 연결
 var socket = io({ reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
 window.socket = socket;
+// Jev 하이라이트(js/deguri-highlight.js) — 서버 pick(deguri:highlight)을 받아 경주 기록으로 GIF 를 만들어 결과 카드에 보여 준다. 이름 줄임은 결과 카드와 같은 규칙
+if (window.DeguriHighlight) DeguriHighlight.connect(socket, { reveal: function () { return deguriState.reveal; }, me: function () { return currentUser; }, shortName: function (n) { return resultShortName(n); } });
 var currentServerId = null;
 var currentServerName = null;
 
@@ -400,6 +402,7 @@ function closeResultOverlay() {
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     stopResultAnimation();
+    if (window.DeguriHighlight) DeguriHighlight.onResultClose();   // 다음에 열 때 순위부터, 묶은 카드 높이도 푼다
 }
 // 경주 시작 — 준비했는데 동물을 안 고른 사람이 있으면 팝업으로 "자동 배정하고 시작할지" 묻는다(별도 강제 시작 버튼 없음, 사용자 2026-09-21).
 // 확인하면 force 로 보내 서버가 자동 배정(예약 시작과 같은 규칙).
@@ -1292,6 +1295,7 @@ function showResultOverlay(data) {
     if (overlay) overlay.classList.add('visible');   // 보이게 한 뒤에 재야 목록 높이가 잡힌다
     if (list) revealSelectedRankRow(list);
     if (box && box.querySelector('canvas[data-creature]')) startResultAnimation(box);
+    if (window.DeguriHighlight) DeguriHighlight.onResultOpen();   // 하이라이트 버튼 줄 + 3초 뒤 저절로 한 번
 }
 
 function renderHistory(history) {
@@ -1891,6 +1895,7 @@ socket.on('deguri:reveal', function (data) {
     deguriState.reveal = data;
     deguriState.target = data.target || 'last';
     isDeguriActive = true;
+    if (window.DeguriHighlight) DeguriHighlight.onReveal(data);   // 지난 판 하이라이트는 버린다 — 이번 판 것은 deguri:highlight 로 온다
     // 이번 판 참가자가 누적 참여자에 들어왔다 — 주문 목록을 다시 나눈다(관전자 → 참여자)
     if (Array.isArray(data.everPlayedUsers)) {
         everPlayedUsers = data.everPlayedUsers.slice();
@@ -1926,6 +1931,7 @@ socket.on('deguri:gameEnd', function (data) {
     localHistory.push({ round: data.round, selected: data.selected, target: data.target });
     renderHistory(localHistory);
     setGameStatus('');   // 당첨은 결과 카드가 보여 준다
+    if (window.DeguriHighlight) DeguriHighlight.onGameEnd(data);   // 경주 중 deguri:highlight 를 못 받았으면 gameEnd 의 highlight 로 지금 만든다
     showResultOverlay(data);
     showStage(false);          // 피커는 다시 열되 캔버스는 마지막 화면(비석) 그대로 — 리셋은 방장이
     showAfterRace(true);
@@ -1939,6 +1945,7 @@ socket.on('deguri:gameEnd', function (data) {
 socket.on('deguri:gameAborted', function (data) {
     isDeguriActive = false;
     keepAwake(false);
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     deguriState.phase = 'idle';
     if (renderer) renderer.stop();
     if (document.body) document.body.classList.remove('race-running');
@@ -1955,6 +1962,7 @@ socket.on('deguri:gameAborted', function (data) {
 socket.on('deguri:roundReset', function () {
     stopReplay(false);
     keepAwake(false);
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     deguriState.phase = 'idle';
     deguriState.reveal = null;
     deguriState.votes = {};

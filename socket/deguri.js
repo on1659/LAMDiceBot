@@ -7,6 +7,10 @@ const sim = require('./deguri-sim');
 const { getCatalogItem, getCatalogEntry } = require('./shop');   // 꾸미기 카탈로그(deguri_skin·deguri_balloon) — 가격·creature/skin/sprite 의 권위. 지갑·소유·장착은 로그인 계정이면 DB, 손님이면 방 메모리
 const coins = require('../db/coins');
 const cosmetics = require('../db/cosmetics');
+const crypto = require('crypto');
+const highlight = require('./deguri-highlight');   // Jev 하이라이트 — 끝난 타임라인에서 6초 장면 후보(순수 함수)
+const jev = require('./jev');                        // TypeSafe Jev 호출(키 없으면 코드 점수)
+const highlightFeedback = require('../db/deguri-highlight-feedback');   // 👍/👎·GIF 저장 → 코드 점수 가중치 배율
 // getCatalogEntry 는 { slot, item, game } — 카탈로그가 전 게임 통합 인덱스라 id 만 보면 남의 게임·남의 슬롯 항목도 통과한다
 
 // ─── 공유 상수 (js/deguri.js 상단과 반드시 동일 값) ───
@@ -20,6 +24,7 @@ const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
 const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
 const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
+const HIGHLIGHT_CODE_SHARE = 0.2;         // Jev 하이라이트: 5판에 1판은 Jev 에 묻지 않고 코드 점수로 고른다(반응 비교용 — 단독판과 같은 값, 'Jev' 표시 없음)
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
 // ─── 방 단위 스킨 경제 — 손님용 (사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) ───
 // 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN, 머문 5분마다 +STAY_COIN. 구매·소유·장착은 mb.wallets/mb.equip(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
@@ -398,6 +403,41 @@ function ensureTrackSeed(mb) {
     return mb.trackSeed;
 }
 
+// ─── Jev 하이라이트(docs/goal/deguri-jev-highlight.md) — 시뮬 직후 서버가 방당 한 번: 후보(socket/deguri-highlight.js) → (5판에 1판 빼고) Jev → 없으면 코드 점수.
+//     reveal 이 나간 뒤 방 전체로 deguri:highlight { rid, source, arm, clip, facts, reason } — 클라이언트는 이것으로 화면 밖에서 GIF 를 만든다. gameEnd 에도 같은 것을 싣는다(늦게 받은 클라용).
+//     결과·시드·타임라인에는 아무 영향이 없다. 참가자 이름은 Jev 로 가지 않는다(payload 가 순번·동물 id·사건 수만) ───
+function pubHighlight(h) { return h ? { rid: h.rid, source: h.source, arm: h.arm, clip: h.clip, facts: h.facts, reason: h.reason } : null; }
+function emitHighlight(room, mb, io, ctx) {
+    if (!ctx.rooms[room.roomId] || !mb.highlight || mb.highlight.sent || !mb.revealed) return;
+    mb.highlight.sent = true;
+    io.to(room.roomId).emit('deguri:highlight', pubHighlight(mb.highlight));
+}
+async function pickHighlight(room, mb, timeline, io, ctx) {
+    const seed = mb.seed;
+    let mult = null;
+    try { mult = await highlightFeedback.weights(); } catch (e) { mult = null; }
+    let cands;
+    try { cands = highlight.candidates(timeline, mult); } catch (e) { console.warn('[데구리] 하이라이트 후보 실패:', e.message); return; }
+    if (!ctx.rooms[room.roomId] || mb.seed !== seed || !cands.length) return;
+    const byCode = Math.random() < HIGHLIGHT_CODE_SHARE;   // 서버 RNG 허용 — 반응 비교용 판 가르기(결과와 무관)
+    let pickId = null;
+    if (!byCode && jev.hasKey()) pickId = await jev.ask(highlight.payload(timeline, cands));
+    if (!ctx.rooms[room.roomId] || mb.seed !== seed || mb.phase !== 'playing') return;
+    const chosen = pickId ? cands.find(c => c.id === pickId) : null;
+    const pick = chosen || highlight.codePick(cands);
+    mb.highlight = {
+        rid: crypto.randomBytes(16).toString('base64url'),
+        source: chosen ? 'jev' : 'code',
+        arm: chosen ? 'jev' : byCode ? 'code' : 'fallback',
+        mode: highlight.modeOf(timeline),
+        clip: { start: pick.start, end: pick.end, ids: pick.ids.slice() },
+        facts: Object.assign({}, pick.facts),
+        reason: highlight.reasons(timeline, pick)[0] || null,
+        sent: false
+    };
+    emitHighlight(room, mb, io, ctx);
+}
+
 async function startDeguri(room, gameState, io, ctx) {
     // 수동 시작이 예약을 앞질렀으면 예약을 풀고 방 전체에 알린다 (예약 발화 경로는 fire() 가 이미 비우고 들어온다)
     if (gameState.scheduledStartAt) {
@@ -480,6 +520,8 @@ async function startDeguri(room, gameState, io, ctx) {
     };
     mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
     mb.result = payload.result;
+    mb.highlight = null; mb.revealed = false;
+    pickHighlight(room, mb, payload, io, ctx).catch(e => console.warn('[데구리] 하이라이트 실패:', e.message));   // 룰렛·사유 카드가 보이는 동안 고른다 — reveal 을 늦추지 않는다
 
     // 룰렛/사유 카드가 다 보인 뒤 reveal — 시뮬이 hold 보다 오래 걸렸으면 바로
     const remainMs = Math.max(0, holdMs - (Date.now() - holdStartedAt));
@@ -488,6 +530,8 @@ async function startDeguri(room, gameState, io, ctx) {
         mb.revealTimeout = null;
         if (!ctx.rooms[room.roomId]) return;
         io.to(room.roomId).emit('deguri:reveal', payload);
+        mb.revealed = true;
+        emitHighlight(room, mb, io, ctx);   // 벌써 골랐으면 reveal 바로 뒤에, 아니면 pickHighlight 가 끝날 때
         console.log(`[데구리] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 타깃=${mb.target} / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
         mb.endTimeout = setTimeout(() => {
             if (!ctx.rooms[room.roomId]) return;
@@ -523,7 +567,7 @@ function endGame(room, gameState, io, ctx) {
     mb.history.push({ round: mb.round, selected, target: mb.target, timestamp: new Date().toISOString() });
     if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
 
-    io.to(room.roomId).emit('deguri:gameEnd', { selected, rankings, round: mb.round, target: mb.target });
+    io.to(room.roomId).emit('deguri:gameEnd', { selected, rankings, round: mb.round, target: mb.target, highlight: pubHighlight(mb.highlight) });   // highlight: 경주 중 못 받은 클라도 결과 뒤에 GIF 를 만들 수 있게
     awardRaceCoins(io, room, gameState, mb);   // 한 판 참여 +COIN_RACE_JOIN — 손님은 방 지갑, 로그인 계정은 DB
 
     recordGamePlay('deguri', dbPlayers.length, room.serverId || null);
@@ -566,6 +610,7 @@ function resetDeguri(mb) {
     mb.participants = [];
     mb.timeline = null;
     mb.result = null;
+    mb.highlight = null; mb.revealed = false;   // 반응(deguri:highlight:feedback)은 리셋 전까지 받는다
     mb.seed = 0;
     mb.trackSeed = 0;   // 다음 판은 새 맵(대기 화면에서 다시 뽑는다)
     mb.isActive = false;
@@ -908,6 +953,22 @@ module.exports = (socket, io, ctx) => {
         if (!user || !user.isHost) { socket.emit('deguri:error', '방장만 다음 판을 준비할 수 있습니다.'); return; }
         if (gameState.deguri.phase !== 'finished') return;
         resetRound(room, gameState, io, ctx);
+    });
+
+    // Jev 하이라이트 반응 — 👍/👎·GIF 저장. 이 방의 이번(또는 방금 끝난) 판 rid 만 받고, 사실·arm·mode 는 서버 기록에서(클라 값은 안 믿는다). 보는 사람마다 한 줄
+    socket.on('deguri:highlight:feedback', (data, cb) => {
+        if (!rateOk()) return;
+        const ack = typeof cb === 'function' ? cb : () => {};
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'deguri') return ack({ ok: false, reason: 'room' });
+        const user = gameState.users.find(u => u.id === socket.id);
+        const h = gameState.deguri.highlight;
+        if (!user || !h || !data || typeof data !== 'object' || data.rid !== h.rid) return ack({ ok: false, reason: 'bad_request' });
+        const vote = data.vote === 1 || data.vote === -1 ? data.vote : null;
+        if (data.vote != null && vote === null) return ack({ ok: false, reason: 'bad_request' });
+        highlightFeedback.record({ rid: h.rid, viewer: user.name, arm: h.arm, mode: h.mode, facts: h.facts, vote, saved: data.saved === true })
+            .then(() => ack({ ok: true }), e => { console.warn('[데구리] 하이라이트 반응 저장 실패:', e.message); ack({ ok: false, reason: 'error' }); });
     });
 
     // 입장/재입장 시 상태 요청 — 요청 소켓에만 응답 (server-only 데이터 없음)
