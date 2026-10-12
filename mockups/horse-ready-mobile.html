@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko" data-theme="dark" data-skin="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LAMDice · 모바일 경마 준비 목업</title>
+  <script src="/js/shared/theme-shared.js"></script>
+  <script src="/mockups/horse-mobile-theme.js"></script>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <style>
+    /* 독립 목업. 색은 기존 mobile 토큰을 읽고 실제 게임에는 연결하지 않는다. */
+    :root { --ready-emphasis: var(--mock-emphasis); }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--mobile-canvas); color: var(--mobile-ink); font: 500 14px/1.5 Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; }
+    button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible { outline: 3px solid var(--ready-emphasis); outline-offset: 3px; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { cursor: default; }
+    h1, h2, p { margin: 0; }
+    img { display: block; object-fit: contain; image-rendering: pixelated; }
+    .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #mockBar { min-height: 36px; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 4px 10px; background: var(--mobile-card); border-bottom: 1px solid var(--mobile-line); color: var(--mobile-muted); font-size: 11px; }
+    #mockBar button { border: 0; background: transparent; min-height: 28px; padding: 3px 7px; color: var(--mobile-ink); font-size: 11px; border-radius: 6px; }
+    #mockBar button[aria-pressed="true"] { background: var(--mobile-soft); }
+    .prototype { max-width: 430px; height: calc(100dvh - 37px); margin: auto; display: flex; flex-direction: column; background: var(--mobile-canvas); }
+    .room-head { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 16px; flex: none; border-bottom: 1px solid var(--mobile-line); }
+    .icon-button { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card); flex: none; }
+    .identity { flex: 1; min-width: 0; }
+    .identity small { color: var(--mobile-muted); font-size: 11px; }
+    .identity h1 { font-size: 17px; font-weight: 750; letter-spacing: -.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .people-button { width: auto; padding: 0 11px; font-size: 13px; font-weight: 700; }
+    .content { padding: 16px; overflow: auto; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 16px; overscroll-behavior: contain; }
+    .selection { border: 1px solid var(--mobile-line); background: var(--mobile-card); border-radius: 16px; flex: none; overflow: hidden; }
+    .selection-top { display: flex; gap: 12px; align-items: center; padding: 12px; }
+    .chosen-picture { width: 56px; height: 52px; background: var(--mobile-soft); border-radius: 12px; display: grid; place-items: center; }
+    .chosen-picture img { width: 52px; height: 42px; }
+    .chosen-copy { flex: 1; min-width: 0; }
+    .chosen-copy small { display: block; color: var(--mobile-muted); font-size: 11px; margin-bottom: 1px; }
+    .chosen-copy strong { font-size: 17px; font-weight: 750; }
+    .change { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--mobile-soft); font-size: 12px; font-weight: 650; }
+    .change .icon { width: 14px; height: 14px; }
+    .readiness { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 37px; padding: 5px 12px; border-top: 1px solid var(--mobile-line); }
+    .avatars { display: flex; align-items: center; }
+    .avatars img { width: 26px; height: 26px; padding: 2px; border-radius: 50%; background: var(--mobile-soft); border: 2px solid var(--mobile-card); margin-left: -5px; }
+    .avatars img:first-child { margin-left: 0; }
+    .ready-copy { display: flex; align-items: center; gap: 5px; color: var(--mobile-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .ready-copy .icon { width: 15px; height: 15px; color: var(--ready-emphasis); }
+    .ready-copy b { color: var(--mobile-ink); font-weight: 700; }
+    .track-card { flex: none; border: 1px solid var(--mobile-line); background: var(--mobile-card); border-radius: 16px; overflow: hidden; }
+    .section-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
+    .section-title img { width: 17px; height: 17px; }
+    .section-title .icon { width: 17px; height: 17px; }
+    .track-head { display: flex; justify-content: space-between; align-items: center; height: 44px; padding-left: 12px; }
+    .track-head button { width: 44px; height: 44px; border: 0; background: transparent; display: grid; place-items: center; color: var(--mobile-muted); }
+    .track { position: relative; overflow: hidden; }
+    .lane { height: 37px; position: relative; background-size: 100% 100%; background-position: center; }
+    .lane[data-vehicle="ninja"] { background-image: url('/assets/backgrounds/ninja.webp'); }
+    .lane[data-vehicle="crab"] { background-image: url('/assets/backgrounds/crab.webp'); }
+    .lane[data-vehicle="dinosaur"] { background-image: url('/assets/backgrounds/dinosaur.webp'); }
+    .lane[data-vehicle="turtle"] { background-image: url('/assets/backgrounds/turtle.webp'); }
+    .lane[data-vehicle="rabbit"] { background-image: url('/assets/backgrounds/rabbit.webp'); }
+    .runner { position: absolute; left: 10%; bottom: 1px; width: 44px; height: 34px; }
+    .runner img { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .runner img:last-child { opacity: 0; }
+    .mine-marker { position: absolute; left: calc(10% + 44px); bottom: 7px; padding: 1px 5px; background: var(--mobile-accent); color: var(--mobile-on-accent); border-radius: 4px; font-size: 10px; font-weight: 800; }
+    .finish { position: absolute; top: 0; right: 15px; bottom: 0; width: 10px; border-inline: 1px solid var(--mobile-line); background: repeating-conic-gradient(var(--text-on-accent) 0% 25%, var(--mobile-on-accent) 0% 50%) 0 0 / 10px 10px; opacity: .7; }
+    .vote { flex: none; }
+    .vote-head { display: flex; justify-content: space-between; align-items: center; min-height: 32px; margin-top: -4px; margin-bottom: 6px; }
+    .help { width: 44px; height: 32px; min-height: 44px; margin-block: -6px; border: 0; background: transparent; display: grid; place-items: center; color: var(--mobile-muted); }
+    .help .icon { width: 17px; height: 17px; }
+    .rank-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+    .rank { position: relative; height: 46px; border-radius: 12px; background: var(--mobile-card); border: 1px solid var(--mobile-line); font-size: 14px; font-weight: 700; transition: background 120ms, border-color 120ms; }
+    .rank[aria-checked="true"] { background: var(--mobile-soft); border-color: var(--ready-emphasis); box-shadow: inset 0 0 0 1px var(--ready-emphasis); }
+    .rank[aria-checked="true"]::after { content: ''; display: block; width: 4px; height: 4px; background: var(--ready-emphasis); border-radius: 50%; margin: 2px auto -6px; }
+    .ad { flex: none; margin-top: auto; min-height: 54px; border: 1px dashed var(--mobile-line); border-radius: 10px; display: grid; place-items: center; color: var(--mobile-muted); font-size: 10px; letter-spacing: 1px; }
+    .footer { flex: none; border-top: 1px solid var(--mobile-line); background: var(--mobile-canvas); padding: 12px 16px max(8px,env(safe-area-inset-bottom)); }
+    .start { display: flex; width: 100%; height: 50px; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 14px; background: var(--mobile-accent); color: var(--mobile-on-accent); font-size: 15px; font-weight: 800; }
+    .start img { width: 18px; height: 18px; }
+    .start:disabled { background: var(--mobile-soft); color: var(--mobile-muted); }
+    .dock { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 9px -4px 0; }
+    .dock button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 48px; border: 0; border-radius: 10px; background: transparent; color: var(--mobile-muted); font-size: 10px; }
+    .dock img { width: 19px; height: 19px; }
+    .dock .icon { width: 19px; height: 19px; }
+    .dock button[aria-current="page"] { background: var(--mobile-soft); color: var(--mobile-ink); font-weight: 750; }
+    dialog { width: min(398px,calc(100% - 24px)); max-height: calc(100dvh - 36px); margin: auto auto 12px; padding: 20px; color: var(--mobile-ink); background: var(--mobile-card); border: 1px solid var(--mobile-line); border-radius: 20px; overflow: auto; }
+    dialog::backdrop { background: rgba(var(--shadow-rgb),.65); }
+    .dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .dialog-head h2 { font-size: 20px; letter-spacing: -.6px; }
+    .dialog-head .icon-button { width: 44px; height: 44px; border: 0; background: var(--mobile-soft); }
+    .vehicle-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .vehicle-option { min-height: 92px; border: 1px solid var(--mobile-line); background: var(--mobile-canvas); border-radius: 12px; display: grid; place-items: center; padding: 8px; gap: 4px; font-size: 12px; }
+    .vehicle-option img { width: 56px; height: 45px; }
+    .vehicle-option[aria-pressed="true"] { border-color: var(--ready-emphasis); background: var(--mobile-soft); box-shadow: inset 0 0 0 1px var(--ready-emphasis); }
+    .person { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--mobile-line); }
+    .person:last-child { border-bottom: 0; }
+    .person img { width: 40px; height: 34px; }
+    .person span { flex: 1; }
+    .person small { color: var(--mobile-muted); }
+    .dialog-copy { font-size: 14px; line-height: 1.7; color: var(--mobile-muted); }
+    .toast { position: fixed; z-index: 10; top: 118px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content; background: rgba(var(--shadow-rgb),.8); color: var(--text-on-accent); padding: 9px 15px; border-radius: 999px; font-size: 12px; pointer-events: none; }
+    .track-card.expanded { position: fixed; inset: 8vh 12px; z-index: 5; display: flex; flex-direction: column; max-width: 700px; margin-inline: auto; box-shadow: 0 0 0 100vmax rgba(var(--shadow-rgb),.65); }
+    .track-card.expanded .track { flex: 1; display: flex; flex-direction: column; }
+    .track-card.expanded .lane { flex: 1; height: auto; background-size: cover; background-position: left bottom; }
+    .track-card.expanded .runner { height: 48px; width: 64px; }
+    .track-card.expanded .mine-marker { left: calc(10% + 65px); }
+    @media(min-width:600px) { .prototype { border-inline: 1px solid var(--mobile-line); } }
+    @media(max-width:350px) { .content { padding: 12px; gap: 12px; } .room-head { gap: 8px; padding-inline: 12px; } .identity h1 { font-size: 15px; } .lane { height: 33px; } .footer { padding-inline: 12px; } .rank-options { gap: 5px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none !important; transition: none !important; } button:active:not(:disabled) { transform: none; } }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.5 1.5L12 12v1m0 3h.01"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V3m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 11h.01M11 11h.01M15 11h.01"/></symbol>
+  </defs></svg>
+  <div id="mockBar"><span>목업 · 경마 준비</span><button id="themeToggle" aria-label="라이트 모드 보기">라이트</button><button id="readyToggle" aria-pressed="false">대기 상태</button></div>
+  <div class="prototype">
+    <header class="room-head">
+      <button class="icon-button" aria-label="로비" data-info="로비"><svg class="icon"><use href="#i-back"/></svg></button>
+      <div class="identity"><small>경마 · 준비 중</small><h1>점심 먹고 한 판</h1></div>
+      <button class="icon-button people-button" id="peopleButton" aria-label="참여자 4명 보기"><svg class="icon"><use href="#i-people"/></svg>4</button>
+    </header>
+    <main class="content">
+      <section class="selection" aria-label="내 선택과 준비 상태">
+        <div class="selection-top">
+          <div class="chosen-picture"><img id="chosenImage" src="/assets/horse-race/vehicles/dinosaur/base-idle-1.webp" alt=""></div>
+          <div class="chosen-copy"><small>내 탈것</small><strong id="chosenName">공룡</strong></div>
+          <button class="change" id="changeButton">변경<svg class="icon"><use href="#i-down"/></svg></button>
+        </div>
+        <div class="readiness"><div class="avatars" aria-hidden="true"><img src="/assets/horse-race/vehicles/ninja/base-idle-1.webp" alt=""><img src="/assets/horse-race/vehicles/crab/base-idle-1.webp" alt=""><img id="myAvatar" src="/assets/horse-race/vehicles/dinosaur/base-idle-1.webp" alt=""><img src="/assets/horse-race/vehicles/rabbit/base-idle-1.webp" alt=""></div><p class="ready-copy" role="status"><svg class="icon"><use href="#i-check"/></svg>준비 <b id="readyCount">4/4</b></p></div>
+      </section>
+      <section class="track-card" id="trackCard" aria-label="트랙 미리보기">
+        <div class="track-head"><h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>트랙 미리보기</h2><button id="expandButton" aria-label="트랙 크게 보기" aria-expanded="false"><svg class="icon"><use href="#i-expand"/></svg></button></div>
+        <div class="track" id="track"></div>
+      </section>
+      <section class="vote" aria-labelledby="voteTitle">
+        <div class="vote-head"><h2 class="section-title" id="voteTitle"><img src="/mockups/assets/ic-trophy.png" alt="">당첨 등수</h2><button class="help" id="helpButton" aria-label="등수 투표 안내"><svg class="icon"><use href="#i-help"/></svg></button></div>
+        <div class="rank-options" role="radiogroup" aria-label="당첨 등수 투표">
+          <button class="rank" role="radio" aria-checked="true" tabindex="0" data-rank="1">1등</button>
+          <button class="rank" role="radio" aria-checked="false" tabindex="-1" data-rank="2">2등</button>
+          <button class="rank" role="radio" aria-checked="false" tabindex="-1" data-rank="3">3등</button>
+          <button class="rank" role="radio" aria-checked="false" tabindex="-1" data-rank="4">4등</button>
+          <button class="rank" role="radio" aria-checked="false" tabindex="-1" data-rank="5">5등</button>
+        </div>
+      </section>
+      <aside class="ad" aria-label="광고 자리">AD</aside>
+    </main>
+    <footer class="footer"><button class="start" id="startButton"><img src="/mockups/assets/ic-play.png" alt=""><span>경마 시작</span></button><nav class="dock" aria-label="방 메뉴">
+      <button aria-current="page" id="gameTab"><img src="/mockups/assets/ic-play.png" alt="">게임</button>
+      <button data-mock-page="orders"><img src="/mockups/assets/ic-book.png" alt="">주문</button>
+      <button data-mock-page="chat"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg>채팅</button>
+      <button data-mock-page="menu"><img src="/mockups/assets/ic-gamepad.png" alt="">메뉴</button>
+    </nav></footer>
+  </div>
+  <dialog id="picker" aria-labelledby="pickerTitle"><div class="dialog-head"><h2 id="pickerTitle">탈것 선택</h2><button class="icon-button" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="vehicle-grid" id="vehicleGrid"></div></dialog>
+  <dialog id="people" aria-labelledby="peopleTitle"><div class="dialog-head"><h2 id="peopleTitle">참여자 <span>4</span></h2><button class="icon-button" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="peopleList"></div></dialog>
+  <dialog id="info" aria-labelledby="infoTitle"><div class="dialog-head"><h2 id="infoTitle"></h2><button class="icon-button" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><p class="dialog-copy" id="infoCopy"></p></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+    'use strict';
+    const VEHICLES = [{id:'ninja',name:'닌자'},{id:'crab',name:'게'},{id:'dinosaur',name:'공룡'},{id:'turtle',name:'거북이'},{id:'rabbit',name:'토끼'}];
+    const PEOPLE = [{name:'나',vehicle:'dinosaur'},{name:'민지',vehicle:'ninja'},{name:'준호',vehicle:'crab'},{name:'수빈',vehicle:'rabbit'}];
+    const TOAST_MS = 2000, LAST_INDEX = VEHICLES.length - 1;
+    const $ = (id) => document.getElementById(id);
+    let selected = 'dinosaur', allReady = true, toastTimer;
+    const sprite = (id, state = 'idle', frame = 1) => '/assets/horse-race/vehicles/' + id + '/base-' + state + '-' + frame + '.webp';
+    function notify(text) { clearTimeout(toastTimer); $('toast').textContent = text; $('toast').hidden = false; toastTimer = setTimeout(() => $('toast').hidden = true, TOAST_MS); }
+    function renderTrack() {
+      $('track').replaceChildren();
+      VEHICLES.forEach(v => {
+        const lane = document.createElement('div'); lane.className = 'lane'; lane.dataset.vehicle = v.id;
+        const runner = document.createElement('div'); runner.className = 'runner';
+        [1,2].forEach(frame => { const image = document.createElement('img'); image.src = sprite(v.id,'run',frame); image.alt = frame === 1 ? v.name : ''; runner.append(image); });
+        lane.append(runner);
+        if (v.id === selected) { const marker = document.createElement('span'); marker.className = 'mine-marker'; marker.textContent = '나'; lane.append(marker); }
+        $('track').append(lane);
+      });
+      const finish = document.createElement('div'); finish.className = 'finish'; finish.setAttribute('aria-hidden','true'); $('track').append(finish);
+    }
+    function selectVehicle(id) {
+      selected = id; const vehicle = VEHICLES.find(v => v.id === id); PEOPLE[0].vehicle = id;
+      $('chosenName').textContent = vehicle.name; $('chosenImage').src = sprite(id); $('myAvatar').src = sprite(id);
+      document.querySelectorAll('.vehicle-option').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vehicle === id)));
+      renderTrack(); $('picker').close();
+    }
+    VEHICLES.forEach(v => { const b = document.createElement('button'); b.className = 'vehicle-option'; b.dataset.vehicle = v.id; b.setAttribute('aria-pressed',String(v.id === selected)); const img = document.createElement('img'); img.src = sprite(v.id); img.alt = ''; b.append(img,document.createTextNode(v.name)); b.addEventListener('click',() => selectVehicle(v.id)); $('vehicleGrid').append(b); });
+    $('changeButton').addEventListener('click',() => $('picker').showModal());
+    $('peopleButton').addEventListener('click',() => {
+      $('peopleList').replaceChildren();
+      PEOPLE.forEach((p,i) => { const row = document.createElement('div'); row.className = 'person'; const img = document.createElement('img'); img.src = sprite(p.vehicle); img.alt = ''; const name = document.createElement('span'); name.textContent = p.name; const state = document.createElement('small'); state.textContent = !allReady && i === PEOPLE.length - 1 ? '준비 중' : '✓ 준비'; row.append(img,name,state); $('peopleList').append(row); });
+      $('people').showModal();
+    });
+    document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click',() => b.closest('dialog').close()));
+    document.querySelectorAll('dialog').forEach(d => d.addEventListener('click',e => { if (e.target === d) { const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close(); } }));
+    function chooseRank(b,focus = false) { document.querySelectorAll('.rank').forEach(r => { const active = r === b; r.setAttribute('aria-checked',String(active)); r.tabIndex = active ? 0 : -1; }); if (focus) b.focus(); }
+    const ranks = [...document.querySelectorAll('.rank')];
+    ranks.forEach((b,index) => { b.addEventListener('click',() => chooseRank(b)); b.addEventListener('keydown',e => { let next; if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (index + 1) % ranks.length; if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (index + LAST_INDEX) % ranks.length; if (e.key === 'Home') next = 0; if (e.key === 'End') next = LAST_INDEX; if (next !== undefined) { e.preventDefault(); chooseRank(ranks[next],true); } }); });
+    function info(title,copy) { $('infoTitle').textContent = title; $('infoCopy').textContent = copy; $('info').showModal(); }
+    $('helpButton').addEventListener('click',() => info('당첨 등수 투표','당첨될 등수에 투표해 주세요. 선택된 탈것 수보다 높은 등수의 표는 사라져요.'));
+    const CONTEXT = {로비:'이번 목업은 경마 준비 화면입니다.',주문:'준비 화면 목업입니다. 실제 게임에서는 이 탭에서 내 주문과 전체 정리표를 확인해요.',채팅:'준비 화면 목업입니다. 실제 게임에서는 이 탭에서 친구들과 대화해요.',메뉴:'준비 화면 목업입니다. 실제 게임에서는 참여자·친구 초대·설정을 확인해요.'};
+    document.querySelectorAll('[data-info]').forEach(b => b.addEventListener('click',() => {
+      info(b.dataset.info,CONTEXT[b.dataset.info]);
+    }));
+    $('readyToggle').addEventListener('click',() => { allReady = !allReady; $('readyCount').textContent = allReady ? '4/4' : '3/4'; $('readyToggle').setAttribute('aria-pressed',String(!allReady)); $('startButton').disabled = !allReady; $('startButton').querySelector('span').textContent = allReady ? '경마 시작' : '친구 1명 준비 중'; });
+    function toggleTrack(force) { const expanded = force === undefined ? !$('trackCard').classList.contains('expanded') : force; $('trackCard').classList.toggle('expanded',expanded); $('expandButton').setAttribute('aria-expanded',String(expanded)); $('expandButton').setAttribute('aria-label',expanded ? '트랙 작게 보기' : '트랙 크게 보기'); }
+    $('expandButton').addEventListener('click',() => toggleTrack());
+    $('gameTab').addEventListener('click',() => { toggleTrack(false); document.querySelector('.content').scrollTop = 0; });
+    document.addEventListener('keydown',e => { if (e.key === 'Escape') toggleTrack(false); });
+    $('startButton').addEventListener('click',() => {
+      if (!allReady) return;
+      const rank = document.querySelector('.rank[aria-checked="true"]').dataset.rank;
+      const params = new URLSearchParams({skin:document.documentElement.dataset.skin,vehicle:selected,rank});
+      location.href = '/mockups/horse-racing-mobile.html?' + params;
+    });
+    renderTrack();
+  </script>
+</body>
+</html>

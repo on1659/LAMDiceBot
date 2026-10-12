@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko" data-theme="dark" data-skin="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LAMDice · 모바일 주문 목업</title>
+  <script src="/js/shared/theme-shared.js"></script>
+  <script src="/mockups/horse-mobile-theme.js"></script>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <style>
+    /* 독립 주문 목업. 실제 게임·주문 데이터와 연결하지 않는다. */
+    :root { --orders-emphasis: var(--mock-emphasis); }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; color: var(--mobile-ink); background: var(--mobile-canvas); font: 500 14px/1.5 Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif; }
+    button,input,select { font: inherit; color: inherit; }
+    button,a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { cursor: default; opacity: .55; }
+    :focus-visible { outline: 3px solid var(--orders-emphasis); outline-offset: 3px; }
+    h1,h2,h3,p { margin: 0; }
+    img { display: block; object-fit: contain; image-rendering: pixelated; }
+    .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #mockBar { min-height: 36px; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 4px 10px; color: var(--mobile-muted); background: var(--mobile-card); border-bottom: 1px solid var(--mobile-line); font-size: 11px; }
+    #mockBar button { min-height: 28px; border: 0; border-radius: 6px; padding: 3px 7px; background: transparent; color: var(--mobile-ink); font-size: 11px; }
+    #mockBar button[aria-pressed="true"] { background: var(--mobile-soft); }
+    .prototype { max-width: 430px; height: calc(100dvh - 37px); margin: auto; display: flex; flex-direction: column; background: var(--mobile-canvas); }
+    .room-head { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 16px; flex: none; border-bottom: 1px solid var(--mobile-line); }
+    .icon-button { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card); color: var(--mobile-ink); flex: none; text-decoration: none; }
+    .identity { flex: 1; min-width: 0; }
+    .identity small { color: var(--mobile-muted); font-size: 11px; }
+    .identity h1 { font-size: 17px; font-weight: 750; letter-spacing: -.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .people-button { width: auto; padding: 0 11px; font-size: 13px; font-weight: 700; }
+    .content { min-height: 0; flex: 1; padding: 12px 16px 16px; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; }
+    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; flex: none; }
+    .page-title { display: flex; align-items: center; gap: 9px; }
+    .page-title h2 { font-size: 24px; letter-spacing: -.8px; }
+    .progress { border-radius: 999px; padding: 3px 7px; background: var(--mobile-soft); color: var(--orders-emphasis); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .subtle-button { min-height: 44px; padding: 0 12px; border: 1px solid var(--mobile-line); border-radius: 11px; background: var(--mobile-card); font-size: 12px; font-weight: 650; }
+    .my-order { flex: none; padding: 12px; border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card); }
+    .my-head { display: flex; align-items: center; gap: 7px; min-height: 34px; margin-bottom: 9px; }
+    .my-avatar { display: grid; place-items: center; width: 32px; height: 32px; background: var(--mobile-soft); border-radius: 9px; }
+    .my-avatar img { width: 29px; height: 25px; }
+    .my-head h3 { font-size: 13px; font-weight: 700; }
+    .save-status { margin-left: auto; display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--mobile-muted); }
+    .save-status .icon { width: 13px; height: 13px; color: var(--orders-emphasis); }
+    .input-row { display: flex; gap: 7px; }
+    .input-row input { width: 100%; min-width: 0; min-height: 48px; padding: 11px 12px; border: 1px solid var(--mobile-line); border-radius: 11px; background: var(--mobile-canvas); font-size: 16px; scroll-margin-block: 16px; }
+    .input-row input::placeholder { color: var(--mobile-muted); }
+    .save { flex: none; min-height: 48px; min-width: 56px; border: 0; border-radius: 11px; background: var(--mobile-accent); color: var(--mobile-on-accent); font-size: 13px; font-weight: 750; }
+    .quick-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+    .quick-orders { min-width: 0; flex: 1; display: flex; gap: 6px; overflow: auto; scrollbar-width: none; }
+    .quick-orders::-webkit-scrollbar { display: none; }
+    .quick-orders button { flex: none; min-height: 44px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--mobile-muted); font-size: 11px; }
+    .quick-orders button[aria-pressed="true"] { color: var(--orders-emphasis); font-weight: 700; }
+    .menu-manage { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 5px; border: 0; background: transparent; font-size: 11px; color: var(--mobile-muted); }
+    .menu-manage .icon { width: 13px; height: 13px; }
+    .summary { flex: none; }
+    .summary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin-top: -4px; margin-bottom: 5px; }
+    .summary-title { display: flex; align-items: baseline; gap: 7px; }
+    .summary-title h3 { font-size: 15px; letter-spacing: -.3px; }
+    .summary-title small { color: var(--mobile-muted); font-size: 11px; white-space: nowrap; }
+    .sort { min-height: 44px; max-width: 100px; border: 0; border-radius: 8px; padding: 0 3px; background: transparent; font-size: 12px; color: var(--mobile-muted); }
+    .sort option { background: var(--mobile-card); color: var(--mobile-ink); }
+    .order-list { margin: 0; padding: 0 12px; list-style: none; border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card); }
+    .order-row { display: flex; align-items: center; gap: 10px; min-height: 84px; padding: 13px 0; border-bottom: 1px solid var(--mobile-line); }
+    .order-row:last-child { border-bottom: 0; }
+    .cup { width: 37px; height: 40px; flex: none; display: grid; place-items: center; background: var(--mobile-soft); color: var(--orders-emphasis); border-radius: 11px; }
+    .cup .icon { width: 20px; height: 20px; }
+    .order-detail { flex: 1; min-width: 0; }
+    .menu-name { font-size: 15px; font-weight: 750; letter-spacing: -.35px; overflow-wrap: anywhere; line-height: 1.4; }
+    .order-names { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 7px; font-size: 11px; color: var(--mobile-muted); }
+    .name-tag { padding: 1px 6px; border-radius: 5px; background: var(--mobile-canvas); overflow-wrap: anywhere; max-width: 100%; }
+    .name-tag.me { background: var(--mobile-soft); color: var(--orders-emphasis); }
+    .role-tag { font-size: 10px; margin-right: 2px; }
+    .quantity { display: flex; align-items: baseline; gap: 3px; flex: none; padding-left: 2px; font-variant-numeric: tabular-nums; }
+    .quantity b { font-size: 25px; font-weight: 750; letter-spacing: -.8px; }
+    .quantity small { color: var(--mobile-muted); font-size: 11px; }
+    .empty { padding: 27px 12px; text-align: center; color: var(--mobile-muted); font-size: 13px; }
+    .pending { display: flex; align-items: center; gap: 10px; min-height: 58px; flex: none; padding: 10px 12px; border-radius: 13px; background: var(--mobile-soft); }
+    .pending > .icon { width: 17px; height: 17px; color: var(--mobile-muted); }
+    .pending-label { font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .pending-label small { margin-left: 4px; color: var(--mobile-muted); font-size: 11px; }
+    .pending-names { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; min-width: 0; }
+    .pending-person { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; overflow-wrap: anywhere; }
+    .pending-person img { width: 23px; height: 23px; }
+    .ad { flex: none; min-height: 54px; display: grid; place-items: center; margin-top: auto; border: 1px dashed var(--mobile-line); border-radius: 10px; color: var(--mobile-muted); font-size: 10px; letter-spacing: 1px; }
+    .footer { flex: none; padding: 8px 12px max(8px,env(safe-area-inset-bottom)); border-top: 1px solid var(--mobile-line); background: var(--mobile-canvas); }
+    .dock { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .dock button,.dock a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 48px; border: 0; border-radius: 10px; background: transparent; color: var(--mobile-muted); font-size: 10px; text-decoration: none; }
+    .dock img,.dock .icon { width: 19px; height: 19px; }
+    .dock button[aria-current="page"] { background: var(--mobile-soft); color: var(--mobile-ink); font-weight: 750; }
+    dialog { width: min(398px,calc(100% - 24px)); max-height: calc(100dvh - 36px); margin: auto auto 12px; padding: 20px; border: 1px solid var(--mobile-line); border-radius: 20px; background: var(--mobile-card); color: var(--mobile-ink); overflow: auto; }
+    dialog::backdrop { background: rgba(var(--shadow-rgb),.65); }
+    .dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .dialog-head h2 { font-size: 20px; letter-spacing: -.6px; }
+    .dialog-head .icon-button { border: 0; background: var(--mobile-soft); }
+    .dialog-copy { font-size: 14px; line-height: 1.7; color: var(--mobile-muted); }
+    .managed-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    .managed-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; border-bottom: 1px solid var(--mobile-line); }
+    .managed-row span { min-width: 0; overflow-wrap: anywhere; }
+    .managed-row button { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--mobile-muted); display: grid; place-items: center; }
+    .person-row { display: flex; align-items: center; gap: 10px; min-height: 56px; border-bottom: 1px solid var(--mobile-line); }
+    .person-row img { width: 35px; height: 32px; }
+    .person-row span { flex: 1; }
+    .person-row small { color: var(--mobile-muted); font-size: 11px; }
+    .toast { position: fixed; z-index: 10; top: 118px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 9px 15px; border-radius: 999px; background: rgba(var(--shadow-rgb),.8); color: var(--text-on-accent); font-size: 12px; pointer-events: none; }
+    @media(min-width:600px) { .prototype { border-inline: 1px solid var(--mobile-line); } }
+    @media(max-width:350px) { .room-head { gap: 8px; padding-inline: 12px; } .identity h1 { font-size: 15px; } .content { padding-inline: 12px; gap: 12px; } .my-order { padding: 10px; } .input-row input { font-size: 16px; padding-inline: 9px; } .cup { width: 30px; height: 36px; } .order-row { gap: 8px; } .menu-name { font-size: 14px; } .summary-title { gap: 5px; } .summary-title small { font-size: 10px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition: none !important; animation: none !important; } button:active:not(:disabled) { transform: none; } }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 11h.01M11 11h.01M15 11h.01"/></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><path d="M5 8h12v9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4ZM17 9h2a3 3 0 0 1 0 6h-2M8 3v2m4-3v3m4-2v2"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7l-4-4L5 15Z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V3h8v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></symbol>
+  </defs></svg>
+  <div id="mockBar"><span>목업 · 주문</span><button id="themeToggle" aria-label="라이트 모드 보기">라이트</button><button id="emptyToggle" aria-pressed="false">빈 화면</button></div>
+  <div class="prototype">
+    <header class="room-head"><a class="icon-button game-link" data-mock-page="ready" href="/mockups/horse-ready-mobile.html" aria-label="게임으로 돌아가기"><svg class="icon"><use href="#i-back"/></svg></a><div class="identity"><small id="roomState">경마 · 주문 받는 중</small><h1>점심 먹고 한 판</h1></div><button class="icon-button people-button" id="peopleButton" aria-label="참여자 4명 보기"><svg class="icon"><use href="#i-people"/></svg>4</button></header>
+    <main class="content">
+      <div class="page-head"><div class="page-title"><h2>주문</h2><span class="progress" id="progress" role="status">3/4 완료</span></div><button class="subtle-button" id="closeOrders" aria-pressed="false">마감</button></div>
+      <section class="my-order" aria-labelledby="myTitle">
+        <div class="my-head"><span class="my-avatar"><img src="/assets/horse-race/vehicles/dinosaur/base-idle-1.webp" alt=""></span><h3 id="myTitle">내 주문</h3><p class="save-status" id="saveStatus" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>저장됨</span></p></div>
+        <form id="orderForm" class="input-row"><input id="myOrder" aria-label="내 주문" placeholder="메뉴를 입력하세요" value="아이스 아메리카노" maxlength="80" autocomplete="off" required><button class="save" id="saveOrder" type="submit">저장</button></form>
+        <div class="quick-row"><div class="quick-orders" id="quickOrders" aria-label="자주 쓰는 메뉴"></div><button class="menu-manage" id="manageButton"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>메뉴</button></div>
+      </section>
+      <section class="summary" aria-labelledby="summaryTitle"><div class="summary-head"><div class="summary-title"><h3 id="summaryTitle">주문 현황</h3><small id="totals" aria-live="polite">총 3잔 · 2종</small></div><select class="sort" id="sortOrder" aria-label="주문 정렬"><option value="count">수량순</option><option value="name">가나다순</option></select></div><ul class="order-list" id="orderList"></ul></section>
+      <section class="pending" id="pending" aria-labelledby="pendingTitle"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><p class="pending-label" id="pendingTitle">주문 전<small id="pendingCount">1명</small></p><div class="pending-names" id="pendingNames"></div></section>
+      <aside class="ad" aria-label="광고 자리">AD</aside>
+    </main>
+    <footer class="footer"><nav class="dock" aria-label="방 메뉴"><a class="game-link" data-mock-page="ready" href="/mockups/horse-ready-mobile.html"><img src="/mockups/assets/ic-play.png" alt="">게임</a><button aria-current="page" id="ordersTab"><svg class="icon" aria-hidden="true"><use href="#i-cup"/></svg>주문</button><button data-mock-page="chat"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg>채팅</button><button data-mock-page="menu"><img src="/mockups/assets/ic-gamepad.png" alt="">메뉴</button></nav></footer>
+  </div>
+  <dialog id="manageDialog" aria-labelledby="manageTitle"><div class="dialog-head"><h2 id="manageTitle">자주 쓰는 메뉴</h2><button class="icon-button" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><form class="input-row" id="menuForm"><input id="newMenu" aria-label="추가할 메뉴" placeholder="메뉴 이름" maxlength="80" required><button class="save" type="submit">추가</button></form><ul class="managed-list" id="managedList"></ul></dialog>
+  <dialog id="peopleDialog" aria-labelledby="peopleTitle"><div class="dialog-head"><h2 id="peopleTitle">참여자 4</h2><button class="icon-button" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="peopleList"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script>
+    'use strict';
+    const INITIAL_PEOPLE = [{name:'나',vehicle:'dinosaur',role:'참여자',order:'아이스 아메리카노'},{name:'민지',vehicle:'ninja',role:'참여자',order:'아이스 아메리카노'},{name:'준호',vehicle:'crab',role:'관전자',order:'카페라떼'},{name:'수빈',vehicle:'rabbit',role:'참여자',order:''}];
+    const INITIAL_MENUS = ['아이스 아메리카노','카페라떼'];
+    const TOAST_MS = 2000;
+    const $ = id => document.getElementById(id);
+    let people = INITIAL_PEOPLE.map(p => ({...p})), menus = [...INITIAL_MENUS], collecting = true, toastTimer;
+    function node(tag,cls,text) { const el = document.createElement(tag); if (cls) el.className = cls; if (text !== undefined) el.textContent = text; return el; }
+    function icon(id) { const svg = document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('class','icon'); svg.setAttribute('aria-hidden','true'); const use = document.createElementNS('http://www.w3.org/2000/svg','use'); use.setAttribute('href','#i-' + id); svg.append(use); return svg; }
+    function sprite(vehicle) { const image = node('img'); image.src = '/assets/horse-race/vehicles/' + vehicle + '/base-idle-1.webp'; image.alt = ''; return image; }
+    function notify(text) { clearTimeout(toastTimer); $('toast').textContent = text; $('toast').hidden = false; toastTimer = setTimeout(() => $('toast').hidden = true,TOAST_MS); }
+    function syncInput() { const changed = $('myOrder').value.trim() !== people[0].order; $('saveStatus').querySelector('span').textContent = !collecting ? '마감됨' : changed ? '수정 중' : people[0].order ? '저장됨' : '주문 전'; $('saveStatus').querySelector('svg').toggleAttribute('hidden',changed || !people[0].order || !collecting); $('saveOrder').disabled = !collecting || !$('myOrder').value.trim(); document.querySelectorAll('[data-menu]').forEach(b => { b.setAttribute('aria-pressed',String(b.dataset.menu === $('myOrder').value.trim())); b.disabled = !collecting; }); }
+    function renderQuick() { $('quickOrders').replaceChildren(); menus.forEach(menu => { const button = node('button','',menu); button.dataset.menu = menu; button.addEventListener('click',() => { $('myOrder').value = menu; syncInput(); }); $('quickOrders').append(button); }); syncInput(); }
+    function renderSummary() {
+      const groups = new Map(), submitted = people.filter(p => p.order), distinct = new Set(submitted.map(p => p.order.toLowerCase()));
+      submitted.forEach(p => { const key = p.role + '\n' + p.order.toLowerCase(); if (!groups.has(key)) groups.set(key,{menu:p.order,role:p.role,names:[]}); groups.get(key).names.push(p.name); });
+      const ordered = [...groups.values()].sort((a,b) => $('sortOrder').value === 'count' ? b.names.length - a.names.length || a.menu.localeCompare(b.menu,'ko') : a.menu.localeCompare(b.menu,'ko'));
+      $('progress').textContent = submitted.length + '/' + people.length + ' 완료';
+      $('totals').textContent = '총 ' + submitted.length + '잔 · ' + distinct.size + '종'; $('orderList').replaceChildren();
+      ordered.forEach(group => { const row = node('li','order-row'), cup = node('div','cup'), detail = node('div','order-detail'), title = node('p','menu-name',group.menu), names = node('div','order-names'), quantity = node('div','quantity'); cup.append(icon('cup')); names.append(node('span','role-tag',group.role)); group.names.forEach(name => names.append(node('span',name === '나' ? 'name-tag me' : 'name-tag',name))); detail.append(title,names); quantity.append(node('b','',String(group.names.length)),node('small','','잔')); row.append(cup,detail,quantity); $('orderList').append(row); });
+      if (!ordered.length) $('orderList').append(node('li','empty','첫 주문을 기다리고 있어요'));
+      const pending = people.filter(p => !p.order); $('pending').hidden = !pending.length; $('pendingCount').textContent = pending.length + '명'; $('pendingNames').replaceChildren();
+      pending.forEach(p => { const person = node('span','pending-person'); person.append(sprite(p.vehicle),node('span','',p.name)); $('pendingNames').append(person); });
+    }
+    $('myOrder').addEventListener('input',syncInput);
+    $('orderForm').addEventListener('submit',e => { e.preventDefault(); if (!collecting) return; const value = $('myOrder').value.trim(); if (!value) { $('myOrder').value = ''; $('myOrder').reportValidity(); return; } people[0].order = value; $('myOrder').value = value; renderSummary(); syncInput(); $('myOrder').blur(); notify('주문을 저장했어요'); });
+    $('sortOrder').addEventListener('change',renderSummary);
+    $('closeOrders').addEventListener('click',() => { collecting = !collecting; $('closeOrders').textContent = collecting ? '마감' : '다시 받기'; $('closeOrders').setAttribute('aria-pressed',String(!collecting)); $('roomState').textContent = HorseMobileMockContext.name + (collecting ? ' · 주문 받는 중' : ' · 주문 마감'); $('myOrder').disabled = !collecting; syncInput(); notify(collecting ? '주문을 다시 받아요' : '주문을 마감했어요'); });
+    function renderManaged() { $('managedList').replaceChildren(); menus.forEach(menu => { const row = node('li','managed-row'), remove = node('button'); remove.setAttribute('aria-label',menu + ' 삭제'); remove.append(icon('trash')); remove.addEventListener('click',() => { menus = menus.filter(m => m !== menu); renderManaged(); renderQuick(); }); row.append(node('span','',menu),remove); $('managedList').append(row); }); }
+    $('manageButton').addEventListener('click',() => { renderManaged(); $('manageDialog').showModal(); });
+    $('menuForm').addEventListener('submit',e => { e.preventDefault(); const menu = $('newMenu').value.trim(); if (!menu) { $('newMenu').value = ''; $('newMenu').reportValidity(); return; } if (!menus.includes(menu)) menus.push(menu); $('newMenu').value = ''; renderManaged(); renderQuick(); });
+    $('peopleButton').addEventListener('click',() => { $('peopleList').replaceChildren(); people.forEach(p => { const row = node('div','person-row'); row.append(sprite(p.vehicle),node('span','',p.name + (p.role === '관전자' ? ' · 관전자' : '')),node('small','',p.order ? '✓ 주문 완료' : '주문 전')); $('peopleList').append(row); }); $('peopleDialog').showModal(); });
+    document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click',() => b.closest('dialog').close()));
+    document.querySelectorAll('dialog').forEach(d => d.addEventListener('click',e => { if (e.target !== d) return; const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close(); }));
+    $('emptyToggle').addEventListener('click',() => { const empty = $('emptyToggle').getAttribute('aria-pressed') !== 'true'; $('emptyToggle').setAttribute('aria-pressed',String(empty)); people = INITIAL_PEOPLE.map(p => ({...p,order:empty ? '' : p.order})); $('myOrder').value = people[0].order; renderSummary(); syncInput(); });
+    $('ordersTab').addEventListener('click',() => document.querySelector('.content').scrollTop = 0);
+    renderQuick(); renderSummary();
+  </script>
+</body>
+</html>

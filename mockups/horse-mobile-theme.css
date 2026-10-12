@@ -1,0 +1,18 @@
+/* 목업 공통 색 별칭. 실제 색 정의와 스킨별 면 색은 css/theme.css를 따른다. */
+:root { --mock-emphasis: var(--mobile-on-accent); }
+[data-theme="dark"] { --mock-emphasis: var(--mobile-accent); }
+#mockBar #mockThemeSelect {
+  min-height: 28px;
+  max-width: 104px;
+  margin: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--mobile-line);
+  border-radius: 6px;
+  background: var(--mobile-card);
+  color: var(--mobile-ink);
+  font: inherit;
+  cursor: pointer;
+  color-scheme: light;
+}
+[data-theme="dark"] #mockBar #mockThemeSelect { color-scheme: dark; }
+#mockBar #mockThemeSelect:focus-visible { outline: 2px solid var(--mock-emphasis); outline-offset: 2px; }
