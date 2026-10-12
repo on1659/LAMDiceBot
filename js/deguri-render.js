@@ -431,7 +431,11 @@ var DeguriRender = (function () {
             if (!cssW) cssW = TRACK_W;   // display:none 상태(대기 중) — 0폭이면 논리폭으로 (NaN 방지)
             var cssH;
             if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
-            else { cssH = Math.round(cssW * (cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT)); }
+            else {
+                // The live mobile layout supplies a portrait ratio. Preview/desktop keep the native camera dimensions.
+                var layoutAspect = box && window.getComputedStyle ? parseFloat(window.getComputedStyle(box).getPropertyValue('--deguri-view-height-ratio')) : 0;
+                cssH = Math.round(cssW * (layoutAspect > 0 ? layoutAspect : cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT));
+            }
             var dpr = (opts && opts.dpr) || Math.min(2, window.devicePixelRatio || 1);
             canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';

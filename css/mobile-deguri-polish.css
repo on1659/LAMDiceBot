@@ -1,0 +1,277 @@
+/* Live mobile presentation; the native renderer and server still own the race. */
+@media (max-width: 760px) {
+    body.mobile-ui #mobileGameWorkspace > #deguriPickSection {
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    body.mobile-ui #deguriPickSection .deguri-pick-head {
+        gap: 8px;
+        padding-right: 0;
+        margin-bottom: 10px;
+    }
+    body.mobile-ui #deguriPickSection .deguri-pick-title {
+        flex: 1 0 100%;
+        color: var(--mobile-ink);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 750;
+    }
+    body.mobile-ui #deguriPickSection .deguri-shop-btn {
+        min-height: 36px;
+        padding: 7px 10px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 10px;
+        background: var(--mobile-card);
+        color: var(--mobile-muted);
+        font-family: inherit;
+    }
+    body.mobile-ui #deguriYard { display: none; }
+    body.mobile-ui #mobileGameWorkspace #deguriPicker {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 3px 0 6px;
+    }
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-btn {
+        flex: 0 0 calc((100% - 24px) / 5);
+        width: calc((100% - 24px) / 5);
+        min-width: 0;
+        max-width: none;
+        height: 86px !important;
+        min-height: 86px;
+        justify-content: center;
+        gap: 3px;
+        padding: 8px 2px 6px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 12px;
+        background: var(--mobile-card);
+        color: var(--mobile-muted);
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 600;
+        box-shadow: none;
+        transform: none;
+    }
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-icon {
+        width: 48px;
+        height: 48px;
+    }
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-btn.selected {
+        border-color: var(--mobile-forest);
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+        box-shadow: inset 0 -2px 0 var(--mobile-forest);
+    }
+    body.mobile-ui .deguri-creature-btn.selected::after {
+        content: '✓';
+        position: absolute;
+        top: 3px;
+        right: 4px;
+        color: var(--mobile-ink);
+        font-size: 12px;
+        font-weight: 800;
+    }
+    body.mobile-ui .deguri-creature-btn .pick-count {
+        top: 3px;
+        right: auto;
+        left: 3px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 5px;
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+        font-size: 9px;
+        line-height: 16px;
+        box-shadow: none;
+    }
+    body.mobile-ui .deguri-creature-btn .skin-badge {
+        top: auto;
+        left: 3px;
+        bottom: 24px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 4px;
+        background: var(--mobile-card);
+        color: var(--mobile-muted);
+        font-size: 8px;
+        line-height: 14px;
+        box-shadow: none;
+    }
+    body.mobile-ui #deguriPickStatus {
+        color: var(--mobile-muted);
+        font-family: inherit;
+        text-align: left;
+    }
+    body.mobile-ui:has(#deguriCanvas) #mobileGameWorkspace > #rankVoteSection {
+        padding: 8px !important;
+        border-radius: 14px !important;
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-title {
+        color: var(--mobile-muted);
+        font-family: inherit;
+        font-size: 11px;
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-boxes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 11px;
+        background: var(--mobile-card);
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        max-width: none;
+        margin: 0;
+        padding: 7px 4px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--mobile-muted);
+        outline: 0;
+        box-shadow: none;
+        transform: none;
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-rank {
+        color: inherit;
+        font-family: inherit;
+        font-size: 13px;
+        text-shadow: none;
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-box.selected {
+        border-color: var(--mobile-forest);
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+        outline: 0;
+        box-shadow: none;
+    }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-box.selected::after { display: none; }
+    body.mobile-ui:has(#deguriCanvas) #rankVoteSection:not(.on-canvas) .rank-vote-bars { margin: 0; }
+    body.mobile-ui #mobileGameWorkspace > #deguriStage {
+        width: 100vw;
+        max-width: none;
+        margin: 0 calc((100% - 100vw) / 2) !important;
+    }
+    body.mobile-ui #deguriStage .deguri-stage-tools {
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0;
+        padding: 7px 16px;
+        border-block: 1px solid var(--mobile-line);
+        background: var(--mobile-card);
+    }
+    body.mobile-ui .deguri-stage-btn {
+        min-height: 36px;
+        padding: 6px 8px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 9px;
+        background: var(--mobile-card);
+        color: var(--mobile-muted);
+        font-family: inherit;
+        font-size: 11px;
+        box-shadow: none;
+    }
+    body.mobile-ui .deguri-stage-btn.is-on {
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+        border-color: var(--mobile-line);
+    }
+    body.mobile-ui #deguriCanvasBox {
+        --deguri-view-height-ratio: 1.7777778;
+        width: 100%;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    body.mobile-ui #deguriCanvas { border-radius: 0; touch-action: pan-y pinch-zoom; }
+    body.mobile-ui #deguriStage .deguri-after-race,
+    body.mobile-ui #deguriReplayBar { margin: 10px 16px; }
+    body.mobile-ui .deguri-after-btn {
+        min-height: 44px;
+        padding: 10px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 11px;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        font-family: inherit;
+        font-size: 12px;
+        box-shadow: none;
+    }
+    body.mobile-ui .result-card.deguri-result-card {
+        width: calc(100vw - 32px);
+        max-width: 400px;
+        padding: 18px 14px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 20px;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        font-family: inherit;
+        box-shadow: none;
+    }
+    body.mobile-ui .deguri-result-card .result-title { color: var(--mobile-ink); font-size: 20px; }
+    body.mobile-ui .deguri-result-card .deguri-result-selected {
+        gap: 10px;
+        padding: 20px 10px 16px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 16px;
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+    }
+    body.mobile-ui .deguri-result-sprite {
+        width: 88px;
+        height: 88px;
+        border-radius: 16px;
+        background: var(--mobile-card);
+        box-shadow: none;
+    }
+    body.mobile-ui .deguri-result-selected-name span { color: var(--mobile-ink); font-size: 26px; }
+    body.mobile-ui .deguri-result-selected-name small { color: var(--mobile-muted); }
+    body.mobile-ui .deguri-result-ranks { padding: 0; }
+    body.mobile-ui .deguri-result-ranks li {
+        min-height: 54px;
+        gap: 9px;
+        margin: 0;
+        padding: 8px 10px;
+        border: 0;
+        border-bottom: 1px solid var(--mobile-line);
+        border-radius: 0;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        font-size: 13px;
+    }
+    body.mobile-ui .deguri-result-ranks li .rk,
+    body.mobile-ui .deguri-result-ranks li .me { color: var(--mobile-muted); font-family: inherit; }
+    body.mobile-ui .deguri-result-icon { width: 34px; height: 34px; flex-basis: 34px; }
+    body.mobile-ui .deguri-result-ranks li.is-winner { background: var(--mobile-soft); box-shadow: inset 3px 0 0 var(--mobile-forest); }
+    body.mobile-ui .deguri-result-ranks li.is-winner .rk,
+    body.mobile-ui .deguri-result-ranks li.is-winner b { color: var(--mobile-ink); }
+    body.mobile-ui .deguri-result-btn {
+        min-height: 44px;
+        padding: 10px 20px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 12px;
+        background: var(--mobile-accent);
+        color: var(--mobile-on-accent);
+        font-family: inherit;
+        font-size: 14px;
+        box-shadow: none;
+    }
+    body.mobile-ui .deguri-result-btn--small { padding: 8px 12px; background: var(--mobile-soft); color: var(--mobile-ink); font-size: 12px; }
+    body.mobile-ui .deguri-creature-btn:focus-visible,
+    body.mobile-ui .deguri-stage-btn:focus-visible,
+    body.mobile-ui .deguri-result-btn:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: 2px; }
+}
+@media (max-width: 350px) {
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-btn { height: 78px !important; min-height: 78px; font-size: 9px; }
+    body.mobile-ui #mobileGameWorkspace .deguri-creature-icon { width: 42px; height: 42px; }
+}
