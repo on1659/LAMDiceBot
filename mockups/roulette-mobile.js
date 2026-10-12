@@ -4,6 +4,9 @@
   const WINNER_INDEX = 1;
   const FINAL_ANGLE = 1980;
   const SPIN_MS = 2400;
+  const WHEEL_SPRITE_SIZE = 46;
+  const WHEEL_SPRITE_TOP = 36;
+  const WHEEL_LABEL_OFFSET = 23;
   const TURBO_MS = 1600;
   const state = { turbo: true, spun: false, spinning: false, timer: null, angle: 0 };
   const ui = window.GameMobileMock;
@@ -17,7 +20,7 @@
     const disc = svgEl('svg', { viewBox: '0 0 300 300', class: 'roulette-disc', 'aria-hidden': 'true' });
     const arcs = ['M150 150 L150 10 A140 140 0 0 1 271.24 220 Z', 'M150 150 L271.24 220 A140 140 0 0 1 28.76 220 Z', 'M150 150 L28.76 220 A140 140 0 0 1 150 10 Z'];
     const positions = [{ x: 225, y: 108 }, { x: 150, y: 235 }, { x: 75, y: 108 }];
-    PEOPLE.forEach((person, index) => { disc.append(svgEl('path', { d: arcs[index], class: `roulette-segment-${index}` })); const label = svgEl('text', { x: positions[index].x, y: positions[index].y, class: `roulette-label roulette-label-${index}` }); label.textContent = person.name; disc.append(label); });
+    PEOPLE.forEach((person, index) => { disc.append(svgEl('path', { d: arcs[index], class: `roulette-segment-${index}` })); const sprite = svgEl('image', { href: `/mockups/assets/veh-${person.avatar}-1.webp`, x: positions[index].x - WHEEL_SPRITE_SIZE / 2, y: positions[index].y - WHEEL_SPRITE_TOP, width: WHEEL_SPRITE_SIZE, height: WHEEL_SPRITE_SIZE }); const label = svgEl('text', { x: positions[index].x, y: positions[index].y + WHEEL_LABEL_OFFSET, class: `roulette-label roulette-label-${index}` }); label.textContent = person.name; disc.append(sprite, label); });
     disc.append(svgEl('circle', { cx: 150, cy: 150, r: 144, class: 'roulette-outer-ring' }), svgEl('circle', { cx: 150, cy: 150, r: 25, class: 'roulette-center' }));
     const center = svgEl('text', { x: 150, y: 151, class: 'roulette-center-text' }); center.textContent = 'LAM'; disc.append(center);
     disc.style.setProperty('--wheel-angle', `${stage === 'playing' ? state.angle : 0}deg`); wrap.append(el('div', 'roulette-pointer'), disc); panel.append(wrap);

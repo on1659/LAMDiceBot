@@ -104,7 +104,7 @@
       button.addEventListener('click', () => { selected = c.id; updateQuery(); M.setStage('ready'); });
       grid.append(button);
     });
-    picker.append(grid);
+    const pickerHead = el('div', 'section-head'); pickerHead.append(el('h3', '', '내 동물')); picker.append(pickerHead, grid);
     const track = el('section', 'dg-track-card');
     const trackHead = el('div', 'dg-track-head');
     trackHead.append(el('strong', '', '초원 산책'), el('small', '', '준비 3/3'));

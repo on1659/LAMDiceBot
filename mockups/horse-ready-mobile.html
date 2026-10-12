@@ -8,7 +8,6 @@
   <script src="/js/shared/theme-shared.js"></script>
   <script src="/mockups/horse-mobile-theme.js"></script>
   <link rel="stylesheet" href="/css/theme.css">
-  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
   <style>
     /* 독립 목업. 색은 기존 mobile 토큰을 읽고 실제 게임에는 연결하지 않는다. */
@@ -111,8 +110,9 @@
     @media(max-width:350px) { .content { padding: 12px; gap: 12px; } .room-head { gap: 8px; padding-inline: 12px; } .identity h1 { font-size: 15px; } .lane { height: 33px; } .footer { padding-inline: 12px; } .rank-options { gap: 5px; } }
     @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none !important; transition: none !important; } button:active:not(:disabled) { transform: none; } }
   </style>
+  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css?v=polish-2">
 </head>
-<body>
+<body data-mock-view="ready">
   <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>

@@ -16,3 +16,148 @@
 }
 [data-theme="dark"] #mockBar #mockThemeSelect { color-scheme: dark; }
 #mockBar #mockThemeSelect:focus-visible { outline: 2px solid var(--mock-emphasis); outline-offset: 2px; }
+
+/* 모든 모바일 목업의 방 헤더·주요 행동·탭은 같은 크기와 색을 쓴다. */
+.prototype .room-head {
+  min-height: 72px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--mobile-card);
+  border-bottom: 1px solid var(--mobile-line);
+}
+.prototype .icon-button { border-radius: 12px; background: var(--mobile-canvas); }
+.prototype .people-button { min-width: 58px; padding-inline: 10px; gap: 6px; }
+.prototype .identity small { display: block; font-size: 11px; line-height: 1.4; margin-bottom: 3px; }
+.prototype .identity h1 { font-size: 17px; line-height: 1.3; letter-spacing: -.5px; font-weight: 750; }
+.prototype .page-head h2,.prototype .chat-head h2 { font-size: 24px; line-height: 1.25; letter-spacing: -.8px; }
+.prototype .section-head { min-height: 30px; }
+.prototype .section-head h3 { font-size: 13px; font-weight: 750; }
+.prototype .footer {
+  padding: 12px 16px max(8px,env(safe-area-inset-bottom));
+  background: var(--mobile-card);
+  border-top: 1px solid var(--mobile-line);
+}
+.prototype .footer :is(.start,.primary,.primary-action,.prepare) {
+  min-height: 52px;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.25px;
+  box-shadow: inset 0 -3px 0 rgba(var(--shadow-rgb),.12);
+}
+.prototype .footer :is(.start,.primary,.primary-action):disabled { box-shadow: none; }
+.prototype .footer .replay { width: 52px; height: 52px; background: var(--mobile-canvas); }
+.prototype .dock { gap: 8px; margin: 0 -4px; }
+.prototype .footer :is(.start,.primary,.primary-action,.actions) + .dock { margin-top: 10px; }
+.prototype .dock :is(a,button) { min-height: 48px; border-radius: 10px; gap: 4px; font-size: 11px; line-height: 1.3; }
+.prototype .dock [aria-current="page"] { color: var(--mock-emphasis); background: var(--mobile-soft); font-weight: 750; }
+.prototype .dock :is(img,.icon) { width: 20px; height: 20px; }
+.prototype .winner-card { min-height: 124px; gap: 16px; padding: 16px; border-radius: 16px; border-color: var(--mobile-line); }
+.prototype .winner-visual { width: 88px; height: 88px; border-radius: 16px; }
+.prototype .winner-visual > img:not(.medal) { width: 80px; height: 72px; }
+.prototype .winner-copy { flex: 1; min-width: 0; }
+.prototype .winner-copy h3 { font-size: 32px; line-height: 1.15; letter-spacing: -1px; margin-block: 6px 4px; }
+.prototype .winner-copy p { font-size: 12px; line-height: 1.5; }
+.prototype .ad { background: var(--mobile-canvas); }
+.prototype :is(.content,.chat-log) { scrollbar-width: none; }
+.prototype :is(.content,.chat-log)::-webkit-scrollbar { display: none; }
+body[data-mock-view] :is(.content,.chat-log) { scroll-padding-bottom: 16px; }
+body[data-mock-view] .vehicle-option { position: relative; }
+body[data-mock-view] .vehicle-option[aria-pressed="true"]::after {
+  content: '✓'; position: absolute; right: 7px; top: 5px;
+  color: var(--mock-emphasis); font-size: 13px; font-weight: 800;
+}
+
+/* 준비: 선택한 캐릭터를 크게, 선택 상태는 숫자 옆 체크로 바로 보인다. */
+body[data-mock-view="ready"] .selection-top { padding: 12px; gap: 14px; }
+body[data-mock-view="ready"] .chosen-picture { width: 72px; height: 64px; flex: none; border-radius: 12px; }
+body[data-mock-view="ready"] .chosen-picture img { width: 68px; height: 58px; }
+body[data-mock-view="ready"] .chosen-copy strong { font-size: 22px; line-height: 1.2; letter-spacing: -.6px; }
+body[data-mock-view="ready"] .chosen-copy small { margin-bottom: 4px; }
+body[data-mock-view="ready"] .readiness { min-height: 40px; padding-inline: 14px; background: var(--mobile-canvas); }
+body[data-mock-view="ready"] .change { border: 1px solid var(--mobile-line); background: var(--mobile-canvas); }
+body[data-mock-view="ready"] .lane { height: 42px; }
+body[data-mock-view="ready"] .runner { width: 50px; height: 39px; }
+body[data-mock-view="ready"] .mine-marker { left: calc(10% + 50px); }
+body[data-mock-view="ready"] .rank-options { gap: 0; padding: 4px; border: 1px solid var(--mobile-line); border-radius: 14px; background: var(--mobile-card); }
+body[data-mock-view="ready"] .rank { height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 13px; box-shadow: none; }
+body[data-mock-view="ready"] .rank[aria-checked="true"] { background: var(--mobile-soft); color: var(--mock-emphasis); box-shadow: none; }
+body[data-mock-view="ready"] .rank[aria-checked="true"]::after { content: '✓'; display: inline; width: auto; height: auto; margin-left: 3px; background: transparent; font-size: 11px; }
+body[data-mock-view="ready"] .track-card.expanded .lane { height: auto; }
+body[data-mock-view="ready"] .track-card.expanded .runner { width: 64px; height: 48px; }
+
+/* 진행·결과: 내 상태와 순위를 한눈에 읽는 일관된 데이터 행. */
+body[data-mock-view="racing"] .mine { min-height: 76px; padding: 10px 12px; }
+body[data-mock-view="racing"] .mine-picture { width: 56px; height: 52px; border-radius: 12px; }
+body[data-mock-view="racing"] .mine-picture img { width: 52px; height: 48px; }
+body[data-mock-view="racing"] .mine-copy strong { font-size: 17px; }
+body[data-mock-view="racing"] .mine-rank strong { font-size: 32px; letter-spacing: -1px; }
+body[data-mock-view="racing"] .target { padding-block: 7px; border-radius: 10px; }
+body[data-mock-view="racing"] .track-head { min-height: 44px; }
+body[data-mock-view="racing"] .timeline { min-height: 32px; }
+body[data-mock-view="result"] .winner-label { border-radius: 6px; padding-inline: 8px; }
+body[data-mock-view="result"] .finish-head { min-height: 34px; }
+body[data-mock-view="result"] .finish-list { padding-inline: 12px; }
+body[data-mock-view="result"] .finish-row { min-height: 48px; padding: 5px 0; gap: 10px; }
+body[data-mock-view="result"] .finish-row.target { margin-inline: -12px; padding-inline: 12px; }
+body[data-mock-view="result"] .finish-row > img { width: 38px; height: 34px; }
+body[data-mock-view="result"] .rank-number { min-width: 24px; min-height: 28px; }
+body[data-mock-view="result"] .rank-name { font-size: 13px; }
+body[data-mock-view="result"] .rank-users { margin-top: 3px; font-size: 11px; }
+body[data-mock-view="result"] .finish-time { font-size: 12px; }
+body[data-mock-view="result"] .orders-link { min-height: 48px; border: 1px solid var(--mobile-line); background: var(--mobile-card); }
+
+/* 주문: 편집 영역과 집계표의 밀도를 분리한다. */
+body[data-mock-view="orders"] .my-order { padding: 14px; border-color: var(--mobile-line); }
+body[data-mock-view="orders"] .my-head { gap: 9px; margin-bottom: 12px; }
+body[data-mock-view="orders"] .input-row input { background: var(--mobile-canvas); border-radius: 10px; }
+body[data-mock-view="orders"] .quick-orders button { padding-inline: 10px; font-size: 11px; }
+body[data-mock-view="orders"] .quick-orders button[aria-pressed="true"] { background: var(--mobile-soft); border-radius: 8px; }
+body[data-mock-view="orders"] .order-list { padding-inline: 14px; }
+body[data-mock-view="orders"] .order-row { min-height: 88px; gap: 12px; }
+body[data-mock-view="orders"] .cup { width: 40px; height: 44px; border-radius: 12px; }
+body[data-mock-view="orders"] .quantity { min-width: 32px; justify-content: flex-end; }
+body[data-mock-view="orders"] .quantity b { font-size: 28px; }
+body[data-mock-view="orders"] .pending { border: 1px solid var(--mobile-line); background: var(--mobile-card); }
+
+/* 채팅: 캐릭터·말풍선·입력창의 간격을 같은 리듬으로 맞춘다. */
+body[data-mock-view="chat"] .avatar { width: 34px; height: 36px; border-radius: 10px; }
+body[data-mock-view="chat"] .avatar img { width: 32px; height: 30px; }
+body[data-mock-view="chat"] .message { gap: 10px; margin-bottom: 18px; }
+body[data-mock-view="chat"] .message-body { max-width: calc(100% - 44px); }
+body[data-mock-view="chat"] .sender { margin-bottom: 6px; }
+body[data-mock-view="chat"] .bubble { padding: 11px 13px; border-radius: 4px 16px 16px; }
+body[data-mock-view="chat"] .mine .message-body { max-width: 88%; }
+body[data-mock-view="chat"] .mine .bubble { border-radius: 16px 4px 16px 16px; }
+body[data-mock-view="chat"] .reaction { margin-top: 6px; border-radius: 10px; }
+body[data-mock-view="chat"] .composer { gap: 8px; background: var(--mobile-card); }
+body[data-mock-view="chat"] .composer textarea { background: var(--mobile-canvas); }
+body[data-mock-view="chat"] .composer .send { background: var(--mobile-accent); color: var(--mobile-on-accent); }
+
+/* 메뉴: 빠른 행동은 큰 아이콘, 설정은 차분한 목록으로 모은다. */
+body[data-mock-view="menu"] .quick-action { min-height: 80px; gap: 10px; padding: 12px; }
+body[data-mock-view="menu"] .tile-icon { width: 36px; height: 40px; border-radius: 12px; }
+body[data-mock-view="menu"] .tile-icon .icon { width: 22px; height: 22px; }
+body[data-mock-view="menu"] .menu-row { min-height: 56px; gap: 12px; padding-inline: 14px; }
+body[data-mock-view="menu"] .row-icon { width: 32px; height: 32px; background: var(--mobile-canvas); }
+body[data-mock-view="menu"] .group .menu-row + .menu-row { border-top: 0; position: relative; }
+body[data-mock-view="menu"] .group .menu-row + .menu-row::before { content: ''; position: absolute; top: 0; left: 58px; right: 14px; height: 1px; background: var(--mobile-line); }
+body[data-mock-view="menu"] .theme-select { padding-inline: 8px; background: var(--mobile-canvas); }
+
+@media(max-width:350px) {
+  .prototype .room-head { padding-inline: 12px; gap: 8px; }
+  .prototype .identity h1 { font-size: 15px; }
+  .prototype .footer { padding-inline: 12px; }
+  .prototype .winner-card { gap: 12px; padding: 12px; }
+  .prototype .winner-visual { width: 76px; height: 76px; }
+  .prototype .winner-visual > img:not(.medal) { width: 68px; height: 60px; }
+  body[data-mock-view="ready"] .chosen-picture { width: 60px; height: 58px; }
+  body[data-mock-view="ready"] .chosen-picture img { width: 56px; height: 50px; }
+  body[data-mock-view="ready"] .lane { height: 38px; }
+  body[data-mock-view="orders"] .my-order { padding: 12px; }
+  body[data-mock-view="orders"] .cup { width: 34px; height: 40px; }
+  body[data-mock-view="orders"] .order-row { gap: 9px; }
+  body[data-mock-view="menu"] .quick-action { gap: 7px; padding: 10px; }
+  body[data-mock-view="menu"] .tile-icon { width: 30px; height: 36px; }
+}

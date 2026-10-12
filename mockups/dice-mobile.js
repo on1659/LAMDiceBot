@@ -3,6 +3,8 @@
   const DEMO = [{ name: '나', fraction: .19, avatar: 'dinosaur' }, { name: '민지', fraction: .86, avatar: 'ninja' }, { name: '수빈', fraction: .54, avatar: 'rabbit' }];
   const RULES = [{ id: 'high', name: '하이', hint: '낮으면 걸림' }, { id: 'low', name: '로우', hint: '높으면 걸림' }, { id: 'near', name: '니어', hint: '가까우면 걸림' }];
   const MAX_VALUES = [6, 100, 1000];
+  const DIE_FACES = [[0, 2, 4, 6, 8], [0, 4, 8]];
+  const DIE_CELLS = 9;
   const DEFAULT_MAX = 100;
   const MAX_TARGET = 100000;
   const state = { rule: 'high', max: DEFAULT_MAX, target: 50, rolled: false };
@@ -30,7 +32,7 @@
       state.rolled = false;
       heading(host, '주사위 준비', '3 / 3 준비');
       const card = el('section', 'card');
-      const art = el('div', 'dice-stack'); art.setAttribute('aria-hidden', 'true'); art.append(el('div', 'dice-cube', '⚄'), el('div', 'dice-cube', '⚂')); card.append(art);
+      const art = el('div', 'dice-stack'); art.setAttribute('aria-hidden', 'true'); DIE_FACES.forEach(positions => { const cube = el('div', 'dice-cube'); for (let index = 0; index < DIE_CELLS; index++) cube.append(el('i', 'dice-pip' + (positions.includes(index) ? '' : ' off'))); art.append(cube); }); card.append(art);
       const title = el('div', 'section-head'); title.append(el('h3', '', '게임 규칙')); card.append(title);
       const rules = el('div', 'dice-rules');
       RULES.forEach(rule => { const button = el('button', 'dice-rule'); button.type = 'button'; button.setAttribute('aria-pressed', String(rule.id === state.rule)); button.append(el('strong', '', rule.name), el('small', '', rule.hint)); button.addEventListener('click', () => { state.rule = rule.id; ui.setStage('ready'); }); rules.append(button); }); card.append(rules);

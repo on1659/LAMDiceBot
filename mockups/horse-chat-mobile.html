@@ -9,7 +9,6 @@
   <script src="/mockups/horse-mobile-theme.js"></script>
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
-  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css">
   <style>
     /* 독립 채팅 목업. 메시지 전송·반응은 이 화면 안에서만 동작한다. */
     * { box-sizing: border-box; }
@@ -92,8 +91,9 @@
     @media(max-height:600px) { .ad { display: none; } .chat-head { min-height: 36px; margin-block: 6px; } }
     @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none !important; transition: none !important; } button:active:not(:disabled) { transform: none; } }
   </style>
+  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css?v=polish-2">
 </head>
-<body>
+<body data-mock-view="chat">
   <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
