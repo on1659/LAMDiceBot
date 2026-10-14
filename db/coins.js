@@ -31,9 +31,10 @@ async function ensureWallet(userId) {
 }
 
 // 적립 (양수 delta). 멱등: 같은 (userId, ref, reason)이 이미 있으면 스킵.
-// 트랜잭션: 원장 INSERT → 실제 들어갔을 때만 잔고 UP.
-// 반환: { ok, balance, granted } (granted=false면 멱등 스킵).
-async function grant(userId, delta, reason, ref) {
+// max 를 주면 잔고가 max 를 넘지 않게 넘는 만큼은 버린다(이월 없음) — 원장엔 실제 넣은 양(0 이어도)을 적어 ref 는 소비된다.
+// 트랜잭션: 지갑 행 잠금 → 원장 INSERT → 실제 들어갔을 때만 잔고 UP.
+// 반환: { ok, balance, granted, amount } (granted=false면 멱등 스킵, amount = 이번에 실제 넣은 양).
+async function grant(userId, delta, reason, ref, max) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(delta) || delta <= 0) {
         return { ok: false, balance: 0, granted: false };
@@ -47,28 +48,27 @@ async function grant(userId, delta, reason, ref) {
              ON CONFLICT (user_id) DO NOTHING`,
             [userId, SEED_COINS]
         );
+        // 잔고 행 잠금 — 상한 계산과 UPDATE 사이에 다른 적립이 끼지 않게
+        const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1 FOR UPDATE', [userId]);
+        let balance = cur.rows[0].balance;
+        const amount = Number.isFinite(max) ? Math.max(0, Math.min(delta, max - balance)) : delta;
         // 원장 멱등 INSERT
         const led = await client.query(
             `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)
              ON CONFLICT (user_id, ref, reason) WHERE ref IS NOT NULL DO NOTHING
              RETURNING id`,
-            [userId, delta, reason, ref || null]
+            [userId, amount, reason, ref || null]
         );
-        let balance;
-        if (led.rowCount > 0) {
+        if (led.rowCount > 0 && amount > 0) {
             const upd = await client.query(
                 `UPDATE user_coins SET balance = balance + $1, updated_at = NOW()
                  WHERE user_id = $2 RETURNING balance`,
-                [delta, userId]
+                [amount, userId]
             );
             balance = upd.rows[0].balance;
-        } else {
-            // 멱등 스킵 — 현재 잔고만 조회
-            const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1', [userId]);
-            balance = cur.rows[0].balance;
         }
         await client.query('COMMIT');
-        return { ok: true, balance, granted: led.rowCount > 0 };
+        return { ok: true, balance, granted: led.rowCount > 0, amount: led.rowCount > 0 ? amount : 0 };
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
