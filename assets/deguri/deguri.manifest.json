@@ -5846,5 +5846,599 @@
       "pieces/trampoline-stub.webp": "0dced8447a08a54d8710cfba67f815eb",
       "fx/trampoline-burst.webp": "0c5eb9bfa30ab63699b36bcc2db859b2"
     }
+  },
+  "skinPandaMochi": {
+    "batch": "deguri-skin-panda-mochi-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main/sleep/scuffle attempt-01 채택. verify multi-run r3c0 는 테두리 1px 틈(기본 판다도 같은 종류 FAIL) 허용",
+    "assets": {
+      "panda-mochi": {
+        "image": "creatures/panda-mochi.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/panda-mochi.webp",
+        "md5": "bd850188f3012f5c595822a19fc647e9",
+        "qaStatus": "PASS"
+      },
+      "panda-mochi-sleep": {
+        "image": "creatures/panda-mochi-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-mochi-sleep.webp",
+        "md5": "2da26707ce6c62935b0d41042ab955ff",
+        "qaStatus": "PASS"
+      },
+      "panda-mochi-scuffle": {
+        "image": "creatures/panda-mochi-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-mochi-scuffle.webp",
+        "md5": "4f8635d184a6d0b61a0d981a7bf5c80d",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinHamsterHachi": {
+    "batch": "deguri-skin-hamster-hachi-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main/sleep/scuffle attempt-01 채택(1차 디자인 그대로, 사용자 '쟤도 쓰자')",
+    "assets": {
+      "hamster-hachi": {
+        "image": "creatures/hamster-hachi.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/hamster-hachi.webp",
+        "md5": "ce2cbbe3f75e2a883514f61f2127d8cc",
+        "qaStatus": "PASS"
+      },
+      "hamster-hachi-sleep": {
+        "image": "creatures/hamster-hachi-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-hachi-sleep.webp",
+        "md5": "1434cde09f1834f313f7747392d68df4",
+        "qaStatus": "PASS"
+      },
+      "hamster-hachi-scuffle": {
+        "image": "creatures/hamster-hachi-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-hachi-scuffle.webp",
+        "md5": "b351cd1b2f263b28e82f7eea2903da22",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaMalang": {
+    "batch": "deguri-skin-panda-malang-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main/sleep/scuffle attempt-01 채택. verify multi-run r4c0 는 부딪힘 표시선(기본 판다도 같은 종류) 허용",
+    "assets": {
+      "panda-malang": {
+        "image": "creatures/panda-malang.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/panda-malang.webp",
+        "md5": "62014ce3ff2d27f7a9d972d63037bff2",
+        "qaStatus": "PASS"
+      },
+      "panda-malang-sleep": {
+        "image": "creatures/panda-malang-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-malang-sleep.webp",
+        "md5": "400084c5019eab859f01b9f4915c2cfd",
+        "qaStatus": "PASS"
+      },
+      "panda-malang-scuffle": {
+        "image": "creatures/panda-malang-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-malang-scuffle.webp",
+        "md5": "3d596a5be5c155b0b91082458c2a64c7",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRabbitUra": {
+    "batch": "deguri-skin-rabbit-ura-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main/sleep/scuffle attempt-01 채택. verify: 서기 131px(신사 토끼와 같음)·scuffle r1c3 귀 끝 1px 틈 허용, 공은 기본 토끼와 같은 120x108",
+    "assets": {
+      "rabbit-ura": {
+        "image": "creatures/rabbit-ura.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/rabbit-ura.webp",
+        "md5": "12ab85e25d1bf1df5fef90c452abd7c0",
+        "qaStatus": "PASS"
+      },
+      "rabbit-ura-sleep": {
+        "image": "creatures/rabbit-ura-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-ura-sleep.webp",
+        "md5": "b9ddccd9d69b1a920969fbaa7060498a",
+        "qaStatus": "PASS"
+      },
+      "rabbit-ura-scuffle": {
+        "image": "creatures/rabbit-ura-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-ura-scuffle.webp",
+        "md5": "34548df7f4cfa88d0d96a1d4ac40f894",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinHamsterNyang": {
+    "batch": "deguri-skin-hamster-nyang-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main/sleep/scuffle attempt-01 채택. verify multi-run r0c0 는 뾰족한 고양이 귀 두 끝(의도) 허용",
+    "assets": {
+      "hamster-nyang": {
+        "image": "creatures/hamster-nyang.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/hamster-nyang.webp",
+        "md5": "ef5ae50178334ee7fd145233c58eb411",
+        "qaStatus": "PASS"
+      },
+      "hamster-nyang-sleep": {
+        "image": "creatures/hamster-nyang-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-nyang-sleep.webp",
+        "md5": "de802eabfd03c7460bafe5d1e16b3354",
+        "qaStatus": "PASS"
+      },
+      "hamster-nyang-scuffle": {
+        "image": "creatures/hamster-nyang-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-nyang-scuffle.webp",
+        "md5": "1e63653445fe116c48b8d2f2b5b278ec",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRabbitYaho": {
+    "batch": "deguri-skin-rabbit-yaho-2026-10-15",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-15-deguri-skin-chiikawa.md",
+    "note": "main·scuffle attempt-01, sleep attempt-02(01은 잠든 칸 눈 뜸·소리침으로 반려). verify multi-run r3c0 1px 틈 허용",
+    "assets": {
+      "rabbit-yaho": {
+        "image": "creatures/rabbit-yaho.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/rabbit-yaho.webp",
+        "md5": "90c695f85991ba71b00b6dc3a428e67a",
+        "qaStatus": "PASS"
+      },
+      "rabbit-yaho-sleep": {
+        "image": "creatures/rabbit-yaho-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-yaho-sleep.webp",
+        "md5": "62fb94f1e302115e4c2ec0c14732bb69",
+        "qaStatus": "PASS"
+      },
+      "rabbit-yaho-scuffle": {
+        "image": "creatures/rabbit-yaho-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-yaho-scuffle.webp",
+        "md5": "7fb4b766e3e0049b5cbaf0c264397bc2",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

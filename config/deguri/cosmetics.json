@@ -33,7 +33,13 @@
     {"id": "deguri_skin_turtle_gpu", "name": "5090 블랙 에디션", "displayName": "거북이 5090 블랙 에디션", "rarity": "legend", "emoji": "🖥️", "price": 150, "creature": "turtle", "skin": "gpu", "theme": "5090", "desc": "등딱지 대신 검은 그래픽카드를 통째로 지고 다니는 거북이. 배에는 금색 단자가 반짝. 거북이를 고르면 적용돼요."},
     {"id": "deguri_skin_panda_dot", "name": "도트", "displayName": "도트 판다", "rarity": "rare", "emoji": "👾", "price": 50, "creature": "panda", "skin": "dot", "desc": "옛날 게임기에서 튀어나온 듯 굵은 도트로 찍은 판다. 판다를 고르면 적용돼요."},
     {"id": "deguri_skin_hamster_dot", "name": "도트", "displayName": "도트 햄스터", "rarity": "rare", "emoji": "🕹️", "price": 50, "creature": "hamster", "skin": "dot", "desc": "옛날 게임기에서 튀어나온 듯 굵은 도트로 찍은 햄스터. 햄스터를 고르면 적용돼요."},
-    {"id": "deguri_skin_panda_honey", "name": "꿀곰", "displayName": "꿀곰", "rarity": "legend", "emoji": "🍯", "price": 150, "creature": "panda", "skin": "honey", "desc": "머리에 꿀을 뒤집어쓰고 꿀단지를 멘 노란 곰. 단지 위엔 꿀벌 한 마리가 앉아 있어요. 공이 되면 꿀이 흐르는 황금 공! 판다를 고르면 적용돼요."}
+    {"id": "deguri_skin_panda_honey", "name": "꿀곰", "displayName": "꿀곰", "rarity": "legend", "emoji": "🍯", "price": 150, "creature": "panda", "skin": "honey", "desc": "머리에 꿀을 뒤집어쓰고 꿀단지를 멘 노란 곰. 단지 위엔 꿀벌 한 마리가 앉아 있어요. 공이 되면 꿀이 흐르는 황금 공! 판다를 고르면 적용돼요."},
+    {"id": "deguri_skin_panda_mochi", "name": "찹쌀떡", "displayName": "찹쌀떡 판다", "rarity": "common", "emoji": "🍡", "price": 30, "creature": "panda", "skin": "mochi", "desc": "검은 무늬가 사라져 온몸이 찹쌀떡처럼 뽀얀 판다. 귀는 분홍빛이에요. 판다를 고르면 적용돼요."},
+    {"id": "deguri_skin_hamster_hachi", "name": "갈래머리", "displayName": "갈래머리 햄스터", "rarity": "common", "emoji": "💙", "price": 30, "creature": "hamster", "skin": "hachi", "desc": "머리와 등이 푸른 회색으로 물든 하얀 햄스터. 햄스터를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_yaho", "name": "야호", "displayName": "야호 토끼", "rarity": "rare", "emoji": "📣", "price": 50, "creature": "rabbit", "skin": "yaho", "desc": "노란 털에 입을 쩍 벌리고 신나서 소리치는 토끼. 토끼를 고르면 적용돼요."},
+    {"id": "deguri_skin_panda_malang", "name": "말랑이", "displayName": "말랑이", "rarity": "rare", "emoji": "☁️", "price": 50, "creature": "panda", "skin": "malang", "desc": "작고 둥근 흰 귀에 까만 점 눈, 빗금 볼터치를 한 동글동글 하얀 아이. 판다를 고르면 적용돼요."},
+    {"id": "deguri_skin_hamster_nyang", "name": "냥냥이", "displayName": "냥냥이", "rarity": "epic", "emoji": "🐱", "price": 100, "creature": "hamster", "skin": "nyang", "desc": "뾰족한 고양이 귀에 이마가 갈라진 하늘색 머리털을 한 하얀 냥이. 공이 되면 귀 끝이 쫑긋! 햄스터를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_ura", "name": "우라", "displayName": "우라 토끼", "rarity": "rare", "emoji": "🗯️", "price": 50, "creature": "rabbit", "skin": "ura", "desc": "까만 점 눈에 입을 한껏 벌리고 소리 지르는 연노랑 토끼. 토끼를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
