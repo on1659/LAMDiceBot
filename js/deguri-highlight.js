@@ -35,7 +35,7 @@
     };
     var BUTTON_SHOW = '<i class="mi mi-play"></i> 하이라이트 보기', BUTTON_RANKING = '<i class="mi mi-list"></i> 순위 보기';   // 상수 문자열만 innerHTML(사용자 입력 없음)
 
-    function $(id) { return document.getElementById(id); }
+    function $(id) { return window.deguriEl ? window.deguriEl(id) : document.getElementById(id); }   // 결과 카드가 PiP 작은 창에 가 있을 수 있다(js/deguri.js deguriEl)
 
     var socket = null, opts = null, els = null;
     var cur = null;        // { rid, source, arm, clips, facts, reasons, status:'rendering'|'ready'|'failed', blob, url, size, totalMs, timer, enc, vote, saved, autoPlayed }
@@ -49,7 +49,7 @@
         var view = $('deguriHighlightView'), row = $('deguriHighlightButtons');
         if (!view || !row) return null;
         els = { view: view, row: row, gif: $('deguriHighlightGif'), making: $('deguriHighlightMaking'), note: $('deguriHighlightNote'), up: $('deguriHighlightUp'), down: $('deguriHighlightDown'),
-            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: document.querySelector('#resultOverlay .deguri-result-card'), body: $('resultRankings'),
+            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: $('resultOverlay') && $('resultOverlay').querySelector('.deguri-result-card'), body: $('resultRankings'),
             end: $('deguriHighlightEnd'), replay: $('deguriHighlightReplay'), close: $('deguriHighlightClose'), ask: $('deguriHighlightAsk') };
         els.replay.addEventListener('click', function () { stopAuto(); play(); });
         els.close.addEventListener('click', function () { stopAuto(); show(false); });

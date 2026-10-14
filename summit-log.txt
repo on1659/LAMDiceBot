@@ -1,4 +1,30 @@
 ========================================
+📋 Summit Log - 2026-10-14 오후 (데구리 PiP 안 결과·다시 보기 + 테스트 서버 내용 실서버 반영)
+========================================
+
+## 변경 파일
+- js/deguri.js: PiP 를 열면 캔버스와 함께 #resultOverlay·#deguriAfterRace(다시 보기·다음 판 준비)도 PiP 문서로 옮기고(주석 자리) 닫으면 되돌림(DEGURI_PIP_MOVE_IDS) / deguriEl(id) — 이 문서에 없으면 PiP 문서에서 찾기, closeResultOverlay·showResultOverlay·showAfterRace·setReplayUi·결과 아이콘 애니가 사용, window.deguriEl 노출 / PiP 스타일 복사를 link cloneNode → 같은 출처 시트는 cssRules 글자를 <style> 로, 다른 출처(글꼴)만 절대 주소 <link>(상대 주소 /css/… 시트가 PiP 문서에서 안 읽혀 결과 카드가 맨 글자로 나옴) / PiP 안 #deguriAfterRace 는 창 아래 고정 / 결과 아이콘 애니 타이머를 PiP 창에 걸고(가려진 탭 1초 스로틀 회피) 닫을 때 다시 시작 / 다시 보기·다음 판 준비·결과 [확인] 버튼은 addEventListener 로
+- js/deguri-highlight.js: $ 가 window.deguriEl 로 찾고 카드도 $('resultOverlay').querySelector — 결과 카드가 PiP 에 가 있어도 하이라이트 동작
+- deguri-multiplayer.html: 세 버튼 인라인 onclick 제거(#deguriResultClose id), 버전 deguri.js v58·deguri-highlight.js v6
+- mockups/ladder-mobile.*·spin-arena-mobile.*·rope-climb.html: 다른 세션의 목업 파일(새 파일만) 함께 커밋
+- docs/goal/{live-mobile-mockup-application,mobile-entry-first-screen,mobile-mockups-polish}.md → docs/goal/applied/ (+ all-games-mobile-mockups.md)
+
+## 상세 변경 내역
+
+### PiP 안 결과 카드·다시 보기 (사용자 2026-10-14: "PiP 일 때도 결과를 봐야 다시 보기도 보지")
+- 인라인 onclick 은 처음 눌린 창의 전역으로 굳는다 — PiP 에서 [경주 다시 보기]를 한 번 누르고 닫으면 원래 화면에서 닫힌 창의 함수를 불러 버튼이 죽었다(실측). 옮겨 다니는 버튼은 addEventListener 로만
+- 속도: 경주 중 렌더 횟수 일반 화면 43~48/초 → PiP 51~58/초(원래 탭 가림 52~60), 프레임당 0.4ms 대 — PiP 가 느리지 않다
+
+### 실서버 반영 (사용자 2026-10-14: "테섭에 있는 것도 다 푸시해")
+- feature/marble-run 의 미배포분 전부 main 으로: 모바일 실제 게임 UI 적용(75992e60)·로비 첫 화면 게임 선택(43439bc7)·목업(f331fb6a·5af7f889)·하이라이트 겹침 판 크기(0284b3df)·데구리 전체화면 결과/PiP(ccda38a1)·코인 상한 300(a4c4308f = main 052c738c 와 같은 패치)
+
+### 검증
+- playwright(창 모드): PiP 결과 카드 창 안·맨 위·순위 6줄, 하이라이트 준비·자동 재생, [확인] 닫힘, 창 아래 [경주 다시 보기]·재생·[그만 보기], 닫으면 전부 원위치, 닫은 뒤 원래 화면 다시 보기 동작, 오류 0 — 반복 4회 중 기능 실패 0(playwright 의 PiP 스크린샷 글꼴 대기 타임아웃은 도구 쪽)
+- 전체화면 결과 테스트·qa-deguri-highlight-test ALL PASS, 색 리터럴 검사 통과
+
+========================================
+
+========================================
 📋 Summit Log - 2026-10-14 (데구리 — 전체화면 결과 카드 + PiP 작은 창)
 ========================================
 

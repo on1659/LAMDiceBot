@@ -403,10 +403,11 @@
                     <span id="deguriReplayTime" class="deguri-replay-bar__time">0:00 / 0:00</span>
                     <span class="deguri-replay-bar__gif"><span id="deguriGifStatus" class="deguri-gif-status" aria-live="polite"></span><button type="button" id="deguriGifCancel" class="deguri-gif-cancel" hidden>취소</button><button type="button" id="deguriGifButton" class="deguri-gif-button"><span class="deguri-gif-button__dot" aria-hidden="true"></span>GIF 녹화</button></span>
                 </div>
-                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
+                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다.
+                     PiP 작은 창으로 옮겨 다닌다 — 인라인 onclick 금지(처음 눌린 창의 전역으로 굳는다), js/deguri.js 가 addEventListener 로 단다 -->
                 <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
-                    <button type="button" class="deguri-after-btn" id="deguriReplayButton" onclick="replayRace()"><i class="mi mi-play"></i> 경주 다시 보기</button>
-                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" onclick="resetDeguriRound()" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
+                    <button type="button" class="deguri-after-btn" id="deguriReplayButton"><i class="mi mi-play"></i> 경주 다시 보기</button>
+                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
                 </div>
                 <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
                 <div id="deguriOrderRow" class="deguri-after-race" style="display: none;">
@@ -467,7 +468,7 @@
                 <button type="button" class="deguri-result-btn deguri-result-btn--small" id="deguriHighlightSave" hidden>GIF 저장</button>
             </div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button type="button" class="deguri-result-btn" onclick="closeResultOverlay()">확인</button>
+                <button type="button" class="deguri-result-btn" id="deguriResultClose">확인</button>
             </div>
         </div>
     </div>
@@ -544,8 +545,8 @@
     <script src="/js/deguri-gacha.js?v=47"></script>
     <script src="/js/deguri-render.js?v=pip-1"></script>
     <script src="/js/deguri-replay-gif.js?v=3"></script>
-    <script src="/js/deguri-highlight.js?v=5"></script>
-    <script src="/js/deguri.js?v=56"></script>
+    <script src="/js/deguri-highlight.js?v=6"></script>
+    <script src="/js/deguri.js?v=58"></script>
 
     <script>
         // ============================================
