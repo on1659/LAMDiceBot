@@ -51,6 +51,10 @@ const STAY_COIN_MS = 5 * 60 * 1000;
 // 매일 코인 = 뽑기 1번(한국 날짜당 1회). 머문 시간 보상은 손님과 같은 계산이지만 계정당 하루 STAY_DAILY_MAX 번까지(방·탭을 합쳐 +60).
 const DAILY_COIN = GACHA_PRICE;
 const STAY_DAILY_MAX = 6;
+// 지갑 상한(사용자 2026-10-14: 300 이상 안 쌓이게) — 매일·머문 시간·한 판 보상이 상한을 넘기면 넘는 만큼은 안 들어온다(이월 없음).
+// 구매·뽑기 환급은 상한과 무관. 내부 테스트는 입장 코인이 200만이라 상한을 두지 않는다
+const WALLET_MAX_LIVE = 300;
+const WALLET_MAX = DEV_GAMES_ENABLED ? Infinity : WALLET_MAX_LIVE;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
@@ -116,7 +120,7 @@ function stayUnits(w, user, now) {
 }
 // 머문 시간 보상을 방 지갑에 반영(손님)
 function accrueStay(w, user, now) {
-    w.balance += stayUnits(w, user, now) * STAY_COIN;
+    w.balance = Math.min(WALLET_MAX, w.balance + stayUnits(w, user, now) * STAY_COIN);
     return w;
 }
 // 접속한 사람의 방 지갑(머문 시간 보상 반영). user = gameState.users 항목
@@ -188,9 +192,9 @@ async function refreshOwned(w, userId) {
 async function grantDaily(w, userId, now) {
     const day = kstDay(now);
     if (w.dailyDay === day) return 0;
-    const r = await coins.grant(userId, DAILY_COIN, 'deguri-daily', day);
+    const r = await coins.grant(userId, DAILY_COIN, 'deguri-daily', day, WALLET_MAX);
     w.dailyDay = day;
-    return r.granted ? DAILY_COIN : 0;
+    return r.granted ? r.amount : 0;
 }
 // 머문 시간 보상(계정) — 칸 수는 손님과 같고, 하루 STAY_DAILY_MAX 번까지만. 원장 ref '날짜#1'~'#6' 이 방·탭을 합친 상한이다(넘친 칸은 버린다).
 // 반환 = 이번에 넣은 칸 수. w.staySlot > STAY_DAILY_MAX 면 오늘 몫을 다 받았다
@@ -199,7 +203,7 @@ async function grantAccountStay(w, user, userId, now) {
     if (w.stayDay !== day) { w.stayDay = day; w.staySlot = 1; }
     let left = stayUnits(w, user, now), granted = 0;
     while (left > 0 && w.staySlot <= STAY_DAILY_MAX) {
-        const r = await coins.grant(userId, STAY_COIN, 'deguri-stay', day + '#' + w.staySlot);
+        const r = await coins.grant(userId, STAY_COIN, 'deguri-stay', day + '#' + w.staySlot, WALLET_MAX);
         w.staySlot++;
         if (r.granted) { left--; granted++; }
     }
@@ -264,7 +268,7 @@ function gachaNotice(io, room, gameState, message) {
 // stayNextMs = 다음 머문 시간 보상까지 남은 ms(클라 안내용)
 function walletView(mb, user) {
     const w = userWallet(mb, user);
-    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: Math.max(0, w.stayFrom + STAY_COIN_MS - Date.now()) };
+    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: w.balance >= WALLET_MAX ? null : Math.max(0, w.stayFrom + STAY_COIN_MS - Date.now()) };
 }
 // 클라 공용 형식 { slot: id } — 안 낀 슬롯은 키 자체를 뺀다(ShopModule 이 그렇게 읽는다)
 // 클라(ShopModule)가 '장착중' 표시에 쓴다. 한 슬롯에 여러 개가 동시에 장착될 수 있으면 배열로 준다.
@@ -374,14 +378,14 @@ function awardRaceCoins(io, room, gameState, mb) {
         if (!u) continue;
         if (u.authedUserId) { awardAccountRace(io, room, mb, u); continue; }
         const w = userWallet(mb, u);
-        w.balance += COIN_RACE_JOIN;
+        w.balance = Math.min(WALLET_MAX, w.balance + COIN_RACE_JOIN);
         io.to(u.id).emit('wallet:updated', { balance: w.balance });
     }
 }
 async function awardAccountRace(io, room, mb, u) {
     const userId = u.authedUserId;
     try {
-        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + mb.seed);
+        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + mb.seed, WALLET_MAX);
         const w = loadedAccount(mb, u.name, userId);
         if (w) await grantAccountStay(w, u, userId, Date.now());
         io.to(u.id).emit('wallet:updated', { balance: await coins.getBalance(userId) });
@@ -685,9 +689,9 @@ module.exports = (socket, io, ctx) => {
         if (daily) socket.emit('newMessage', { userName: '시스템', message: `오늘의 코인 +${daily}이 들어왔어요`, time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }), isHost: false, isSystemMessage: true, isSystem: true });
         return { w, balance, stayDone: w.staySlot > STAY_DAILY_MAX };
     }
-    // 계정 지갑 응답 — 손님 walletView 와 같은 모양. 오늘 머문 시간 보상을 다 받았으면 stayNextMs = null
+    // 계정 지갑 응답 — 손님 walletView 와 같은 모양. 오늘 머문 시간 보상을 다 받았거나 잔고가 상한이면 stayNextMs = null
     function accountView(s, mb, user) {
-        return { balance: s.balance, owned: s.w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: s.stayDone ? null : Math.max(0, s.w.stayFrom + STAY_COIN_MS - Date.now()) };
+        return { balance: s.balance, owned: s.w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: (s.stayDone || s.balance >= WALLET_MAX) ? null : Math.max(0, s.w.stayFrom + STAY_COIN_MS - Date.now()) };
     }
 
     // 동물 선택 (idle·finished 단계, 준비 여부 무관 — 선택 → 준비 순서)
@@ -1034,6 +1038,7 @@ module.exports.start = startDeguri;
 // 테스트(AutoTest/qa-deguri-skin-shop-test.js)용
 module.exports.awardRaceCoins = awardRaceCoins;
 module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;
+module.exports.WALLET_MAX_LIVE = WALLET_MAX_LIVE;
 module.exports.ROOM_SEED_COINS = ROOM_SEED_COINS;
 module.exports.GACHA_PRICE = GACHA_PRICE;
 module.exports.GACHA_REFUND = GACHA_REFUND;
