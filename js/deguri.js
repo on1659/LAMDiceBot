@@ -276,6 +276,11 @@ window.addEventListener('DOMContentLoaded', function () {
         renderer.setHighlight(getMyHighlight());
         renderer.onIdleMove(moveMyStart);   // 대기 화면에서 출발대를 누르면 내 동물이 그 자리로
         updateHighlightButton();
+        if ('documentPictureInPicture' in window) {   // PiP 를 지원하는 데스크톱 브라우저만 [작은 창] 버튼
+            var pipBtn = document.getElementById('deguriPipBtn');
+            if (pipBtn) pipBtn.hidden = false;
+            if (typeof SoundManager !== 'undefined' && SoundManager.setFocusBypass) SoundManager.setFocusBypass(deguriPipOpen);   // 원래 탭이 가려져도 PiP 로 보는 중이면 소리
+        }
         DeguriRender.loadAssets(function () {
             assetsLoaded = true;
             document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
@@ -294,7 +299,7 @@ window.addEventListener('DOMContentLoaded', function () {
         window.addEventListener('resize', onResizeDebounced);
         window.addEventListener('orientationchange', onResizeDebounced);
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
-        var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
+        var onFsChange = function () { syncResultOverlayHost(); onResize(); setTimeout(onResize, FS_SETTLE_MS); };
         document.addEventListener('fullscreenchange', onFsChange);
         document.addEventListener('webkitfullscreenchange', onFsChange);
     }
@@ -445,11 +450,78 @@ function toggleDeguriFullscreen() {
     if (box.requestFullscreen) box.requestFullscreen().catch(function () {});
     else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
 }
+// 결과 카드는 페이지 맨 아래(#resultOverlay)라 전체화면에선 안 보인다(전체화면 = 캔버스 박스만 화면에 뜬다, 의사 전체화면은 박스 z-index 가 더 높다).
+// 전체화면인 동안만 박스 안으로 옮기고, 나오면 주석 자리로 되돌린다(경마 moveResultUiToCanvas 와 같은 방식, 사용자 2026-10-14)
+var resultOverlayHome = null;
+function syncResultOverlayHost() {
+    var box = document.getElementById('deguriCanvasBox'), overlay = document.getElementById('resultOverlay');
+    if (!box || !overlay) return;
+    var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+    var inFs = fsEl === box || box.classList.contains('is-pseudo-fs');
+    if (inFs && overlay.parentNode !== box) {
+        if (!resultOverlayHome) { resultOverlayHome = document.createComment('resultOverlay-placeholder'); overlay.parentNode.insertBefore(resultOverlayHome, overlay); }
+        box.appendChild(overlay);
+    } else if (!inFs && resultOverlayHome) {
+        resultOverlayHome.parentNode.insertBefore(overlay, resultOverlayHome);
+        resultOverlayHome.remove(); resultOverlayHome = null;
+    }
+}
+
+// PiP 작은 창 — Document Picture-in-Picture(데스크톱 크롬·엣지). 캔버스만 세로 창으로 옮긴다(사용자 2026-10-14 "세로형").
+// 폭이 NARROW_PX(600) 미만이라 렌더러가 폰과 같은 세로 카메라로 그린다. 박스째 옮기지 않는 이유: 박스 안 배지·투표 막대는 document.getElementById 로 찾는다(PiP 문서에선 못 찾음).
+// 원래 자리엔 안내 문구가 남고, 창을 닫으면(창의 탭으로 돌아가기 버튼 포함) 캔버스가 돌아온다
+var DEGURI_PIP_W = 360, DEGURI_PIP_H = 640;
+var deguriPipWin = null, deguriPipOpening = false;
+function deguriPipOpen() { return !!(deguriPipWin && !deguriPipWin.closed); }
+function toggleDeguriPip() {
+    if (deguriPipOpen()) { deguriPipWin.close(); return; }
+    if (!('documentPictureInPicture' in window) || deguriPipOpening) return;
+    var box = document.getElementById('deguriCanvasBox'), canvas = document.getElementById('deguriCanvas');
+    if (!box || !canvas || !renderer) return;
+    deguriPipOpening = true;
+    documentPictureInPicture.requestWindow({ width: DEGURI_PIP_W, height: DEGURI_PIP_H }).then(function (pipWin) {
+        deguriPipOpening = false;
+        deguriPipWin = pipWin;
+        var pdoc = pipWin.document;
+        // 스타일·글꼴(Jua — 캔버스 글자도 이 문서의 글꼴을 쓴다)·스킨 속성을 그대로 가져간다
+        document.querySelectorAll('link[rel="stylesheet"], style').forEach(function (n) { pdoc.head.appendChild(n.cloneNode(true)); });
+        ['data-theme', 'data-skin'].forEach(function (a) { var v = document.documentElement.getAttribute(a); if (v) pdoc.documentElement.setAttribute(a, v); });
+        var fix = pdoc.createElement('style');
+        fix.textContent = 'body{margin:0;overflow:hidden;background:var(--deguri-fullscreen-bg);}#deguriCanvas{display:block;border-radius:0;}';
+        pdoc.head.appendChild(fix);
+        var note = document.createElement('div');
+        note.className = 'deguri-pip-note';
+        note.textContent = '작은 창에서 보는 중이에요';   // 되돌리기는 바로 위 도구 줄 [원래 화면으로]
+        box.insertBefore(note, canvas);
+        box.classList.add('is-pip');
+        pdoc.body.appendChild(canvas);
+        renderer.rehost();
+        var fitPip = function () { renderer.resize(); if (!isDeguriActive && !replaying && assetsLoaded) renderer.drawIdle(deguriState.preview, currentUser); };
+        fitPip();
+        pipWin.addEventListener('resize', fitPip);
+        pipWin.addEventListener('pagehide', function () {
+            box.insertBefore(canvas, note);
+            note.remove();
+            box.classList.remove('is-pip');
+            deguriPipWin = null;
+            renderer.rehost();
+            fitPip();
+            updatePipButton();
+        }, { once: true });
+        updatePipButton();
+    }).catch(function () { deguriPipOpening = false; });
+}
+function updatePipButton() {
+    var btn = document.getElementById('deguriPipBtn'), fsBtn = document.getElementById('deguriFullscreenOpenBtn');
+    if (btn) btn.innerHTML = deguriPipOpen() ? '<i class="ui ui-tv"></i> 원래 화면으로' : '<i class="ui ui-tv"></i> 작은 창';
+    if (fsBtn) fsBtn.hidden = deguriPipOpen();   // 캔버스가 PiP 에 가 있는 동안 전체화면은 빈 박스만 띄운다
+}
 window.startDeguri = startDeguri;
 window.pickCreature = pickCreature;
 window.setDeguriCrowd = setDeguriCrowd;
 window.setDeguriRandomTrack = setDeguriRandomTrack;
 window.toggleDeguriFullscreen = toggleDeguriFullscreen;
+window.toggleDeguriPip = toggleDeguriPip;
 
 function escapeHtml(str) {
     if (str == null) return '';
@@ -1194,7 +1266,7 @@ function replayRace() {
     renderer.onFinale(function () {});
     renderer.play(0);
     // GIF 녹화기는 처음 다시 볼 때 한 번 만든다(조작줄·대화상자에 이벤트를 단다). 재생 제어는 위 함수들 — 끝 타이머도 같이 다시 건다
-    if (!replayGif && window.DeguriReplayGif) replayGif = DeguriReplayGif.create({
+    if (!replayGif && window.DeguriReplayGif && !deguriPipOpen()) replayGif = DeguriReplayGif.create({   // PiP 중엔 캔버스가 이 문서에 없어 만들기가 실패(버튼 영영 숨김)한다 — 닫은 뒤 다시 볼 때 만든다
         time: function () { return renderer.time(); },
         duration: function () { return deguriState.reveal ? deguriState.reveal.durationMs : 0; },
         seekTo: seekReplay,

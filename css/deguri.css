@@ -1024,6 +1024,21 @@
 body.deguri-pseudo-fs {
     overflow: hidden;
 }
+/* PiP 작은 창(js/deguri.js toggleDeguriPip) — 캔버스가 창으로 가 있는 동안 박스엔 안내 줄만. 카메라 버튼·알약은 캔버스 없이 떠 있게 되니 숨긴다 */
+.deguri-pip-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    padding: 16px;
+    color: var(--deguri-ink);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+}
+#deguriCanvasBox.is-pip .deguri-cam-btn,
+#deguriCanvasBox.is-pip .deguri-zoom-pill {
+    display: none;
+}
 
 /* ===== 모바일 ===== */
 @media (max-width: 600px) {

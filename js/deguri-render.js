@@ -410,6 +410,11 @@ var DeguriRender = (function () {
         var lastFrameWall = 0;
         var startWall = 0;        // 재생 기준 performance.now()
         var rafId = null;
+        // rAF 는 캔버스가 지금 있는 창에 건다 — PiP 작은 창(js/deguri.js toggleDeguriPip)에 가 있으면 그 창. 원래 탭이 가려져 멈춰도 PiP 창 프레임은 돈다
+        var rafWin = window, rafLoop = null;
+        function canvasWin() { return (canvas.ownerDocument && canvas.ownerDocument.defaultView) || window; }
+        function raf(loop) { rafLoop = loop; rafWin = canvasWin(); return rafWin.requestAnimationFrame(loop); }
+        function cancelRaf() { try { rafWin.cancelAnimationFrame(rafId); } catch (e) {} }   // 닫히는 PiP 창이면 던질 수 있다
         var hudInfo = { remaining: 0, rows: [] };
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
@@ -425,18 +430,20 @@ var DeguriRender = (function () {
         R.resize = function () {
             var box = canvas.parentElement;
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
-            var fs = (!!fsEl && (fsEl === box || fsEl === canvas)) || (!!box && box.classList.contains('is-pseudo-fs'));   // is-pseudo-fs = 전체화면 API 가 없는 아이폰용 의사 전체화면(js/deguri.js toggleDeguriFullscreen)
+            var win = canvasWin();
+            var fs = (!!fsEl && (fsEl === box || fsEl === canvas)) || (!!box && box.classList.contains('is-pseudo-fs'))   // is-pseudo-fs = 전체화면 API 가 없는 아이폰용 의사 전체화면(js/deguri.js toggleDeguriFullscreen)
+                || win !== window;   // PiP 작은 창(js/deguri.js toggleDeguriPip) — 창을 꽉 채우고, 캔버스 밖 HTML 이 안 보이는 것도 전체화면과 같다
             if (!fs) { canvas.style.width = ''; canvas.style.height = ''; }   // 전체화면에서 남은 인라인 크기가 박스 폭 측정에 끼지 않게
             var cssW = box ? box.clientWidth : canvas.clientWidth;
             if (!cssW) cssW = TRACK_W;   // display:none 상태(대기 중) — 0폭이면 논리폭으로 (NaN 방지)
             var cssH;
-            if (fs) { cssW = window.innerWidth; cssH = window.innerHeight; }
+            if (fs) { cssW = win.innerWidth; cssH = win.innerHeight; }
             else {
                 // The live mobile layout supplies a portrait ratio. Preview/desktop keep the native camera dimensions.
                 var layoutAspect = box && window.getComputedStyle ? parseFloat(window.getComputedStyle(box).getPropertyValue('--deguri-view-height-ratio')) : 0;
                 cssH = Math.round(cssW * (layoutAspect > 0 ? layoutAspect : cssW < NARROW_PX ? MOBILE_ASPECT : DESKTOP_ASPECT));
             }
-            var dpr = (opts && opts.dpr) || Math.min(2, window.devicePixelRatio || 1);
+            var dpr = (opts && opts.dpr) || Math.min(2, win.devicePixelRatio || 1);
             canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
             canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
             view.scale = canvas.width / TRACK_W;
@@ -501,17 +508,19 @@ var DeguriRender = (function () {
             userZoom = 1;   // 경주·다시 보기 시작은 알약 100%
             updateCamButton();
             lastFrameWall = performance.now();
-            if (rafId) cancelAnimationFrame(rafId);
+            if (rafId) cancelRaf();
             var loop = function () {
                 var now = performance.now();
                 var t = pausedAt != null ? pausedAt : now - startWall;
                 R.render(t, (now - lastFrameWall) / 1000);
                 lastFrameWall = now;
-                rafId = requestAnimationFrame(loop);
+                rafId = raf(loop);
             };
-            rafId = requestAnimationFrame(loop);
+            rafId = raf(loop);
         };
-        R.stop = function () { if (rafId) cancelAnimationFrame(rafId); rafId = null; setTouchCapture(false); };
+        R.stop = function () { if (rafId) cancelRaf(); rafId = null; setTouchCapture(false); };
+        // 캔버스가 다른 창(PiP)으로 옮겨진 뒤 — 걸려 있던 프레임을 새 창으로 다시 건다. 닫힌 PiP 창이나 가려진 탭에 걸린 프레임은 영영 안 온다
+        R.rehost = function () { if (!rafId || !rafLoop) return; cancelRaf(); rafId = raf(rafLoop); };
         R.isPlaying = function () { return !!rafId; };
 
         // ─── 멈춤·이동 (데구리 단독판 3a8c02e 역반영 — 다시 보기 조작줄 js/deguri.js 가 쓴다. 보는 사람 화면만, 소켓으로 나가지 않는다) ───
@@ -2986,9 +2995,9 @@ var DeguriRender = (function () {
                 phase = 'idle'; updateCamButton();
                 // 대기 애니 루프 — 같은 rafId 라 R.stop()/R.play() 가 끊는다
                 idleStart = performance.now(); idleClock = 0;
-                var loop = function () { idleClock = performance.now() - idleStart; R.render(IDLE_T, 0.016); rafId = requestAnimationFrame(loop); };
+                var loop = function () { idleClock = performance.now() - idleStart; R.render(IDLE_T, 0.016); rafId = raf(loop); };
                 R.render(IDLE_T, 0);
-                rafId = requestAnimationFrame(loop);
+                rafId = raf(loop);
                 return;
             }
             R.stop();
