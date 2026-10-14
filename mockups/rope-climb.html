@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LAMDice · 줄타기 목업</title>
+  <script src="/js/shared/theme-shared.js"></script>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <style>
+    /* 줄타기 R&D 목업 — 서버·실제 게임과 연결하지 않는다. 결과는 시드로 미리 정해진 타임라인(서버 결정 자리) */
+    html,body{height:100%;margin:0}
+    body{background:var(--gray-100);color:var(--text-primary);font-family:Pretendard,-apple-system,sans-serif;display:flex;justify-content:center}
+    .app{width:100%;max-width:480px;height:100%;display:flex;flex-direction:column;background:var(--bg-white)}
+    header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color)}
+    header h1{font-size:15px;margin:0;flex:1}
+    select,button{font:inherit;font-size:14px}
+    select{min-height:36px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);padding:0 6px}
+    .btn{min-height:36px;padding:0 18px;border:0;border-radius:8px;background:var(--fill-brand);color:var(--text-on-accent);font-weight:700}
+    .btn:disabled{opacity:.4}
+    .stage{position:relative;flex:1;min-height:0}
+    canvas{display:block;width:100%;height:100%;touch-action:none}
+    .toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:4px 12px;border-radius:999px;background:var(--text-primary);color:var(--bg-white);font-size:12px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+    .toast.on{opacity:.9}
+    .result{position:absolute;inset:0;display:none;align-items:center;justify-content:center}
+    .result.on{display:flex}
+    .card{border:2px solid var(--text-primary);box-shadow:5px 5px 0 var(--text-primary);background:var(--bg-white);padding:16px 22px;min-width:200px;text-align:center}
+    .card .stamp{display:inline-block;border:3px solid var(--fill-danger);color:var(--fill-danger);border-radius:6px;padding:2px 10px;font-weight:800;letter-spacing:2px;transform:rotate(-8deg);animation:stampIn .35s cubic-bezier(.2,1.4,.4,1)}
+    @keyframes stampIn{from{transform:rotate(-8deg) scale(2.2);opacity:0}to{transform:rotate(-8deg) scale(1);opacity:1}}
+    .card .who{font-size:28px;font-weight:800;margin:6px 0 8px}
+    .ranks{list-style:none;margin:0 0 12px;padding:0;font-size:13px;color:var(--text-secondary);line-height:1.6}
+    .card small{display:block;margin-top:8px;font-size:11px;color:var(--text-muted)}
+    @media (max-width:480px){.app{max-width:none}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>줄타기</h1>
+      <select id="count" aria-label="인원">
+        <option value="2">2명</option><option value="3">3명</option><option value="4" selected>4명</option>
+        <option value="5">5명</option><option value="6">6명</option>
+      </select>
+      <button class="btn" id="go" type="button">시작</button>
+    </header>
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="toast" id="toast"></div>
+      <div class="result" id="result">
+        <div class="card">
+          <span class="stamp">당첨</span>
+          <div class="who" id="who"></div>
+          <ol class="ranks" id="ranks"></ol>
+          <button class="btn" id="again" type="button">다시</button>
+          <small id="seedLabel"></small>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function () {
+    'use strict';
+    // 게임 그림 색(캔버스) — 스킨과 무관
+    const C = { sky:'#9fd3f5', cloud:'#ffffff', ground:'#7cc24a', groundDark:'#4e9a2e', vine:'#4b7f2a', vineLight:'#8cc558',
+      leaf:'#5fae3a', beam:'#9b6a3c', beamDark:'#6e4624', bell:'#f5c542', bellDark:'#b8862a', hand:'#f2c58d', ink:'#3a2a1a',
+      tag:'#ffffff', tagInk:'#14110f', finish:'#c8281a', crack:'#ffffff', count:'#ffffff', countInk:'#14110f' };
+    const WORLD_H = 1800, START_Y = 90, BEAM_GAP = 90, SWAY_MAX = 360;
+    const PEND = { k:7, c:1.4, maxTh:0.2 };
+    const R = { pullMin:70, pullMax:130, pullDur:0.32, restMin:0.2, restMax:0.6, burstP:0.2, burstPulls:3, burstRest:0.07,
+      slipP:0.06, slipMin:60, slipMax:150, slipDur:0.45, swapP:0.04, swapDur:0.65,
+      frayBase:0.015, frayRamp:0.09, frayDur:1.3, snapP:0.5, maxSnaps:2, fallDur:0.75, fallMin:220, fallMax:420, ropeFallG:1500,
+      gustMin:4, gustMax:7, gustDur:1.1, gustSlow:1.8, catchUp:0.6, camLead:170, camEase:3,
+      finalZone:150, finalSlow:0.5, countdown:3, hitStop:0.25, hitSlow:0.35, resultDelay:1.3, shakeDur:0.35 };
+    const NAMES = ['민수','지영','현우','수빈','도윤','하은'];
+    const ANIMALS = ['hamster','panda','turtle','hedgehog','armadillo','pillbug'];
+    const SPRITE = { frames:4, size:160, idleFps:7, climbFps:12 };
+
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+    const toastEl = document.getElementById('toast'), resultEl = document.getElementById('result');
+    const goBtn = document.getElementById('go'), countSel = document.getElementById('count');
+    let W = 0, H = 0, dpr = 1;
+
+    function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+    let rnd = mulberry32(1);
+    const range = (a, b) => a + (b - a) * rnd();
+
+    const sprites = {};
+    ANIMALS.forEach(name => { const img = new Image(); img.src = '/mockups/assets/mb-' + name + '-idle.webp'; sprites[name] = img; });
+
+    // 구름 위치는 시드와 무관하게 고정
+    const cloudRng = mulberry32(7);
+    const clouds = Array.from({ length: 12 }, (_, i) => ({ x: cloudRng(), y: 250 + i * 170 + cloudRng() * 120, s: 0.7 + cloudRng() * 0.8 }));
+
+    let players = [], ropes = [], cam = 0, phase = 'idle', seed = 0, gustT = 0, nextGust = 0, winner = null, finishOrder = [];
+    let t = 0, toastTimer = 0, countT = 0, hitT = 0, shake = 0, snaps = 0;
+
+    function resize() {
+      const r = cv.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+      W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
+      if (phase === 'idle') cam = H / 2;
+    }
+    const laneX = i => (i + 0.5) / players.length * W;
+    const beamY = () => WORLD_H + BEAM_GAP;
+    const toScreen = y => H - y + cam - H / 2;
+    const off = (rope, d) => Math.sin(rope.th) * Math.min(d, SWAY_MAX);
+    const leadY = () => Math.max(...players.map(p => p.y));
+    const inFinal = () => players.some(p => !p.done && p.y > WORLD_H - R.finalZone);
+
+    function setup(n) {
+      seed = Number(new URLSearchParams(location.search).get('seed')) || (Date.now() % 100000);
+      rnd = mulberry32(seed);
+      players = Array.from({ length: n }, (_, i) => ({ i, name: NAMES[i], animal: ANIMALS[i], lane: i, y: START_Y, restT: range(0.2, 0.9), pullT: 0, pullFrom: START_Y, pullTo: START_Y,
+        pullsLeft: 0, slipT: 0, slipV: 0, swapT: 0, swapFrom: i, swapTo: i, frayT: 0, fallT: 0, fallFrom: i, fallTo: i, fallY0: 0, fallY1: 0, facing: 1, anim: rnd() * 10, done: false }));
+      ropes = players.map(() => ({ th: 0, w: 0, broken: false, breakY: 0, fallT: 0 }));
+      winner = null; finishOrder = []; t = 0; gustT = 0; nextGust = range(R.gustMin, R.gustMax); cam = H / 2; shake = 0; snaps = 0;
+      resultEl.classList.remove('on');
+    }
+    function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('on'); toastTimer = 1.1; }
+
+    function startPull(p) {
+      const h = p.y / WORLD_H, frayP = R.frayBase + R.frayRamp * h * h, roll = rnd();
+      if (roll < frayP) { p.frayT = R.frayDur; toast(p.name + ' 줄이 삐걱…'); return; }
+      if (roll < frayP + R.slipP) { p.slipT = R.slipDur; p.slipV = range(R.slipMin, R.slipMax) / R.slipDur; ropes[p.lane].w += range(-0.2, 0.2); return; }
+      const sides = [p.lane - 1, p.lane + 1].filter(l => l >= 0 && l < players.length && !ropes[l].broken);
+      if (roll < frayP + R.slipP + R.swapP && sides.length && p.swapT <= 0) {
+        p.swapFrom = p.lane; p.swapTo = sides[Math.floor(rnd() * sides.length)]; p.swapT = R.swapDur; p.facing = p.swapTo > p.lane ? 1 : -1; ropes[p.swapTo].w += p.facing * 0.3;
+      }
+      if (p.pullsLeft <= 0 && rnd() < R.burstP) p.pullsLeft = R.burstPulls;
+      const dist = range(R.pullMin, R.pullMax) * (1 + (leadY() - p.y) / WORLD_H * R.catchUp);
+      p.pullFrom = p.y; p.pullTo = Math.min(WORLD_H, p.y + dist); p.pullT = R.pullDur;
+      p.restT = p.pullsLeft > 0 ? R.burstRest : range(R.restMin, R.restMax); if (p.pullsLeft > 0) p.pullsLeft--;
+      ropes[p.lane].w += range(-0.08, 0.08);
+    }
+    function nearestRope(lane) {
+      let best = -1; players.forEach((_, l) => { if (!ropes[l].broken && l !== lane && (best < 0 || Math.abs(l - lane) < Math.abs(best - lane))) best = l; }); return best;
+    }
+    function fall(p, to) {
+      p.fallFrom = p.lane; p.fallTo = to; p.fallY0 = p.y; p.fallY1 = Math.max(START_Y, p.y - range(R.fallMin, R.fallMax)); p.fallT = R.fallDur;
+      p.facing = to > p.lane ? 1 : -1; p.pullT = 0; p.swapT = 0; p.slipT = 0; p.pullsLeft = 0;
+    }
+    function snap(p) {
+      const r = ropes[p.lane], to = nearestRope(p.lane);
+      if (to < 0) { toast(p.name + ' 휴…'); return; }
+      snaps++; r.broken = true; r.breakY = p.y + 30; r.fallT = 0.0001; shake = R.shakeDur; toast(p.name + ' 줄 끊어짐!');
+      players.forEach(q => { if (!q.done && q.lane === p.lane && q.y < r.breakY && q.fallT <= 0) fall(q, to); });
+    }
+
+    function step(dt) {
+      t += dt;
+      if (toastTimer > 0 && (toastTimer -= dt) <= 0) toastEl.classList.remove('on');
+      if (shake > 0) shake -= dt;
+      if (phase === 'count') { if ((countT -= dt) <= 0) { phase = 'run'; toast('출발!'); } return; }
+      if (phase === 'hit') { hitT += dt; if (hitT >= R.resultDelay) { phase = 'done'; showResult(); } }
+      if (phase !== 'run' && phase !== 'hit') return;
+      const sdt = dt * (phase === 'hit' ? (hitT < R.hitStop ? 0 : R.hitSlow) : inFinal() ? R.finalSlow : 1);
+      if (sdt <= 0) return;
+      if (phase === 'run' && (nextGust -= sdt) <= 0) {
+        nextGust = range(R.gustMin, R.gustMax); gustT = R.gustDur;
+        const dir = rnd() < 0.5 ? -1 : 1; ropes.forEach(r => { r.w += dir * 0.55 + range(-0.1, 0.1); }); toast('돌풍!');
+      }
+      gustT -= sdt;
+      ropes.forEach(r => { if (r.fallT > 0) r.fallT += sdt; });
+      for (const p of players) {
+        if (p.done) continue;
+        if (p.fallT > 0) {
+          p.fallT -= sdt; const k = Math.min(1, 1 - p.fallT / R.fallDur); p.y = p.fallY0 + (p.fallY1 - p.fallY0) * k * k; p.anim += sdt * 3;
+          if (p.fallT <= 0) { p.lane = p.fallTo; ropes[p.lane].w += p.facing * 0.3; p.facing = 1; p.restT = 0.5; toast(p.name + ' 옆 줄 잡았다!'); }
+          continue;
+        }
+        if (p.frayT > 0) {
+          p.frayT -= sdt; p.anim += sdt;
+          if (p.frayT <= 0) { if (snaps < R.maxSnaps && rnd() < R.snapP) snap(p); else { toast(p.name + ' 휴…'); p.restT = 0.3; } }
+          continue;
+        }
+        if (p.slipT > 0) { p.slipT -= sdt; p.y = Math.max(START_Y, p.y - p.slipV * sdt); p.anim += sdt * 2; continue; }
+        if (p.swapT > 0 && (p.swapT -= sdt) <= 0) { p.lane = p.swapTo; p.facing = 1; }
+        if (p.pullT > 0) {
+          p.pullT -= sdt; const k = Math.min(1, 1 - p.pullT / R.pullDur), e = 1 - (1 - k) * (1 - k);
+          p.y = p.pullFrom + (p.pullTo - p.pullFrom) * e; p.anim += sdt * 3;
+          if (p.y >= WORLD_H) { p.y = WORLD_H; p.done = true; finishOrder.push(p); if (!winner) { winner = p; phase = 'hit'; hitT = 0; shake = 0.2; } }
+        } else if (phase === 'run') { p.anim += sdt * 0.6; p.restT -= sdt / (gustT > 0 ? R.gustSlow : 1); if (p.restT <= 0) startPull(p); }
+      }
+      ropes.forEach(r => { r.w += (-PEND.k * r.th - PEND.c * r.w) * sdt; r.th = Math.max(-PEND.maxTh, Math.min(PEND.maxTh, r.th + r.w * sdt)); });
+      const target = Math.min(Math.max(leadY() + R.camLead, H / 2), beamY() + 40 - H / 2);
+      cam += (target - cam) * Math.min(1, sdt * R.camEase);
+    }
+
+    function showResult() {
+      document.getElementById('who').textContent = winner.name;
+      const order = [...finishOrder, ...players.filter(p => !p.done).sort((a, b) => b.y - a.y)];
+      const ol = document.getElementById('ranks'); ol.replaceChildren();
+      order.forEach((p, i) => { const li = document.createElement('li'); li.textContent = (i + 1) + '. ' + p.name; ol.append(li); });
+      document.getElementById('seedLabel').textContent = 'seed ' + seed;
+      resultEl.classList.add('on'); goBtn.textContent = '다시'; goBtn.disabled = false;
+    }
+
+    function playerPos(p) {
+      const d = beamY() - p.y;
+      const xAt = lane => laneX(lane) + off(ropes[lane], d);
+      let x = xAt(p.lane), arc = 0;
+      if (p.swapT > 0) { const k = 1 - p.swapT / R.swapDur; const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; x = xAt(p.swapFrom) + (xAt(p.swapTo) - xAt(p.swapFrom)) * e; arc = Math.sin(k * Math.PI) * 38; }
+      if (p.fallT > 0) { const k = 1 - p.fallT / R.fallDur; x = xAt(p.fallFrom) + (xAt(p.fallTo) - xAt(p.fallFrom)) * Math.min(1, k * 1.3); }
+      if (p.frayT > 0) x += Math.sin(t * 60) * 2.5;
+      return { x, y: toScreen(p.y) - arc, d };
+    }
+
+    function ropeWidth(d, base) { return base * (0.55 + 0.45 * Math.min(1, d / 1200)); }
+    function strokeRope(ax, top, d0, d1, r, extraY, jitAt) {
+      for (const [base, col] of [[7, C.vine], [2.5, C.vineLight]]) {
+        ctx.strokeStyle = col; ctx.lineCap = 'round';
+        for (let d = d0; d < d1; d += 40) {
+          const d2 = Math.min(d1, d + 40), jit = jitAt >= 0 && Math.abs(d - jitAt) < 220 ? Math.sin(t * 55 + d) * 2.5 : 0;
+          ctx.beginPath(); ctx.lineWidth = ropeWidth(d, base);
+          ctx.moveTo(ax + off(r, d) + jit + (base < 3 ? -1.5 : 0), top + d + extraY); ctx.lineTo(ax + off(r, d2) + jit + (base < 3 ? -1.5 : 0), top + d2 + extraY); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = C.leaf;
+      for (let d = 70; d < d1; d += 95) {
+        if (d < d0) continue; const x = ax + off(r, d), y = top + d + extraY, side = (d / 95) % 2 ? 1 : -1;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(side * 0.9 + Math.sin(r.th * 3) * 0.2); ctx.beginPath(); ctx.ellipse(side * 8, 0, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+    }
+    function frayedEnd(x, y, dir) {
+      ctx.strokeStyle = C.vineLight; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      [-6, 0, 6].forEach((dx, i) => { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dir * (7 + i * 3)); ctx.stroke(); });
+    }
+    function drawRope(i) {
+      const r = ropes[i], ax = laneX(i), top = toScreen(beamY());
+      const len = Math.min(beamY(), beamY() - (cam - H / 2) + 120);
+      const fraying = players.find(p => p.lane === i && p.frayT > 0);
+      const jitAt = fraying ? beamY() - fraying.y : -1;
+      if (!r.broken) { strokeRope(ax, top, 0, len, r, 0, jitAt); return; }
+      const dBreak = beamY() - r.breakY;
+      strokeRope(ax, top, 0, dBreak, r, 0, -1); frayedEnd(ax + off(r, dBreak), top + dBreak, 1);
+      if (r.fallT < 1.6) { const dy = 0.5 * R.ropeFallG * r.fallT * r.fallT; strokeRope(ax, top, dBreak + 12, len, r, dy, -1); frayedEnd(ax + off(r, dBreak + 12), top + dBreak + 12 + dy, -1); }
+    }
+
+    function drawPlayer(p, S) {
+      const { x, y } = playerPos(p);
+      const img = sprites[p.animal], pulling = p.pullT > 0, loose = p.fallT > 0;
+      const fps = pulling ? SPRITE.climbFps : SPRITE.idleFps, frame = Math.floor(p.anim * fps) % SPRITE.frames;
+      const bob = pulling ? Math.sin(p.anim * 14) * 3 : Math.sin(t * 2 + p.i) * 1.5;
+      const hop = (phase === 'hit' || phase === 'done') && p === winner ? Math.abs(Math.sin(t * 6)) * 14 : 0;
+      const cy = y + bob - hop, headTop = cy - S * 0.5;
+      const swing = pulling ? Math.sin(p.anim * 14) : 0;
+      const hands = loose ? [[-S * 0.42, -S * 0.1 + Math.sin(t * 30) * 4], [S * 0.42, -S * 0.1 - Math.sin(t * 30) * 4]]
+        : [[-6, -8 - Math.max(0, swing) * 7], [6, -8 - Math.max(0, -swing) * 7]];
+      ctx.lineCap = 'round';
+      hands.forEach(([hx, hy], k) => {
+        const sx = x + (k ? S * 0.2 : -S * 0.2), sy = cy - S * 0.12;
+        ctx.beginPath(); ctx.lineWidth = 6; ctx.strokeStyle = C.ink; ctx.moveTo(sx, sy); ctx.lineTo(x + hx, headTop + hy); ctx.stroke();
+        ctx.beginPath(); ctx.lineWidth = 3.5; ctx.strokeStyle = C.hand; ctx.moveTo(sx, sy); ctx.lineTo(x + hx, headTop + hy); ctx.stroke();
+      });
+      if (img.complete && img.naturalWidth) {
+        ctx.save(); ctx.translate(x, cy); if (p.facing < 0) ctx.scale(-1, 1);
+        ctx.drawImage(img, frame * SPRITE.size, 0, SPRITE.size, SPRITE.size, -S / 2, -S / 2, S, S); ctx.restore();
+      } else { ctx.fillStyle = C.hand; ctx.beginPath(); ctx.arc(x, cy, S * 0.4, 0, Math.PI * 2); ctx.fill(); }
+      hands.forEach(([hx, hy]) => { ctx.beginPath(); ctx.fillStyle = C.hand; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.arc(x + hx, headTop + hy, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+      if (p.frayT > 0) { // 삐걱 — 손 위 줄에 금
+        ctx.strokeStyle = C.crack; ctx.lineWidth = 2; const cx = x + Math.sin(t * 60) * 2, cyy = headTop - 20;
+        [[-8, -6, -3, 2], [3, -9, 8, -1], [-5, 6, 2, 11]].forEach(([a, b, c, d]) => { ctx.beginPath(); ctx.moveTo(cx + a, cyy + b); ctx.lineTo(cx + c, cyy + d); ctx.stroke(); });
+      }
+      ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(p.name).width + 12, ty = cy + S * 0.5 + 9;
+      ctx.fillStyle = C.tag; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(x - tw / 2, ty - 8, tw, 16, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.tagInk; ctx.fillText(p.name, x, ty + 0.5);
+    }
+
+    function drawBell(x, y, ring, tremble) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ring ? Math.sin(t * 20) * 0.35 : tremble ? Math.sin(t * 40) * 0.08 : 0);
+      ctx.fillStyle = C.bell; ctx.strokeStyle = C.bellDark; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-9, 12); ctx.quadraticCurveTo(-10, -4, 0, -6); ctx.quadraticCurveTo(10, -4, 9, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.fillStyle = C.bellDark; ctx.arc(0, 13, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+
+    function render() {
+      ctx.save();
+      if (shake > 0) { const k = shake / R.shakeDur; ctx.translate(Math.sin(t * 80) * 7 * k, Math.cos(t * 70) * 5 * k); }
+      ctx.fillStyle = C.sky; ctx.fillRect(-10, -10, W + 20, H + 20);
+      ctx.fillStyle = C.cloud;
+      clouds.forEach(c => { const sy = H / 2 - (c.y - cam * 0.6), sx = c.x * W; if (sy < -60 || sy > H + 60) return;
+        for (const [ox, oy, r] of [[0, 0, 22], [-22, 8, 15], [22, 6, 17]]) { ctx.beginPath(); ctx.arc(sx + ox * c.s, sy + oy * c.s, r * c.s, 0, Math.PI * 2); ctx.fill(); } });
+      const gy = toScreen(0);
+      if (gy < H) { ctx.fillStyle = C.ground; ctx.fillRect(0, gy, W, H - gy + 10); ctx.fillStyle = C.groundDark; ctx.fillRect(0, gy, W, 6); }
+      if (players.length) {
+        const by = toScreen(beamY());
+        players.forEach((_, i) => drawRope(i));
+        if (by > -40) {
+          ctx.fillStyle = C.beamDark; ctx.fillRect(0, by - 22, W, 22); ctx.fillStyle = C.beam; ctx.fillRect(0, by - 22, W, 14);
+          const fy = toScreen(WORLD_H); ctx.setLineDash([8, 6]); ctx.strokeStyle = C.finish; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke(); ctx.setLineDash([]);
+          players.forEach((_, i) => { const on = players.filter(p => p.lane === i); drawBell(laneX(i), by + 4, on.some(p => p.done), on.some(p => !p.done && p.y > WORLD_H - R.finalZone)); });
+        }
+        const S = Math.max(40, Math.min(64, W / players.length * 0.8));
+        [...players].sort((a, b) => a.y - b.y).forEach(p => drawPlayer(p, S));
+      }
+      if (phase === 'count') {
+        const n = Math.ceil(countT), k = countT - Math.floor(countT), sc = 1 + 0.5 * k;
+        ctx.save(); ctx.translate(W / 2, H * 0.4); ctx.scale(sc, sc); ctx.font = '900 72px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 8; ctx.strokeStyle = C.countInk; ctx.strokeText(String(n), 0, 0); ctx.fillStyle = C.count; ctx.fillText(String(n), 0, 0); ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    let last = performance.now(), acc = 0;
+    function loop(now) {
+      acc = Math.min(acc + (now - last) / 1000, 0.1); last = now;
+      const dt = 1 / 60; while (acc >= dt) { step(dt); acc -= dt; }
+      render(); requestAnimationFrame(loop);
+    }
+    function start() {
+      if (phase === 'run' || phase === 'count' || phase === 'hit') return;
+      setup(Number(countSel.value)); phase = 'count'; countT = R.countdown; goBtn.textContent = '진행 중'; goBtn.disabled = true;
+    }
+    goBtn.addEventListener('click', start);
+    document.getElementById('again').addEventListener('click', start);
+    cv.addEventListener('pointerdown', () => { if (phase === 'idle') start(); });
+    countSel.addEventListener('change', () => { if (phase === 'idle' || phase === 'done') { setup(Number(countSel.value)); phase = 'idle'; goBtn.textContent = '시작'; } });
+    window.addEventListener('resize', resize);
+    resize(); setup(Number(countSel.value)); requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
