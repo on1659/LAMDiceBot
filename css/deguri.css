@@ -169,8 +169,6 @@
 /* 동물 칩: 터치 화면에서는 한 줄 가로 스크롤(3줄 → 1줄, 목록이 76px 올라온다). 마우스 화면은 줄바꿈 그대로 — 가로 스크롤은 PC 에서 뒤쪽 동물을 못 고른다(2026-09-22) */
 @media (hover: none) and (pointer: coarse) {
     #deguriShopMount .hshop-inv-chips.hshop-groupchips { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
-    /* [동물|테마] 전환은 칩을 밀어도 왼쪽에 남는다 — 칩이 그 밑으로 지나가므로 패널 색 테두리로 가린다 */
-    #deguriShopMount .hshop-groupmode { position: sticky; left: 0; z-index: 1; box-shadow: 0 0 0 6px var(--hshop-bg); }
 }
 /* 동물 칩은 그림만 작게(단독판 옷장과 같은 동그라미) — 이름은 화면 읽기용으로만 남기고 PC 는 마우스 올리면(canvas title). 테마 칩·전체는 글자 그대로 */
 #deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) { position: relative; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
