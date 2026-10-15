@@ -74,19 +74,28 @@
     // 'closet' = 장착 전용(소유 아이템만, 가격 없음). closet 미설정 게임(경마·사다리·회전)은 항상 'shop' 이고 기존 통합 카드 그대로.
     var _view = 'shop';
     function closetMode() { return !!(_config && _config.closet); }
-    // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
+    // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups(mode) → [{key,label}], hooks.itemGroup(item, mode) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
     // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
     var _groupFilter = 'all';
-    // 그룹 기준이 둘 이상이면(어댑터 hooks.groupModes → [{key,label}], 데구리: 전체보기/테마별보기) 상점 뷰의 [상점|옷장] 아래에 서브탭을 그리고,
-    // groups·itemGroup·groupIcon 훅에 지금 기준(key)을 마지막 인자로 넘긴다. 기준을 바꾸면 필터는 '전체'로. groupModes 가 없으면 기존 그대로(인자 undefined).
-    // 옷장 뷰는 늘 첫 기준(데구리: 동물) — 서브탭은 상점에만(사용자 2026-10-15: 칩 줄 앞의 동물/테마 스위치를 없애고 상점 하위 탭으로)
-    var _groupMode = null;
-    function groupModes() { var m = _config && _config.hooks && _config.hooks.groupModes; return (m && m.length > 1) ? m : null; }
+    // 상점 하위 탭(어댑터 config.shopTabs → [{ key, label, slots: [슬롯 key…], chips?: 그룹 기준, sections?: 그룹 기준 }], 데구리: 전체/테마/야식 — 사용자 2026-10-15).
+    // 있으면 [상점|옷장] 아래에 탭바를 그리고 슬롯 탭바는 안 그린다. 탭의 slots 를 이어 붙여 한 목록으로 보이고,
+    //   chips    = 그 기준(groups·itemGroup·groupIcon 훅의 마지막 인자)으로 칩 필터를 그린다(데구리 전체 = 동물 칩)
+    //   sections = 그 기준으로 묶어 묶음마다 제목 + 그리드(데구리 테마). 어느 묶음에도 안 걸리는 항목(테마 없는 스킨)은 안 보인다
+    //   둘 다 없으면 칩 없이 그 슬롯들 그대로(데구리 야식). 옷장 뷰의 칩은 늘 첫 탭의 chips 기준(동물). shopTabs 가 없는 게임(경마·사다리·회전)은 기존 그대로
+    var _shopTab = null;
+    function shopTabs() { var t = _config && _config.shopTabs; return (t && t.length) ? t : null; }
+    function activeShopTab() {
+        var t = shopTabs();
+        if (!t) return null;
+        for (var i = 0; i < t.length; i++) if (t[i].key === _shopTab) return t[i];
+        _shopTab = t[0].key;
+        return t[0];
+    }
+    // 지금 칩 기준(없으면 null·undefined → 칩·필터 없음)
     function groupMode() {
-        var m = groupModes();
-        if (!m) return undefined;
-        if (!m.some(function (x) { return x.key === _groupMode; })) _groupMode = m[0].key;
-        return closetMode() && _view === 'closet' ? m[0].key : _groupMode;
+        var t = shopTabs();
+        if (!t) return undefined;
+        return (closetMode() && _view === 'closet') ? t[0].chips : activeShopTab().chips;
     }
     // 한 슬롯에 여러 개가 동시에 장착될 수 있다 — 데구리 동물 스킨은 동물마다 하나씩이라 서버가 id 배열을 준다.
     // 다른 게임(경마·사다리·회전)과 데구리 야식은 값 하나(문자열) 그대로다.
@@ -94,14 +103,10 @@
         var v = map && map[slot];
         return Array.isArray(v) ? v.indexOf(id) !== -1 : v === id;
     }
-    // slotKey 를 주면 그 슬롯에 그룹 있는 아이템이 있을 때만 true — 상점 뷰는 탭 하나만 보이므로
-    // 동물 무관 슬롯(데구리 풍선)에서는 동물 칩을 안 그린다. 인자 없이 부르면(옷장·passesGroup) 기존대로.
-    function hasGroups(slotKey) {
+    // 칩 필터를 쓰는가 — 분리 모드 + 그룹 훅 + 지금 뷰에 칩 기준이 있을 때(상점은 탭의 chips, 옷장은 첫 탭의 chips). 데구리 테마·야식 탭은 false
+    function hasGroups() {
         if (!closetMode() || !(_config.hooks && _config.hooks.groups && _config.hooks.itemGroup)) return false;
-        if (!slotKey) return true;
-        var list = (_catalog && _catalog[slotKey]) || [];
-        for (var i = 0; i < list.length; i++) if (_config.hooks.itemGroup(list[i], groupMode()) != null) return true;
-        return false;
+        return groupMode() != null;
     }
     function passesGroup(item) {
         if (!hasGroups() || _groupFilter === 'all') return true;
@@ -112,7 +117,7 @@
     function applySort(slot, items) {
         var h = _config && _config.hooks && _config.hooks.sortItems;
         if (typeof h !== 'function') return items;
-        try { var out = h(items.slice(), { slot: slot, view: _view, groupFilter: _groupFilter, groupMode: groupMode() }); return Array.isArray(out) ? out : items; } catch (e) { return items; }
+        try { var out = h(items.slice(), { slot: slot, view: _view, groupFilter: _groupFilter }); return Array.isArray(out) ? out : items; } catch (e) { return items; }
     }
     function renderGroupChips() {
         var chips = document.createElement('div');
@@ -329,6 +334,7 @@
     // 인벤토리는 서브탭 자체가 없으므로 항상 숨김(true).
     function isSingleSlot() {
         if (_activeMainShop === 'inventory') return true;
+        if (shopTabs()) return true;   // 상점 하위 탭이 슬롯을 고른다(데구리 전체/테마/야식) — 슬롯 탭바 없음
         if (hasAdItems()) return slotsForMainShop(_activeMainShop).length <= 1;
         return activeSlots().length <= 1;
     }
@@ -1048,31 +1054,52 @@
             tab.type = 'button';
             tab.className = 'hshop-tab' + (_view === t[0] ? ' is-active' : '');
             tab.textContent = t[1];
-            tab.addEventListener('click', function () {
-                if (_view === t[0]) return;
-                var before = groupMode(); _view = t[0];
-                if (groupMode() !== before) _groupFilter = 'all';   // 옷장은 동물 기준 — 상점에서 고른 테마 칩은 옷장에 없다
-                renderModal();
-            });
+            tab.addEventListener('click', function () { if (_view === t[0]) return; _view = t[0]; renderModal(); });
             bar.appendChild(tab);
         });
         return bar;
     }
-    // 상점 뷰 서브탭 [전체보기 | 테마별보기] — 그룹 기준 전환(hooks.groupModes). 바꾸면 칩 필터는 '전체'로
-    function renderGroupModeTabs() {
+    // 상점 하위 탭바(config.shopTabs — 데구리 [전체 | 테마 | 야식]). 슬롯 탭바와 같은 모양, 한 단계 작게. 칩 필터(동물)는 탭을 오가도 유지
+    function renderShopTabs() {
         var bar = document.createElement('div');
-        bar.className = 'hshop-subtabs';
-        var mode = groupMode();
-        groupModes().forEach(function (m) {
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'hshop-subtab' + (m.key === mode ? ' is-active' : '');
-            b.setAttribute('aria-pressed', m.key === mode ? 'true' : 'false');
-            b.textContent = m.label;
-            b.addEventListener('click', function () { if (_groupMode === m.key) return; _groupMode = m.key; _groupFilter = 'all'; renderModal(); });
-            bar.appendChild(b);
+        bar.className = 'hshop-tabs hshop-shoptabs';
+        var cur = activeShopTab();
+        shopTabs().forEach(function (t) {
+            var tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'hshop-tab' + (t.key === cur.key ? ' is-active' : '');
+            UIIcons.setIconText(tab, t.label);
+            tab.addEventListener('click', function () { if (_shopTab === t.key) return; _shopTab = t.key; renderModal(); });
+            bar.appendChild(tab);
         });
         return bar;
+    }
+    // 묶음 보기 본문(탭 sections — 데구리 테마): hooks.groups(기준) 순서대로 제목 + 그리드. 옷장 섹션 틀(.hshop-inv-*)을 그대로 쓴다
+    function renderSectionsBody(mode, entries) {
+        var body = document.createElement('div');
+        body.className = 'hshop-inv-body hshop-shop-sections';
+        (_config.hooks.groups(mode) || []).forEach(function (g) {
+            var list = entries.filter(function (e) { return _config.hooks.itemGroup(e.item, mode) === g.key; });
+            if (!list.length) return;
+            var section = document.createElement('div');
+            section.className = 'hshop-inv-section';
+            var head = document.createElement('div');
+            head.className = 'hshop-inv-section-head';
+            head.textContent = g.label;
+            section.appendChild(head);
+            var grid = document.createElement('div');
+            grid.className = 'hshop-grid hshop-inv-grid';
+            list.forEach(function (e) { grid.appendChild(renderCard(e.slot, e.item)); });
+            section.appendChild(grid);
+            body.appendChild(section);
+        });
+        if (!body.childNodes.length) {
+            var empty = document.createElement('div');
+            empty.className = 'hshop-empty';
+            empty.textContent = '준비 중인 카테고리예요.';
+            body.appendChild(empty);
+        }
+        return body;
     }
     // 옷장 본문 — 슬롯 순서대로 소유(defaultOwned 포함) 아이템 카드. 하나도 없으면 빈 상태 + [상점 가기]
     function buildClosetBody() {
@@ -1122,8 +1149,7 @@
             equip: doEquip,
             buy: function (slot, item) { requestBuy(slot, item, null); },
             rerender: renderModal,
-            groupFilter: _groupFilter,
-            groupMode: groupMode()
+            groupFilter: _groupFilter
         };
     }
 
@@ -1249,19 +1275,24 @@
             UIIcons.setIconText(note, coinLockMsg); // 텍스트 노드 + 아이콘 노드(innerHTML 미사용) — XSS 안전. hook 문자열(평문)도 그대로
             grid.appendChild(note);
         } else {
-            // 그리드 아이템: 메인탭 활성 시 현재 메인샵 타입으로 필터(광고샵=adOnly만/코인샵=비-adOnly만).
-            var list = (_catalog[_activeTab] || []);
-            if (showMainTabs) {
-                list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
-            }
-            list = applySort(_activeTab, list.filter(passesGroup));
-            if (list.length === 0) {
+            // 그리드 아이템: 상점 하위 탭이 있으면 그 탭의 슬롯들을 이어 붙이고(데구리 전체 = 스킨 + 야식), 없으면 현재 슬롯 탭 하나.
+            // 메인탭 활성 시 현재 메인샵 타입으로 필터(광고샵=adOnly만/코인샵=비-adOnly만).
+            var shopTab = activeShopTab();
+            var entries = [];   // [{ slot, item }]
+            (shopTab ? shopTab.slots : [_activeTab]).forEach(function (slot) {
+                var list = (_catalog[slot] || []);
+                if (showMainTabs) list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
+                applySort(slot, list.filter(passesGroup)).forEach(function (item) { entries.push({ slot: slot, item: item }); });
+            });
+            if (shopTab && shopTab.sections) {
+                grid = renderSectionsBody(shopTab.sections, entries);   // 묶음 보기는 그리드 대신 섹션 본문(스크롤 영역)
+            } else if (entries.length === 0) {
                 var empty = document.createElement('div');
                 empty.className = 'hshop-empty';
                 empty.textContent = (hasGroups() && _groupFilter !== 'all') ? '이 동물의 스킨은 아직 없어요.' : '준비 중인 카테고리예요.';
                 grid.appendChild(empty);
             } else {
-                list.forEach(function (item) { grid.appendChild(renderCard(_activeTab, item)); });
+                entries.forEach(function (e) { grid.appendChild(renderCard(e.slot, e.item)); });
             }
         }
 
@@ -1271,8 +1302,8 @@
 
         panel.appendChild(header);
         if (closetMode()) panel.appendChild(renderViewTabs());
-        if (hasGroups(_activeTab) && groupModes()) panel.appendChild(renderGroupModeTabs());   // 상점 뷰 서브탭 — 그룹을 쓰는 슬롯(데구리 동물 스킨)일 때만
-        if (hasGroups(_activeTab)) panel.appendChild(renderGroupChips());   // 상점 뷰: 현재 탭이 그룹을 쓰는 슬롯일 때만
+        if (shopTabs()) panel.appendChild(renderShopTabs());   // 상점 하위 탭 [전체 | 테마 | 야식](데구리)
+        if (hasGroups()) panel.appendChild(renderGroupChips());   // 상점 뷰: 지금 탭에 칩 기준이 있을 때만(데구리 전체 = 동물 칩)
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         if (notice.textContent) panel.appendChild(notice);   // 어댑터 noticeText 가 '' 면 안내 상자 생략
@@ -1751,7 +1782,7 @@
     // 옷장(장착 전용) — config.closet 이 없는 게임은 상점과 같다
     function openCloset() { openView(closetMode() ? 'closet' : 'shop'); }
     function openView(view) {
-        _view = view; _groupFilter = 'all';
+        _view = view; _groupFilter = 'all'; _shopTab = null;   // 열 때마다 첫 하위 탭(전체)부터
         loadAdWallet();
         var token = getToken();
         loadCatalog().then(function () {
@@ -1829,8 +1860,7 @@
         getEquipped: function () { return _wallet.equipped; },
         getCatalog: function () { return _catalog; },
         getCatalogItem: getCatalogItem,
-        getGroupFilter: function () { return _groupFilter; },   // 현재 그룹 칩('all' | 그룹 key) — 어댑터 미리보기가 탭에 따라 그림을 바꿀 때
-        getGroupMode: groupMode,                                // 현재 그룹 기준 key(hooks.groupModes 가 없으면 undefined)
+        getGroupFilter: function () { return _groupFilter; },   // 현재 그룹 칩('all' | 그룹 key) — 어댑터 미리보기가 칩에 따라 그림을 바꿀 때
 
         findItem: findItem
     };

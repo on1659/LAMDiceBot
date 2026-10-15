@@ -2,7 +2,7 @@
  * deguri-closet.js — 데구리 꾸미기 팝업의 [옷장] 탭 본문 (단독판 데구리 옷장 이식, docs/goal/deguri-closet-standalone-port.md)
  *
  * 전역 `DeguriCloset.build(api)` — js/deguri-shop.js 의 hooks.buildClosetBody 가 부른다. api 는 공유 셸(js/shared/shop-shared.js closetApi):
- *   items(slotKey) 그룹 칩·정렬 적용 목록 / owns(item) / isEquipped(slot,id) / equip(slot,id,item) / buy(slot,item) / groupFilter / groupMode
+ *   items(slotKey) 그룹 칩·정렬 적용 목록 / owns(item) / isEquipped(slot,id) / equip(slot,id,item) / buy(slot,item) / groupFilter
  *
  * 화면: 위 = 무대(입은 모습을 크게, 동작을 돌아가며 — 누르면 다음 동작) + 이름·상태·버튼 하나
  *       아래 = 보유 N(정렬 전환) · 미보유 N. 미보유 칸은 자물쇠 — 누르면 무대에 입혀 보기만(서버 요청 없음), 무대의 [사기]/[뽑기]로 얻는다.
@@ -57,7 +57,7 @@
 
     // 동물 칩이 골라져 있으면 그 동물, 아니면 내가 고른 동물, 아니면 첫 동물
     function stageCreature(api) {
-        if (api.groupMode !== 'theme' && api.groupFilter && api.groupFilter !== 'all') return api.groupFilter;
+        if (api.groupFilter && api.groupFilter !== 'all') return api.groupFilter;
         return myCreature() || creatures()[0] || 'hedgehog';
     }
     function baseItem(c) { return { id: SKIN_NONE, creature: c, name: creatureName(c), rarity: 'common', base: true }; }
@@ -199,8 +199,8 @@
     // ── 목록 ──
     function listItems(api) {
         var skins = api.items(SKIN).filter(function (it) { return it.id !== SKIN_NONE; });
-        // 기본 모습 칸은 무대 동물(동물 칩 또는 내 동물) 하나만 — 동물마다 하나씩 열 칸이면 전부 '입는 중'이라 시끄럽다. 테마 칩은 그 테마 스킨만
-        var bases = api.groupMode === 'theme' && api.groupFilter !== 'all' ? [] : [baseItem(stageCreature(api))];
+        // 기본 모습 칸은 무대 동물(동물 칩 또는 내 동물) 하나만 — 동물마다 하나씩 열 칸이면 전부 '입는 중'이라 시끄럽다
+        var bases = [baseItem(stageCreature(api))];
         var all = bases.map(function (it) { return { slot: SKIN, item: it }; })
             .concat(skins.map(function (it) { return { slot: SKIN, item: it }; }))
             .concat(api.items(BALLOON).map(function (it) { return { slot: BALLOON, item: it }; }));
@@ -289,7 +289,7 @@
     }
 
     function build(api) {
-        var filterKey = api.groupMode + ':' + api.groupFilter;
+        var filterKey = api.groupFilter;
         if (filterKey !== _lastFilter) {   // 칩을 바꾸면 무대는 그 칩의 지금 입은 모습으로, 목록은 맨 위로
             if (_lastFilter !== null) { _sel = null; _scrollTop = 0; }
             _lastFilter = filterKey;

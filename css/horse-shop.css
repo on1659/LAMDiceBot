@@ -405,10 +405,11 @@ body.hshop-open {
 .hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
 .hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(var(--highlight-rgb), 0.7); }
 .hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(var(--highlight-rgb), 0.9); }
-/* 상점 뷰 서브탭(어댑터 hooks.groupModes — 데구리: 전체보기/테마별보기). [상점|옷장] 아래 작은 밑줄 탭 — 위 큰 탭과 구분 */
-.hshop-subtabs { flex: none; display: flex; justify-content: center; gap: 20px; padding: 10px 16px 0; }
-.hshop-subtabs .hshop-subtab { width: auto; margin: 0; padding: 4px 2px 6px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--hshop-ink-soft); font-size: 13px; font-weight: 800; white-space: nowrap; cursor: pointer; }   /* 게임 css 의 button { width: 100% } 상쇄 */
-.hshop-subtabs .hshop-subtab.is-active { color: var(--hshop-ink); border-bottom-color: var(--horse-500); }
+/* 상점 하위 탭(어댑터 config.shopTabs — 데구리: 전체/테마/야식). [상점|옷장] 큰 탭 바로 아래, 같은 모양으로 한 단계 작게 */
+.hshop-tabs.hshop-shoptabs { padding-top: 8px; }
+.hshop-shoptabs .hshop-tab { padding: 7px 0; font-size: 12px; }
+/* 묶음 보기 본문(탭 sections — 데구리 테마): 옷장 섹션 틀(.hshop-inv-*)을 쓰되 위 여백은 .hshop-grid 처럼 스크롤 영역 바깥에 */
+.hshop-inv-body.hshop-shop-sections { margin-top: 10px; padding-top: 2px; }
 .hshop-equip.is-equipped {
     background: var(--hshop-equipped-bg);
     color: var(--hshop-equipped-ink);
