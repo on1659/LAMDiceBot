@@ -1,0 +1,165 @@
+/* Approved horse mobile composition, applied to native controls and server results.
+   Game artwork, fullscreen/PiP stages and desktop presentation retain their renderer. */
+@media (max-width: 760px), (orientation: landscape) and (max-height: 760px) and (pointer: coarse) {
+    body.mobile-ui.mobile-horse-focus { --mobile-horse-emphasis: var(--mobile-on-accent); }
+    [data-theme="dark"] body.mobile-ui.mobile-horse-focus { --mobile-horse-emphasis: var(--mobile-accent); }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace { gap: 14px; padding-top: 16px; }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace > #horseSelectionSection { padding: 0 !important; }
+    body.mobile-ui.mobile-horse-focus #horseSelectionSection .horse-selection-header {
+        gap: 12px; margin: 0 0 12px; padding: 12px; min-height: 92px;
+        border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card);
+    }
+    body.mobile-ui.mobile-horse-focus #horseSelectionSection.mobile-selection-collapsed .horse-selection-header { margin-bottom: 0; }
+    body.mobile-ui.mobile-horse-focus #horseSelectionSection .horse-selection-header > .users-title { font-size: 22px !important; }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnSelection { gap: 14px; }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon {
+        flex: 0 0 72px; width: 72px; height: 64px; border-radius: 12px; background: var(--mobile-soft);
+    }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon .vh-thumb { width: 68px !important; height: 51px !important; }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon svg { width: 68px; height: 51px; }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnLabel {
+        min-width: 0; font-size: 20px; line-height: 1.25; letter-spacing: -.6px; font-weight: 800;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileHorseOwnLabel::before {
+        content: '내 탈것'; display: block; margin-bottom: 5px;
+        font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0; color: var(--mobile-muted);
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace #mobileSelectionToggle {
+        flex: 0 0 auto; min-height: 40px; padding: 8px 12px;
+        border: 1px solid var(--mobile-line); background: var(--mobile-canvas); font-size: 12px;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace #horseSelectionGrid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace .horse-selection-button {
+        position: relative; height: 88px !important; min-height: 88px;
+        border: 1px solid var(--mobile-line) !important; border-radius: 14px;
+        background: var(--mobile-card); box-shadow: none; font-family: inherit;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace .horse-selection-button .vehicle-display {
+        width: 48px !important; height: 36px !important; line-height: 36px;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.selected {
+        border-color: var(--mobile-forest) !important; background: var(--mobile-soft) !important;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace .horse-selection-button.selected::after {
+        content: '✓'; position: absolute; inset: 5px 8px auto auto;
+        color: var(--mobile-horse-emphasis); font-size: 13px; font-weight: 800;
+    }
+    body.mobile-ui.mobile-horse-focus #horseSelectionInfo { color: var(--mobile-muted) !important; line-height: 1.5; }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace > #rankVoteSection {
+        padding: 12px !important; border-radius: 16px !important; background: var(--mobile-card) !important;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace .rank-vote-title {
+        margin: 0 0 10px; background: none; color: var(--mobile-ink); font-size: 13px;
+        -webkit-text-fill-color: currentColor; text-shadow: none;
+    }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) #rankVoteBoxes {
+        gap: 0; padding: 4px; border: 1px solid var(--mobile-line); border-radius: 14px;
+        background: var(--mobile-canvas);
+    }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-box {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 52px; max-width: none; padding: 6px 2px; border: 0; border-radius: 10px;
+        background: transparent; box-shadow: none; outline: none; transform: none;
+    }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-box::before { content: none; }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-rank {
+        font-size: 13px; color: var(--mobile-ink); text-shadow: none;
+    }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-count { font-size: 10px; color: var(--mobile-muted); }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-voters { color: var(--mobile-muted); max-width: 100%; }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-bars { display: none; }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-box.selected { background: var(--mobile-soft); }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-box.selected::after {
+        inset: 3px 4px auto auto; width: auto; height: auto; line-height: 1;
+        background: transparent; color: var(--mobile-horse-emphasis); box-shadow: none; font-size: 10px; animation: none;
+    }
+    body.mobile-ui.mobile-horse-focus #rankVoteSection:not(.on-canvas) .rank-vote-box.invalid::after {
+        inset: 2px 2px auto auto; background: var(--mobile-soft); color: var(--mobile-muted); font-size: 9px;
+    }
+    body.mobile-ui.mobile-horse-focus #mobileGameWorkspace > #mobileGameReadySummary {
+        min-height: 36px; display: flex; align-items: center; padding: 5px 14px;
+        border: 1px solid var(--mobile-line); border-radius: 10px; background: var(--mobile-card);
+    }
+    body.mobile-ui.mobile-horse-focus #mobileHorsePreview { border-radius: 16px; }
+    body.mobile-ui.mobile-horse-focus #mobileHorsePreviewRoot #raceTrackContainer { border-radius: 16px; }
+    body.mobile-ui.mobile-horse-focus #mobileHorseViewButton {
+        border-radius: 10px; background: var(--mobile-card); font-size: 12px;
+    }
+    body.mobile-ui.mobile-horse-focus #targetRankBanner {
+        border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card);
+        color: var(--mobile-ink); box-shadow: none; font-family: inherit;
+    }
+    body.mobile-ui.mobile-horse-focus #targetRankBanner .trb-text { color: var(--mobile-ink); text-shadow: none; }
+    body.mobile-ui.mobile-horse-focus #targetRankBannerNum { color: var(--mobile-horse-emphasis); }
+    body.mobile-ui.mobile-horse-focus #targetRankReason { color: var(--mobile-muted); }
+    body.mobile-ui.mobile-horse-focus #mainReplayButton {
+        min-height: 48px; margin: 0; border: 1px solid var(--mobile-line) !important;
+        border-radius: 14px !important; background: var(--mobile-card) !important;
+        color: var(--mobile-ink) !important; font-family: inherit !important;
+    }
+    /* Keep the native authoritative popup and confirmation; present it as a quiet score sheet. */
+    body.mobile-ui.mobile-horse-focus #resultOverlay { background: rgba(var(--shadow-rgb), .65); }
+    body.mobile-ui.mobile-horse-focus #resultOverlay .result-card {
+        width: calc(100% - 24px); max-width: 500px; max-height: calc(100dvh - 48px);
+        margin: 12px; padding: 20px 16px; border: 1px solid var(--mobile-line);
+        border-radius: 20px; background: var(--mobile-canvas); color: var(--mobile-ink);
+        font-family: inherit; text-align: left; scrollbar-width: none; animation: none;
+    }
+    body.mobile-ui.mobile-horse-focus #resultOverlay .result-title {
+        margin: 0 0 16px; color: var(--mobile-ink); font-size: 24px; letter-spacing: -.8px;
+    }
+    body.mobile-ui.mobile-horse-focus #resultOverlay .result-title > i { display: none; }
+    body.mobile-ui.mobile-horse-focus #resultRankings { display: flex; flex-direction: column; }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div {
+        margin: 0 !important; border: 1px solid var(--mobile-line) !important; border-radius: 0 !important;
+        background: var(--mobile-card) !important; padding: 10px 12px !important; box-shadow: none !important; animation: none;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div:has(> div) + div:has(> div) { border-top: 0 !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div:not(:has(> div)) {
+        margin-bottom: 10px !important; border-radius: 10px !important; color: var(--mobile-horse-emphasis) !important;
+        font-size: 12px !important;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div > div { min-width: 0; gap: 8px !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div:not(.result-target-block) > div > span {
+        min-width: 0; font-size: 13px !important; color: var(--mobile-ink) !important; overflow-wrap: anywhere;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div:not(.result-target-block) > div > span:last-child {
+        max-width: 38%; font-size: 11px !important; color: var(--mobile-muted) !important;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings > div:not(.result-target-block) > div > div {
+        flex: 0 0 38px; transform: none !important; line-height: 0;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings svg { max-width: 100%; image-rendering: pixelated; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-row { background: var(--mobile-soft) !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-row::before,
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-row::after { content: none; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-block {
+        order: -1; margin: 0 0 14px !important; padding: 18px 14px 16px !important;
+        border: 1px solid var(--mobile-line) !important; border-radius: 16px !important;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-block > div:first-child {
+        top: 0 !important; background: var(--mobile-soft) !important; color: var(--mobile-horse-emphasis) !important;
+    }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-block > div:nth-child(2) > span { color: var(--mobile-ink) !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-block > div:nth-child(2) > div { filter: none !important; transform: none !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .result-target-block > div:nth-child(3) { color: var(--mobile-muted) !important; letter-spacing: 1px !important; }
+    body.mobile-ui.mobile-horse-focus #resultRankings .winner-chip {
+        background: var(--mobile-soft); color: var(--mobile-ink); border: 1px solid var(--mobile-line);
+        box-shadow: none; font-size: 20px; font-family: inherit; animation: none; overflow-wrap: anywhere; max-width: 100%;
+    }
+    body.mobile-ui.mobile-horse-focus #resultOverlay .result-card > button {
+        width: 100% !important; min-height: 48px; margin: 0; border: 0; border-radius: 14px;
+        background: var(--mobile-accent); color: var(--mobile-on-accent) !important;
+        font-family: inherit; font-size: 15px; font-weight: 800; line-height: 1.4;
+    }
+    @media (max-width: 350px) {
+        body.mobile-ui.mobile-horse-focus #horseSelectionSection .horse-selection-header { gap: 8px; padding: 10px; }
+        body.mobile-ui.mobile-horse-focus #mobileHorseOwnSelection { gap: 9px; }
+        body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon { flex-basis: 60px; width: 60px; height: 58px; }
+        body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon .vh-thumb,
+        body.mobile-ui.mobile-horse-focus #mobileHorseOwnIcon svg { width: 56px !important; height: 42px !important; }
+        body.mobile-ui.mobile-horse-focus #mobileHorseOwnLabel { font-size: 18px; }
+    }
+}

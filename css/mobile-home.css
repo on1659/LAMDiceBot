@@ -7,3 +7,49 @@
 @media (max-height:700px){.mobile-home .lobby-hero{min-height:140px;padding:12px;margin:12px 0}.mobile-home .lobby-hero h2{font-size:21px;margin:6px 0 8px}.mobile-home .hero-horse{width:100px;top:24px}}
 
 .mobile-home .lobby-hero h2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+/* The first view is the game picker. Secondary lobby tools follow below it. */
+.mobile-home { font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; }
+.mobile-home .mobile-app { max-width: 430px; }
+.mobile-home .app-head { height: 72px; padding: 12px 16px; border-bottom: 1px solid var(--mobile-line); }
+.mobile-home .app-identity { display: grid; gap: 2px; }
+.mobile-home .brand { font-size: 21px; letter-spacing: -.7px; }
+.mobile-home .brand > span { color: var(--mobile-ink); }
+.mobile-home #serverTitle { color: var(--mobile-muted); font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-home .app-head .sub { margin: 0 !important; font-size: 11px; }
+.mobile-home .scroll { padding: 0 16px 24px; scrollbar-width: none; }
+.mobile-home .scroll::-webkit-scrollbar { display: none; }
+.mobile-home .where { display: none !important; }
+/* Reserve the dock's space inside the first section, so rooms begin after the first viewport. */
+.mobile-home .entry-start { min-height: calc(100dvh - 72px); display: flex; flex-direction: column; gap: 20px; padding: 24px 0 calc(88px + env(safe-area-inset-bottom, 0px)); }
+.mobile-home .entry-start h1 { font-size: 28px; line-height: 1.25; font-weight: 800; letter-spacing: -1px; }
+.mobile-home .entry-games { flex: 1; display: grid; grid-template: repeat(2, minmax(150px, 1fr)) / repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mobile-home .entry-games .tile { min-width: 0; min-height: 150px !important; display: flex; flex-direction: column; justify-content: center; gap: 20px; padding: 16px 8px; border: 1px solid var(--mobile-line); border-radius: 20px; background: var(--mobile-card); box-shadow: none; transition: transform .15s, background .15s; }
+.mobile-home .entry-games .tile:active { transform: scale(.97); background: var(--mobile-soft); }
+.mobile-home .entry-games strong { font-size: 19px; font-weight: 800; letter-spacing: -.6px; }
+.mobile-home .entry-games .ui { width: 96px; height: 96px; font-size: 68px; }
+.mobile-home .entry-horse { display: block; position: relative; width: 128px; height: 96px; }
+.mobile-home .entry-horse img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; animation: mobileHeroHorseRun .34s steps(1, end) infinite; }
+.mobile-home .entry-horse img:last-child { opacity: 0; animation-delay: -.17s; }
+.mobile-home .entry-deguri { display: block; width: 96px; height: 96px; background: url('/assets/deguri/creatures/hedgehog.webp') 0 0 / 400% 500% no-repeat; image-rendering: pixelated; animation: entryDeguriIdle .8s steps(4) infinite; }
+@keyframes entryDeguriIdle { to { background-position: 133.3333% 0; } }
+.mobile-home .tabbar { height: calc(64px + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 16px max(6px, env(safe-area-inset-bottom)); }
+.mobile-home .tabbar button { display: flex; flex-direction: row; justify-content: center; gap: 8px; min-height: 48px; padding: 8px; font-size: 13px; font-weight: 700; }
+.mobile-home .tabbar .ui { font-size: 20px; }
+.mobile-home .quick-actions button, .mobile-home .quick-actions button:last-child { background: var(--mobile-card); color: var(--mobile-ink); border: 1px solid var(--mobile-line); }
+.mobile-home .mobile-lobby-ad { overflow-x: auto; }
+@media (max-width: 350px) {
+    .mobile-home .entry-start { gap: 16px; padding: 20px 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
+    .mobile-home .entry-start h1 { font-size: 26px; }
+    .mobile-home .entry-games { gap: 10px; }
+    .mobile-home .entry-games .tile { gap: 12px; border-radius: 16px; }
+    .mobile-home .entry-horse { width: 112px; height: 84px; }
+    .mobile-home .entry-games .ui { width: 84px; height: 84px; }
+    .mobile-home .entry-deguri { width: 84px; height: 84px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mobile-home .entry-horse img, .mobile-home .entry-deguri { animation: none; }
+    .mobile-home .entry-horse img:first-child { opacity: 1; }
+    .mobile-home .entry-horse img:last-child { opacity: 0; }
+    .mobile-home .entry-games .tile { transition: none; }
+}

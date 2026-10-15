@@ -6,6 +6,22 @@
 
 ## 누적
 
+## 2026-10-14 — Document PiP 로 옮긴 버튼의 인라인 `onclick` 은 처음 눌린 창의 전역으로 굳는다
+
+**상황:** PiP 작은 창에 결과 카드·[경주 다시 보기]·[다음 판 준비]를 캔버스와 함께 옮겼다. 버튼은 `onclick="replayRace()"` 같은 인라인 핸들러였고, PiP 창 전역에도 같은 함수를 걸어 줬다(`pipWin.replayRace = replayRace`).
+**함정/실수:** 인라인 핸들러는 처음 실행될 때 그 순간 요소가 속한 문서의 창 전역으로 컴파일되고 그대로 남는다. PiP 에서 한 번 누른 뒤 창을 닫으면 버튼은 원래 페이지로 돌아오지만 핸들러는 닫힌 PiP 창의 함수를 부른다. 오류도 안 난다. PiP 안에서만 확인하면 전부 잘 된다.
+**증상:** PiP 를 닫은 뒤 원래 화면에서 [경주 다시 보기]를 눌러도 아무 일도 없다.
+**해결/예방:** 다른 문서로 옮겨 다니는 요소에는 인라인 `onclick` 을 쓰지 않고 `addEventListener` 로만 단다(`js/deguri.js` — `deguriReplayButton`·`deguriResetButton`·`deguriResultClose`). 검증은 "PiP 에서 누르기 → 닫기 → 원래 화면에서 같은 버튼 누르기" 순서로. 경마 PiP 주석(`horse-race-multiplayer.html` racePipBtn)에도 같은 경고가 있다.
+**관련:** `js/deguri.js` toggleDeguriPip·deguriEl, `deguri-multiplayer.html` #deguriAfterRace·#resultOverlay
+
+## 2026-10-14 — Document PiP 에 `<link>` 를 `cloneNode` 로 복제하면 상대 주소 시트가 안 읽힌다
+
+**상황:** 경마 PiP 와 같은 방식(`link[rel=stylesheet], style` 을 `cloneNode` 해서 PiP 문서 head 에 붙이기)으로 데구리 PiP 에 스타일을 옮겼다.
+**함정/실수:** PiP 문서 `baseURI` 는 원래 페이지 주소인데도 `/css/…` 상대 주소 시트는 `document.styleSheets` 에 하나도 안 들어왔다(외부 https 글꼴 시트만 붙음). 캔버스만 옮길 땐 캔버스가 스스로 그리니 티가 안 났고, HTML 결과 카드를 옮기자 맨 글자로 나왔다.
+**증상:** PiP 안 결과 카드가 스타일 없이 글자·그림이 세로로 늘어선다.
+**해결/예방:** 같은 출처 시트는 `sheet.cssRules` 글자를 모아 `<style>` 로, 규칙을 못 읽는 다른 출처 시트(글꼴)만 `sheet.href` 절대 주소 `<link>` 로 넣는다(`media` 도 옮김). 확인은 PiP 문서에서 `document.styleSheets.length` 와 옮긴 요소의 계산 스타일(`position: fixed` 등)로. playwright 로 PiP 를 시험할 땐 `newContext({ viewport: null })` + 창 모드여야 실제 창 크기(360×640)가 나온다 — 헤드리스는 새 창에도 컨텍스트 뷰포트를 강제한다. 경마 PiP 도 같은 복제 방식이라 같은 문제가 있을 수 있다(미확인).
+**관련:** `js/deguri.js` toggleDeguriPip, `js/horse-race.js` racePipOpen
+
 ## 2026-10-04 — 배경 그림으로 넓은 범위를 덮으려고 `drawImage` 크기를 키우면 이어 붙이기가 아니라 확대가 된다
 
 **상황:** 하늘 그림(1920×1080)을 줌아웃 때도 빈 곳이 없게 하려고 화면 폭의 2배(나중엔 3배) 크기로 그렸다. 초원은 출발대 위 30px 부터 직선으로 깔린다.

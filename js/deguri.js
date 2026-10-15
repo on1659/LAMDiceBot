@@ -268,6 +268,10 @@ window.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    [['deguriReplayButton', replayRace], ['deguriResetButton', resetDeguriRound], ['deguriResultClose', closeResultOverlay]].forEach(function (b) {   // PiP 로 옮겨 다니는 버튼 — 인라인 onclick 금지(toggleDeguriPip 주석)
+        var el = document.getElementById(b[0]); if (el) el.addEventListener('click', function () { b[1](); });
+    });
+
     // 렌더러 + 에셋 선로드 (피커 아이콘도 여기서 그린다)
     var canvas = document.getElementById('deguriCanvas');
     if (canvas && typeof DeguriRender !== 'undefined') {
@@ -276,6 +280,11 @@ window.addEventListener('DOMContentLoaded', function () {
         renderer.setHighlight(getMyHighlight());
         renderer.onIdleMove(moveMyStart);   // 대기 화면에서 출발대를 누르면 내 동물이 그 자리로
         updateHighlightButton();
+        if ('documentPictureInPicture' in window) {   // PiP 를 지원하는 데스크톱 브라우저만 [작은 창] 버튼
+            var pipBtn = document.getElementById('deguriPipBtn');
+            if (pipBtn) pipBtn.hidden = false;
+            if (typeof SoundManager !== 'undefined' && SoundManager.setFocusBypass) SoundManager.setFocusBypass(deguriPipOpen);   // 원래 탭이 가려져도 PiP 로 보는 중이면 소리
+        }
         DeguriRender.loadAssets(function () {
             assetsLoaded = true;
             document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
@@ -294,7 +303,7 @@ window.addEventListener('DOMContentLoaded', function () {
         window.addEventListener('resize', onResizeDebounced);
         window.addEventListener('orientationchange', onResizeDebounced);
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
-        var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
+        var onFsChange = function () { syncResultOverlayHost(); onResize(); setTimeout(onResize, FS_SETTLE_MS); };
         document.addEventListener('fullscreenchange', onFsChange);
         document.addEventListener('webkitfullscreenchange', onFsChange);
     }
@@ -399,7 +408,7 @@ function sendMessage() { ChatModule.sendMessage(); }
 function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
 function toggleReady() { ReadyModule.toggleReady(); }
 function closeResultOverlay() {
-    var overlay = document.getElementById('resultOverlay');
+    var overlay = deguriEl('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     stopResultAnimation();
     if (window.DeguriHighlight) DeguriHighlight.onResultClose();   // 다음에 열 때 순위부터, 묶은 카드 높이도 푼다
@@ -445,11 +454,102 @@ function toggleDeguriFullscreen() {
     if (box.requestFullscreen) box.requestFullscreen().catch(function () {});
     else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
 }
+// 결과 카드는 페이지 맨 아래(#resultOverlay)라 전체화면에선 안 보인다(전체화면 = 캔버스 박스만 화면에 뜬다, 의사 전체화면은 박스 z-index 가 더 높다).
+// 전체화면인 동안만 박스 안으로 옮기고, 나오면 주석 자리로 되돌린다(경마 moveResultUiToCanvas 와 같은 방식, 사용자 2026-10-14)
+var resultOverlayHome = null;
+function syncResultOverlayHost() {
+    var box = document.getElementById('deguriCanvasBox'), overlay = document.getElementById('resultOverlay');
+    if (!box || !overlay) return;
+    var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+    var inFs = fsEl === box || box.classList.contains('is-pseudo-fs');
+    if (inFs && overlay.parentNode !== box) {
+        if (!resultOverlayHome) { resultOverlayHome = document.createComment('resultOverlay-placeholder'); overlay.parentNode.insertBefore(resultOverlayHome, overlay); }
+        box.appendChild(overlay);
+    } else if (!inFs && resultOverlayHome) {
+        resultOverlayHome.parentNode.insertBefore(overlay, resultOverlayHome);
+        resultOverlayHome.remove(); resultOverlayHome = null;
+    }
+}
+
+// PiP 작은 창 — Document Picture-in-Picture(데스크톱 크롬·엣지). 캔버스를 세로 창으로 옮긴다(사용자 2026-10-14 "세로형").
+// 폭이 NARROW_PX(600) 미만이라 렌더러가 폰과 같은 세로 카메라로 그린다. 결과 카드·경주 뒤 버튼 줄(다시 보기·다음 판 준비)도 같이 옮긴다 — PiP 로 보는 사람도 거기서 결과를 보고 다시 본다(사용자 2026-10-14).
+// 박스째 옮기지 않는 이유: 박스 안 배지·투표 막대는 document.getElementById 로 찾는다. 옮기는 것들은 deguriEl 로 찾고, 그 안 버튼은 인라인 onclick 없이 addEventListener 로 단다
+// (인라인 핸들러는 처음 눌린 창의 전역으로 굳어, PiP 에서 한 번 누른 뒤 닫으면 원래 화면에서 죽은 창 함수를 부른다 — 2026-10-14 실측).
+// 원래 자리엔 안내 문구가 남고, 창을 닫으면(창의 탭으로 돌아가기 버튼 포함) 전부 돌아온다
+var DEGURI_PIP_W = 360, DEGURI_PIP_H = 640;
+var DEGURI_PIP_MOVE_IDS = ['resultOverlay', 'deguriAfterRace'];
+var deguriPipWin = null, deguriPipOpening = false;
+function deguriPipOpen() { return !!(deguriPipWin && !deguriPipWin.closed); }
+// PiP 창으로 옮겨 다니는 요소(DEGURI_PIP_MOVE_IDS) 찾기 — 이 문서에 없으면 PiP 문서에서
+function deguriEl(id) { return document.getElementById(id) || (deguriPipOpen() ? deguriPipWin.document.getElementById(id) : null); }
+window.deguriEl = deguriEl;   // js/deguri-highlight.js 도 결과 카드 안 요소를 이걸로 찾는다
+function toggleDeguriPip() {
+    if (deguriPipOpen()) { deguriPipWin.close(); return; }
+    if (!('documentPictureInPicture' in window) || deguriPipOpening) return;
+    var box = document.getElementById('deguriCanvasBox'), canvas = document.getElementById('deguriCanvas');
+    if (!box || !canvas || !renderer) return;
+    deguriPipOpening = true;
+    documentPictureInPicture.requestWindow({ width: DEGURI_PIP_W, height: DEGURI_PIP_H }).then(function (pipWin) {
+        deguriPipOpening = false;
+        deguriPipWin = pipWin;
+        var pdoc = pipWin.document;
+        // 스타일·글꼴(Jua — 캔버스 글자도 이 문서의 글꼴을 쓴다)·스킨 속성을 그대로 가져간다.
+        // <link> 를 그대로 복제하면 /css/… 같은 상대 주소 시트가 PiP 문서에서 안 읽혔다(2026-10-14 실측 — 외부 https 시트만 붙음) → 읽을 수 있는 시트는 규칙 글자를 <style> 로, 다른 출처 시트(글꼴)만 절대 주소 <link> 로
+        Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var css = null;
+            try { css = Array.prototype.map.call(sheet.cssRules, function (r) { return r.cssText; }).join('\n'); } catch (e) { /* 다른 출처 — 규칙을 못 읽는다 */ }
+            var n;
+            if (css != null) { n = pdoc.createElement('style'); n.textContent = css; }
+            else if (sheet.href) { n = pdoc.createElement('link'); n.rel = 'stylesheet'; n.href = sheet.href; }
+            if (n) { if (sheet.media && sheet.media.mediaText) n.media = sheet.media.mediaText; pdoc.head.appendChild(n); }
+        });
+        ['data-theme', 'data-skin'].forEach(function (a) { var v = document.documentElement.getAttribute(a); if (v) pdoc.documentElement.setAttribute(a, v); });
+        var fix = pdoc.createElement('style');
+        fix.textContent = 'body{margin:0;overflow:hidden;background:var(--deguri-fullscreen-bg);}#deguriCanvas{display:block;border-radius:0;}'
+            + '#deguriAfterRace{position:fixed;left:12px;right:12px;bottom:12px;margin:0;z-index:5;}';   // 경주 뒤 버튼 줄은 창 아래에 떠 있게
+        pdoc.head.appendChild(fix);
+        var note = document.createElement('div');
+        note.className = 'deguri-pip-note';
+        note.textContent = '작은 창에서 보는 중이에요';   // 되돌리기는 바로 위 도구 줄 [원래 화면으로]
+        box.insertBefore(note, canvas);
+        box.classList.add('is-pip');
+        pdoc.body.appendChild(canvas);
+        var homes = DEGURI_PIP_MOVE_IDS.map(function (id) {
+            var el = document.getElementById(id); if (!el) return null;
+            var ph = document.createComment(id + '-pip-placeholder'); el.parentNode.insertBefore(ph, el);
+            pdoc.body.appendChild(el);
+            return { el: el, ph: ph };
+        });
+        renderer.rehost();
+        var fitPip = function () { renderer.resize(); if (!isDeguriActive && !replaying && assetsLoaded) renderer.drawIdle(deguriState.preview, currentUser); };
+        fitPip();
+        pipWin.addEventListener('resize', fitPip);
+        pipWin.addEventListener('pagehide', function () {
+            box.insertBefore(canvas, note);
+            note.remove();
+            homes.forEach(function (h) { if (!h) return; h.ph.parentNode.insertBefore(h.el, h.ph); h.ph.remove(); });
+            box.classList.remove('is-pip');
+            deguriPipWin = null;
+            renderer.rehost();
+            var rOverlay = document.getElementById('resultOverlay'), rBox = document.getElementById('resultRankings');
+            if (rOverlay && rOverlay.classList.contains('visible') && rBox && rBox.querySelector('canvas[data-creature]')) startResultAnimation(rBox);   // PiP 창 타이머는 창과 함께 사라졌다
+            fitPip();
+            updatePipButton();
+        }, { once: true });
+        updatePipButton();
+    }).catch(function () { deguriPipOpening = false; });
+}
+function updatePipButton() {
+    var btn = document.getElementById('deguriPipBtn'), fsBtn = document.getElementById('deguriFullscreenOpenBtn');
+    if (btn) btn.innerHTML = deguriPipOpen() ? '<i class="ui ui-tv"></i> 원래 화면으로' : '<i class="ui ui-tv"></i> 작은 창';
+    if (fsBtn) fsBtn.hidden = deguriPipOpen();   // 캔버스가 PiP 에 가 있는 동안 전체화면은 빈 박스만 띄운다
+}
 window.startDeguri = startDeguri;
 window.pickCreature = pickCreature;
 window.setDeguriCrowd = setDeguriCrowd;
 window.setDeguriRandomTrack = setDeguriRandomTrack;
 window.toggleDeguriFullscreen = toggleDeguriFullscreen;
+window.toggleDeguriPip = toggleDeguriPip;
 
 function escapeHtml(str) {
     if (str == null) return '';
@@ -1062,9 +1162,9 @@ function showStage(show) {
 
 // 경주 뒤 버튼 줄 (결과 다시 보기 / 방장: 다음 판 준비) — 마지막 화면(비석)은 방장이 걷을 때까지 남는다
 function showAfterRace(show) {
-    var box = document.getElementById('deguriAfterRace');
+    var box = deguriEl('deguriAfterRace');
     if (box) box.style.display = show ? '' : 'none';
-    var reset = document.getElementById('deguriResetButton');
+    var reset = deguriEl('deguriResetButton');
     if (reset) reset.style.display = (show && isHost) ? '' : 'none';
 }
 function goToOrders() {
@@ -1122,7 +1222,7 @@ function syncReplayBar() {
     replayTimeEl.textContent = replayClockText(now) + ' / ' + replayClockText(end);
 }
 function setReplayUi(on) {
-    var btn = document.getElementById('deguriReplayButton');
+    var btn = deguriEl('deguriReplayButton');
     if (btn) btn.innerHTML = on ? '<i class="mi mi-stop"></i> 그만 보기' : '<i class="mi mi-play"></i> 경주 다시 보기';
     var badge = document.getElementById('deguriReplayBadge');
     if (badge) badge.style.display = on ? '' : 'none';
@@ -1194,7 +1294,7 @@ function replayRace() {
     renderer.onFinale(function () {});
     renderer.play(0);
     // GIF 녹화기는 처음 다시 볼 때 한 번 만든다(조작줄·대화상자에 이벤트를 단다). 재생 제어는 위 함수들 — 끝 타이머도 같이 다시 건다
-    if (!replayGif && window.DeguriReplayGif) replayGif = DeguriReplayGif.create({
+    if (!replayGif && window.DeguriReplayGif && !deguriPipOpen()) replayGif = DeguriReplayGif.create({   // PiP 중엔 캔버스가 이 문서에 없어 만들기가 실패(버튼 영영 숨김)한다 — 닫은 뒤 다시 볼 때 만든다
         time: function () { return renderer.time(); },
         duration: function () { return deguriState.reveal ? deguriState.reveal.durationMs : 0; },
         seekTo: seekReplay,
@@ -1232,8 +1332,8 @@ function resultBallFor(owner, target) {
     return pick;
 }
 // 결과 카드의 당첨 동물·순위 줄 동물은 선택 버튼과 같은 대기 스프라이트 프레임(PICKER_ICON_FRAMES·230ms)으로 움직인다. 카드가 닫히면 멈추고, reduced motion 이면 안 움직인다
-var resultAnimTimer = null;
-function stopResultAnimation() { if (resultAnimTimer) { clearInterval(resultAnimTimer); resultAnimTimer = null; } }
+var resultAnimTimer = null, resultAnimWin = window;   // 결과 카드가 PiP 창에 있으면 타이머도 그 창에 — 가려진 원래 탭 타이머는 1초에 한 번으로 느려진다
+function stopResultAnimation() { if (resultAnimTimer) { try { resultAnimWin.clearInterval(resultAnimTimer); } catch (e) {} resultAnimTimer = null; } }
 function drawResultIcons(box, frameAt) {
     if (!renderer || !box) return;
     box.querySelectorAll('canvas[data-creature]').forEach(function (cv, i) { renderer.drawCreatureIcon(cv, cv.getAttribute('data-creature'), frameAt(i), cv.getAttribute('data-skin') || null); });
@@ -1241,9 +1341,10 @@ function drawResultIcons(box, frameAt) {
 function startResultAnimation(box) {
     stopResultAnimation();
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    resultAnimTimer = setInterval(function () {
-        if (document.hidden) return;
-        var overlay = document.getElementById('resultOverlay');
+    resultAnimWin = deguriPipOpen() ? deguriPipWin : window;
+    resultAnimTimer = resultAnimWin.setInterval(function () {
+        if (document.hidden && !deguriPipOpen()) return;
+        var overlay = deguriEl('resultOverlay');
         if (!overlay || !overlay.classList.contains('visible')) { stopResultAnimation(); return; }
         var step = Math.floor(performance.now() / PICKER_ICON_MS);
         drawResultIcons(box, function (i) { return PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length]; });
@@ -1263,7 +1364,7 @@ function revealSelectedRankRow(list) {
 function showResultOverlay(data) {
     if (document.body) document.body.classList.remove('race-running');
     stopResultAnimation();
-    var box = document.getElementById('resultRankings'), list = null;
+    var box = deguriEl('resultRankings'), list = null;
     if (box) {
         var html = '';
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
@@ -1291,7 +1392,7 @@ function showResultOverlay(data) {
         drawResultIcons(box, function () { return 0; });
         list = box.querySelector('.deguri-result-ranks');
     }
-    var overlay = document.getElementById('resultOverlay');
+    var overlay = deguriEl('resultOverlay');
     if (overlay) overlay.classList.add('visible');   // 보이게 한 뒤에 재야 목록 높이가 잡힌다
     if (list) revealSelectedRankRow(list);
     if (box && box.querySelector('canvas[data-creature]')) startResultAnimation(box);

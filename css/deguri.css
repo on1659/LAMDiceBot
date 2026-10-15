@@ -172,6 +172,41 @@
     /* [동물|테마] 전환은 칩을 밀어도 왼쪽에 남는다 — 칩이 그 밑으로 지나가므로 패널 색 테두리로 가린다 */
     #deguriShopMount .hshop-groupmode { position: sticky; left: 0; z-index: 1; box-shadow: 0 0 0 6px var(--hshop-bg); }
 }
+/* 동물 칩은 그림만 작게(단독판 옷장과 같은 동그라미) — 이름은 화면 읽기용으로만 남기고 PC 는 마우스 올리면(canvas title). 테마 칩·전체는 글자 그대로 */
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) { position: relative; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) canvas { width: 24px; height: 24px; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip { height: 30px; }
+/* ── 옷장 탭: 단독판 옷장 이식(js/deguri-closet.js, docs/goal/deguri-closet-standalone-port.md) ──
+   무대(입은 모습·동작 돌림)는 위에 고정, 보유/미보유 목록만 스크롤. 카드는 상점 탭과 같은 .hshop-card 모양에 버튼만 카드 전체 */
+#deguriShopMount .dcl-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 10px 0 0; }
+#deguriShopMount .dcl-stage { flex: none; display: flex; align-items: center; gap: 12px; margin: 0 16px 4px; padding: 8px; border: 1px solid var(--hshop-line); border-radius: 14px; background: var(--hshop-card); }
+#deguriShopMount .dcl-stage-view { position: relative; flex: 0 0 auto; display: grid; place-items: center; width: 112px; height: 112px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: var(--hshop-inv-stage); box-shadow: none; cursor: pointer; overflow: hidden; }
+#deguriShopMount .dcl-stage-sprite { width: 104px; height: 104px; background-repeat: no-repeat; image-rendering: pixelated; }
+#deguriShopMount .dcl-stage-balloon { position: absolute; top: 2px; right: 6px; width: 30px; height: 40px; pointer-events: none; }
+#deguriShopMount .dcl-stage-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+#deguriShopMount .dcl-stage-name { max-width: 100%; overflow: hidden; color: var(--hshop-ink); font-size: 16px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+#deguriShopMount .dcl-stage-status { display: flex; align-items: center; gap: 6px; color: var(--hshop-ink-soft); font-size: 12px; font-weight: 700; }
+#deguriShopMount .dcl-stage-status .hshop-rarity { position: static; }
+#deguriShopMount .dcl-stage-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#deguriShopMount .dcl-btn { width: auto; margin: 0; padding: 6px 12px; border: 1.5px solid var(--deguri-accent); border-radius: 999px; background: var(--hshop-card); color: var(--deguri-accent); box-shadow: none; font-size: 12px; font-weight: 800; line-height: 1.1; white-space: nowrap; cursor: pointer; }
+#deguriShopMount .dcl-btn--buy,
+#deguriShopMount .dcl-btn--wear { border-color: var(--horse-500); background: var(--horse-500); color: var(--text-on-accent); }
+#deguriShopMount .dcl-btn:active { transform: scale(0.97); }
+#deguriShopMount .dcl-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px calc(16px + env(safe-area-inset-bottom)); }
+#deguriShopMount .dcl-group { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 6px; }
+#deguriShopMount .dcl-group-title { color: var(--hshop-ink-soft); font-size: 12px; font-weight: 800; }
+#deguriShopMount .dcl-sort { display: inline-flex; padding: 2px; border-radius: 999px; background: var(--hshop-inv-chip-bg); }
+#deguriShopMount .dcl-sort-btn { width: auto; margin: 0; padding: 3px 9px; border: 0; border-radius: 999px; background: none; box-shadow: none; color: var(--hshop-ink-soft); font-size: 11px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+#deguriShopMount .dcl-sort-btn.is-active { background: var(--hshop-ink); color: var(--hshop-bg); }
+#deguriShopMount button.dcl-card { width: auto; margin: 0; font: inherit; color: var(--hshop-ink); background: var(--hshop-card); cursor: pointer; }
+#deguriShopMount button.dcl-card:active { transform: scale(0.97); }
+#deguriShopMount button.dcl-card:focus-visible { outline: 2px solid var(--deguri-accent); outline-offset: 1px; }
+#deguriShopMount .dcl-card.is-worn { border-color: var(--hshop-equipped); box-shadow: 0 0 0 1px var(--hshop-equipped); }
+#deguriShopMount .dcl-card.is-locked { border-style: dashed; }
+#deguriShopMount .dcl-card.is-preview { outline: 2px solid var(--deguri-accent); outline-offset: 1px; }
+#deguriShopMount .dcl-lock { position: absolute; top: 3px; right: 4px; z-index: 5; font-size: 11px; line-height: 1; }
+#deguriShopMount .dcl-on { position: absolute; left: 3px; bottom: 3px; z-index: 5; padding: 1px 5px; border-radius: 6px; background: var(--hshop-equipped); color: var(--text-on-accent); font-size: 9px; font-weight: 800; }
 .deguri-creature-btn .skin-badge {
     position: absolute; top: -8px; left: -8px; padding: 0 6px; height: 20px; line-height: 20px; border-radius: 10px;
     background: var(--deguri-skin-badge-bg); color: var(--text-on-accent); font-size: 11px; font-weight: bold; box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.25);
@@ -1024,6 +1059,21 @@
 body.deguri-pseudo-fs {
     overflow: hidden;
 }
+/* PiP 작은 창(js/deguri.js toggleDeguriPip) — 캔버스가 창으로 가 있는 동안 박스엔 안내 줄만. 카메라 버튼·알약은 캔버스 없이 떠 있게 되니 숨긴다 */
+.deguri-pip-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    padding: 16px;
+    color: var(--deguri-ink);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+}
+#deguriCanvasBox.is-pip .deguri-cam-btn,
+#deguriCanvasBox.is-pip .deguri-zoom-pill {
+    display: none;
+}
 
 /* ===== 모바일 ===== */
 @media (max-width: 600px) {
@@ -1225,17 +1275,18 @@ body.deguri-pseudo-fs {
     font-size: 14px;
 }
 /* Jev 하이라이트(js/deguri-highlight.js) — 순위 목록 자리를 GIF 로 바꿔 보여 준다. 바꿀 때 카드 높이를 지금 높이로 묶고(js), 자리가 GIF 보다 좁으면 머리의 당첨 동물 그림을 접는다(.is-compact) */
-.deguri-highlight {
+.deguri-highlight {   /* 순위 목록 자리 높이(js)에 맞추되 GIF 는 가운데 — 자리가 GIF 보다 크면(20명 판) 남는 공간은 위아래로 나눈다 */
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 8px;
     margin: 0 0 14px;
 }
 .deguri-highlight[hidden] { display: none; }
-.deguri-highlight__frame {
+.deguri-highlight__frame {   /* GIF 크기만큼만(겹침 판이 GIF 에 딱 맞게) — 최대 높이는 js 가 자리 높이에서 이유 줄을 뺀 값으로 준다 */
     position: relative;
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     align-items: center;
     justify-content: center;
     min-height: 0;

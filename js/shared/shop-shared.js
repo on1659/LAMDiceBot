@@ -1103,6 +1103,21 @@
         return body;
     }
 
+    // hooks.buildClosetBody 에 넘기는 셸 기능 — 목록(그룹 칩·정렬 적용)·소유·장착·구매(확인 팝업 → 구매 → autoEquipOnBuy)
+    function closetApi() {
+        return {
+            slots: activeSlots(),
+            items: function (slotKey) { return applySort(slotKey, ((_catalog && _catalog[slotKey]) || []).filter(passesGroup)); },
+            owns: ownsForInventory,
+            isEquipped: function (slot, id) { return slotHas(_wallet.equipped, slot, id); },
+            equip: doEquip,
+            buy: function (slot, item) { requestBuy(slot, item, null); },
+            rerender: renderModal,
+            groupFilter: _groupFilter,
+            groupMode: groupMode()
+        };
+    }
+
     function renderModal() {
         var mount = getMount();
         if (!mount || !_catalog) return;
@@ -1176,7 +1191,9 @@
             panel.appendChild(renderViewTabs());
             if (hasGroups()) panel.appendChild(renderGroupChips());
             if (cnoticeText) { var cnotice = document.createElement('div'); cnotice.className = 'hshop-notice'; cnotice.textContent = cnoticeText; panel.appendChild(cnotice); }
-            panel.appendChild(buildClosetBody());
+            // 어댑터가 옷장 본문을 통째로 그릴 수 있다(데구리 js/deguri-closet.js — 무대·보유/미보유). hook 이 없거나 null 이면 기본 본문
+            var customCloset = (_config.hooks && typeof _config.hooks.buildClosetBody === 'function') ? _config.hooks.buildClosetBody(closetApi()) : null;
+            panel.appendChild(customCloset || buildClosetBody());
             overlay.appendChild(panel);
             mount.appendChild(overlay);
             return;

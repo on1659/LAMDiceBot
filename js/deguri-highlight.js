@@ -35,7 +35,7 @@
     };
     var BUTTON_SHOW = '<i class="mi mi-play"></i> 하이라이트 보기', BUTTON_RANKING = '<i class="mi mi-list"></i> 순위 보기';   // 상수 문자열만 innerHTML(사용자 입력 없음)
 
-    function $(id) { return document.getElementById(id); }
+    function $(id) { return window.deguriEl ? window.deguriEl(id) : document.getElementById(id); }   // 결과 카드가 PiP 작은 창에 가 있을 수 있다(js/deguri.js deguriEl)
 
     var socket = null, opts = null, els = null;
     var cur = null;        // { rid, source, arm, clips, facts, reasons, status:'rendering'|'ready'|'failed', blob, url, size, totalMs, timer, enc, vote, saved, autoPlayed }
@@ -49,7 +49,7 @@
         var view = $('deguriHighlightView'), row = $('deguriHighlightButtons');
         if (!view || !row) return null;
         els = { view: view, row: row, gif: $('deguriHighlightGif'), making: $('deguriHighlightMaking'), note: $('deguriHighlightNote'), up: $('deguriHighlightUp'), down: $('deguriHighlightDown'),
-            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: document.querySelector('#resultOverlay .deguri-result-card'), body: $('resultRankings'),
+            button: $('deguriHighlightButton'), save: $('deguriHighlightSave'), overlay: $('resultOverlay'), card: $('resultOverlay') && $('resultOverlay').querySelector('.deguri-result-card'), body: $('resultRankings'),
             end: $('deguriHighlightEnd'), replay: $('deguriHighlightReplay'), close: $('deguriHighlightClose'), ask: $('deguriHighlightAsk') };
         els.replay.addEventListener('click', function () { stopAuto(); play(); });
         els.close.addEventListener('click', function () { stopAuto(); show(false); });
@@ -217,10 +217,12 @@
             var want = lockedView.ranksW * (cur.size ? cur.size[1] / cur.size[0] : 0.72) + 44;   // GIF 높이(판 폭 기준) + 이유 줄
             var compact = lockedView.spriteH > 0 && lockedView.ranksH < want * 0.9;
             els.card.classList.toggle('is-compact', compact);
-            els.view.style.height = Math.max(120, Math.round(lockedView.ranksH + (compact ? lockedView.spriteH : 0))) + 'px';
+            var viewH = Math.max(120, Math.round(lockedView.ranksH + (compact ? lockedView.spriteH : 0)));
+            els.view.style.height = viewH + 'px';
+            els.gif.style.maxHeight = Math.max(80, viewH - 44) + 'px';   // 이유 줄(≈36) + 간격 — 자리보다 커지지 않게. 자리가 더 크면 GIF 는 제 크기로 가운데
         } else {
             els.card.classList.remove('is-compact');
-            els.view.style.height = '';
+            els.view.style.height = ''; els.gif.style.maxHeight = '';
             clearTimeout(endTimer); els.end.hidden = true;
         }
         if (ranks) ranks.hidden = showing;

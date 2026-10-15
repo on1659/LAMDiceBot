@@ -33,6 +33,8 @@ TEMPLATE = {
     'turtle': ('marble-run-skin-turtle-melon-2026-09-22', 'turtle-melon', 'creatures_melon_png.js'),   # r3c0 도 공
     # 아르마딜로는 생성 스킨 배치가 없다 — 칸 규칙이 같은 공벌레 것(r3c0 = 공 아님)을 쓴다. 거북이 도구는 r3c0 을 공으로 맞춰 버려서 못 쓴다
     'armadillo': ('marble-run-skin-pillbug-rainbow-2026-09-22', 'pillbug-rainbow', 'creatures_rainbow_png.js'),
+    'hamster': ('marble-run-skin-hamster-cookie-2026-09-22', 'hamster-cookie', 'creatures_cookie_png.js'),
+    'rabbit': ('marble-run-skin-rabbit-tophat-2026-09-22', 'rabbit-tophat', 'creatures_tophat_png.js'),
 }
 ROWS = {
     'raccoon': {
@@ -100,6 +102,28 @@ ROWS = {
         'scuffle': ("row0 push: c0 leaning forward, frowning; c1 pushing with front paws; c2 strongest shove, low and stretched; c3 knocked back onto its rump, eyes shut.\n"
                     "row1: c0 startled, mouth open, paws up; c1 tumbling in the air on its back, limbs splayed, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
                     "Copy the base armadillo-scuffle poses; right-facing side profile."),
+    },
+    'hamster': {
+        'main': ("row0 idle: c0 neutral upright; c1 front-paw tapping with small movement marks; c2 sniff/blink; c3 settle upright. All right side profiles.\n"
+                 "row1 curl: c0 stand; c1 crouch; c2 very low rounded crouch with face still visible; c3 COMPLETE BALL identical to row2 c0.\n"
+                 "row2 ball: c0 plain ROUND ball; c1 visibly wide flattened landing squash ball; c2 ROUND ball with brown mud splotches; c3 ROUND dizzy ball with spiral eyes. Four visibly distinct genuine BALLS, costume visible on each.\n"
+                 "row3 uncurl: c0 fully curled ROUND ball; c1 half-open low hamster; c2 upright paw wave A; c3 upright paw wave B eyes closed.\n"
+                 "row4 faceplant: c0 right-facing nose-first flattened impact; c1 airborne rebound right-facing; c2 splayed faceplant seen from ABOVE (the only overhead pose); c3 right-facing low dizzy pose with small orbiting stars."),
+        'sleep': "c0 lying sideways asleep, eyes closed; c1 same asleep with the belly gently inflated; c2 awake low on its belly with eyes open; c3 suddenly sitting upright, alert. No Z letters or exclamation text. Copy the base hamster-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward arms out; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil leaning backward.\n"
+                    "row1: c0 startled jump, slightly airborne; c1 falling crouched with legs spread, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base hamster-scuffle poses; right-facing side profile."),
+    },
+    'rabbit': {
+        'main': ("row0 idle: c0 ears perk; c1 foot tap; c2 sniff with eyes closed; c3 settle. Same base poses.\n"
+                 "row1 curl: c0 standing; c1 crouch; c2 rounded almost-ball; c3 COMPLETE BALL identical to r2c0.\n"
+                 "row2 ball: c0 normal ball; c1 squashed wide landing ball; c2 muddy ball (3-4 brown splotches); c3 dizzy ball with spiral eyes. These are ROUND BALLS with the tiny tail, no long upright ears on the balls, costume visible on each.\n"
+                 "row3 uncurl: c0 complete ball; c1 partly opened crouch; c2 sitting up waving A; c3 sitting up waving B, eyes closed happily.\n"
+                 "row4 faceplant: c0 nose squished against an invisible wall at RIGHT; c1 airborne bounce; c2 spread faceplant seen from above with floppy ears; c3 seated dizzy with circling stars."),
+        'sleep': "c0 lying flat asleep, eyes closed, ears laid back; c1 same pose breathing; c2 waking, head and ears raised; c3 sitting upright, alert. Copy the base rabbit-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward pushing with front paws; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil.\n"
+                    "row1: c0 startled jump, slightly airborne; c1 falling with legs spread, NOT a ball; c2 seated dizzy A with swirl eyes, ears flopped; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base rabbit-scuffle poses; right-facing side profile."),
     },
 }
 GRID = {'main': (4, 5), 'sleep': (4, 1), 'scuffle': (4, 2)}

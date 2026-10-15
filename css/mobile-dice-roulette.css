@@ -1,0 +1,285 @@
+/* Native dice / roulette renderers stay in charge of every roll and spin. */
+.dice-mobile-only { display: none; }
+.dice-native-rule-label strong, .dice-native-rule-label small { font: inherit; }
+@media (max-width: 760px), (orientation: landscape) and (max-height: 760px) and (pointer: coarse) {
+    body.mobile-ui #mobileDiceStage {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 22px;
+        min-height: 138px;
+        padding: 20px 16px;
+        margin: 0;
+        border-radius: 16px;
+        border: 1px solid var(--mobile-line);
+        background: var(--mobile-soft);
+        overflow: hidden;
+    }
+    body.mobile-ui #mobileDiceStage #diceIdleEmoji {
+        position: relative;
+        z-index: 1;
+        flex: 0 0 82px;
+        width: 82px;
+        height: 82px;
+        font-size: 60px !important;
+        border: 2px solid var(--mobile-line);
+        border-radius: 18px;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        box-shadow: 3px 4px 0 var(--mobile-line);
+    }
+    /* A decorative five-pip die, separate from the live clickable die. */
+    body.mobile-ui #mobileDiceStage::after {
+        content: '';
+        width: 76px;
+        height: 76px;
+        flex: 0 0 76px;
+        border: 2px solid var(--mobile-on-accent);
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at 28% 28%, var(--mobile-on-accent) 0 5px, transparent 5.5px),
+            radial-gradient(circle at 72% 28%, var(--mobile-on-accent) 0 5px, transparent 5.5px),
+            radial-gradient(circle at 50% 50%, var(--mobile-on-accent) 0 5px, transparent 5.5px),
+            radial-gradient(circle at 28% 72%, var(--mobile-on-accent) 0 5px, transparent 5.5px),
+            radial-gradient(circle at 72% 72%, var(--mobile-on-accent) 0 5px, transparent 5.5px),
+            var(--mobile-accent);
+        transform: rotate(12deg) translateY(-3px);
+        box-shadow: 3px 4px 0 var(--mobile-on-accent);
+        pointer-events: none;
+    }
+    body.mobile-ui.mobile-app-running #mobileDiceStage::after { display: none; }
+    body.mobile-ui #mobileGameWorkspace > #gameRulesSection {
+        margin: 0 !important;
+        padding: 14px !important;
+        border: 1px solid var(--mobile-line) !important;
+        border-radius: 16px;
+        background: var(--mobile-card) !important;
+        color: var(--mobile-ink);
+    }
+    body.mobile-ui #gameRulesSection .dice-settings-title {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: var(--mobile-ink);
+        font-weight: 750;
+    }
+    body.mobile-ui #gameRulesRadioSection { margin-bottom: 10px !important; }
+    body.mobile-ui .dice-native-rules {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px !important;
+    }
+    body.mobile-ui .dice-native-rules > label {
+        position: relative;
+        justify-content: center;
+        min-width: 0;
+        min-height: 72px;
+        padding: 12px 3px 10px !important;
+        border: 1px solid var(--mobile-line) !important;
+        border-radius: 10px !important;
+        background: var(--mobile-canvas) !important;
+        color: var(--mobile-ink);
+        text-align: center;
+    }
+    body.mobile-ui .dice-native-rules input[type=radio] {
+        position: absolute;
+        width: 1px !important;
+        height: 1px !important;
+        min-width: 0;
+        min-height: 0;
+        clip-path: inset(50%);
+        overflow: hidden;
+    }
+    body.mobile-ui .dice-native-rules > label:has(input:checked) {
+        border-color: var(--mobile-coral) !important;
+        background: var(--mobile-soft) !important;
+        box-shadow: inset 0 -2px 0 var(--mobile-coral);
+    }
+    body.mobile-ui .dice-native-rules > label:has(input:checked)::after {
+        content: '✓';
+        position: absolute;
+        right: 6px;
+        top: 3px;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--mobile-coral);
+    }
+    body.mobile-ui .dice-native-rules > label:has(input:focus-visible) {
+        outline: 3px solid var(--mobile-coral);
+        outline-offset: 2px;
+    }
+    body.mobile-ui .dice-native-rule-label strong {
+        display: block;
+        font-size: 17px;
+        font-weight: 750;
+        line-height: 1.3;
+        margin-bottom: 4px;
+    }
+    body.mobile-ui .dice-native-rule-label small {
+        display: block;
+        font-size: 10px;
+        color: var(--mobile-muted);
+        line-height: 1.4;
+    }
+    body.mobile-ui .dice-rule-divider { display: none; }
+    body.mobile-ui .dice-native-rules > label:has(#gameRuleCustom),
+    body.mobile-ui .dice-native-rules > #gameNearNumberContainer,
+    body.mobile-ui .dice-native-rules > #gameCustomRuleContainer { grid-column: 1 / -1; margin: 0 !important; }
+    body.mobile-ui .dice-native-rules > label:has(#gameRuleCustom) { min-height: 44px; padding: 8px 12px !important; }
+    body.mobile-ui .dice-native-rules > label:has(#gameRuleCustom) .dice-native-rule-label { display: flex; align-items: center; gap: 8px; }
+    body.mobile-ui .dice-native-rules > label:has(#gameRuleCustom) strong { margin: 0; font-size: 13px; }
+    body.mobile-ui #gameRulesSection textarea,
+    body.mobile-ui #gameRulesSection input[type=number] {
+        margin: 0;
+        min-height: 44px;
+        padding: 10px 12px !important;
+        border: 1px solid var(--mobile-line) !important;
+        border-radius: 10px !important;
+        background: var(--mobile-canvas) !important;
+        color: var(--mobile-ink) !important;
+        font: inherit;
+        font-size: 13px;
+    }
+    body.mobile-ui #gameRulesSection > .input-group { margin: 0; }
+    body.mobile-ui #gameRulesSection #gameRulesInput { height: 58px; resize: vertical; }
+    body.mobile-ui #gameRulesSection:has(#gameRulesRadioSection:not([style*="display: none"])) > .input-group { display: none; }
+    body.mobile-ui #gameRulesSaveButton {
+        width: 100% !important;
+        min-height: 44px;
+        padding: 10px 12px !important;
+        margin: 0;
+        border: 1px solid var(--mobile-line);
+        border-radius: 10px;
+        background: var(--mobile-soft);
+        color: var(--mobile-ink);
+        font-size: 13px;
+        font-weight: 750;
+        box-shadow: none;
+    }
+    body.mobile-ui #gameRulesSaveButton:disabled { opacity: .5; }
+    body.mobile-ui #gameRulesSection > div:last-child { display: none; }
+    body.mobile-ui #mobileDiceSettings {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 12px;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        font-size: 13px;
+        font-weight: 700;
+    }
+    body.mobile-ui #mobileDiceRange {
+        width: auto;
+        min-width: 110px;
+        min-height: 44px;
+        margin: 0;
+        padding: 8px 12px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 10px;
+        background: var(--mobile-canvas);
+        color: var(--mobile-ink);
+        font: inherit;
+    }
+    body.mobile-ui.mobile-dice-app #chatMessages [data-dice-command=true] {
+        padding: 12px !important;
+        margin: 0 0 8px !important;
+        border: 1px solid var(--mobile-line) !important;
+        border-radius: 12px !important;
+        background: var(--mobile-card) !important;
+        box-shadow: none !important;
+    }
+    body.mobile-ui.mobile-dice-app #chatMessages [data-dice-result] { font-size: 26px !important; font-variant-numeric: tabular-nums; color: var(--mobile-ink) !important; }
+    body.mobile-ui.mobile-dice-app #chatMessages [data-dice-message] { color: var(--mobile-muted) !important; font-size: 11px; }
+    body.mobile-ui #progressSection,
+    body.mobile-ui #notRolledSection {
+        margin: 0;
+        padding: 12px 14px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 12px;
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+    }
+    body.mobile-ui #progressSection .progress-title,
+    body.mobile-ui #notRolledSection .not-rolled-title { color: var(--mobile-muted); font-size: 12px; }
+    body.mobile-ui #rouletteContainer {
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 20px 12px 12px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 16px;
+        background: var(--mobile-card);
+    }
+    body.mobile-ui #rouletteContainer .roulette-wrapper {
+        width: min(280px, calc(100vw - 74px));
+        height: auto;
+        aspect-ratio: 1;
+        margin: 8px auto 12px;
+    }
+    body.mobile-ui #rouletteContainer .roulette-wheel { box-sizing: border-box; box-shadow: 3px 4px 0 var(--mobile-line); }
+    body.mobile-ui #rouletteContainer .roulette-center {
+        width: 48px;
+        height: 48px;
+        border: 2px solid var(--mobile-line);
+        background: var(--mobile-card);
+        color: var(--mobile-ink);
+        box-shadow: none;
+        font-size: 22px;
+    }
+    body.mobile-ui #rouletteContainer .roulette-pointer {
+        top: -10px;
+        border-left-width: 13px;
+        border-right-width: 13px;
+        border-top: 25px solid var(--mobile-ink);
+        filter: none;
+    }
+    body.mobile-ui #rouletteLiveCommentary { width: 100%; margin: 4px 0 0; border-radius: 12px; box-shadow: none; }
+    body.mobile-ui #rouletteLiveCommentary.winner { background: var(--mobile-soft); color: var(--mobile-ink); }
+    body.mobile-ui #turboSettingSection {
+        margin: 0 !important;
+        padding: 10px 14px !important;
+        border: 1px solid var(--mobile-line);
+        border-radius: 12px !important;
+        background: var(--mobile-card) !important;
+    }
+    body.mobile-ui #turboSettingSection label { justify-content: space-between !important; min-height: 36px; flex-direction: row-reverse; }
+    body.mobile-ui #turboSettingSection label > span { color: var(--mobile-ink) !important; font-size: 13px; }
+    body.mobile-ui #turboSettingSection > div { display: none; }
+    body.mobile-ui #turboToggle {
+        appearance: none;
+        position: relative;
+        flex: 0 0 40px;
+        width: 40px !important;
+        height: 24px;
+        min-height: 24px;
+        min-width: 0;
+        border: 1px solid var(--mobile-line);
+        border-radius: 99px;
+        background: var(--mobile-canvas);
+        cursor: pointer;
+    }
+    body.mobile-ui #turboToggle::before { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--mobile-muted); transition: transform 120ms; }
+    body.mobile-ui #turboToggle:checked { background: var(--mobile-accent); border-color: var(--mobile-accent); }
+    body.mobile-ui #turboToggle:checked::before { transform: translateX(16px); background: var(--mobile-on-accent); }
+    body.mobile-ui #turboToggle:focus-visible { outline: 3px solid var(--mobile-coral); outline-offset: 3px; }
+    body.mobile-ui #resultOverlay { padding: 20px; box-sizing: border-box; }
+    body.mobile-ui #resultOverlay .result-card { width: min(100%, 360px); padding: 28px 20px 20px; border: 1px solid var(--mobile-line); border-radius: 22px; background: var(--mobile-card); box-shadow: 5px 6px 0 var(--mobile-line); }
+    body.mobile-ui #resultOverlay .result-title { margin: 0 0 16px; color: var(--mobile-muted); font-size: 13px; font-weight: 750; }
+    body.mobile-ui #resultOverlay .result-title .ui { color: var(--mobile-coral); }
+    body.mobile-ui #resultWinner { margin: 0 0 12px; color: var(--mobile-ink); font-size: clamp(28px, 9vw, 40px); font-weight: 850; letter-spacing: -.8px; overflow-wrap: anywhere; }
+    body.mobile-ui #resultOverlay .result-message { margin: 0 0 22px; color: var(--mobile-muted); font-size: 13px; }
+    body.mobile-ui #resultOverlay button { width: 100% !important; min-height: 48px; margin: 0; border: 0; border-radius: 12px; background: var(--mobile-accent); color: var(--mobile-on-accent); font-size: 14px; font-weight: 750; box-shadow: none; }
+}
+@media (max-width: 350px) {
+    body.mobile-ui #mobileDiceStage { min-height: 118px; padding: 16px; }
+    body.mobile-ui .dice-native-rule-label strong { font-size: 15px; }
+    body.mobile-ui .dice-native-rule-label small { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.mobile-ui #mobileDiceStage::after { transform: none; }
+    body.mobile-ui #turboToggle::before { transition: none; }
+    body.mobile-ui #resultOverlay .result-card { animation: none; }
+}

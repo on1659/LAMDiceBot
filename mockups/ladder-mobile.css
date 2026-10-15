@@ -1,0 +1,35 @@
+.ladder-board { padding: 12px; overflow: hidden; }
+.ladder-board .section-head { margin-bottom: 12px; }
+.ladder-lanes,.ladder-landings { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); }
+.ladder-lane { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 52px; padding: 4px 0; border: 0; border-radius: 10px; color: var(--mobile-muted); background: transparent; font-size: 14px; font-weight: 750; }
+.ladder-lane[aria-pressed="true"] { background: var(--mobile-soft); color: var(--mock-emphasis); }
+.ladder-lane:disabled { cursor: default; opacity: 1; }
+.ladder-lane small { min-height: 14px; font-size: 9px; font-weight: 600; }
+.ladder-lines { width: 100%; height: 220px; display: block; overflow: visible; }
+.ladder-result .section-head { min-height: 22px; margin-bottom: 4px; }
+.ladder-result .ladder-lane { min-height: 38px; }
+.ladder-result .ladder-lines { height: 170px; }
+.ladder-result .ladder-end { min-height: 30px; }
+.ladder-rail { stroke: var(--mobile-line); stroke-width: 4; stroke-linecap: round; }
+.ladder-rung { stroke: var(--mobile-muted); stroke-width: 4; stroke-linecap: round; opacity: .65; }
+.ladder-route { fill: none; stroke: var(--mock-emphasis); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+.ladder-route-other { fill: none; stroke: var(--mobile-muted); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; opacity: .35; }
+.ladder-tracing { stroke-dasharray: 600; stroke-dashoffset: 600; animation: ladder-trace 4.5s ease-in-out forwards; }
+.ladder-token { fill: var(--mobile-accent); stroke: var(--mobile-on-accent); stroke-width: 3; }
+.ladder-end { display: grid; place-items: center; min-height: 34px; color: var(--mobile-muted); font-size: 10px; border-radius: 8px; }
+.ladder-end.target { background: var(--mobile-soft); color: var(--mock-emphasis); font-weight: 800; border: 1px solid var(--mock-emphasis); }
+.ladder-selection { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 60px; padding: 10px 14px; }
+.ladder-selection small { display: block; color: var(--mobile-muted); font-size: 11px; }
+.ladder-selection strong { font-size: 16px; }
+.ladder-selection .selected-number { font-size: 30px; font-weight: 800; line-height: 1; color: var(--mock-emphasis); }
+.ladder-people { display: flex; align-items: center; justify-content: space-around; gap: 6px; padding: 11px 8px; }
+.ladder-person { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.ladder-person img { width: 24px; height: 26px; object-fit: contain; image-rendering: pixelated; }
+.ladder-person small { color: var(--mobile-muted); }
+.ladder-winner-visual { display: grid; place-items: center; width: 70px; height: 70px; flex: none; border-radius: 18px; background: var(--mobile-soft); }
+.ladder-winner-visual img { width: 48px; height: 48px; image-rendering: pixelated; }
+.ladder-order { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 12px 14px; text-decoration: none; color: var(--mobile-ink); font-size: 13px; font-weight: 700; }
+.ladder-order span:last-child { color: var(--mobile-muted); font-size: 12px; }
+@keyframes ladder-trace { to { stroke-dashoffset: 0; } }
+@media(max-width:350px) { .ladder-board { padding: 10px; } .ladder-lane { font-size: 13px; min-height: 48px; } .ladder-person { gap: 3px; font-size: 10px; } .ladder-selection { min-height: 54px; } }
+@media(prefers-reduced-motion:reduce) { .ladder-tracing { animation: none; stroke-dashoffset: 0; } }

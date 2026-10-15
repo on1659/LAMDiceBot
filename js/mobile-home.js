@@ -25,7 +25,6 @@
   var FREE_LABEL = '자유 방';
   var ROOM_WAIT_MS = 12000, HASH_SHIFT = 5, UPDATE_LINES = 70;
   var diceHandoff = null, diceTimer = null, privateTarget = null, authenticated = false;
-  var scopeChosen = !!ls('mobileLastScope');
   var panelVersion = 0;
   var SKINS = [['light','라이트'],['dark','다크'],['black','블랙'],['midnight','미드나잇'],['mocha','모카'],['purple','퍼플']];
 
@@ -184,9 +183,6 @@
     var ul = $('#roomList'); ul.textContent = '';
     $('#roomEmpty').hidden = rooms.length > 0;
     $('#roomEmpty').textContent = socket.connected ? '아직 열린 방이 없어요. 첫 방을 만들어 보세요.' : '서버에 연결하고 있어요.';
-    $('#featuredJoin').hidden = !rooms.length;
-    $('#featuredTitle').textContent = rooms.length ? rooms[0].roomName : '친구들과\n가볍게 한 판.';
-    $('#featuredLabel').textContent = rooms.length ? GAMES[rooms[0].gameType].name + ' · ' + rooms[0].playerCount + '명' : '오늘의 한 판';
     rooms.forEach(function (r) {
       var g = GAMES[r.gameType], li = document.createElement('li'), b = document.createElement('button');
       b.type = 'button'; b.className = 'item'; b.dataset.roomId = r.roomId; b.dataset.game = r.gameType;
@@ -347,7 +343,7 @@
       }
       ul.appendChild(li);
     });
-    var freeRow = row('dash' + (nowId === null ? ' now' : ''), '', FREE_LABEL, '로그인 없이', 'ok', function () { scopeChosen = true; selectServer(null); closeSheets(); }); freeRow.querySelector('button').dataset.server = 'free'; ul.appendChild(freeRow);
+    var freeRow = row('dash' + (nowId === null ? ' now' : ''), '', FREE_LABEL, '로그인 없이', 'ok', function () { selectServer(null); closeSheets(); }); freeRow.querySelector('button').dataset.server = 'free'; ul.appendChild(freeRow);
     if (!isLoggedIn()) return;
     var newLi = row('dash', '+', '새 서버', '', '', function () { openNew = !openNew; renderServers(); });
     if (openNew) {
@@ -396,7 +392,7 @@
     joinServer(data.id, data.name);   // 호스트는 자동 멤버 — 입장하면 serverJoined 로 선택된다
   });
   socket.on('serverJoined', function (data) {
-    clearJoining(); scopeChosen = true;
+    clearJoining();
     autoServerId = null;
     selectServer({ serverId: data.id, serverName: data.name, hostName: data.hostName });
     closeSheets();
@@ -431,7 +427,6 @@
     function readyLobby() {
       restoreLastServer();
       if (isLoggedIn()) socket.emit('getServers', { userName: auth.name });
-      if (!scopeChosen && !freeName && !server && !joining) openServers();
     }
     if (auth && auth.token) validateToken(auth.token, true, readyLobby);
     else { if (auth && auth.name) expireLogin(); readyLobby(); }
@@ -456,7 +451,6 @@
   socket.on('roomError', function (message) { clearTimeout(diceTimer); diceHandoff = null; $('#passwordError').textContent = typeof message === 'string' ? message : '방에 들어갈 수 없어요'; toast($('#passwordError').textContent); });
   $('#passwordForm').addEventListener('submit', function (e) { e.preventDefault(); if (!privateTarget) return; privateTarget.target.password = $('#roomPasswordInput').value; handoff(privateTarget.game, privateTarget.target, privateTarget.name); });
   $('#createGame').onclick = function () { if (!socket.connected) { toast('연결 중이에요'); return; } closeSheets(); $('#gameSheet').hidden = false; $('#gameSheet .tile').focus(); };
-  $('#featuredJoin').onclick = function () { if (rooms[0]) go(rooms[0].gameType, { kind: 'join', room: rooms[0] }); };
   $('#navHome').onclick = show; $('#navServers').onclick = openServers;
   $$('[data-close]').forEach(function (b) { b.onclick = closeSheets; });
   function textNode(tag, text) { var n = document.createElement(tag); n.textContent = text; return n; }
