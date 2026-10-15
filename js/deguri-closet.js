@@ -5,9 +5,9 @@
  *   items(slotKey) 그룹 칩·정렬 적용 목록 / owns(item) / isEquipped(slot,id) / equip(slot,id,item) / buy(slot,item) / groupFilter
  *
  * 화면: 위 = 무대(입은 모습을 크게, 동작을 돌아가며 — 누르면 다음 동작) + 이름·상태·버튼 하나
- *       아래 = 보유 N(정렬 전환) · 미보유 N. 미보유 칸은 자물쇠 — 누르면 무대에 입혀 보기만(서버 요청 없음), 무대의 [사기]/[뽑기]로 얻는다.
+ *       아래 = 보유 N(정렬 전환). 미보유 아이템은 옷장에 안 보인다 — 상점 탭에서 산다.
  * 카드는 상점 탭과 같은 모양(.hshop-card / .hshop-thumb--{rarity} / .hshop-rarity--{rarity}).
- * 장착·구매는 셸 경로 그대로(deguri:equip / 확인 팝업 → deguri:shop:buy → 바로 장착). 공정성: 순수 외형, 난수 없음.
+ * 장착은 셸 경로 그대로(deguri:equip). 공정성: 순수 외형, 난수 없음.
  */
 (function () {
     'use strict';
@@ -51,8 +51,6 @@
         var item = id && id !== BALLOON_NONE ? ShopModule.getCatalogItem(id) : null;
         return item && item.sprite ? item : null;
     }
-    // 이모지(🪙·🔒)는 사이트 공용 아이콘으로(js/shared/ui-icons.js) — 상점 탭과 같은 그림
-    function setText(el, text) { if (window.UIIcons) UIIcons.setIconText(el, text); else el.textContent = text; }
     function reducedMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
 
     // 동물 칩이 골라져 있으면 그 동물, 아니면 내가 고른 동물, 아니면 첫 동물
@@ -129,7 +127,6 @@
         nm.textContent = item.displayName || item.name || '';
         info.appendChild(nm);
 
-        var owned = item.base || item.defaultOwned || api.owns(item);
         var worn = isWorn(api, sub.slot, item);
         var status = document.createElement('div');
         status.className = 'dcl-stage-status';
@@ -140,28 +137,13 @@
             status.appendChild(pill);
         }
         var st = document.createElement('span');
-        setText(st, worn ? '입는 중' : owned ? '보유' : '🔒 미보유');
+        st.textContent = worn ? '입는 중' : '보유';
         status.appendChild(st);
         info.appendChild(status);
 
         var acts = document.createElement('div');
         acts.className = 'dcl-stage-acts';
-        if (!owned) {
-            if (Number.isFinite(item.price)) {
-                var buy = document.createElement('button');
-                buy.type = 'button'; buy.className = 'dcl-btn dcl-btn--buy';
-                setText(buy, '🪙 ' + item.price + ' 사기');
-                buy.addEventListener('click', function () { api.buy(sub.slot, item); });
-                acts.appendChild(buy);
-            }
-            if (window.DeguriGacha) {
-                var g = document.createElement('button');
-                g.type = 'button'; g.className = 'dcl-btn';
-                g.textContent = '뽑기';
-                g.addEventListener('click', function () { if (window.DeguriShop) DeguriShop.closeShop(); DeguriGacha.open(); });
-                acts.appendChild(g);
-            }
-        } else if (!worn) {
+        if (!worn) {
             var wear = document.createElement('button');
             wear.type = 'button'; wear.className = 'dcl-btn dcl-btn--wear';
             wear.textContent = '입기';
@@ -204,9 +186,7 @@
         var all = bases.map(function (it) { return { slot: SKIN, item: it }; })
             .concat(skins.map(function (it) { return { slot: SKIN, item: it }; }))
             .concat(api.items(BALLOON).map(function (it) { return { slot: BALLOON, item: it }; }));
-        var owned = [], locked = [];
-        all.forEach(function (e) { (e.item.base || api.owns(e.item) ? owned : locked).push(e); });
-        return { owned: sortList(owned), locked: sortList(locked) };
+        return sortList(all.filter(function (e) { return e.item.base || api.owns(e.item); }));
     }
     function sortList(list) {
         var order = creatures();
@@ -230,12 +210,12 @@
         else { var g = document.createElement('span'); g.className = 'mshop-glyph'; g.textContent = it.emoji || '🐾'; return g; }
         return cv;
     }
-    function card(api, e, locked) {
-        var it = e.item, worn = !locked && isWorn(api, e.slot, it);
+    function card(api, e) {
+        var it = e.item, worn = isWorn(api, e.slot, it);
         var preview = _sel && _sel.slot === e.slot && _sel.item.id === it.id && (!it.base || _sel.item.creature === it.creature);
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'hshop-card dcl-card' + (worn ? ' is-worn' : '') + (locked ? ' is-locked' : '') + (preview ? ' is-preview' : '');
+        b.className = 'hshop-card dcl-card' + (worn ? ' is-worn' : '') + (preview ? ' is-preview' : '');
         b.setAttribute('aria-pressed', worn ? 'true' : 'false');
         var rarity = it.rarity || 'common';
         var thumb = document.createElement('div');
@@ -250,17 +230,13 @@
         box.className = 'mshop-preview';
         box.appendChild(iconFor(e));
         thumb.appendChild(box);
-        if (locked) { var lk = document.createElement('span'); lk.className = 'dcl-lock'; setText(lk, '🔒'); lk.setAttribute('aria-hidden', 'true'); thumb.appendChild(lk); }
         if (worn) { var on = document.createElement('span'); on.className = 'dcl-on'; on.textContent = '입는 중'; thumb.appendChild(on); }
         var nm = document.createElement('div');
         nm.className = 'hshop-name';
         nm.textContent = it.base ? creatureName(it.creature) : (it.name || '');
         b.appendChild(thumb); b.appendChild(nm);
-        b.setAttribute('aria-label', nm.textContent + (locked ? ' — 미보유, 미리 보기' : worn ? ' — 입는 중' : ' — 입기'));
-        b.addEventListener('click', function () {
-            if (locked) { _sel = e; api.rerender(); return; }   // 미리 보기만 — 서버 요청 없음
-            onOwnedClick(api, e.slot, it);
-        });
+        b.setAttribute('aria-label', nm.textContent + (worn ? ' — 입는 중' : ' — 입기'));
+        b.addEventListener('click', function () { onOwnedClick(api, e.slot, it); });
         return b;
     }
     function groupHead(label, n, extra) {
@@ -300,19 +276,12 @@
 
         var list = document.createElement('div');
         list.className = 'dcl-list';
-        var groups = listItems(api);
-        list.appendChild(groupHead('보유', groups.owned.length, sortControl(api)));
+        var owned = listItems(api);
+        list.appendChild(groupHead('보유', owned.length, sortControl(api)));
         var g1 = document.createElement('div');
         g1.className = 'hshop-grid hshop-inv-grid';
-        groups.owned.forEach(function (e) { g1.appendChild(card(api, e, false)); });
+        owned.forEach(function (e) { g1.appendChild(card(api, e)); });
         list.appendChild(g1);
-        if (groups.locked.length) {
-            list.appendChild(groupHead('미보유', groups.locked.length));
-            var g2 = document.createElement('div');
-            g2.className = 'hshop-grid hshop-inv-grid';
-            groups.locked.forEach(function (e) { g2.appendChild(card(api, e, true)); });
-            list.appendChild(g2);
-        }
         list.addEventListener('scroll', function () { _scrollTop = list.scrollTop; }, { passive: true });
         root.appendChild(list);
         // 셸이 본문을 붙인 뒤에 스크롤을 되돌린다(장착할 때마다 새로 그려도 보던 자리에)

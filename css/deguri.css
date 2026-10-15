@@ -139,6 +139,9 @@
    스킨이 30개를 넘어 2열 큰 카드로는 한 화면에 4장만 보였다 → 3열 작은 카드. 공유 셸(shop-shared.js) 마크업은 그대로 두고 #deguriShopMount 안에서만 모양을 바꾼다.
    카드 전체가 구매 버튼 — 셸의 [구매] 버튼을 투명하게 카드 위에 펼친다(누르면 지금과 같은 확인창). */
 #deguriShopMount { --hshop-common: var(--deguri-rarity-common); }   /* 데구리의 일반 등급 = 초록(뽑기 공·캡슐과 같은 색) */
+/* 창 높이 고정 — 탭·칩마다 아이템 수가 달라 창이 늘었다 줄었다 했다(2026-10-16). 넘치면 본문(그리드·섹션·옷장 목록)이 스크롤 */
+#deguriShopMount .hshop-panel { height: 88vh; }
+@media (min-width: 640px) { #deguriShopMount .hshop-panel { height: 84vh; } }
 #deguriShopMount .hshop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-content: start; }
 #deguriShopMount .hshop-grid:not(.hshop-inv-grid) { padding-left: 12px; padding-right: 12px; }   /* 옷장 섹션 그리드는 본문이 이미 패딩을 가진다 */
 #deguriShopMount .hshop-shop-sections { padding-left: 12px; padding-right: 12px; }   /* 테마 묶음 본문의 옆 여백은 상점 그리드와 같게 */
@@ -189,7 +192,6 @@
 #deguriShopMount .dcl-stage-status .hshop-rarity { position: static; }
 #deguriShopMount .dcl-stage-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 #deguriShopMount .dcl-btn { width: auto; margin: 0; padding: 6px 12px; border: 1.5px solid var(--deguri-accent); border-radius: 999px; background: var(--hshop-card); color: var(--deguri-accent); box-shadow: none; font-size: 12px; font-weight: 800; line-height: 1.1; white-space: nowrap; cursor: pointer; }
-#deguriShopMount .dcl-btn--buy,
 #deguriShopMount .dcl-btn--wear { border-color: var(--horse-500); background: var(--horse-500); color: var(--text-on-accent); }
 #deguriShopMount .dcl-btn:active { transform: scale(0.97); }
 #deguriShopMount .dcl-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px calc(16px + env(safe-area-inset-bottom)); }
@@ -202,9 +204,7 @@
 #deguriShopMount button.dcl-card:active { transform: scale(0.97); }
 #deguriShopMount button.dcl-card:focus-visible { outline: 2px solid var(--deguri-accent); outline-offset: 1px; }
 #deguriShopMount .dcl-card.is-worn { border-color: var(--hshop-equipped); box-shadow: 0 0 0 1px var(--hshop-equipped); }
-#deguriShopMount .dcl-card.is-locked { border-style: dashed; }
 #deguriShopMount .dcl-card.is-preview { outline: 2px solid var(--deguri-accent); outline-offset: 1px; }
-#deguriShopMount .dcl-lock { position: absolute; top: 3px; right: 4px; z-index: 5; font-size: 11px; line-height: 1; }
 #deguriShopMount .dcl-on { position: absolute; left: 3px; bottom: 3px; z-index: 5; padding: 1px 5px; border-radius: 6px; background: var(--hshop-equipped); color: var(--text-on-accent); font-size: 9px; font-weight: 800; }
 .deguri-creature-btn .skin-badge {
     position: absolute; top: -8px; left: -8px; padding: 0 6px; height: 20px; line-height: 20px; border-radius: 10px;
