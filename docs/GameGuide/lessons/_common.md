@@ -613,6 +613,26 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-59. 같은 변경이 두 브랜치에 다른 커밋으로 들어가 있으면 병합 순서에 따라 가짜 충돌이 난다
+
+- 코인 상한 300 이 main 에는 `052c738c`, `feature/marble-run` 에는 `a4c4308f` 로 **내용은 같고 해시만 다르게** 두 벌 들어가 있었다. 그 뒤 `feature/next`(052c738c 위에서 서버별 지갑 작업)를 `feature/marble-run` 과 바로 합치면 병합 기준점이 그보다 앞(`76ccd7be`)으로 잡혀 `db/coins.js`·`socket/deguri.js` 에서 충돌이 났다.
+- 실제로 손댈 게 없는 충돌이라 손으로 풀면 오히려 한쪽 변경을 날리기 쉽다.
+- **해결:** 두 갈래를 모두 품은 `origin/main` 을 먼저 받고 그다음 다른 브랜치를 합친다. 기준점이 같은 변경 뒤로 옮겨져 충돌이 사라진다.
+- **확인법(작업 트리 안 건드림):** `git merge-tree --write-tree --name-only A B` 의 종료 코드(0=깨끗, 1=충돌). 순서를 바꿔 보려면 `git commit-tree "$(git merge-tree --write-tree A main)" -p A -p main` 으로 임시 커밋을 만들어 그 위에서 다시 `merge-tree`.
+- **규칙:** 같은 작업을 두 브랜치에 cherry-pick·재커밋했으면, 그 두 브랜치를 엮는 병합은 둘 다 품은 브랜치를 먼저 받는다.
+- (출처: 2026-10-15 서버별 지갑 + 상점 서브탭 배포)
+
+---
+
+## C-60. 유저 공개 로그 파일은 `update-log.md` 다 — `.txt` 가 아니다
+
+- `/summit` 커맨드(`.claude/commands/summit.md`)가 공개 로그를 `update-log.txt`(HTML 태그 형식)로 적고 있었지만 저장소에 그 파일은 없고, 로비가 읽는 건 `update-log.md`(+ 읽기 전용 `update-log_old.md`)다.
+- 커맨드 문서대로 따르면 없는 파일을 새로 만들어 유저 화면엔 아무것도 안 뜬다.
+- **규칙:** 공개 로그는 `update-log.md` 맨 위에 쓰고, 형식은 [`docs/update-log-format.md`](../../update-log-format.md)(Markdown, `## 🎮 최신 업데이트 (YYYY-MM-DD)`)를 따른다. 새 블록을 넣을 때 기존 "최신 업데이트"는 "이전 업데이트"로 바꾼다.
+- (출처: 2026-10-15 로그 작성 중 발견, summit.md 파일 이름 수정)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

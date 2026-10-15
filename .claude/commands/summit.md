@@ -1,5 +1,5 @@
 ---
-description: "Write update logs and commit/push. Summarizes changes for users (update-log.txt) and detailed internal changes (summit-log.txt), then commits and pushes."
+description: "Write update logs and commit/push. Summarizes changes for users (update-log.md) and detailed internal changes (summit-log.txt), then commits and pushes."
 ---
 
 # Summit - Update Log & Deploy
@@ -34,9 +34,9 @@ node AutoTest/check-hardcoded-colors.js
 - ❌ 이면 **로그 작성·커밋을 멈추고** 출력 목록(파일:줄, 리터럴)을 사용자에게 보여준다. UI 색이면 `css/theme.css` 토큰으로 바꾼 뒤 다시 돌린다 (규칙: `docs/GameGuide/02-shared-systems/THEME-DARK.md` 5-1절).
 - 게임 그림·연출(캔버스·스프라이트·이펙트)이라 예외로 남길 때만 `node AutoTest/check-hardcoded-colors.js --update-baseline` 로 기준선을 갱신하고, 바뀐 `AutoTest/hardcoded-colors-baseline.json` 도 같이 커밋한다. 판단이 애매하면 사용자에게 묻는다.
 
-## Step 2: update-log.txt 작성 (유저 공개용)
+## Step 2: update-log.md 작성 (유저 공개용)
 
-update-log.txt 파일 **최상단**에 새 업데이트 내역을 추가한다.
+update-log.md 파일 **최상단**에 새 업데이트 내역을 추가한다.
 
 ### 작성 규칙:
 - **유저가 볼 수 있는 내용만** 작성
@@ -91,7 +91,7 @@ summit-log.txt 파일 **최상단**에 상세 변경 내역을 추가한다.
 
 ## Step 4: 커밋 & 푸시
 
-1. 변경된 모든 파일 스테이징 (update-log.txt, summit-log.txt, 코드 파일들)
+1. 변경된 모든 파일 스테이징 (update-log.md, summit-log.txt, 코드 파일들)
 2. 커밋 메시지 형식: 간결한 한국어 요약
 3. `git push` 실행
 
