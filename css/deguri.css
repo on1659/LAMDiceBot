@@ -172,6 +172,11 @@
     /* [동물|테마] 전환은 칩을 밀어도 왼쪽에 남는다 — 칩이 그 밑으로 지나가므로 패널 색 테두리로 가린다 */
     #deguriShopMount .hshop-groupmode { position: sticky; left: 0; z-index: 1; box-shadow: 0 0 0 6px var(--hshop-bg); }
 }
+/* 동물 칩은 그림만 작게(단독판 옷장과 같은 동그라미) — 이름은 화면 읽기용으로만 남기고 PC 는 마우스 올리면(canvas title). 테마 칩·전체는 글자 그대로 */
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) { position: relative; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) canvas { width: 24px; height: 24px; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip:has(.mshop-chip-icon--creature) span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#deguriShopMount .hshop-groupchips .hshop-groupchip { height: 30px; }
 /* ── 옷장 탭: 단독판 옷장 이식(js/deguri-closet.js, docs/goal/deguri-closet-standalone-port.md) ──
    무대(입은 모습·동작 돌림)는 위에 고정, 보유/미보유 목록만 스크롤. 카드는 상점 탭과 같은 .hshop-card 모양에 버튼만 카드 전체 */
 #deguriShopMount .dcl-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 10px 0 0; }

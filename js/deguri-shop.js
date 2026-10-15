@@ -154,7 +154,12 @@
                 var first = mode === 'theme' ? themeList().filter(function (t) { return t.name === key; })[0] : null;
                 var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
                 if (first) R.drawCreatureIcon(cv, first.item.creature, 0, first.item.skin);
-                else R.drawCreatureIcon(cv, key, 0, null);
+                else {
+                    R.drawCreatureIcon(cv, key, 0, null);
+                    // 동물 칩은 그림만(css/deguri.css .mshop-chip-icon--creature) — 이름은 마우스를 올리면. 테마 칩은 그림만으론 몰라서 글자를 둔다
+                    cv.classList.add('mshop-chip-icon--creature');
+                    cv.title = (DeguriRender.CREATURE_NAMES && DeguriRender.CREATURE_NAMES[key]) || key;
+                }
                 return cv;
             },
             // 스킨 목록 순서(docs/goal/deguri-shop-declutter-common-tier.md): 지금 고른 동물 먼저 → 선택 버튼 순서(DEGURI_CREATURES) → 동물 안에서는 전설→일반.
