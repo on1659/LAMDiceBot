@@ -1,0 +1,59 @@
+.arena-card { padding: 12px; overflow: hidden; }
+.arena-card .section-head { min-height: 28px; margin-bottom: 8px; }
+.arena-card .section-head strong { font-size: 12px; }
+.arena-card .section-head span { font-size: 11px; }
+.arena-floor { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 50%; background: var(--mobile-soft); border: 1px solid var(--mobile-line); }
+.arena-ready .arena-floor { max-width: 240px; margin-inline: auto; }
+.arena-floor::before { position: absolute; content: ''; inset: 8%; border: 1px dashed var(--mobile-muted); border-radius: 50%; opacity: .45; }
+.arena-floor::after { position: absolute; content: ''; inset: 24%; border: 1px solid var(--mobile-line); border-radius: 50%; pointer-events: none; }
+.arena-cross { position: absolute; inset: 50% 10% auto; border-top: 1px solid var(--mobile-line); opacity: .5; }
+.arena-cross.vertical { inset: 10% auto 10% 50%; border-top: 0; border-left: 1px solid var(--mobile-line); }
+.arena-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: var(--mobile-muted); font-size: 26px; font-weight: 850; opacity: .45; }
+.arena-fighter { position: absolute; z-index: 2; width: 52px; height: 52px; transform: translate(-50%,-50%); }
+.arena-sprite { display: block; width: 52px; height: 52px; background-image: url('/assets/spin-arena/sprites/players-base.png'); background-repeat: no-repeat; background-size: 400% 100%; image-rendering: pixelated; }
+.arena-sprite.emerald { filter: hue-rotate(-70deg); }
+.arena-sprite.crimson { filter: hue-rotate(140deg); }
+.arena-blades { position: absolute; inset: -17px; border: 1px dashed var(--mobile-muted); border-radius: 50%; }
+.arena-blade { position: absolute; top: calc(50% - 4px); right: -7px; width: 22px; height: 8px; border: 1px solid var(--mobile-ink); background: var(--mobile-accent); clip-path: polygon(0 0,78% 0,100% 50%,78% 100%,0 100%); }
+.arena-blade:nth-child(2) { right: auto; left: -7px; transform: rotate(180deg); }
+.arena-fighter.crimson .arena-blade { background: var(--mobile-coral); }
+.arena-fighter.emerald .arena-blade { background: var(--mobile-accent); }
+.arena-fighter small { display: block; position: absolute; left: 50%; top: 53px; transform: translateX(-50%); padding: 2px 7px; border: 1px solid var(--mobile-line); border-radius: 6px; background: var(--mobile-card); color: var(--mobile-ink); font-size: 10px; font-weight: 750; white-space: nowrap; }
+.arena-fighter.mine small { border-color: var(--mock-emphasis); color: var(--mock-emphasis); }
+.arena-playing .arena-blades { animation: arena-rotate 2.8s linear infinite; }
+.arena-playing .arena-fighter:nth-of-type(even) .arena-blades { animation-direction: reverse; }
+.arena-playing .arena-sprite { animation: arena-sprite 1s steps(4) infinite; }
+.arena-hud { display: grid; grid-template-columns: minmax(0,1fr) 24px minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 12px; }
+.arena-hud strong { font-size: 13px; }
+.arena-hud small { float: right; color: var(--mobile-muted); font-size: 11px; }
+.arena-hud .versus { color: var(--mobile-muted); font-size: 10px; text-align: center; font-weight: 800; }
+.arena-health { display: block; height: 5px; width: 100%; margin-top: 5px; border: 0; border-radius: 5px; overflow: hidden; appearance: none; background: var(--mobile-soft); }
+.arena-health::-webkit-progress-bar { background: var(--mobile-soft); }
+.arena-health::-webkit-progress-value { background: var(--mock-emphasis); }
+.arena-health::-moz-progress-bar { background: var(--mock-emphasis); }
+.arena-health.low::-webkit-progress-value { background: var(--mobile-coral); }
+.arena-health.low::-moz-progress-bar { background: var(--mobile-coral); }
+.arena-skins { display: grid; gap: 10px; }
+.arena-skins .section-head { min-height: 20px; }
+.arena-skins .choice { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 5px; font-size: 11px; }
+.arena-skins .arena-sprite { width: 30px; height: 30px; flex: none; }
+.arena-status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 12px; }
+.arena-status .arena-sprite { width: 30px; height: 30px; flex: none; }
+.arena-status strong { flex: 1; }
+.arena-status span:last-child { color: var(--mock-emphasis); font-size: 11px; }
+.arena-rule { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; padding: 10px 12px; font-size: 12px; }
+.arena-rule span { color: var(--mobile-muted); font-size: 11px; }
+.arena-result-picture { width: 76px; height: 76px; border-radius: 18px; background: var(--mobile-soft); display: grid; place-items: center; flex: none; position: relative; }
+.arena-result-picture .arena-sprite { width: 66px; height: 66px; }
+.arena-result-picture img { position: absolute; width: 24px; height: 24px; right: -3px; bottom: -3px; }
+.arena-result-row .arena-sprite { width: 32px; height: 32px; flex: none; }
+.arena-result-row small { color: var(--mobile-muted); font-size: 11px; }
+.arena-bracket { display: grid; gap: 10px; }
+.arena-round { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.arena-round + .arena-round { padding-top: 10px; border-top: 1px solid var(--mobile-line); }
+.arena-round span { color: var(--mobile-muted); font-size: 11px; }
+.arena-round b { color: var(--mock-emphasis); font-size: 11px; }
+@keyframes arena-rotate { to { transform: rotate(360deg); } }
+@keyframes arena-sprite { to { background-position-x: 133.333%; } }
+@media(max-width:350px) { .arena-card { padding: 10px; } .arena-fighter,.arena-fighter .arena-sprite { width: 46px; height: 46px; } .arena-fighter small { top: 47px; } .arena-blades { inset: -12px; } .arena-skins .choice { flex-direction: column; gap: 1px; } }
+@media(prefers-reduced-motion:reduce) { .arena-playing .arena-blades,.arena-playing .arena-sprite { animation: none; } }

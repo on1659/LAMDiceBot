@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — deguri.css 의 --horse-* alias 로 데구리 색 -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=7">
-    <link rel="stylesheet" href="/css/deguri.css?v=39">
+    <link rel="stylesheet" href="/css/deguri.css?v=43">
     <link rel="stylesheet" href="/css/deguri-gacha.css?v=22">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -145,8 +145,10 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
-    <link rel="stylesheet" href="/css/mobile-game.css">
-    <script src="/js/mobile-game.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+    <link rel="stylesheet" href="/css/mobile-game.css?v=live-polish-1">
+    <link rel="stylesheet" href="/css/mobile-deguri-polish.css?v=live-polish-1">
+    <script src="/js/mobile-game.js?v=live-polish-1" defer></script>
 </head>
 <body>
     <noscript>
@@ -370,10 +372,12 @@
             <div id="targetRankReason" class="target-rank-reason" style="display: none;"></div>
             <!-- 경주 캔버스 -->
             <section id="deguriStage">
-                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 -->
+                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) + 전체화면 들어가기 + PiP 작은 창 -->
                 <div class="deguri-stage-tools">
                     <button type="button" class="deguri-stage-btn" id="deguriHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true"><i class="mi mi-paw"></i> 내 동물 따라가는 중</button>
                     <button type="button" class="deguri-stage-btn" id="deguriFullscreenOpenBtn" onclick="toggleDeguriFullscreen()"><i class="mi mi-expand"></i> 전체화면</button>
+                    <!-- PiP 작은 창(세로) — Document PiP 를 지원하는 데스크톱 브라우저에서만 보인다(js/deguri.js toggleDeguriPip) -->
+                    <button type="button" class="deguri-stage-btn" id="deguriPipBtn" onclick="toggleDeguriPip()" hidden><i class="ui ui-tv"></i> 작은 창</button>
                 </div>
                 <div id="deguriCanvasBox">
                     <canvas id="deguriCanvas" width="800" height="600" aria-label="데구리 경주 캔버스"></canvas>
@@ -399,10 +403,11 @@
                     <span id="deguriReplayTime" class="deguri-replay-bar__time">0:00 / 0:00</span>
                     <span class="deguri-replay-bar__gif"><span id="deguriGifStatus" class="deguri-gif-status" aria-live="polite"></span><button type="button" id="deguriGifCancel" class="deguri-gif-cancel" hidden>취소</button><button type="button" id="deguriGifButton" class="deguri-gif-button"><span class="deguri-gif-button__dot" aria-hidden="true"></span>GIF 녹화</button></span>
                 </div>
-                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
+                <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다.
+                     PiP 작은 창으로 옮겨 다닌다 — 인라인 onclick 금지(처음 눌린 창의 전역으로 굳는다), js/deguri.js 가 addEventListener 로 단다 -->
                 <div id="deguriAfterRace" class="deguri-after-race" style="display: none;">
-                    <button type="button" class="deguri-after-btn" id="deguriReplayButton" onclick="replayRace()"><i class="mi mi-play"></i> 경주 다시 보기</button>
-                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" onclick="resetDeguriRound()" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
+                    <button type="button" class="deguri-after-btn" id="deguriReplayButton"><i class="mi mi-play"></i> 경주 다시 보기</button>
+                    <button type="button" class="deguri-after-btn deguri-after-btn-host" id="deguriResetButton" style="display: none;"><i class="mi mi-refresh"></i> 다음 판 준비</button>
                 </div>
                 <!-- 주문받기 진행 중(경주 끝 자동 주문 포함)이면 캔버스 아래에 항상 — 주문 칸이 위쪽이라 결승 화면에선 안 보이기 때문 -->
                 <div id="deguriOrderRow" class="deguri-after-race" style="display: none;">
@@ -463,7 +468,7 @@
                 <button type="button" class="deguri-result-btn deguri-result-btn--small" id="deguriHighlightSave" hidden>GIF 저장</button>
             </div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button type="button" class="deguri-result-btn" onclick="closeResultOverlay()">확인</button>
+                <button type="button" class="deguri-result-btn" id="deguriResultClose">확인</button>
             </div>
         </div>
     </div>
@@ -535,13 +540,14 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
-    <script src="/js/shared/shop-shared.js?v=7"></script>
-    <script src="/js/deguri-shop.js?v=13"></script>
+    <script src="/js/shared/shop-shared.js?v=8"></script>
+    <script src="/js/deguri-shop.js?v=15"></script>
+    <script src="/js/deguri-closet.js?v=1"></script>
     <script src="/js/deguri-gacha.js?v=47"></script>
-    <script src="/js/deguri-render.js?v=106"></script>
+    <script src="/js/deguri-render.js?v=pip-1"></script>
     <script src="/js/deguri-replay-gif.js?v=3"></script>
-    <script src="/js/deguri-highlight.js?v=4"></script>
-    <script src="/js/deguri.js?v=55"></script>
+    <script src="/js/deguri-highlight.js?v=6"></script>
+    <script src="/js/deguri.js?v=58"></script>
 
     <script>
         // ============================================

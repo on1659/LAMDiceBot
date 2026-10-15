@@ -154,7 +154,12 @@
                 var first = mode === 'theme' ? themeList().filter(function (t) { return t.name === key; })[0] : null;
                 var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
                 if (first) R.drawCreatureIcon(cv, first.item.creature, 0, first.item.skin);
-                else R.drawCreatureIcon(cv, key, 0, null);
+                else {
+                    R.drawCreatureIcon(cv, key, 0, null);
+                    // 동물 칩은 그림만(css/deguri.css .mshop-chip-icon--creature) — 이름은 마우스를 올리면. 테마 칩은 그림만으론 몰라서 글자를 둔다
+                    cv.classList.add('mshop-chip-icon--creature');
+                    cv.title = (DeguriRender.CREATURE_NAMES && DeguriRender.CREATURE_NAMES[key]) || key;
+                }
                 return cv;
             },
             // 스킨 목록 순서(docs/goal/deguri-shop-declutter-common-tier.md): 지금 고른 동물 먼저 → 선택 버튼 순서(DEGURI_CREATURES) → 동물 안에서는 전설→일반.
@@ -171,6 +176,8 @@
                 return base.concat(skins.map(function (s) { return s.it; }));
             },
             buildPreview: buildItemPreview,
+            // 옷장 탭 본문 = 단독판 옷장 이식(무대·보유/미보유, js/deguri-closet.js). 파일이 없으면 셸 기본 본문
+            buildClosetBody: function (api) { return window.DeguriCloset ? DeguriCloset.build(api) : null; },
             itemState: itemState,
             walletRequest: walletRequest,
             buyRequest: buyRequest,
@@ -185,8 +192,8 @@
         connect: function (socket) { _socket = socket; ShopModule.connect(socket); },
         authenticate: function (token, done) { ShopModule.authenticate(token, done); },
         loadCatalog: function () { return ShopModule.loadCatalog(); },
-        openShop: function () { ShopModule.openShop(); },
-        openCloset: function () { ShopModule.openCloset(); },
+        openShop: function () { if (window.DeguriCloset) DeguriCloset.reset(); ShopModule.openShop(); },
+        openCloset: function () { if (window.DeguriCloset) DeguriCloset.reset(); ShopModule.openCloset(); },
         closeShop: function () { ShopModule.closeShop(); },
         isAuthed: function () { return ShopModule.isAuthed(); },
         // 서버가 requestState 응답에 실어 준 내 방 장착값 { slot: id }(새로고침 재입장 동기화). undefined 면 무시

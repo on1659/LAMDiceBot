@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko" data-theme="dark" data-skin="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>LAMDice · 모바일 경마 진행 목업</title>
+  <script src="/js/shared/theme-shared.js"></script>
+  <script src="/mockups/horse-mobile-theme.js"></script>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <style>
+    /* 독립 목업. 정해진 예시를 시각화하며 실제 게임 결과를 만들지 않는다. */
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--mobile-canvas); color: var(--mobile-ink); font: 500 14px/1.5 Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif; }
+    button,input { font: inherit; color: inherit; }
+    button,a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:active { transform: translateY(1px); }
+    :focus-visible { outline: 3px solid var(--mock-emphasis); outline-offset: 3px; }
+    h1,h2,p { margin: 0; }
+    img { display: block; object-fit: contain; image-rendering: pixelated; }
+    .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #mockBar { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 4px 10px; background: var(--mobile-card); color: var(--mobile-muted); border-bottom: 1px solid var(--mobile-line); font-size: 11px; white-space: nowrap; }
+    #mockBar button { min-height: 28px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; }
+    #mockBar #playButton { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; color: var(--mock-emphasis); }
+    #mockBar #playButton .icon { width: 17px; height: 17px; }
+    .prototype { max-width: 430px; height: calc(100dvh - 37px); margin: auto; display: flex; flex-direction: column; background: var(--mobile-canvas); }
+    .room-head { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 16px; border-bottom: 1px solid var(--mobile-line); flex: none; }
+    .icon-button { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-card); color: var(--mobile-ink); text-decoration: none; flex: none; }
+    .identity { flex: 1; min-width: 0; }
+    .identity small { color: var(--mobile-muted); font-size: 11px; }
+    .identity h1 { font-size: 17px; font-weight: 750; letter-spacing: -.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .people-button { width: auto; padding: 0 11px; font-size: 13px; font-weight: 700; }
+    .content { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; overflow: auto; overscroll-behavior: contain; }
+    .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 36px; flex: none; }
+    .page-head h2 { font-size: 24px; letter-spacing: -.8px; }
+    .target { display: flex; align-items: center; gap: 6px; border: 1px solid var(--mobile-line); border-radius: 999px; padding: 5px 10px; background: var(--mobile-card); font-size: 12px; white-space: nowrap; }
+    .target img { width: 16px; height: 16px; }
+    .target strong { color: var(--mock-emphasis); }
+    .mine { display: flex; align-items: center; gap: 10px; padding: 9px 12px; min-height: 64px; border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card); flex: none; }
+    .mine-picture { display: grid; place-items: center; width: 46px; height: 44px; border-radius: 10px; background: var(--mobile-soft); flex: none; }
+    .mine-picture img { width: 44px; height: 40px; }
+    .mine-copy { flex: 1; min-width: 0; }
+    .mine-copy small { display: block; color: var(--mobile-muted); font-size: 10px; }
+    .mine-copy strong { font-size: 15px; font-weight: 750; }
+    .mine-rank { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
+    .mine-rank small { color: var(--mobile-muted); font-size: 11px; margin-right: 3px; }
+    .mine-rank strong { font-size: 26px; font-weight: 800; line-height: 1; }
+    .mine-rank span { font-size: 12px; }
+    .track-card { flex: none; overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 16px; background: var(--mobile-card); }
+    .track-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding-inline: 12px; }
+    .track-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+    .track-title .icon { width: 15px; height: 15px; }
+    #progressValue { color: var(--mobile-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .track { position: relative; overflow: hidden; isolation: isolate; }
+    .lane { position: relative; height: 60px; background-size: 100% 100%; background-position: center; }
+    .lane::after { content: ''; position: absolute; inset: 0; border-bottom: 1px solid rgba(var(--shadow-rgb),.14); pointer-events: none; }
+    .lane-number { position: absolute; left: 7px; top: 8px; display: grid; place-items: center; width: 18px; height: 18px; background: var(--mobile-card); color: var(--mobile-muted); border-radius: 5px; font-size: 10px; font-weight: 700; z-index: 1; }
+    .runner { position: absolute; left: 0; bottom: 1px; width: 54px; height: 48px; z-index: 2; }
+    .runner img { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .runner img:last-of-type { opacity: 0; }
+    .mine-marker { position: absolute; left: 50%; top: -5px; transform: translateX(-50%); padding: 1px 6px; border-radius: 5px; background: var(--mobile-accent); color: var(--mobile-on-accent); font-size: 10px; line-height: 15px; font-weight: 800; }
+    .mine-marker::after { content: ''; position: absolute; top: 100%; left: calc(50% - 3px); border: 3px solid transparent; border-top-color: var(--mobile-accent); }
+    .finish { position: absolute; top: 0; left: 80%; bottom: 0; width: 8px; background: repeating-conic-gradient(var(--text-on-accent) 0% 25%,var(--mobile-on-accent) 0% 50%) 0 0/8px 8px; opacity: .8; z-index: 1; pointer-events: none; }
+    .timeline { display: flex; align-items: center; padding: 0 12px; min-height: 28px; }
+    #raceProgress { appearance: none; display: block; width: 100%; height: 4px; overflow: hidden; border: 0; border-radius: 999px; background: var(--mobile-soft); color: var(--mock-emphasis); accent-color: var(--mock-emphasis); }
+    #raceProgress::-webkit-progress-bar { background: var(--mobile-soft); border-radius: 999px; }
+    #raceProgress::-webkit-progress-value { background: var(--mock-emphasis); border-radius: 999px; }
+    #raceProgress::-moz-progress-bar { background: var(--mock-emphasis); border-radius: 999px; }
+    .playing .runner img { animation: runFrame .34s steps(1,end) infinite; }
+    .playing .runner img:last-of-type { animation-delay: -.17s; }
+    .ad { flex: none; margin-top: auto; min-height: 54px; border: 1px dashed var(--mobile-line); border-radius: 10px; display: grid; place-items: center; color: var(--mobile-muted); font-size: 10px; letter-spacing: 1px; }
+    .footer { flex: none; border-top: 1px solid var(--mobile-line); background: var(--mobile-canvas); padding: 12px 16px max(8px,env(safe-area-inset-bottom)); }
+    .primary { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 50px; padding: 0; border: 0; border-radius: 14px; background: var(--mobile-accent); color: var(--mobile-on-accent); font-size: 15px; font-weight: 800; }
+    .primary img { width: 19px; height: 19px; }
+    .dock { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 9px -4px 0; }
+    .dock button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 48px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--mobile-muted); font-size: 10px; }
+    .dock img,.dock .icon { width: 19px; height: 19px; }
+    .dock button[aria-current="page"] { background: var(--mobile-soft); color: var(--mobile-ink); font-weight: 750; }
+    dialog { width: min(398px,calc(100% - 24px)); max-height: calc(100dvh - 36px); margin: auto auto 12px; padding: 20px; color: var(--mobile-ink); background: var(--mobile-card); border: 1px solid var(--mobile-line); border-radius: 20px; overflow: auto; }
+    dialog::backdrop { background: rgba(var(--shadow-rgb),.65); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .dialog-head h2 { font-size: 20px; }
+    .scene-controls { display: grid; gap: 12px; }
+    .scene-controls label { color: var(--mobile-muted); font-size: 12px; }
+    .scene-controls input { width: 100%; min-width: 0; height: 44px; margin: 0; accent-color: var(--mock-emphasis); cursor: pointer; }
+    .scene-controls button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border: 1px solid var(--mobile-line); border-radius: 12px; background: var(--mobile-soft); }
+    .person { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--mobile-line); }
+    .person:last-child { border-bottom: 0; }
+    .person img { width: 40px; height: 34px; }
+    .person span { flex: 1; }
+    .person small { color: var(--mobile-muted); }
+    @keyframes runFrame { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+    @media(min-width:600px) { .prototype { border-inline: 1px solid var(--mobile-line); } }
+    @media(max-width:350px) { .content { padding-inline: 12px; gap: 10px; } .room-head { padding-inline: 12px; gap: 8px; } .identity h1 { font-size: 15px; } .footer { padding-inline: 12px; } .lane { height: 56px; } .mine { padding-inline: 10px; gap: 8px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none !important; transition: none !important; } button:active { transform: none; } }
+  </style>
+  <link rel="stylesheet" href="/mockups/horse-mobile-theme.css?v=polish-2">
+</head>
+<body data-mock-view="racing">
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V3m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 11h.01M11 11h.01M15 11h.01"/></symbol>
+  </defs></svg>
+  <div id="mockBar"><span>목업 · 경마 진행</span><button id="themeToggle">테마</button><button id="playButton" aria-label="미리보기 재생" aria-pressed="false"><svg class="icon"><use id="playIcon" href="#i-play"/></svg></button><button id="sceneButton">장면</button></div>
+  <div class="prototype">
+    <header class="room-head">
+      <a class="icon-button" data-mock-page="ready" href="/mockups/horse-ready-mobile.html" aria-label="준비 화면"><svg class="icon"><use href="#i-back"/></svg></a>
+      <div class="identity"><small id="roomStatus">경마 · 진행 중</small><h1>점심 먹고 한 판</h1></div>
+      <button class="icon-button people-button" id="peopleButton" aria-label="참여자 4명 보기"><svg class="icon"><use href="#i-people"/></svg><span id="peopleCount">4</span></button>
+    </header>
+    <main class="content">
+      <div class="page-head"><h2 id="pageTitle">경주 중</h2><div class="target"><img src="/mockups/assets/ic-trophy.png" alt="">당첨 <strong id="targetRank">3등</strong></div></div>
+      <section class="mine" aria-label="내 탈것과 현재 등수">
+        <div class="mine-picture"><img id="myImage" src="/assets/horse-race/vehicles/dinosaur/base-idle-1.webp" alt=""></div>
+        <div class="mine-copy"><small>내 탈것</small><strong id="myVehicle">공룡</strong></div>
+        <p class="mine-rank" role="status"><small id="rankLabel">현재</small><strong id="myRank">3</strong><span>등</span></p>
+      </section>
+      <section class="track-card" aria-label="경마 미리보기">
+        <div class="track-head"><h2 class="track-title"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span id="trackStatus">레이스</span></h2><output id="progressValue" for="progress">62%</output></div>
+        <div class="track" id="track"></div>
+        <div class="timeline"><progress id="raceProgress" max="100" value="62" aria-label="경주 진행률">62%</progress></div>
+      </section>
+      <aside class="ad" aria-label="광고 자리">AD</aside>
+    </main>
+    <footer class="footer"><button class="primary" id="resultButton" data-mock-page="result"><img src="/mockups/assets/ic-trophy.png" alt="">결과 보기</button><nav class="dock" aria-label="방 메뉴">
+      <button aria-current="page" id="gameTab"><img src="/mockups/assets/ic-play.png" alt="">게임</button>
+      <button data-mock-page="orders"><img src="/mockups/assets/ic-book.png" alt="">주문</button>
+      <button data-mock-page="chat"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg>채팅</button>
+      <button data-mock-page="menu"><img src="/mockups/assets/ic-gamepad.png" alt="">메뉴</button>
+    </nav></footer>
+  </div>
+  <dialog id="people" aria-labelledby="peopleTitle"><div class="dialog-head"><h2 id="peopleTitle">참여자</h2><button class="icon-button" id="closePeople" aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="peopleList"></div></dialog>
+  <dialog id="sceneDialog" aria-labelledby="sceneTitle"><div class="dialog-head"><h2 id="sceneTitle">미리보기 장면</h2><button class="icon-button" id="closeScene" aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="scene-controls"><label for="progress">경주 진행률</label><input id="progress" type="range" min="0" max="100" value="62" step="1" aria-label="경주 미리보기 진행률"><button id="restartButton"><svg class="icon" aria-hidden="true"><use href="#i-restart"/></svg>처음부터 보기</button></div></dialog>
+  <script src="/mockups/horse-race-demo.js"></script>
+  <script>
+    'use strict';
+    const DATA = window.HorseRaceMockData;
+    const DURATION_MS = 8000, DEFAULT_PROGRESS = 62, PERCENT_MAX = 100;
+    const SEGMENTS = [0,33,65,100], RUNNER_SIZE = 54;
+    const LANE_IDS = ['ninja','crab','dinosaur','turtle','rabbit'];
+    // 키프레임은 예시 장면용. 도착 순위는 공통 fixture에 이미 정해져 있다.
+    const POSITIONS = {rabbit:[0,22,66,96],ninja:[0,28,61,94],dinosaur:[0,24,56,92],crab:[0,18,43,90],turtle:[0,16,36,88]};
+    const $ = id => document.getElementById(id);
+    const sprite = (id,state = 'idle',frame = 1) => '/assets/horse-race/vehicles/' + id + '/base-' + state + '-' + frame + '.webp';
+    let progress = DEFAULT_PROGRESS, playing = false, animationId = null, lastTime = null;
+    const runners = new Map(), lanes = new Map();
+    function make(tag,className,text) { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; }
+    function position(id) {
+      let index = SEGMENTS.findIndex((point,i) => i > 0 && progress <= point) - 1;
+      if (index < 0) index = SEGMENTS.length - 2;
+      const part = (progress - SEGMENTS[index]) / (SEGMENTS[index + 1] - SEGMENTS[index]);
+      return POSITIONS[id][index] + (POSITIONS[id][index + 1] - POSITIONS[id][index]) * part;
+    }
+    LANE_IDS.forEach((id,index) => {
+      const lane = make('div','lane'); lane.style.backgroundImage = 'url(/assets/backgrounds/' + id + '.webp)'; lane.dataset.vehicle = id;
+      const number = make('span','lane-number',index + 1); number.setAttribute('aria-hidden','true');
+      const runner = make('div','runner');
+      [1,2].forEach(frame => { const image = make('img'); image.src = sprite(id,'run',frame); image.alt = ''; runner.append(image); });
+      if (id === DATA.myVehicle) runner.append(make('span','mine-marker','나'));
+      lane.append(number,runner); $('track').append(lane); runners.set(id,runner); lanes.set(id,{element:lane,racer:DATA.racers.find(item => item.id === id)});
+    });
+    const finish = make('div','finish'); finish.setAttribute('aria-hidden','true'); $('track').append(finish);
+    const mine = DATA.racers.find(item => item.id === DATA.myVehicle);
+    $('myVehicle').textContent = mine.label; $('myImage').src = sprite(mine.id);
+    $('targetRank').textContent = DATA.targetRank + '등';
+    $('peopleCount').textContent = DATA.people.length;
+    $('peopleButton').setAttribute('aria-label','참여자 ' + DATA.people.length + '명 보기');
+    function render() {
+      const order = [...DATA.racers].sort((a,b) => position(b.id) - position(a.id) || a.rank - b.rank);
+      const rank = progress === PERCENT_MAX ? mine.rank : order.findIndex(item => item.id === mine.id) + 1;
+      $('myRank').textContent = rank; $('rankLabel').textContent = progress === PERCENT_MAX ? '최종' : '현재';
+      $('progress').value = Math.round(progress); $('progressValue').textContent = Math.round(progress) + '%'; $('raceProgress').value = progress;
+      $('pageTitle').textContent = progress === PERCENT_MAX ? '도착!' : '경주 중';
+      $('roomStatus').textContent = progress === PERCENT_MAX ? '경마 · 경주 완료' : '경마 · 진행 중';
+      $('trackStatus').textContent = progress === PERCENT_MAX ? '모두 도착했어요' : '레이스';
+      lanes.forEach(({element,racer},id) => {
+        const distance = position(id) / PERCENT_MAX;
+        runners.get(id).style.left = 'calc(' + distance * PERCENT_MAX + '% - ' + distance * RUNNER_SIZE + 'px)';
+        element.setAttribute('aria-label',racer.label + ', ' + (progress === PERCENT_MAX ? racer.rank : order.findIndex(item => item.id === id) + 1) + '등');
+      });
+    }
+    function setPlaying(value) {
+      playing = value; lastTime = null;
+      $('track').classList.toggle('playing',playing);
+      $('playButton').setAttribute('aria-label',playing ? '미리보기 일시정지' : '미리보기 재생');
+      $('playButton').setAttribute('aria-pressed',String(playing)); $('playIcon').setAttribute('href',playing ? '#i-pause' : '#i-play');
+      cancelAnimationFrame(animationId); if (playing) animationId = requestAnimationFrame(tick);
+    }
+    function tick(time) {
+      if (!playing) return;
+      if (lastTime !== null) progress = Math.min(PERCENT_MAX,progress + (time - lastTime) / DURATION_MS * PERCENT_MAX);
+      lastTime = time; render();
+      if (progress === PERCENT_MAX) { setPlaying(false); return; }
+      animationId = requestAnimationFrame(tick);
+    }
+    $('playButton').addEventListener('click',() => { if (progress === PERCENT_MAX && !playing) { progress = 0; render(); } setPlaying(!playing); });
+    $('restartButton').addEventListener('click',() => { setPlaying(false); progress = 0; render(); });
+    $('progress').addEventListener('input',event => { setPlaying(false); progress = Number(event.target.value); render(); });
+    $('gameTab').addEventListener('click',() => document.querySelector('.content').scrollTo({top:0}));
+    $('peopleButton').addEventListener('click',() => {
+      $('peopleList').replaceChildren();
+      DATA.people.forEach(person => { const row = make('div','person'); const image = make('img'); image.src = sprite(person.vehicle); image.alt = ''; const racer = DATA.racers.find(item => item.id === person.vehicle); row.append(image,make('span','',person.name),make('small','',racer.label)); $('peopleList').append(row); });
+      $('people').showModal();
+    });
+    $('closePeople').addEventListener('click',() => $('people').close());
+    $('people').addEventListener('click',event => { if (event.target !== $('people')) return; const bounds = $('people').getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) $('people').close(); });
+    $('sceneButton').addEventListener('click',() => { setPlaying(false); $('sceneDialog').showModal(); });
+    $('closeScene').addEventListener('click',() => $('sceneDialog').close());
+    $('sceneDialog').addEventListener('click',event => { if (event.target !== $('sceneDialog')) return; const bounds = $('sceneDialog').getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) $('sceneDialog').close(); });
+    document.addEventListener('visibilitychange',() => { if (document.hidden) setPlaying(false); });
+    render();
+  </script>
+</body>
+</html>

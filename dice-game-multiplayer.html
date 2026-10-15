@@ -1952,8 +1952,10 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
     }
     </script>
-    <link rel="stylesheet" href="/css/mobile-game.css">
-    <script src="/js/mobile-game.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+    <link rel="stylesheet" href="/css/mobile-game.css?v=live-polish-1">
+    <link rel="stylesheet" href="/css/mobile-dice-roulette.css?v=live-polish-1">
+    <script src="/js/mobile-game.js?v=live-polish-1" defer></script>
 </head>
 <body>
     <noscript>
@@ -2187,18 +2189,18 @@
                 
                 <!-- 방장 전용: 게임 룰 선택 라디오 버튼 -->
                 <div id="gameRulesRadioSection" style="display: none; margin-bottom: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div class="dice-native-rules" style="display: flex; flex-direction: column; gap: 10px;">
                         <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="high" id="gameRuleHigh" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                            <span style="font-weight: 500;">하이 - 낮은 사람이 걸림</span>
+                            <span class="dice-native-rule-label" style="font-weight: 500;"><strong>하이</strong><span class="dice-rule-divider"> - </span><small>낮은 수 당첨</small></span>
                         </label>
                         <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="low" id="gameRuleLow" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                            <span style="font-weight: 500;">로우 - 높은 사람이 걸림</span>
+                            <span class="dice-native-rule-label" style="font-weight: 500;"><strong>로우</strong><span class="dice-rule-divider"> - </span><small>높은 수 당첨</small></span>
                         </label>
                         <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="near" id="gameRuleNear" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                            <span style="font-weight: 500;">니어 - N에 가까운 사람 걸리기</span>
+                            <span class="dice-native-rule-label" style="font-weight: 500;"><strong>니어</strong><span class="dice-rule-divider"> - </span><small>가까운 수 당첨</small></span>
                         </label>
                         <div id="gameNearNumberContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
                             <div class="input-group" style="margin-bottom: 0;">
@@ -2207,7 +2209,7 @@
                         </div>
                         <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="custom" id="gameRuleCustom" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                            <span style="font-weight: 500;">기타 - 직접 룰 적기</span>
+                            <span class="dice-native-rule-label" style="font-weight: 500;"><strong>기타</strong><span class="dice-rule-divider"> - </span><small>직접 룰 적기</small></span>
                         </label>
                         <div id="gameCustomRuleContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
                             <div class="input-group" style="margin-bottom: 0;">
@@ -2231,6 +2233,15 @@
                 <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                     게임 시작 전에만 수정 가능합니다
                 </div>
+            </div>
+
+            <div id="mobileDiceSettings" class="dice-mobile-only">
+                <label for="mobileDiceRange">내 주사위</label>
+                <select id="mobileDiceRange" aria-label="내 주사위 범위">
+                    <option value="6">1–6</option>
+                    <option value="100" selected>1–100</option>
+                    <option value="1000">1–1,000</option>
+                </select>
             </div>
 
             <!-- 접속자 리스트 -->
@@ -6487,7 +6498,8 @@
         // 주사위 버튼 클릭 핸들러
         function rollDiceButton() {
             const chatInput = document.getElementById('chatInput');
-            chatInput.value = '/주사위';
+            const mobileRange = document.body.classList.contains('mobile-ui') ? document.getElementById('mobileDiceRange') : null;
+            chatInput.value = mobileRange ? '/주사위 ' + mobileRange.value : '/주사위';
             ChatModule.sendMessage();
         }
 
