@@ -405,6 +405,9 @@ body.hshop-open {
 .hshop-groupchips .hshop-groupchip { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 12px; }   /* 게임 css 의 button { width: 100% } 상쇄 */
 .hshop-groupchips .hshop-groupchip canvas { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 50%; background: rgba(var(--highlight-rgb), 0.7); }
 .hshop-groupchips .hshop-groupchip.is-active canvas { background: rgba(var(--highlight-rgb), 0.9); }
+/* 자유이용권 상태 줄(어댑터 config.tickets — 데구리 상점 뷰): 가진 장수 · 뽑기 실패 게이지 */
+.hshop-passbar { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 16px 0; padding: 6px 12px; border: 1px solid var(--hshop-line); border-radius: 10px; background: var(--hshop-card); color: var(--hshop-ink); font-size: 12px; font-weight: 800; }
+.hshop-passbar-gauge { color: var(--hshop-ink-soft); }
 /* 상점 하위 탭(어댑터 config.shopTabs — 데구리: 전체/테마/야식). [상점|옷장] 큰 탭 바로 아래, 같은 모양으로 한 단계 작게 */
 .hshop-tabs.hshop-shoptabs { padding-top: 8px; }
 .hshop-shoptabs .hshop-tab { padding: 7px 0; font-size: 12px; }

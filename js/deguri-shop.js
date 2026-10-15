@@ -82,11 +82,13 @@
         return box;
     }
 
-    // 소유/구매 상태: defaultOwned 또는 소유면 owned. 선행조건 없음.
+    // 소유/구매 상태: defaultOwned 또는 소유면 owned. 에픽·전설 스킨은 코인이 아니라 자유이용권(ticketCost 장)으로 받는다 — 서버 socket/deguri.js TICKET_COST 와 같은 값
+    var TICKET_COST = { epic: 3, legend: 5 };
     function itemState(item) {
         var wallet = ShopModule.getWallet();
         var owned = !!item.defaultOwned || wallet.owned.indexOf(item.id) !== -1;
-        return owned ? { owned: true, buyable: true } : { owned: false, buyable: true };
+        if (owned) return { owned: true, buyable: true };
+        return { owned: false, buyable: true, ticketCost: item.creature ? (TICKET_COST[item.rarity] || 0) : 0 };
     }
 
     // 지갑(deguri:shop:get) 조회 — 서버가 준 equipped 가 장착값의 권위. 로그인 불필요(손님은 방 지갑)
@@ -98,6 +100,11 @@
     function buyRequest(id, done) {
         if (!_socket) return done(null);
         _socket.emit('deguri:shop:buy', { cosmeticId: id }, function (res) { done(res); });
+    }
+    // 자유이용권으로 받기(deguri:ticket:redeem) — 응답 { ok, gauge, tickets, owned }
+    function redeemRequest(id, done) {
+        if (!_socket) return done(null);
+        _socket.emit('deguri:ticket:redeem', { cosmeticId: id }, function (res) { done(res); });
     }
     // 지갑을 받을 때마다 방 장착값을 서버 값으로 맞춘다(getEquippedSkinFor·선택 버튼 배지 기준)
     function applyRoomEquip(wallet) {
@@ -138,6 +145,7 @@
             { key: 'theme', label: '테마', slots: [SKIN_SLOT], sections: 'theme' },
             { key: 'snack', label: '야식', slots: [BALLOON_SLOT] }
         ],
+        tickets: true,                // 상점 위에 자유이용권 상태 줄 + 에픽·전설은 이용권으로 받기(docs/goal/deguri-free-pass-tickets.md)
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         hooks: {
             noticeText: function () { return ''; },   // 안내 상자 없음(사용자 2026-09-22: 설명 문구 제거) — 공유 셸이 '' 면 상자를 안 그린다
@@ -184,6 +192,7 @@
             itemState: itemState,
             walletRequest: walletRequest,
             buyRequest: buyRequest,
+            redeemRequest: redeemRequest,
             equipRequest: equipRequest,
             onEquipApplied: onEquipApplied,
             onWalletRefreshed: applyRoomEquip   // 상점/옷장을 열 때마다 서버 방 장착값으로 동기화

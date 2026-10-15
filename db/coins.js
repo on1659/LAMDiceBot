@@ -24,6 +24,14 @@ async function getBalance(userId, scope = 0) {
     return r.rows.length > 0 ? r.rows[0].balance : 0;
 }
 
+// 자유이용권 게이지·장수 조회(데구리). 행 없으면 0/0.
+async function getTickets(userId, scope = 0) {
+    const pool = getPool();
+    if (!pool || !Number.isInteger(userId)) return { gauge: 0, tickets: 0 };
+    const r = await pool.query('SELECT gauge, tickets FROM user_coins WHERE user_id = $1 AND scope = $2', [userId, scope]);
+    return r.rows.length > 0 ? { gauge: r.rows[0].gauge, tickets: r.rows[0].tickets } : { gauge: 0, tickets: 0 };
+}
+
 // 지갑 보장 (없으면 시드 코인으로 생성). 멱등.
 async function ensureWallet(userId, scope = 0) {
     const pool = getPool();
@@ -158,7 +166,9 @@ async function spend(userId, price, cosmeticId, scope = 0) {
 //     환급분이 사라지므로 ROLLBACK 금지.
 // 반환: { ok, isDupe, refunded, balance, reason? } (소유 목록은 호출부 socket/shop.js가
 //   cosmetics.getOwned로 별도 조회 — 기존 패턴 유지, coins.js는 cosmetics 의존 안 둠).
-async function drawAndGrant(userId, cost, cosmeticId, scope = 0) {
+// pity 를 주면({ fail: 이번 뽑기가 실패인지, every: 실패 몇 번에 이용권 1장인지}) 같은 트랜잭션에서 게이지를 올린다 —
+// 실패면 gauge+1, every 에 닿으면 gauge 0 + tickets+1. 성공이면 게이지는 그대로. 반환에 { gauge, tickets, ticketGained } 가 더 붙는다.
+async function drawAndGrant(userId, cost, cosmeticId, scope = 0, pity = null) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(cost) || cost < 0 || !cosmeticId) {
         return { ok: false, reason: 'invalid', balance: 0 };
@@ -217,8 +227,21 @@ async function drawAndGrant(userId, cost, cosmeticId, scope = 0) {
             );
         }
 
+        let extra = {};
+        if (pity) {
+            const up = await client.query(
+                `UPDATE user_coins SET
+                    gauge = CASE WHEN $4 AND gauge + 1 >= $1 THEN 0 WHEN $4 THEN gauge + 1 ELSE gauge END,
+                    tickets = tickets + CASE WHEN $4 AND gauge + 1 >= $1 THEN 1 ELSE 0 END
+                 WHERE user_id = $2 AND scope = $3
+                 RETURNING gauge, tickets, ($4 AND gauge = 0) AS earned`,
+                [pity.every, userId, scope, !!pity.fail]
+            );
+            // earned: UPDATE 뒤 gauge 가 0 이면서 이번이 실패 = every 에 닿아 이용권이 늘었다
+            extra = { gauge: up.rows[0].gauge, tickets: up.rows[0].tickets, ticketGained: !!up.rows[0].earned };
+        }
         await client.query('COMMIT');
-        return { ok: true, isDupe, refunded, balance };
+        return { ok: true, isDupe, refunded, balance, ...extra };
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
@@ -227,4 +250,42 @@ async function drawAndGrant(userId, cost, cosmeticId, scope = 0) {
     }
 }
 
-module.exports = { getBalance, ensureWallet, grant, spend, drawAndGrant, SEED_COINS };
+// 자유이용권으로 받기 — cost 장을 원자 차감하고 소유를 넣는다(코인은 안 쓴다). 이미 가진 건 차감 없이 owned, 장수 부족이면 insufficient.
+// 반환: { ok, reason?, gauge, tickets }
+async function redeemTickets(userId, cost, cosmeticId, scope = 0) {
+    const pool = getPool();
+    if (!pool || !Number.isInteger(userId) || !Number.isInteger(cost) || cost <= 0 || !cosmeticId) {
+        return { ok: false, reason: 'invalid', gauge: 0, tickets: 0 };
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const ins = await client.query(
+            `INSERT INTO user_cosmetics (user_id, cosmetic_id, scope) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, cosmetic_id, scope) DO NOTHING RETURNING user_id`,
+            [userId, cosmeticId, scope]
+        );
+        if (ins.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return { ok: false, reason: 'owned', ...(await getTickets(userId, scope)) };
+        }
+        const dec = await client.query(
+            `UPDATE user_coins SET tickets = tickets - $1, updated_at = NOW()
+             WHERE user_id = $2 AND scope = $3 AND tickets >= $1 RETURNING gauge, tickets`,
+            [cost, userId, scope]
+        );
+        if (dec.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return { ok: false, reason: 'insufficient', ...(await getTickets(userId, scope)) };
+        }
+        await client.query('COMMIT');
+        return { ok: true, gauge: dec.rows[0].gauge, tickets: dec.rows[0].tickets };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+module.exports = { getBalance, getTickets, ensureWallet, grant, spend, drawAndGrant, redeemTickets, SEED_COINS };
