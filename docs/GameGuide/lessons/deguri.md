@@ -92,3 +92,11 @@
 **증상:** `git status` 의 M 목록이 내가 만진 것보다 많고, 커밋 후 남은 diff 가 예상과 다름.
 **해결/예방:** 커밋 전 **`git diff HEAD --stat` 으로 남은 diff 의 주인을 확인**하고, 내 파일만 골라 `git add <files>`. 한 파일에 양쪽 hunk 가 섞였으면 커밋을 미루거나 hunk 단위로 나눈다. 같은 파일을 편집하다 Edit 이 실패하면 되돌리지 말고 다시 읽어서 재적용(상대 작업 보존). 가능하면 세션마다 worktree 를 분리하는 게 근본 해법.
 **관련:** 메모리 `project_deguri_handoff`(같은 사건 기록), `feedback_workflow_dirty_tree_revert`(dirty 트리 되돌리기 금지)
+
+## 2026-10-15 — 데구리 지갑(코인·소유·장착)은 서버(scope)마다 따로다
+
+**상황:** 계정 귀속(10-09) 때 코인(`user_coins`)·소유(`user_cosmetics`)·장착(`users.prefs.equipped`)을 `user_id` 하나로만 묶어서, 서버 A 에서 산 스킨이 서버 B·자유플레이에도 그대로 보였다. 사용자 요구: 스킨은 그 서버에 남아야 한다.
+**규칙:** 지갑 칸 `scope` = 데구리 방의 `room.serverId`(자유플레이는 0). `socket/deguri.js` 의 `roomScope(room)` 을 모든 지갑 호출(싣기·매일·머문 시간·한 판 보상·구매·뽑기·장착·dev top-up)에 넘긴다. `db/coins.js`·`db/cosmetics.js` 함수의 `scope` 는 **마지막 인자(기본 0)** 라 경마·사다리·회전칼날 상점은 0 칸을 그대로 쓴다. 장착은 scope≠0 일 때 `deguri_skin@N`·`deguri_balloon@N` 키, 원장 멱등 ref 는 `ref@N` (서버마다 매일 코인 한 번씩).
+**함정:** `socket.serverId` 는 `setServerId` 의 async 검증 뒤에야 찬다 — scope 출처로 쓰지 말고 방 생성 때 서버가 검증한 `room.serverId` 만 쓴다. 기존 데이터는 부팅 마이그레이션(`db/init.js`, 표식 `migration_marks`)이 그 시점의 활성 서버 칸 전부에 한 번 복사했고, 이후 만든 서버는 빈 칸으로 시작한다. 새 지갑 함수를 만들면 scope 인자를 빼먹지 않는다 — 빠지면 조용히 0 칸을 건드린다.
+**검증:** `AutoTest/qa-deguri-per-server-wallet.js`
+**관련:** `docs/goal/deguri-per-server-wallet.md`

@@ -77,15 +77,16 @@
     // 그룹 필터 칩(분리 모드, 어댑터 hooks.groups() → [{key,label}], hooks.itemGroup(item) → key|null). 데구리: 동물별(전체/고슴도치/돼지…).
     // 그룹이 없는 아이템(기본 모습)은 어느 필터에서도 보인다. 상점/옷장 두 뷰가 같은 필터를 공유하고, 팝업을 열 때 '전체'로 리셋.
     var _groupFilter = 'all';
-    // 그룹 기준이 둘 이상이면(어댑터 hooks.groupModes → [{key,label}], 데구리: 동물/테마) 칩 줄 맨 앞에 전환 버튼을 그리고,
+    // 그룹 기준이 둘 이상이면(어댑터 hooks.groupModes → [{key,label}], 데구리: 전체보기/테마별보기) 상점 뷰의 [상점|옷장] 아래에 서브탭을 그리고,
     // groups·itemGroup·groupIcon 훅에 지금 기준(key)을 마지막 인자로 넘긴다. 기준을 바꾸면 필터는 '전체'로. groupModes 가 없으면 기존 그대로(인자 undefined).
+    // 옷장 뷰는 늘 첫 기준(데구리: 동물) — 서브탭은 상점에만(사용자 2026-10-15: 칩 줄 앞의 동물/테마 스위치를 없애고 상점 하위 탭으로)
     var _groupMode = null;
     function groupModes() { var m = _config && _config.hooks && _config.hooks.groupModes; return (m && m.length > 1) ? m : null; }
     function groupMode() {
         var m = groupModes();
         if (!m) return undefined;
         if (!m.some(function (x) { return x.key === _groupMode; })) _groupMode = m[0].key;
-        return _groupMode;
+        return closetMode() && _view === 'closet' ? m[0].key : _groupMode;
     }
     // 한 슬롯에 여러 개가 동시에 장착될 수 있다 — 데구리 동물 스킨은 동물마다 하나씩이라 서버가 id 배열을 준다.
     // 다른 게임(경마·사다리·회전)과 데구리 야식은 값 하나(문자열) 그대로다.
@@ -116,20 +117,7 @@
     function renderGroupChips() {
         var chips = document.createElement('div');
         chips.className = 'hshop-inv-chips hshop-groupchips';
-        var modes = groupModes(), mode = groupMode();
-        if (modes) {   // 기준 전환(동물/테마) — 칩 줄 맨 앞
-            var sw = document.createElement('div');
-            sw.className = 'hshop-groupmode';
-            modes.forEach(function (m) {
-                var b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'hshop-groupmode-btn' + (m.key === mode ? ' is-active' : '');
-                b.textContent = m.label;
-                b.addEventListener('click', function () { if (_groupMode === m.key) return; _groupMode = m.key; _groupFilter = 'all'; renderModal(); });
-                sw.appendChild(b);
-            });
-            chips.appendChild(sw);
-        }
+        var mode = groupMode();
         [{ key: 'all', label: '전체' }].concat(_config.hooks.groups(mode) || []).forEach(function (cd) {
             var chip = document.createElement('button');
             chip.type = 'button';
@@ -1060,8 +1048,29 @@
             tab.type = 'button';
             tab.className = 'hshop-tab' + (_view === t[0] ? ' is-active' : '');
             tab.textContent = t[1];
-            tab.addEventListener('click', function () { if (_view === t[0]) return; _view = t[0]; renderModal(); });
+            tab.addEventListener('click', function () {
+                if (_view === t[0]) return;
+                var before = groupMode(); _view = t[0];
+                if (groupMode() !== before) _groupFilter = 'all';   // 옷장은 동물 기준 — 상점에서 고른 테마 칩은 옷장에 없다
+                renderModal();
+            });
             bar.appendChild(tab);
+        });
+        return bar;
+    }
+    // 상점 뷰 서브탭 [전체보기 | 테마별보기] — 그룹 기준 전환(hooks.groupModes). 바꾸면 칩 필터는 '전체'로
+    function renderGroupModeTabs() {
+        var bar = document.createElement('div');
+        bar.className = 'hshop-subtabs';
+        var mode = groupMode();
+        groupModes().forEach(function (m) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'hshop-subtab' + (m.key === mode ? ' is-active' : '');
+            b.setAttribute('aria-pressed', m.key === mode ? 'true' : 'false');
+            b.textContent = m.label;
+            b.addEventListener('click', function () { if (_groupMode === m.key) return; _groupMode = m.key; _groupFilter = 'all'; renderModal(); });
+            bar.appendChild(b);
         });
         return bar;
     }
@@ -1262,6 +1271,7 @@
 
         panel.appendChild(header);
         if (closetMode()) panel.appendChild(renderViewTabs());
+        if (hasGroups(_activeTab) && groupModes()) panel.appendChild(renderGroupModeTabs());   // 상점 뷰 서브탭 — 그룹을 쓰는 슬롯(데구리 동물 스킨)일 때만
         if (hasGroups(_activeTab)) panel.appendChild(renderGroupChips());   // 상점 뷰: 현재 탭이 그룹을 쓰는 슬롯일 때만
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);

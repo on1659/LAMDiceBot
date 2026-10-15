@@ -26,20 +26,30 @@ const PUBLIC_HORSE_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_
 // 코인 장착(shop:equip)은 EQUIP_SLOTS가 이미 finish_fx를 포함 → 서버 저장됨.
 const AD_EQUIP_SLOTS = [...PUBLIC_HORSE_SLOTS, 'finish_fx'];
 
+// scope: 0 = 자유플레이·다른 게임, N = 데구리 커뮤니티 서버 id (db/coins.js 와 같은 칸, docs/goal/deguri-per-server-wallet.md).
+// 마지막 인자·기본 0 이라 데구리 밖 호출부는 그대로다. 장착은 scope≠0 일 때 데구리 슬롯 키에 '@N' 이 붙는다(prefs.equipped.deguri_skin@N)
+const SCOPED_SLOTS = ['deguri_skin', 'deguri_balloon'];
+const slotKey = (slot, scope) => (scope ? slot + '@' + scope : slot);
+
 // 소유 꾸미기 id 배열
-async function getOwned(userId) {
+async function getOwned(userId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId)) return [];
-    const r = await pool.query('SELECT cosmetic_id FROM user_cosmetics WHERE user_id = $1', [userId]);
+    const r = await pool.query('SELECT cosmetic_id FROM user_cosmetics WHERE user_id = $1 AND scope = $2', [userId, scope]);
     return r.rows.map(row => row.cosmetic_id);
 }
 
 // 장착 상태 객체 ({ paint, trail, ... }). 없으면 {}.
-async function getEquipped(userId) {
+// scope≠0 이면 그 서버의 데구리 슬롯만 원래 슬롯 이름으로 돌려준다({ deguri_skin, deguri_balloon }).
+async function getEquipped(userId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId)) return {};
     const r = await pool.query(`SELECT prefs->'equipped' AS equipped FROM users WHERE id = $1`, [userId]);
-    return (r.rows.length > 0 && r.rows[0].equipped) ? r.rows[0].equipped : {};
+    const equipped = (r.rows.length > 0 && r.rows[0].equipped) ? r.rows[0].equipped : {};
+    if (!scope) return equipped;
+    const out = {};
+    SCOPED_SLOTS.forEach(slot => { if (equipped[slotKey(slot, scope)] != null) out[slot] = equipped[slotKey(slot, scope)]; });
+    return out;
 }
 
 // 여러 유저의 장착 상태 일괄 조회 → { userId: equippedObj }. 레이스 시작 broadcast용.
@@ -62,9 +72,9 @@ async function setEquipped(userId, slot, cosmeticId) {
 }
 
 // 데구리 장착 — 슬롯 값을 통째로 저장(위 DEGURI_EQUIP_SLOTS 형식). 소유 검증은 호출부(socket/deguri.js).
-async function setDeguriEquipped(userId, slot, value) {
+async function setDeguriEquipped(userId, slot, value, scope = 0) {
     if (!Number.isInteger(userId) || DEGURI_EQUIP_SLOTS.indexOf(slot) === -1) return;
-    await writeEquippedSlot(userId, slot, value);
+    await writeEquippedSlot(userId, slotKey(slot, scope), value);
 }
 
 // prefs.equipped 객체의 단일 슬롯만 갱신 (기존 equipped/다른 prefs 키 보존). 슬롯 화이트리스트는 호출부가 확인한다

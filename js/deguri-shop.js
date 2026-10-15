@@ -133,8 +133,8 @@
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         hooks: {
             noticeText: function () { return ''; },   // 안내 상자 없음(사용자 2026-09-22: 설명 문구 제거) — 공유 셸이 '' 면 상자를 안 그린다
-            // 필터 칩의 기준 둘 — 동물별(전체/고슴도치/…) · 테마별(전체/5090/수영복/…). 공유 셸이 칩 줄 앞에 전환 버튼을 그린다
-            groupModes: [{ key: 'creature', label: '동물' }, { key: 'theme', label: '테마' }],
+            // 필터 칩의 기준 둘 — 동물별(전체/고슴도치/…) · 테마별(전체/5090/수영복/…). 공유 셸이 상점 뷰 [상점|옷장] 아래 서브탭으로 그린다
+            groupModes: [{ key: 'creature', label: '전체보기' }, { key: 'theme', label: '테마별보기' }],   // 상점 서브탭(옷장은 늘 동물 칩)
             // 동물: 순서는 선택 버튼 순서(DEGURI_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등). 테마: themeList()
             groups: function (mode) {
                 if (mode === 'theme') return themeList().map(function (t) { return { key: t.name, label: t.name }; });
@@ -166,6 +166,7 @@
             // 상점 뷰에서는 기본 제공 카드('기본'·야식 '없음')를 뺀다(살 게 아니다) — 옷장에서는 "벗기"라 맨 앞에 남긴다. 공유 셸(shop-shared.js)에는 이 정렬 훅만 있다
             sortItems: function (items, ctx) {
                 if (ctx.view === 'shop') items = items.filter(function (it) { return !it.defaultOwned; });
+                if (ctx.view === 'shop' && ctx.groupMode === 'theme' && ctx.slot === SKIN_SLOT) items = items.filter(function (it) { return it.theme; });   // 테마별보기 '전체' = 테마가 있는 스킨만(아니면 전체보기와 같다)
                 if (ctx.slot !== SKIN_SLOT) return items;
                 var picks = (window.deguriState && deguriState.picks) || {}, mine = picks[window.currentUser];
                 var order = (typeof window.DEGURI_CREATURES !== 'undefined' && window.DEGURI_CREATURES) || [];

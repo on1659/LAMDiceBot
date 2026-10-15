@@ -287,6 +287,52 @@ async function initDatabase() {
             )
         `);
 
+        // ─── 데구리 서버별 지갑 (docs/goal/deguri-per-server-wallet.md) ───
+        // scope: 0 = 자유플레이·다른 게임 상점, N = 커뮤니티 서버 id. 서버마다 코인·소유·장착이 따로다.
+        // initDatabase 의 바깥 catch 는 어떤 오류든 삼키므로 단계마다 따로 잡는다. 전부 멱등 — 부팅마다 돌아도 새로 넣는 게 없다.
+        const walletScopeSteps = [
+            ['scope 칸(user_coins)', `ALTER TABLE user_coins ADD COLUMN IF NOT EXISTS scope INTEGER NOT NULL DEFAULT 0`],
+            ['scope 칸(user_cosmetics)', `ALTER TABLE user_cosmetics ADD COLUMN IF NOT EXISTS scope INTEGER NOT NULL DEFAULT 0`],
+            ['PK(user_coins)', `DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.key_column_usage WHERE table_name = 'user_coins' AND constraint_name = 'user_coins_pkey' AND column_name = 'scope') THEN
+                    ALTER TABLE user_coins DROP CONSTRAINT user_coins_pkey;
+                    ALTER TABLE user_coins ADD PRIMARY KEY (user_id, scope);
+                END IF;
+            END $$`],
+            ['PK(user_cosmetics)', `DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.key_column_usage WHERE table_name = 'user_cosmetics' AND constraint_name = 'user_cosmetics_pkey' AND column_name = 'scope') THEN
+                    ALTER TABLE user_cosmetics DROP CONSTRAINT user_cosmetics_pkey;
+                    ALTER TABLE user_cosmetics ADD PRIMARY KEY (user_id, cosmetic_id, scope);
+                END IF;
+            END $$`],
+            ['표식 테이블', `CREATE TABLE IF NOT EXISTS migration_marks (name VARCHAR(80) PRIMARY KEY, applied_at TIMESTAMP DEFAULT NOW())`],
+            // 한 번만: 지금까지 계정에 쌓인 데구리 소유·코인·장착을 이 시점의 모든 활성 서버 칸에 복사한다(사용자 2026-10-15).
+            // 이후 만든 서버는 빈 칸으로 시작하고, 복사 뒤 서버마다 따로 쌓인 것은 다시 덮어쓰지 않는다(표식 + ON CONFLICT DO NOTHING).
+            ['기존 지갑 복사', `DO $$ DECLARE sid INTEGER; BEGIN
+                IF NOT EXISTS (SELECT 1 FROM migration_marks WHERE name = 'deguri-per-server-wallet') THEN
+                    FOR sid IN SELECT id FROM servers WHERE is_active LOOP
+                        INSERT INTO user_cosmetics (user_id, cosmetic_id, scope)
+                            SELECT user_id, cosmetic_id, sid FROM user_cosmetics WHERE scope = 0 AND cosmetic_id LIKE 'deguri\\_%'
+                            ON CONFLICT DO NOTHING;
+                        INSERT INTO user_coins (user_id, balance, scope)
+                            SELECT user_id, balance, sid FROM user_coins WHERE scope = 0
+                            ON CONFLICT DO NOTHING;
+                        UPDATE users SET prefs = jsonb_set(prefs, '{equipped}', (prefs->'equipped') || jsonb_strip_nulls(jsonb_build_object(
+                                'deguri_skin@' || sid, prefs->'equipped'->'deguri_skin',
+                                'deguri_balloon@' || sid, prefs->'equipped'->'deguri_balloon')))
+                            WHERE jsonb_typeof(prefs->'equipped') = 'object'
+                              AND (prefs->'equipped' ? 'deguri_skin' OR prefs->'equipped' ? 'deguri_balloon')
+                              AND NOT (prefs->'equipped' ? ('deguri_skin@' || sid) OR prefs->'equipped' ? ('deguri_balloon@' || sid));
+                    END LOOP;
+                    INSERT INTO migration_marks (name) VALUES ('deguri-per-server-wallet');
+                END IF;
+            END $$`],
+        ];
+        for (const [label, sql] of walletScopeSteps) {
+            try { await pool.query(sql); }
+            catch (e) { console.error('[DB] 데구리 서버별 지갑 마이그레이션 실패 (' + label + '):', e.message); }
+        }
+
         // ─── 데구리 Jev 하이라이트 반응(👍/👎·GIF 저장) — 코드 점수 가중치 배율용(db/deguri-highlight-feedback.js). 한 판(rid) × 보는 사람 한 줄, 장면 사실은 사건 수만 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS deguri_highlight_feedback (

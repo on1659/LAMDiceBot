@@ -134,6 +134,9 @@ function ownsInRoom(mb, name, item) {
 }
 
 // ─── 계정 지갑 헬퍼 ───
+// 지갑 칸(scope) — 커뮤니티 서버 방이면 그 서버 id, 자유플레이면 0. 서버마다 코인·소유·장착이 따로다(docs/goal/deguri-per-server-wallet.md).
+// room.serverId 는 방 생성 때 서버가 멤버십을 확인해 넣은 값이라 이걸 유일한 출처로 쓴다(클라 값·socket.serverId 아님)
+function roomScope(room) { return (room && room.serverId) || 0; }
 function kstDay(now) { return new Date(now + KST_OFFSET_MS).toISOString().slice(0, 10); }
 // 방에 이 계정 것으로 실려 있는 지갑 | null
 function loadedAccount(mb, name, userId) {
@@ -164,14 +167,14 @@ function storedEquip(slot, value) {
 // 계정 소유·장착을 방에 싣는다(한 사람의 동시 적재는 하나로). 반환 { w, fresh } — w 가 null 이면 그사이 방을 나갔거나 계정이 바뀌었다.
 // 손님으로 먼저 만들어진 방 지갑(입장 직후 인증 전 조회)은 계정 것으로 바꾼다 — 손님일 때 산 건 계정으로 옮기지 않는다
 const _accountLoads = new WeakMap();   // mb → { 'name#userId': Promise }
-async function loadAccount(gameState, name, userId) {
+async function loadAccount(gameState, name, userId, scope) {
     const mb = gameState.deguri;
     const cur = loadedAccount(mb, name, userId);
     if (cur) return { w: cur, fresh: false };
     let loads = _accountLoads.get(mb);
     if (!loads) { loads = {}; _accountLoads.set(mb, loads); }
     const key = name + '#' + userId;
-    if (!loads[key]) loads[key] = Promise.all([cosmetics.getOwned(userId), cosmetics.getEquipped(userId)]).finally(() => { delete loads[key]; });
+    if (!loads[key]) loads[key] = Promise.all([cosmetics.getOwned(userId, scope), cosmetics.getEquipped(userId, scope)]).finally(() => { delete loads[key]; });
     const [owned, equipped] = await loads[key];
     const user = gameState.users.find(u => u.name === name);
     if (!user || user.authedUserId !== userId) return { w: null, fresh: false };
@@ -185,25 +188,25 @@ async function loadAccount(gameState, name, userId) {
     return { w, fresh: true };
 }
 // 방 캐시 소유 목록을 DB 와 맞춘다 — 소유는 늘기만 하므로 합친다(그사이 이 방에서 넣은 것도 안 잃게)
-async function refreshOwned(w, userId) {
-    (await cosmetics.getOwned(userId)).forEach(id => { if (w.owned.indexOf(id) === -1) w.owned.push(id); });
+async function refreshOwned(w, userId, scope) {
+    (await cosmetics.getOwned(userId, scope)).forEach(id => { if (w.owned.indexOf(id) === -1) w.owned.push(id); });
 }
 // 매일 코인 — 그날 처음이면 DAILY_COIN. 원장 (user, 'deguri-daily', 날짜) 가 하루 한 번을 보장한다. 반환 = 이번에 넣은 코인
-async function grantDaily(w, userId, now) {
+async function grantDaily(w, userId, now, scope) {
     const day = kstDay(now);
     if (w.dailyDay === day) return 0;
-    const r = await coins.grant(userId, DAILY_COIN, 'deguri-daily', day, WALLET_MAX);
+    const r = await coins.grant(userId, DAILY_COIN, 'deguri-daily', day, WALLET_MAX, scope);
     w.dailyDay = day;
     return r.granted ? r.amount : 0;
 }
 // 머문 시간 보상(계정) — 칸 수는 손님과 같고, 하루 STAY_DAILY_MAX 번까지만. 원장 ref '날짜#1'~'#6' 이 방·탭을 합친 상한이다(넘친 칸은 버린다).
 // 반환 = 이번에 넣은 칸 수. w.staySlot > STAY_DAILY_MAX 면 오늘 몫을 다 받았다
-async function grantAccountStay(w, user, userId, now) {
+async function grantAccountStay(w, user, userId, now, scope) {
     const day = kstDay(now);
     if (w.stayDay !== day) { w.stayDay = day; w.staySlot = 1; }
     let left = stayUnits(w, user, now), granted = 0;
     while (left > 0 && w.staySlot <= STAY_DAILY_MAX) {
-        const r = await coins.grant(userId, STAY_COIN, 'deguri-stay', day + '#' + w.staySlot, WALLET_MAX);
+        const r = await coins.grant(userId, STAY_COIN, 'deguri-stay', day + '#' + w.staySlot, WALLET_MAX, scope);
         w.staySlot++;
         if (r.granted) { left--; granted++; }
     }
@@ -211,18 +214,19 @@ async function grantAccountStay(w, user, userId, now) {
 }
 // 내부 테스트(로컬·테스트 서버 DEV_GAMES)에선 계정 잔고를 ROOM_SEED_COINS_TEST 까지 채운다 — 실서버는 아무것도 안 한다. 반환 = 채웠는지.
 // 입장 순간 requestState 와 shop:get 이 같이 오면 둘 다 부족분을 읽고 두 번 채운다 — 한 계정의 충전은 하나로 묶는다
-const _devTopUps = new Map();   // userId → Promise
-function devTopUp(userId) {
+const _devTopUps = new Map();   // 'userId@scope' → Promise
+function devTopUp(userId, scope) {
     if (!DEV_GAMES_ENABLED) return Promise.resolve(false);
-    if (!_devTopUps.has(userId)) {
-        _devTopUps.set(userId, (async () => {
-            const bal = await coins.getBalance(userId);
+    const key = userId + '@' + scope;
+    if (!_devTopUps.has(key)) {
+        _devTopUps.set(key, (async () => {
+            const bal = await coins.getBalance(userId, scope);
             if (bal >= ROOM_SEED_COINS_TEST) return false;
-            await coins.grant(userId, ROOM_SEED_COINS_TEST - bal, 'dev-topup', null);
+            await coins.grant(userId, ROOM_SEED_COINS_TEST - bal, 'dev-topup', null, undefined, scope);
             return true;
-        })().finally(() => _devTopUps.delete(userId)));
+        })().finally(() => _devTopUps.delete(key)));
     }
-    return _devTopUps.get(userId);
+    return _devTopUps.get(key);
 }
 // 뽑기 풀 — 데구리 슬롯의 살 수 있는 항목 전부(가격 있음·해석됨·기본 제공 아님). 카탈로그는 서버 시작 때 고정이라 한 번만 만든다
 let _gachaPool = null;
@@ -385,10 +389,11 @@ function awardRaceCoins(io, room, gameState, mb) {
 async function awardAccountRace(io, room, mb, u) {
     const userId = u.authedUserId;
     try {
-        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + mb.seed, WALLET_MAX);
+        const scope = roomScope(room);
+        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + mb.seed, WALLET_MAX, scope);
         const w = loadedAccount(mb, u.name, userId);
-        if (w) await grantAccountStay(w, u, userId, Date.now());
-        io.to(u.id).emit('wallet:updated', { balance: await coins.getBalance(userId) });
+        if (w) await grantAccountStay(w, u, userId, Date.now(), scope);
+        io.to(u.id).emit('wallet:updated', { balance: await coins.getBalance(userId, scope) });
     } catch (e) {
         console.warn('[데구리] 한 판 코인 적립 실패:', e.message);
     }
@@ -671,19 +676,20 @@ module.exports = (socket, io, ctx) => {
     async function syncAccount(room, gameState, user) {
         const userId = socket.authedUserId;
         const mb = gameState.deguri;
-        const { w, fresh } = await loadAccount(gameState, user.name, userId);
+        const scope = roomScope(room);
+        const { w, fresh } = await loadAccount(gameState, user.name, userId, scope);
         if (!w) return null;
         if (fresh) {
             socket.to(room.roomId).emit('deguri:stateUpdated', publicState(gameState));
             socket.emit('deguri:stateUpdated', { ...publicState(gameState), myEquip: equippedIds(mb, user.name) });
         } else {
-            await refreshOwned(w, userId);   // 다른 방·탭에서 산 것도 반영
+            await refreshOwned(w, userId, scope);   // 다른 방·탭에서 산 것도 반영
         }
         const now = Date.now();
-        const topped = await devTopUp(userId);
-        const daily = await grantDaily(w, userId, now);
-        const stayed = await grantAccountStay(w, user, userId, now);
-        const balance = await coins.getBalance(userId);
+        const topped = await devTopUp(userId, scope);
+        const daily = await grantDaily(w, userId, now, scope);
+        const stayed = await grantAccountStay(w, user, userId, now, scope);
+        const balance = await coins.getBalance(userId, scope);
         if (fresh || topped || daily || stayed) socket.emit('wallet:updated', { balance });
         // 매일 코인 알림 — 나에게만 보이는 채팅 시스템 한 줄(방 기록엔 안 남긴다). 코인 알약은 접힌 칸 안이라 기본 화면에서 안 보여서 채팅으로
         if (daily) socket.emit('newMessage', { userName: '시스템', message: `오늘의 코인 +${daily}이 들어왔어요`, time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }), isHost: false, isSystemMessage: true, isSystem: true });
@@ -771,7 +777,7 @@ module.exports = (socket, io, ctx) => {
             try {
                 const s = await syncAccount(room, gameState, user);
                 if (!s) return cb({ ok: false, reason: 'room' });
-                const r = await coins.spend(socket.authedUserId, item.price, id);
+                const r = await coins.spend(socket.authedUserId, item.price, id, roomScope(room));
                 if (!r.ok) return cb({ ok: false, reason: r.reason, balance: r.balance });
                 if (s.w.owned.indexOf(id) === -1) s.w.owned.push(id);
                 return cb({ ok: true, balance: r.balance, owned: s.w.owned.slice() });
@@ -811,7 +817,7 @@ module.exports = (socket, io, ctx) => {
                 if (s.balance < GACHA_PRICE) return cb({ ok: false, reason: 'insufficient', balance: s.balance });
                 got = drawGacha(gachaPool(), Math.random);   // 서버 RNG 허용(결과 결정)
                 if (!got) return cb({ ok: false, reason: 'empty', balance: s.balance });
-                const r = await coins.drawAndGrant(socket.authedUserId, GACHA_PRICE, got.id);
+                const r = await coins.drawAndGrant(socket.authedUserId, GACHA_PRICE, got.id, roomScope(room));
                 if (!r.ok) return cb({ ok: false, reason: r.reason, balance: r.balance });
                 if (!r.isDupe && s.w.owned.indexOf(got.id) === -1) s.w.owned.push(got.id);
                 res = { ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe: r.isDupe, refund: r.refunded, balance: r.balance, owned: s.w.owned.slice() };
@@ -860,7 +866,7 @@ module.exports = (socket, io, ctx) => {
         const userId = socket.authedUserId || null;
         let resolved = null;
         try {
-            if (userId && !(await loadAccount(gameState, user.name, userId)).w) return cb({ ok: false, reason: 'room' });
+            if (userId && !(await loadAccount(gameState, user.name, userId, roomScope(room))).w) return cb({ ok: false, reason: 'room' });
             if (id !== null && id !== undefined) {
                 if (typeof id !== 'string') return cb({ ok: false, reason: 'notfound' });
                 const entry = getCatalogEntry(id);
@@ -868,7 +874,7 @@ module.exports = (socket, io, ctx) => {
                 resolved = equipFromItem(slot, entry.item);
                 if (resolved && userId && !entry.item.defaultOwned) {
                     const w = loadedAccount(mb, user.name, userId);
-                    if (w.owned.indexOf(id) === -1) await refreshOwned(w, userId);   // 다른 방·탭에서 막 산 것일 수 있다
+                    if (w.owned.indexOf(id) === -1) await refreshOwned(w, userId, roomScope(room));   // 다른 방·탭에서 막 산 것일 수 있다
                     if (w.owned.indexOf(id) === -1) return cb({ ok: false, reason: 'unowned' });
                 } else if (resolved && !userId && !ownsInRoom(mb, user.name, entry.item)) {
                     return cb({ ok: false, reason: 'unowned' });
@@ -890,7 +896,7 @@ module.exports = (socket, io, ctx) => {
             } else {
                 next = resolved;
             }
-            if (userId) await cosmetics.setDeguriEquipped(userId, slot, storedEquip(slot, next));
+            if (userId) await cosmetics.setDeguriEquipped(userId, slot, storedEquip(slot, next), roomScope(room));
             if (!gameState.users.includes(user)) return cb({ ok: false, reason: 'room' });   // 저장하는 사이 방을 나갔다 — 지워진 방 장착값을 되살리지 않는다
             roomEquip(mb, user.name)[slot] = next;
         } catch (e) {

@@ -9,24 +9,29 @@
 // 모든 식별자는 users.id (authedUserId). 닉네임(data.name) 사용 금지.
 const { getPool } = require('./pool');
 
+// scope: 0 = 자유플레이·다른 게임 상점(기존 그대로), N = 데구리 커뮤니티 서버 id — 서버마다 지갑·소유가 따로다(docs/goal/deguri-per-server-wallet.md).
+// 모든 함수의 scope 는 마지막 인자(기본 0)라 기존 호출부는 그대로 0 칸을 쓴다.
+// 원장(coin_ledger)엔 scope 칸이 없다 — 멱등 ref 에 '@N' 을 붙여 서버마다 따로 한 번씩 적립되게 한다
 const SEED_COINS = 200; // 신규 지갑 시드 (지갑 최초 생성 시 1회) — 100 → 150 → 200 (2026-09-22 사용자: 최초 금액 200)
 
+function scopedRef(ref, scope) { return (ref && scope) ? ref + '@' + scope : (ref || null); }
+
 // 잔고 조회. 행 없으면 0.
-async function getBalance(userId) {
+async function getBalance(userId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId)) return 0;
-    const r = await pool.query('SELECT balance FROM user_coins WHERE user_id = $1', [userId]);
+    const r = await pool.query('SELECT balance FROM user_coins WHERE user_id = $1 AND scope = $2', [userId, scope]);
     return r.rows.length > 0 ? r.rows[0].balance : 0;
 }
 
 // 지갑 보장 (없으면 시드 코인으로 생성). 멱등.
-async function ensureWallet(userId) {
+async function ensureWallet(userId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId)) return;
     await pool.query(
-        `INSERT INTO user_coins (user_id, balance) VALUES ($1, $2)
-         ON CONFLICT (user_id) DO NOTHING`,
-        [userId, SEED_COINS]
+        `INSERT INTO user_coins (user_id, balance, scope) VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, scope) DO NOTHING`,
+        [userId, SEED_COINS, scope]
     );
 }
 
@@ -34,7 +39,7 @@ async function ensureWallet(userId) {
 // max 를 주면 잔고가 max 를 넘지 않게 넘는 만큼은 버린다(이월 없음) — 원장엔 실제 넣은 양(0 이어도)을 적어 ref 는 소비된다.
 // 트랜잭션: 지갑 행 잠금 → 원장 INSERT → 실제 들어갔을 때만 잔고 UP.
 // 반환: { ok, balance, granted, amount } (granted=false면 멱등 스킵, amount = 이번에 실제 넣은 양).
-async function grant(userId, delta, reason, ref, max) {
+async function grant(userId, delta, reason, ref, max, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(delta) || delta <= 0) {
         return { ok: false, balance: 0, granted: false };
@@ -44,12 +49,12 @@ async function grant(userId, delta, reason, ref, max) {
         await client.query('BEGIN');
         // 지갑 보장 (시드는 ensureWallet과 동일 — 적립 전 행 보장)
         await client.query(
-            `INSERT INTO user_coins (user_id, balance) VALUES ($1, $2)
-             ON CONFLICT (user_id) DO NOTHING`,
-            [userId, SEED_COINS]
+            `INSERT INTO user_coins (user_id, balance, scope) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, scope) DO NOTHING`,
+            [userId, SEED_COINS, scope]
         );
         // 잔고 행 잠금 — 상한 계산과 UPDATE 사이에 다른 적립이 끼지 않게
-        const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1 FOR UPDATE', [userId]);
+        const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1 AND scope = $2 FOR UPDATE', [userId, scope]);
         let balance = cur.rows[0].balance;
         const amount = Number.isFinite(max) ? Math.max(0, Math.min(delta, max - balance)) : delta;
         // 원장 멱등 INSERT
@@ -57,13 +62,13 @@ async function grant(userId, delta, reason, ref, max) {
             `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)
              ON CONFLICT (user_id, ref, reason) WHERE ref IS NOT NULL DO NOTHING
              RETURNING id`,
-            [userId, amount, reason, ref || null]
+            [userId, amount, reason, scopedRef(ref, scope)]
         );
         if (led.rowCount > 0 && amount > 0) {
             const upd = await client.query(
                 `UPDATE user_coins SET balance = balance + $1, updated_at = NOW()
-                 WHERE user_id = $2 RETURNING balance`,
-                [amount, userId]
+                 WHERE user_id = $2 AND scope = $3 RETURNING balance`,
+                [amount, userId, scope]
             );
             balance = upd.rows[0].balance;
         }
@@ -80,7 +85,7 @@ async function grant(userId, delta, reason, ref, max) {
 // 소비 (구매). 원자 차감 + 원장 + 인벤토리 1트랜잭션.
 // 가격은 호출부(서버 카탈로그)가 권위. 잔고 부족이면 ROLLBACK + insufficient.
 // 반환: { ok, reason?, balance, owned? }
-async function spend(userId, price, cosmeticId) {
+async function spend(userId, price, cosmeticId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(price) || price < 0 || !cosmeticId) {
         return { ok: false, reason: 'invalid', balance: 0 };
@@ -93,11 +98,11 @@ async function spend(userId, price, cosmeticId) {
         // 이 사전 체크는 행 잠금 전이라 동시 구매 2건이 모두 통과할 수 있다.
         // 최종 가드는 아래 user_cosmetics INSERT의 rowCount(충돌 = ROLLBACK).
         const ownedAlready = await client.query(
-            'SELECT 1 FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
-            [userId, cosmeticId]
+            'SELECT 1 FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2 AND scope = $3',
+            [userId, cosmeticId, scope]
         );
         if (ownedAlready.rows.length > 0) {
-            const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1', [userId]);
+            const cur = await client.query('SELECT balance FROM user_coins WHERE user_id = $1 AND scope = $2', [userId, scope]);
             await client.query('COMMIT');
             return { ok: false, reason: 'owned', balance: cur.rows.length ? cur.rows[0].balance : 0 };
         }
@@ -105,12 +110,12 @@ async function spend(userId, price, cosmeticId) {
         // 원자 차감 (잔고 부족이면 rowCount 0)
         const dec = await client.query(
             `UPDATE user_coins SET balance = balance - $1, updated_at = NOW()
-             WHERE user_id = $2 AND balance >= $1 RETURNING balance`,
-            [price, userId]
+             WHERE user_id = $2 AND balance >= $1 AND scope = $3 RETURNING balance`,
+            [price, userId, scope]
         );
         if (dec.rowCount === 0) {
             await client.query('ROLLBACK');
-            const bal = await getBalance(userId);
+            const bal = await getBalance(userId, scope);
             return { ok: false, reason: 'insufficient', balance: bal };
         }
         const balance = dec.rows[0].balance;
@@ -120,16 +125,16 @@ async function spend(userId, price, cosmeticId) {
             [userId, -price, 'buy:' + cosmeticId, null]
         );
         const ins = await client.query(
-            `INSERT INTO user_cosmetics (user_id, cosmetic_id) VALUES ($1, $2)
-             ON CONFLICT (user_id, cosmetic_id) DO NOTHING
+            `INSERT INTO user_cosmetics (user_id, cosmetic_id, scope) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, cosmetic_id, scope) DO NOTHING
              RETURNING user_id`,
-            [userId, cosmeticId]
+            [userId, cosmeticId, scope]
         );
         // 동시 구매 레이스 가드: INSERT 충돌(이미 소유) = 다른 트랜잭션이 먼저 구매 완료.
         // 이 트랜잭션의 차감/원장을 전부 되돌리고 already-owned로 응답 (이중과금 차단).
         if (ins.rowCount === 0) {
             await client.query('ROLLBACK');
-            const bal = await getBalance(userId);
+            const bal = await getBalance(userId, scope);
             return { ok: false, reason: 'owned', balance: bal };
         }
 
@@ -153,7 +158,7 @@ async function spend(userId, price, cosmeticId) {
 //     환급분이 사라지므로 ROLLBACK 금지.
 // 반환: { ok, isDupe, refunded, balance, reason? } (소유 목록은 호출부 socket/shop.js가
 //   cosmetics.getOwned로 별도 조회 — 기존 패턴 유지, coins.js는 cosmetics 의존 안 둠).
-async function drawAndGrant(userId, cost, cosmeticId) {
+async function drawAndGrant(userId, cost, cosmeticId, scope = 0) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(cost) || cost < 0 || !cosmeticId) {
         return { ok: false, reason: 'invalid', balance: 0 };
@@ -165,12 +170,12 @@ async function drawAndGrant(userId, cost, cosmeticId) {
         // 1. 원자 차감 (잔고 부족이면 rowCount 0)
         const dec = await client.query(
             `UPDATE user_coins SET balance = balance - $1, updated_at = NOW()
-             WHERE user_id = $2 AND balance >= $1 RETURNING balance`,
-            [cost, userId]
+             WHERE user_id = $2 AND balance >= $1 AND scope = $3 RETURNING balance`,
+            [cost, userId, scope]
         );
         if (dec.rowCount === 0) {
             await client.query('ROLLBACK');
-            const bal = await getBalance(userId);
+            const bal = await getBalance(userId, scope);
             return { ok: false, reason: 'insufficient', balance: bal };
         }
         let balance = dec.rows[0].balance;
@@ -179,10 +184,10 @@ async function drawAndGrant(userId, cost, cosmeticId) {
         //    동시 더블드로우(같은 유저 2건이 같은 id 추첨)는 PK ON CONFLICT로 자연 직렬화:
         //    먼저 commit한 쪽만 신규, 나머지는 중복 환급 경로로 합류(이중획득 없음).
         const ins = await client.query(
-            `INSERT INTO user_cosmetics (user_id, cosmetic_id) VALUES ($1, $2)
-             ON CONFLICT (user_id, cosmetic_id) DO NOTHING
+            `INSERT INTO user_cosmetics (user_id, cosmetic_id, scope) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, cosmetic_id, scope) DO NOTHING
              RETURNING user_id`,
-            [userId, cosmeticId]
+            [userId, cosmeticId, scope]
         );
 
         let isDupe, refunded;
@@ -201,8 +206,8 @@ async function drawAndGrant(userId, cost, cosmeticId) {
             refunded = Math.floor(cost / 2);
             const ref = await client.query(
                 `UPDATE user_coins SET balance = balance + $1, updated_at = NOW()
-                 WHERE user_id = $2 RETURNING balance`,
-                [refunded, userId]
+                 WHERE user_id = $2 AND scope = $3 RETURNING balance`,
+                [refunded, userId, scope]
             );
             balance = ref.rows[0].balance;
             // 음수 delta 1줄(순차감 = -(cost-refund)). coin_ledger.delta CHECK 없음(spend도 음수 INSERT).
