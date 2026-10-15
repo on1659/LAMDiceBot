@@ -712,7 +712,7 @@
         // 잔고 — ✕ 바로 아래(무대 오른쪽 위에 얹음 → 모달 크기 불변): 코인 아이콘 + "N · +10 m:ss"
         var bal = coinLabel('mgacha-coin');
         stageWrap.appendChild(bal);
-        // 자유이용권 — 무대 왼쪽 위: "이용권 N장 · 실패 a/3". 결과 화면이 뜰 때 갱신(캡슐이 나오기 전엔 결과를 흘리지 않는다)
+        // 자유이용권 — 무대 왼쪽 위: "🎟 N"(가진 개수). 결과 화면이 뜰 때 갱신(캡슐이 나오기 전엔 결과를 흘리지 않는다)
         var pass = h('div', 'mgacha-pass'); pass.hidden = true;
         stageWrap.appendChild(pass);
         // 중복 환급(데구리 f5dc19f 역반영) — 글줄 대신 무대 오른쪽 위(잔고 아래) '중복!' 도장 + 잔고로 올라가는 '+30'. 무대 위에 얹어 모달 크기가 뽑기 전후 같다
@@ -737,6 +737,9 @@
         tip.appendChild(h('span', null, ODDS_TEXT));
         var stayLine = h('span', 'mgacha-tip-stay', '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요');
         tip.appendChild(stayLine);
+        var passLine = h('span', 'mgacha-tip-stay'); tip.appendChild(passLine);
+        var passText = '🎟 레어 이하가 3번 나오면 자유이용권 1개 · 에픽은 3개, 전설은 5개로 구매';
+        if (window.UIIcons) UIIcons.setIconText(passLine, passText); else passLine.textContent = passText;
         help.onclick = function (e) { e.stopPropagation(); if (TOUCH_ONLY()) help.classList.toggle('is-open'); };   // PC 는 호버로만(누르면 남아 있지 않게), 폰은 탭으로
         document.addEventListener('click', function () { help.classList.remove('is-open'); });   // 바깥을 누르면 닫힘(모바일)
         pullWrap.appendChild(pull); pullWrap.appendChild(help); pullWrap.appendChild(tip);   // tip 은 ? 바로 뒤 형제(:hover + 선택자)
@@ -821,7 +824,7 @@
     }
     function renderPass() {
         if (!_el || !_pass) return;
-        _el.pass.textContent = '이용권 ' + _pass.tickets + '장 · 실패 ' + _pass.gauge + '/' + _pass.max;
+        if (window.UIIcons) UIIcons.setIconText(_el.pass, '🎟 ' + _pass.tickets); else _el.pass.textContent = '🎟 ' + _pass.tickets;   // 게이지 숫자는 안 보인다(사용자 2026-10-16) — 가진 자유이용권 개수만
         _el.pass.hidden = false;
     }
     function applyWallet(w) {
@@ -872,7 +875,7 @@
         if (res.dupe && !_anim.refunded) showRefund();
         _el.equip.disabled = false; _el.equip.textContent = '장착하기';
         setPass(res);
-        if (res.ticketGained) setMsg('실패가 쌓여서 자유이용권을 1장 받았어요!');
+        if (res.ticketGained) setMsg('자유이용권 1개를 받았어요!');
         _el.result.hidden = false;
         _busy = false;
         _el.pull.disabled = false; _el.pull.textContent = '한 번 더 · ' + PRICE + '코인';

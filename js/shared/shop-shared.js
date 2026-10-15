@@ -429,6 +429,7 @@
         if (typeof res.tickets === 'number') _wallet.tickets = res.tickets;
         if (typeof res.gauge === 'number') _wallet.gauge = res.gauge;
         if (typeof res.gaugeMax === 'number') _wallet.gaugeMax = res.gaugeMax;
+        if (res.ticketCost) _wallet.ticketCost = res.ticketCost;
     }
 
     // 지갑 상세(잔고+소유+장착) 동기화
@@ -467,6 +468,12 @@
     // 카운트 애니메이션(countBalanceTo)은 뒤의 텍스트 노드(el.lastChild)만 갱신한다.
     function setIconValue(el, iconId, value) {
         el.replaceChildren(UIIcons.el(iconId), ' ' + value);
+    }
+
+    // 자유이용권 가격 — 코인 가격(setIconValue)과 같은 모양: 티켓 아이콘(공용 아틀라스 ticket) + ' N'
+    function setTicketValue(el, n) {
+        setIconValue(el, 'ticket', n);
+        el.setAttribute('aria-label', '자유이용권 ' + n + '개');
     }
 
     function updateBalanceLabel() {
@@ -557,7 +564,7 @@
 
         var title = document.createElement('div');
         title.className = 'hshop-confirm-title';
-        title.textContent = ticketCost ? '자유이용권으로 받을까요?' : '정말로 구매하실래요?';
+        title.textContent = ticketCost ? '자유이용권으로 구매할까요?' : '정말로 구매하실래요?';
 
         var line = document.createElement('div');
         line.className = 'hshop-confirm-item';
@@ -566,7 +573,7 @@
         nm.textContent = item.name;
         var pr = document.createElement('span');
         pr.className = 'hshop-confirm-price';
-        if (ticketCost) pr.textContent = '이용권 ' + ticketCost + '장';
+        if (ticketCost) setTicketValue(pr, ticketCost);
         else setIconValue(pr, 'coin', item.price);
         line.appendChild(nm);
         line.appendChild(pr);
@@ -580,7 +587,7 @@
         var ok = document.createElement('button');
         ok.type = 'button';
         ok.className = 'hshop-confirm-ok';
-        ok.textContent = ticketCost ? '받기' : '구매';
+        ok.textContent = '구매';
 
         function close() { if (ov.parentNode) ov.remove(); }
         cancel.addEventListener('click', close);
@@ -677,7 +684,7 @@
                 namerow.className = 'hshop-namerow';
                 var pr = document.createElement('span');
                 pr.className = 'hshop-price hshop-price--inline';
-                if (st0.ticketCost) pr.textContent = '이용권 ' + st0.ticketCost + '장';
+                if (st0.ticketCost) setTicketValue(pr, st0.ticketCost);
                 else setIconValue(pr, 'coin', item.price);
                 card.replaceChild(namerow, nm); namerow.appendChild(nm); namerow.appendChild(pr);
                 priceInline = true;
@@ -734,7 +741,7 @@
                     btn.disabled = true;
                 }
             } else {
-                btn.textContent = state.ticketCost ? '이용권으로 받기' : (Number.isFinite(item.price) && !priceInline) ? '구매 (' + item.price + ')' : '구매';   // 가격이 이름 줄에 있으면 버튼은 '구매'만
+                btn.textContent = state.ticketCost ? '구매' : (Number.isFinite(item.price) && !priceInline) ? '구매 (' + item.price + ')' : '구매';   // 가격이 이름 줄에 있으면 버튼은 '구매'만
                 btn.addEventListener('click', function () { requestBuy(slot, item, btn); });
             }
         } else {
@@ -1071,20 +1078,30 @@
         });
         return bar;
     }
-    // 자유이용권 상태 줄 — 가진 장수 · 뽑기 실패 게이지(3번에 1장)
+    // 자유이용권 상태 줄 — 가진 개수 + ? 안내(얻는 법·쓰는 곳). 게이지 숫자는 안 보인다(사용자 2026-10-16)
     function renderPassBar() {
         var bar = document.createElement('div');
         bar.className = 'hshop-passbar';
         var max = _wallet.gaugeMax || 3;
         var have = document.createElement('span');
         have.className = 'hshop-passbar-have';
-        have.textContent = '자유이용권 ' + (_wallet.tickets || 0) + '장';
-        var gauge = document.createElement('span');
-        gauge.className = 'hshop-passbar-gauge';
-        gauge.textContent = '뽑기 실패 ' + Math.min(_wallet.gauge || 0, max) + '/' + max;
-        bar.appendChild(have); bar.appendChild(gauge);
+        UIIcons.setIconText(have, '🎟 자유이용권 ' + (_wallet.tickets || 0) + '개');
+        // ? 안내 — 얻는 법과 쓰는 곳. PC 는 마우스를 올리면, 폰은 누르면(바깥을 누르면 닫힘)
+        var cost = _wallet.ticketCost || { epic: 3, legend: 5 };
+        var help = document.createElement('button');
+        help.type = 'button'; help.className = 'hshop-passbar-help'; help.textContent = '?'; help.setAttribute('aria-label', '자유이용권 안내');
+        var tip = document.createElement('div');
+        tip.className = 'hshop-passbar-tip'; tip.setAttribute('role', 'tooltip');
+        tip.textContent = '뽑기에서 레어 이하(일반·레어·야식)가 ' + max + '번 나오면 자유이용권 1개를 받아요. 에픽은 자유이용권 ' + cost.epic + '개, 전설은 ' + cost.legend + '개로 원하는 스킨을 살 수 있어요. 에픽·전설은 코인으로는 살 수 없어요.';
+        help.addEventListener('click', function (e) { e.stopPropagation(); bar.classList.toggle('is-open'); });
+        if (!_passTipBound) { _passTipBound = true; document.addEventListener('click', function () { var o = document.querySelector('.hshop-passbar.is-open'); if (o) o.classList.remove('is-open'); }); }
+        var right = document.createElement('span');
+        right.className = 'hshop-passbar-right';
+        right.appendChild(help);
+        bar.appendChild(have); bar.appendChild(right); bar.appendChild(tip);
         return bar;
     }
+    var _passTipBound = false;
     // 상점 하위 탭바(config.shopTabs — 데구리 [전체 | 테마 | 야식]). 슬롯 탭바와 같은 모양, 한 단계 작게. 칩 필터(동물)는 탭을 오가도 유지
     function renderShopTabs() {
         var bar = document.createElement('div');
@@ -1250,6 +1267,7 @@
             var cnoticeText = noticeFor(_activeTab);   // 어댑터가 '' 를 주면 안내 상자 자체를 안 그린다(데구리)
             panel.appendChild(header);
             panel.appendChild(renderViewTabs());
+            if (_config.tickets) panel.appendChild(renderPassBar());   // 옷장에서도 자유이용권·뽑기 실패 게이지
             if (hasGroups()) panel.appendChild(renderGroupChips());
             if (cnoticeText) { var cnotice = document.createElement('div'); cnotice.className = 'hshop-notice'; cnotice.textContent = cnoticeText; panel.appendChild(cnotice); }
             // 어댑터가 옷장 본문을 통째로 그릴 수 있다(데구리 js/deguri-closet.js — 무대·보유/미보유). hook 이 없거나 null 이면 기본 본문
@@ -1348,7 +1366,7 @@
         if (!_socket || !_wallet.authed) return;
         var cost = itemStateFor(item).ticketCost;
         if (cost) {   // 에픽·전설 — 코인이 아니라 자유이용권. 모자라면 확인 팝업 없이 안내
-            if ((_wallet.tickets || 0) < cost) return showShopToast('자유이용권이 부족해요. 뽑기에서 3번 실패할 때마다 1장씩 받아요.', 'error');
+            if ((_wallet.tickets || 0) < cost) return showShopToast('자유이용권이 부족해요. 뽑기에서 레어 이하가 3번 나오면 1개씩 받아요.', 'error');
             return showShopConfirm(item, function () { doRedeem(slot, item, btn); }, cost);
         }
         showShopConfirm(item, function () { doBuy(slot, item, btn); });
@@ -1358,7 +1376,7 @@
     function doRedeem(slot, item, btn) {
         var id = item.id;
         if (!_socket || !_wallet.authed || !(_config.hooks && _config.hooks.redeemRequest)) return;
-        if (btn) { btn.disabled = true; btn.textContent = '받는 중…'; }
+        if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
         _config.hooks.redeemRequest(id, function (res) {
             if (res && res.ok) {
                 _wallet.owned = Array.isArray(res.owned) ? res.owned : _wallet.owned;
@@ -1366,15 +1384,15 @@
                 renderModal();
                 if (_config.autoEquipOnBuy) {
                     doEquip(slot, id, item);
-                    showShopToast('이용권으로 받고 바로 장착했어요', 'success');
+                    showShopToast('구매하고 바로 장착했어요', 'success');
                 } else {
-                    showShopToast('이용권으로 받았어요', 'success');
+                    showShopToast('구매했어요', 'success');
                 }
             } else {
                 if (res) setTicketState(res);
                 var msg = (res && res.reason === 'insufficient') ? '자유이용권이 부족해요.'
                         : (res && res.reason === 'owned') ? '이미 가지고 있어요.'
-                        : '받기에 실패했어요.';
+                        : '구매에 실패했어요.';
                 showShopToast(msg, 'error');
                 renderModal();
             }
