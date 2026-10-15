@@ -6440,5 +6440,551 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinStandalone20261005": {
+    "source": "단독판 전용(LAMDice 에 없음) — 사용자 2026-10-05 \"일반·레어 스킨 많이, 뽑기의 즐거움\". 동물마다 일반 2 · 레어 1",
+    "common": {
+      "tool": "scripts/skins/recolor-creature.py DEGURI_PRESETS (색만, 기본 시트와 알파 100% 동일, 걷기 포함 4장)",
+      "looks": [
+        "hedgehog-lemon",
+        "hedgehog-blueberry",
+        "armadillo-silver",
+        "armadillo-rose",
+        "pillbug-tangerine",
+        "pillbug-matcha",
+        "turtle-lavender",
+        "turtle-coral",
+        "panda-brown",
+        "panda-strawberry",
+        "hamster-choco",
+        "hamster-snow",
+        "pufferfish-peach",
+        "pufferfish-kiwi",
+        "raccoon-white",
+        "raccoon-sunset",
+        "rabbit-cheese",
+        "rabbit-sky",
+        "ribbonpig-jeju",
+        "ribbonpig-mintchoco"
+      ]
+    },
+    "rare": {
+      "tool": "scripts/skins/scaffold-skin-batch.py → Codex image_gen → 배치 tools/creatures_skin_png.js repack·qa → verify-creature.py·ball-round.py → pickup-skin.py, 걷기는 walk-sheet.py",
+      "looks": [
+        "hedgehog-apple",
+        "armadillo-cowboy",
+        "pillbug-ladybug",
+        "turtle-garden",
+        "panda-bamboo",
+        "hamster-bee",
+        "pufferfish-crown",
+        "raccoon-beanie",
+        "rabbit-wreath",
+        "ribbonpig-chef"
+      ],
+      "batches": "SpriteMake/output/deguri-skin-{look}-2026-10-05 (본·잠·몸싸움), deguri-walk-2026-10-05/{look} (걷기)",
+      "chosen": {
+        "hedgehog-apple": "main 02 · sleep 01 · scuffle 02 (Codex 가 고른 뒤 연결이 끊겨 SOURCES.json 은 로그대로 직접 씀)",
+        "armadillo-cowboy": "main 02 · sleep 01 · scuffle 02",
+        "pillbug-ladybug": "main 02 · sleep 01 · scuffle 02",
+        "turtle-garden": "main 02 · sleep 01 · scuffle 01",
+        "panda-bamboo": "main 02 · sleep 01 · scuffle 02",
+        "hamster-bee": "main 01 · sleep 01 · scuffle 01",
+        "pufferfish-crown": "main 01 · sleep 01 · scuffle 01",
+        "raccoon-beanie": "main 01 · sleep 01 · scuffle 01",
+        "rabbit-wreath": "main 01 · sleep 01 · scuffle 01",
+        "ribbonpig-chef": "main 01 · sleep 01 · scuffle 01",
+        "walk": "10종 모두 attempt 01"
+      },
+      "exceptions": [
+        "공 칸(r2c0·c2·c3, 거북이·판다는 r3c0 도): 소품(모자·사과·꽃·왕관·더듬이)까지 112 로 맞춰져 몸통이 작아 scripts/skins/ball-round.py fix --recenter (꿀벌 햄스터는 양옆 날개 때문에 --arc=30,150). 배치 QA ballGeometry 불합격은 의도된 예외로 pickup --allow-fail. 왕관 복어 r3c0 은 리팩 그대로 바닥 정렬(기본 복어와 같게)",
+        "요리사 돼지 공: 모자 아래 목 부분이 들어가 최소 반지름 42(기준 46) — 배포된 신사 토끼 37·앵그리 아이언 45 수준이라 그대로",
+        "화관 토끼 잠 시트 halo 1px = 분홍 꽃 오탐(allow-fail)",
+        "걷기: 대나무 판다 디딤 A·B 다리 차이 18%(레서판다 16%), 무당벌레 공벌레 15%(5090 공벌레 14%), 화관 토끼 깡충 공중 칸 윗몸 3.0px 밀림 — 눈으로 번갈아 걷는 것을 확인하고 allow-fail"
+      ]
+    },
+    "webpFiles": {
+      "creatures/hedgehog-lemon.webp": {
+        "md5": "bb287a1258f0184dbd4ce8b425fbf4db",
+        "bytes": 152958
+      },
+      "creatures/hedgehog-lemon-sleep.webp": {
+        "md5": "5985b6fae79187e1abb001208a9bb2f6",
+        "bytes": 28296
+      },
+      "creatures/hedgehog-lemon-scuffle.webp": {
+        "md5": "8421f21e7fe92de70e673f2bc8b5bd6c",
+        "bytes": 83630
+      },
+      "creatures/hedgehog-lemon-walk.webp": {
+        "md5": "6a8555e596a61d18a4887306ec65414f",
+        "bytes": 31314
+      },
+      "creatures/hedgehog-blueberry.webp": {
+        "md5": "4cdfd506f07b650f4e4f011179c2d258",
+        "bytes": 156026
+      },
+      "creatures/hedgehog-blueberry-sleep.webp": {
+        "md5": "ef337fbba447ae7e7a38ebeb8fb2111c",
+        "bytes": 28368
+      },
+      "creatures/hedgehog-blueberry-scuffle.webp": {
+        "md5": "190dbe7423baf504340e14b0c5208670",
+        "bytes": 86128
+      },
+      "creatures/hedgehog-blueberry-walk.webp": {
+        "md5": "9799e9c14c1fa342cd9d2bdb00bc16f7",
+        "bytes": 40006
+      },
+      "creatures/armadillo-silver.webp": {
+        "md5": "bf38c025dfea62fd289bf91a7b75d2de",
+        "bytes": 135412
+      },
+      "creatures/armadillo-silver-sleep.webp": {
+        "md5": "ec9bbf08d8bed984061bca807ac27502",
+        "bytes": 25420
+      },
+      "creatures/armadillo-silver-scuffle.webp": {
+        "md5": "831df876e38a16ea2b282ec7ea7ff59e",
+        "bytes": 69488
+      },
+      "creatures/armadillo-silver-walk.webp": {
+        "md5": "05fc49c2a7d98067fc8589a5ba43ce5d",
+        "bytes": 27138
+      },
+      "creatures/armadillo-rose.webp": {
+        "md5": "3d2355ff68ee050e72f4fd39df784869",
+        "bytes": 146440
+      },
+      "creatures/armadillo-rose-sleep.webp": {
+        "md5": "a2097c04b3e6cd9a477632413171a032",
+        "bytes": 32264
+      },
+      "creatures/armadillo-rose-scuffle.webp": {
+        "md5": "696555a2e2faaaee019203d896009f1e",
+        "bytes": 73196
+      },
+      "creatures/armadillo-rose-walk.webp": {
+        "md5": "17a3b965671e959aa7362f04c828ad9d",
+        "bytes": 35324
+      },
+      "creatures/pillbug-tangerine.webp": {
+        "md5": "c16d66fa702354e73a653d1ebea10b58",
+        "bytes": 123570
+      },
+      "creatures/pillbug-tangerine-sleep.webp": {
+        "md5": "dd664e5f71a14d757b10729253e3150c",
+        "bytes": 30174
+      },
+      "creatures/pillbug-tangerine-scuffle.webp": {
+        "md5": "af3d897073fa9c800142460a0d588ce8",
+        "bytes": 56666
+      },
+      "creatures/pillbug-tangerine-walk.webp": {
+        "md5": "65587128cea4123637bacc697107d357",
+        "bytes": 29110
+      },
+      "creatures/pillbug-matcha.webp": {
+        "md5": "380a70df2109e027c0d56e2bf3bc74f6",
+        "bytes": 124090
+      },
+      "creatures/pillbug-matcha-sleep.webp": {
+        "md5": "9a77ed73e0962531b0df63781894d048",
+        "bytes": 30192
+      },
+      "creatures/pillbug-matcha-scuffle.webp": {
+        "md5": "6461bac2d949097877ce81a9a3d6eddb",
+        "bytes": 57376
+      },
+      "creatures/pillbug-matcha-walk.webp": {
+        "md5": "2b63a304b80955e962d8b9d1e41a27f9",
+        "bytes": 30404
+      },
+      "creatures/turtle-lavender.webp": {
+        "md5": "8851757f7b1ad357ee8d0ffafc20ff4e",
+        "bytes": 109726
+      },
+      "creatures/turtle-lavender-sleep.webp": {
+        "md5": "28285091c5a7538df6572635dbd024a2",
+        "bytes": 27490
+      },
+      "creatures/turtle-lavender-scuffle.webp": {
+        "md5": "4dad7b0e06d043f8e206376718509382",
+        "bytes": 65824
+      },
+      "creatures/turtle-lavender-walk.webp": {
+        "md5": "1e12480db0a0129823d342a7f6f840ad",
+        "bytes": 26226
+      },
+      "creatures/turtle-coral.webp": {
+        "md5": "6d284cc0bc534620a61836bc5f11080f",
+        "bytes": 108836
+      },
+      "creatures/turtle-coral-sleep.webp": {
+        "md5": "cba9b4f3afc4cca11d17f0ea85110069",
+        "bytes": 27216
+      },
+      "creatures/turtle-coral-scuffle.webp": {
+        "md5": "83645a9198156b2c98f85b9e6ec46d07",
+        "bytes": 65822
+      },
+      "creatures/turtle-coral-walk.webp": {
+        "md5": "334d7e08e849492867bc562c4509b17c",
+        "bytes": 26474
+      },
+      "creatures/panda-brown.webp": {
+        "md5": "6d28ff35d60eb9cc14c9e677ea55850b",
+        "bytes": 113434
+      },
+      "creatures/panda-brown-sleep.webp": {
+        "md5": "6571ca6186651dc5ae348d59678a5308",
+        "bytes": 27416
+      },
+      "creatures/panda-brown-scuffle.webp": {
+        "md5": "fd800b3234e8293d4326b732ad969092",
+        "bytes": 63600
+      },
+      "creatures/panda-brown-walk.webp": {
+        "md5": "a8cf555849e973db2d24d5cecb3dad2f",
+        "bytes": 28194
+      },
+      "creatures/panda-strawberry.webp": {
+        "md5": "9b29c67b22aca278857648acd92d6c24",
+        "bytes": 113454
+      },
+      "creatures/panda-strawberry-sleep.webp": {
+        "md5": "a3a05e860c7fc7b92efbd7edc35cc9e5",
+        "bytes": 27482
+      },
+      "creatures/panda-strawberry-scuffle.webp": {
+        "md5": "38566bac646d967a932fbb55026a557e",
+        "bytes": 63632
+      },
+      "creatures/panda-strawberry-walk.webp": {
+        "md5": "2397aaa2fe5391d039120d9ea1f61927",
+        "bytes": 28276
+      },
+      "creatures/hamster-choco.webp": {
+        "md5": "dc22a39a6b6c95669342cda4cf5c165c",
+        "bytes": 101314
+      },
+      "creatures/hamster-choco-sleep.webp": {
+        "md5": "3511d5a7bba5fda31360b80276248848",
+        "bytes": 17850
+      },
+      "creatures/hamster-choco-scuffle.webp": {
+        "md5": "3a0329678597fa2db7fa0debf9f3db4e",
+        "bytes": 50580
+      },
+      "creatures/hamster-choco-walk.webp": {
+        "md5": "87ffbf9a11bbce8cd3a36554650cfb89",
+        "bytes": 24114
+      },
+      "creatures/hamster-snow.webp": {
+        "md5": "23a5e19510200d898a93c18f67eb2b99",
+        "bytes": 84564
+      },
+      "creatures/hamster-snow-sleep.webp": {
+        "md5": "4659a7448a272135e283fea2cd370a6b",
+        "bytes": 15482
+      },
+      "creatures/hamster-snow-scuffle.webp": {
+        "md5": "65d0e3155a2511514d1e231b613e23de",
+        "bytes": 43612
+      },
+      "creatures/hamster-snow-walk.webp": {
+        "md5": "195f0d7a75a649bdf57ea45adcb246ca",
+        "bytes": 20136
+      },
+      "creatures/pufferfish-peach.webp": {
+        "md5": "ce5a28e44dc41568386ec015f223d640",
+        "bytes": 98962
+      },
+      "creatures/pufferfish-peach-sleep.webp": {
+        "md5": "7099df0fdcefd448b37ea38eec93cf0e",
+        "bytes": 17502
+      },
+      "creatures/pufferfish-peach-scuffle.webp": {
+        "md5": "2cbeff98ac5ce68c0564ad4284f3fa53",
+        "bytes": 41788
+      },
+      "creatures/pufferfish-peach-walk.webp": {
+        "md5": "c918e02a07930b451561a7f89d4f41db",
+        "bytes": 19372
+      },
+      "creatures/pufferfish-kiwi.webp": {
+        "md5": "d79d3472a5f5757b59a3c91d7d77e17d",
+        "bytes": 101192
+      },
+      "creatures/pufferfish-kiwi-sleep.webp": {
+        "md5": "4e8289866b3efdd97f2b36e30045f4ae",
+        "bytes": 18774
+      },
+      "creatures/pufferfish-kiwi-scuffle.webp": {
+        "md5": "5271cb72eeea75521f6d36dcede97af5",
+        "bytes": 43880
+      },
+      "creatures/pufferfish-kiwi-walk.webp": {
+        "md5": "99e3079109b80f28d9eea6c21b9ab065",
+        "bytes": 20500
+      },
+      "creatures/raccoon-white.webp": {
+        "md5": "6899abadcbdc20b9a172f74839b18a1a",
+        "bytes": 94472
+      },
+      "creatures/raccoon-white-sleep.webp": {
+        "md5": "e9826ef6b109219cd11d53abf4924701",
+        "bytes": 13792
+      },
+      "creatures/raccoon-white-scuffle.webp": {
+        "md5": "ffc72fc862a224e80d30da825e59d899",
+        "bytes": 39892
+      },
+      "creatures/raccoon-white-walk.webp": {
+        "md5": "ae3c31b916d60cde5799639a7d574003",
+        "bytes": 19440
+      },
+      "creatures/raccoon-sunset.webp": {
+        "md5": "7b1ad12872451f9a69cf288de2cd36df",
+        "bytes": 95760
+      },
+      "creatures/raccoon-sunset-sleep.webp": {
+        "md5": "000ba23414d61f2f3dc3af3634641557",
+        "bytes": 13604
+      },
+      "creatures/raccoon-sunset-scuffle.webp": {
+        "md5": "7719ea62ef324b5aa0442041dddfd64a",
+        "bytes": 40012
+      },
+      "creatures/raccoon-sunset-walk.webp": {
+        "md5": "54ce5229b95c0ed9b08d7b7c602ffde4",
+        "bytes": 19274
+      },
+      "creatures/rabbit-cheese.webp": {
+        "md5": "573583adf18b4d692329e0a49db0b099",
+        "bytes": 101736
+      },
+      "creatures/rabbit-cheese-sleep.webp": {
+        "md5": "3c19025e713f636516cf53077c3e1508",
+        "bytes": 11974
+      },
+      "creatures/rabbit-cheese-scuffle.webp": {
+        "md5": "b34f7d2472f906fdc94d60ef4240b97f",
+        "bytes": 47298
+      },
+      "creatures/rabbit-cheese-walk.webp": {
+        "md5": "62cebd3b13e4457495f47c7e7c985aa7",
+        "bytes": 23112
+      },
+      "creatures/rabbit-sky.webp": {
+        "md5": "19323468fa98fa0dd4cb09a524bb88d9",
+        "bytes": 101694
+      },
+      "creatures/rabbit-sky-sleep.webp": {
+        "md5": "56d6c2946581a2ddaa8e41b6f1b67eb4",
+        "bytes": 11912
+      },
+      "creatures/rabbit-sky-scuffle.webp": {
+        "md5": "edf980a50c700c97b4288a17a0769efb",
+        "bytes": 47530
+      },
+      "creatures/rabbit-sky-walk.webp": {
+        "md5": "b2cfffb3ddaac248b7d1d72c9061f660",
+        "bytes": 23104
+      },
+      "creatures/ribbonpig-jeju.webp": {
+        "md5": "65dc188c614c6a2f9bbffedc878b6074",
+        "bytes": 78260
+      },
+      "creatures/ribbonpig-jeju-sleep.webp": {
+        "md5": "9dcdb4cacef2ff25ce9ff42ffb66d020",
+        "bytes": 18410
+      },
+      "creatures/ribbonpig-jeju-scuffle.webp": {
+        "md5": "e753fd63e82b72ec4e73045d6e27ef03",
+        "bytes": 44140
+      },
+      "creatures/ribbonpig-jeju-walk.webp": {
+        "md5": "699f595887132c359a96c761cc4b9cac",
+        "bytes": 18892
+      },
+      "creatures/ribbonpig-mintchoco.webp": {
+        "md5": "90aca66a49884ac5731c3493644d8084",
+        "bytes": 106686
+      },
+      "creatures/ribbonpig-mintchoco-sleep.webp": {
+        "md5": "891a0f6164014ec5c4ea9567f04d89e2",
+        "bytes": 20808
+      },
+      "creatures/ribbonpig-mintchoco-scuffle.webp": {
+        "md5": "4229bc708de20fb6ba18260d7061a903",
+        "bytes": 59846
+      },
+      "creatures/ribbonpig-mintchoco-walk.webp": {
+        "md5": "517df5ff14e0319759ccc12f7d9be86b",
+        "bytes": 24584
+      },
+      "creatures/hedgehog-apple.webp": {
+        "md5": "2d82a41a1bf7297492c70e0aef79d8bc",
+        "bytes": 125378
+      },
+      "creatures/hedgehog-apple-sleep.webp": {
+        "md5": "0fedd53a0005c68aea4dc02899dd85ac",
+        "bytes": 15450
+      },
+      "creatures/hedgehog-apple-scuffle.webp": {
+        "md5": "2bc5cb24780b828b2b7065f10cc497c5",
+        "bytes": 57288
+      },
+      "creatures/hedgehog-apple-walk.webp": {
+        "md5": "ee9f59ed53d725b89647f030fcae1c8f",
+        "bytes": 28342
+      },
+      "creatures/armadillo-cowboy.webp": {
+        "md5": "23ad8134d870c00735efde941b18a154",
+        "bytes": 117286
+      },
+      "creatures/armadillo-cowboy-sleep.webp": {
+        "md5": "72eeace043c7c926afa579797b60064a",
+        "bytes": 17434
+      },
+      "creatures/armadillo-cowboy-scuffle.webp": {
+        "md5": "cee23001cb45efb179579553032b8e10",
+        "bytes": 45330
+      },
+      "creatures/armadillo-cowboy-walk.webp": {
+        "md5": "d067a5d39824c250a068a85fbba49ff9",
+        "bytes": 25362
+      },
+      "creatures/pillbug-ladybug.webp": {
+        "md5": "371593c1446c7570dfaa238efebf9808",
+        "bytes": 116508
+      },
+      "creatures/pillbug-ladybug-sleep.webp": {
+        "md5": "97ad55ad5aad94a270fea7c245dedb09",
+        "bytes": 16314
+      },
+      "creatures/pillbug-ladybug-scuffle.webp": {
+        "md5": "f0ecbea6be5eaee5ab8704f28fdf4f2b",
+        "bytes": 44120
+      },
+      "creatures/pillbug-ladybug-walk.webp": {
+        "md5": "c413d1821a8a5d4cee804b7bd35cb042",
+        "bytes": 25980
+      },
+      "creatures/turtle-garden.webp": {
+        "md5": "a8deb13e8d2993a5a98228ce4937a66b",
+        "bytes": 117410
+      },
+      "creatures/turtle-garden-sleep.webp": {
+        "md5": "ad177a560dbaee8212c0f1e8b255fc06",
+        "bytes": 18082
+      },
+      "creatures/turtle-garden-scuffle.webp": {
+        "md5": "5bc2bf4b2d49505d557f35214bc1b817",
+        "bytes": 52816
+      },
+      "creatures/turtle-garden-walk.webp": {
+        "md5": "9a9293fde8d6fa3b4ffa11fdc1990fac",
+        "bytes": 26970
+      },
+      "creatures/panda-bamboo.webp": {
+        "md5": "f8156d1b766f33dfd5950b87b52b88a6",
+        "bytes": 124442
+      },
+      "creatures/panda-bamboo-sleep.webp": {
+        "md5": "83b7a8fc04f9bf859e140fba1b5ff37e",
+        "bytes": 17276
+      },
+      "creatures/panda-bamboo-scuffle.webp": {
+        "md5": "93ee8d29d4a888a0121535ac1ed76ee1",
+        "bytes": 50612
+      },
+      "creatures/panda-bamboo-walk.webp": {
+        "md5": "acac1e06138c82d5381685ed3d0715f3",
+        "bytes": 30378
+      },
+      "creatures/hamster-bee.webp": {
+        "md5": "97b06dcba9b1484b99e5eced41432e3c",
+        "bytes": 110056
+      },
+      "creatures/hamster-bee-sleep.webp": {
+        "md5": "cecfd4cb2acbe3cc8dada5d258792895",
+        "bytes": 15090
+      },
+      "creatures/hamster-bee-scuffle.webp": {
+        "md5": "548c0013fd5520271cd1c1a3d157b1c0",
+        "bytes": 52290
+      },
+      "creatures/hamster-bee-walk.webp": {
+        "md5": "04e4f85124ae550a2b45766f8e1d2877",
+        "bytes": 25396
+      },
+      "creatures/pufferfish-crown.webp": {
+        "md5": "745df507067a2144160007bcccadb9c6",
+        "bytes": 108952
+      },
+      "creatures/pufferfish-crown-sleep.webp": {
+        "md5": "4e26aa27cba73ea7440b6659a7af37b4",
+        "bytes": 18112
+      },
+      "creatures/pufferfish-crown-scuffle.webp": {
+        "md5": "5114de1a27d42b0b4c21d8315679f618",
+        "bytes": 48606
+      },
+      "creatures/pufferfish-crown-walk.webp": {
+        "md5": "d0af966aee3a2dd221a814dff16c61ac",
+        "bytes": 22398
+      },
+      "creatures/raccoon-beanie.webp": {
+        "md5": "82c6f0bd7f90823116d82c564c72af1f",
+        "bytes": 100132
+      },
+      "creatures/raccoon-beanie-sleep.webp": {
+        "md5": "a4124919e690b3f718f371592538aca7",
+        "bytes": 15568
+      },
+      "creatures/raccoon-beanie-scuffle.webp": {
+        "md5": "dcf53c77fef43b0f1b94dae259722a46",
+        "bytes": 43936
+      },
+      "creatures/raccoon-beanie-walk.webp": {
+        "md5": "136633f828a9ac40341bdcac8ba24d6b",
+        "bytes": 20614
+      },
+      "creatures/rabbit-wreath.webp": {
+        "md5": "0471ae5bd2b88bc63e74952c8c713993",
+        "bytes": 107222
+      },
+      "creatures/rabbit-wreath-sleep.webp": {
+        "md5": "cacb0f62bcc3b14dedfb2ca9f5ae625a",
+        "bytes": 13740
+      },
+      "creatures/rabbit-wreath-scuffle.webp": {
+        "md5": "6036169ce84a489bd1ad0cc828399b31",
+        "bytes": 49102
+      },
+      "creatures/rabbit-wreath-walk.webp": {
+        "md5": "b62ac0c575418574f7429b073bb48519",
+        "bytes": 26930
+      },
+      "creatures/ribbonpig-chef.webp": {
+        "md5": "1309d87737c407f39c820783bea5ce31",
+        "bytes": 109986
+      },
+      "creatures/ribbonpig-chef-sleep.webp": {
+        "md5": "97062e03d95429dd7e7ca64aef72c6a6",
+        "bytes": 17508
+      },
+      "creatures/ribbonpig-chef-scuffle.webp": {
+        "md5": "dd9c648246788968bae583ed015f21e7",
+        "bytes": 56740
+      },
+      "creatures/ribbonpig-chef-walk.webp": {
+        "md5": "81938a58dc6d1cdf023746a37837e359",
+        "bytes": 25166
+      }
+    },
+    "importedFrom": "단독판 deguri 저장소 1884967(assets/marble/creatures) → LAMDice assets/deguri/creatures 그대로 복사, 2026-10-15 사용자 \"deguri 프로젝트에서 옷장 가져와봐\""
   }
 }
