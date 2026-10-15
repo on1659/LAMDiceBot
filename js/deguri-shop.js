@@ -171,6 +171,8 @@
                 return base.concat(skins.map(function (s) { return s.it; }));
             },
             buildPreview: buildItemPreview,
+            // 옷장 탭 본문 = 단독판 옷장 이식(무대·보유/미보유, js/deguri-closet.js). 파일이 없으면 셸 기본 본문
+            buildClosetBody: function (api) { return window.DeguriCloset ? DeguriCloset.build(api) : null; },
             itemState: itemState,
             walletRequest: walletRequest,
             buyRequest: buyRequest,
@@ -185,8 +187,8 @@
         connect: function (socket) { _socket = socket; ShopModule.connect(socket); },
         authenticate: function (token, done) { ShopModule.authenticate(token, done); },
         loadCatalog: function () { return ShopModule.loadCatalog(); },
-        openShop: function () { ShopModule.openShop(); },
-        openCloset: function () { ShopModule.openCloset(); },
+        openShop: function () { if (window.DeguriCloset) DeguriCloset.reset(); ShopModule.openShop(); },
+        openCloset: function () { if (window.DeguriCloset) DeguriCloset.reset(); ShopModule.openCloset(); },
         closeShop: function () { ShopModule.closeShop(); },
         isAuthed: function () { return ShopModule.isAuthed(); },
         // 서버가 requestState 응답에 실어 준 내 방 장착값 { slot: id }(새로고침 재입장 동기화). undefined 면 무시
