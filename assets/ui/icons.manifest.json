@@ -3,9 +3,9 @@
  "status": "picked-up",
  "pickedUpAt": "2026-09-22",
  "request": "docs/spritemake-request/2026-09-22-ui-icons-shared-m.md",
- "md5": "f88091ac298ed071a984b4cc27883aa9",
- "sha256": "f50dd222fa701715ba1832cccdb76305b8b9cbf031f4864801fbaafd54c951b1",
- "note": "11차 공용 UI 아이콘 아틀라스 — 전 게임 페이지·로비·공유 모듈의 OS 이모지 대체. index 0~32 는 데구리 10차(L) 셀을 픽셀 그대로 복사(셀별 md5 일치), 33~96 은 Codex exec 1세션(시트 A/B + 단독 재생성 4회)이 gpt-image-2 로 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화, Claude 가 97셀 bbox·중심·alpha 1~7·마젠타·L md5·20/32px 3배경 대조로 독립 검증 후 복사. 소비처: css/ui-icons.css .ui-{id}, js/shared/ui-icons.js UI_ICON_CELL, js/deguri-render.js(캔버스), css/deguri.css .mi-*(별칭). 97 = ticket(데구리 자유이용권, 2026-10-16 Claude 도트 — 원본 팔레트 색만 써서 P 모드 유지, 다른 칸 픽셀 무변경), 98~99 는 빈 셀.",
+ "md5": "8bf95a8673630fa0c3df3a1bac7519cb",
+ "sha256": "5f75158eaed1ab37828d1e2da57b2e70501bfdd18d89d65139cca24986ca44e0",
+ "note": "11차 공용 UI 아이콘 아틀라스 — 전 게임 페이지·로비·공유 모듈의 OS 이모지 대체. index 0~32 는 데구리 10차(L) 셀을 픽셀 그대로 복사(셀별 md5 일치), 33~96 은 Codex exec 1세션(시트 A/B + 단독 재생성 4회)이 gpt-image-2 로 생성 → 마젠타 배경 제거·컴포넌트 셀 배정·셀별 104×104 정규화, Claude 가 97셀 bbox·중심·alpha 1~7·마젠타·L md5·20/32px 3배경 대조로 독립 검증 후 복사. 소비처: css/ui-icons.css .ui-{id}, js/shared/ui-icons.js UI_ICON_CELL, js/deguri-render.js(캔버스), css/deguri.css .mi-*(별칭). 97 = ticket(데구리 자유이용권, 2026-10-16 — Codex exec gpt-image 생성 3장 중 v2, 배치 SpriteMake/output/ui-icon-ticket-2026-10-16; Claude 가 자홍 제거·BOX 축소 104·알파 이진화로 정규화, 원본 색 보존 위해 icons.png 를 RGBA 로 저장 — 다른 칸 픽셀 무변경), 98~99 는 빈 셀.",
  "image": "icons.png",
  "canvas": [
   1280,

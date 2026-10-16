@@ -17,7 +17,7 @@
 (function (global) {
     'use strict';
 
-    var ATLAS_URL = '/assets/ui/icons.webp?v=4';
+    var ATLAS_URL = '/assets/ui/icons.webp?v=5';
     var UI_ICON_COLS = 10;
     var UI_ICON_PX = 128;
 
@@ -32,7 +32,7 @@
         'clapper', 'camera', 'tv', 'sound', 'soundlow', 'mute', 'pencil', 'door', 'link', 'mail',
         'pin', 'key', 'chart', 'calendar', 'wave', 'eye', 'grad', 'question', 'pc', 'phone',
         'apple', 'fire', 'rocket', 'dizzy', 'carrot', 'banana', 'snow', 'barrier', 'ghost', 'tomb',
-        'bolt', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'ticket'   // 97 ticket = 데구리 자유이용권(2026-10-16, Claude 도트 — 아틀라스 팔레트 색만 사용)
+        'bolt', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'ticket'   // 97 ticket = 데구리 자유이용권(2026-10-16, SpriteMake ui-icon-ticket 배치 — GPT 생성·Claude 정규화)
     ];
     var UI_ICON_CELL = {};
     UI_ICON_IDS.forEach(function (id, i) { UI_ICON_CELL[id] = i; });
