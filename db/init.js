@@ -305,6 +305,9 @@ async function initDatabase() {
                     ALTER TABLE user_cosmetics ADD PRIMARY KEY (user_id, cosmetic_id, scope);
                 END IF;
             END $$`],
+            // 자유이용권(docs/goal/deguri-free-pass-tickets.md): 뽑기 실패 게이지·이용권 — 지갑 행과 같이 (유저, scope)마다 따로
+            ['게이지 칸(user_coins)', `ALTER TABLE user_coins ADD COLUMN IF NOT EXISTS gauge INTEGER NOT NULL DEFAULT 0`],
+            ['이용권 칸(user_coins)', `ALTER TABLE user_coins ADD COLUMN IF NOT EXISTS tickets INTEGER NOT NULL DEFAULT 0 CHECK (tickets >= 0)`],
             ['표식 테이블', `CREATE TABLE IF NOT EXISTS migration_marks (name VARCHAR(80) PRIMARY KEY, applied_at TIMESTAMP DEFAULT NOW())`],
             // 한 번만: 지금까지 계정에 쌓인 데구리 소유·코인·장착을 이 시점의 모든 활성 서버 칸에 복사한다(사용자 2026-10-15).
             // 이후 만든 서버는 빈 칸으로 시작하고, 복사 뒤 서버마다 따로 쌓인 것은 다시 덮어쓰지 않는다(표식 + ON CONFLICT DO NOTHING).

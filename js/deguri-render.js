@@ -219,7 +219,7 @@ var DeguriRender = (function () {
             'gust-band': A + 'fx/gust-band.webp', 'ground-crack': A + 'fx/ground-crack.webp', 'quake-warn': A + 'fx/quake-warn.webp',   // N차 — 돌풍 띠 256×128 ×4·땅 금 512×256·지진 예고 64×64 ×2
             'trampoline-burst': A + 'fx/trampoline-burst.webp'   // 트램펄린 찢어짐 192×192 ×5
         },
-        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=3') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
+        ui: { icons: (typeof UI_ICON_ATLAS_URL === 'string' ? UI_ICON_ATLAS_URL : '/assets/ui/icons.webp?v=5') }   // 10차 UI 아이콘 → 11차부터 공용 아틀라스(assets/ui/icons.png). 셀 배치는 ICON_CELL
     };
     // 공용 UI 아이콘 아틀라스 — 10×10 격자, 셀 128 소스(→32px). js/shared/ui-icons.js 의 UI_ICON_CELL/UI_ICON_COLS 와 같은 배치(의뢰서 docs/spritemake-request/2026-09-22-ui-icons-shared-m.md)
     var ICON_COLS = (typeof UI_ICON_COLS === 'number') ? UI_ICON_COLS : 10, ICON_PX = 128;

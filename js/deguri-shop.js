@@ -4,8 +4,10 @@
  * 전역 `DeguriShop`. 공통 셸(인증/지갑/모달/구매/장착/잔고연출)은 js/shared/shop-shared.js
  * (window.ShopModule)이 담당. 이 어댑터는 데구리 고유부만 보유:
  *   - 상점(구매)·옷장(장착) 분리: config.closet — 버튼 2개(openShop/openCloset), 공유 셸의 _view 가 카드 모양을 바꾼다
- *   - 슬롯 둘: deguri_skin(동물 시트 교체) / deguri_balloon(머리 위에 줄로 매단 스프라이트 — 동물 무관). 공유 셸이 탭바를 그린다
+ *   - 슬롯 둘: deguri_skin(동물 시트 교체) / deguri_balloon(머리 위에 줄로 매단 스프라이트 — 동물 무관).
  *     UI 표기는 '야식'(사용자 2026-09-23). 내부 이름(deguri_balloon·balloon-*)은 매다는 방식을 가리키므로 그대로 둔다
+ *   - 상점 하위 탭 [전체 | 테마 | 야식](config.shopTabs, 사용자 2026-10-15): 전체 = 스킨 전부 + 야식(동물 칩으로 거른다),
+ *     테마 = 테마 있는 스킨만 테마별 묶음(5090·수영복…), 야식 = 야식만. 옷장은 늘 동물 칩
  *   - 미리보기(buildPreview hook) — 스킨은 시트(creatures/{creature}-{skin}.webp) idle 첫 칸, 야식은 accessories/{sprite}.webp
  *   - 소유/구매 상태(itemState hook — tier/requires 없음)
  *   - 지갑·구매·장착은 데구리 전용 이벤트(roomWallet: deguri:shop:get / deguri:shop:buy / deguri:equip)로만 — 계정이냐 방이냐는 서버가 고른다.
@@ -30,22 +32,22 @@
     var _socket = null;
     var _roomEquip = {};   // { slot: id } — 이 방에서 서버가 확인해 준 장착값. 페이지 수명 = 방 수명(나가면 /game 으로 이동)
 
-    // 동물 없는 스킨 카드(기본 모습)에 그릴 동물: 동물 탭 → 그 동물, 전체 탭 → 내가 고른 동물. 없으면 null(이모지)
+    // 동물 없는 스킨 카드(기본 모습)에 그릴 동물: 동물 칩 → 그 동물, 전체 → 내가 고른 동물. 없으면 null(이모지)
     function baseCreatureForPreview(item) {
         if (item.id !== 'deguri_skin_none') return null;
         var g = typeof ShopModule.getGroupFilter === 'function' ? ShopModule.getGroupFilter() : 'all';
-        if (g && g !== 'all' && ShopModule.getGroupMode() !== 'theme') return g;   // 테마 칩의 key 는 동물이 아니다
+        if (g && g !== 'all') return g;
         var picks = (window.deguriState && deguriState.picks) || {};
         return picks[window.currentUser] || null;
     }
 
-    // 테마 목록 = 카탈로그 스킨의 theme 글자를 모은 것. 새 스킨에 "theme": "이름" 만 적으면 칩이 생긴다(따로 등록할 곳 없음).
-    // 순서는 최근에 추가된 테마 먼저(카탈로그는 새 스킨을 뒤에 붙인다). item = 그 테마의 첫 스킨(칩 아이콘용)
+    // 테마 목록 = 카탈로그 스킨의 theme 글자를 모은 것. 새 스킨에 "theme": "이름" 만 적으면 테마 탭에 묶음이 생긴다(따로 등록할 곳 없음).
+    // 순서는 최근에 추가된 테마 먼저(카탈로그는 새 스킨을 뒤에 붙인다)
     function themeList() {
         var skins = (ShopModule.getCatalog() || {})[SKIN_SLOT] || [], seen = {}, out = [];
         skins.forEach(function (it) {
             if (!it.theme || !it.creature || seen[it.theme]) return;
-            seen[it.theme] = true; out.unshift({ name: it.theme, item: it });
+            seen[it.theme] = true; out.unshift(it.theme);
         });
         return out;
     }
@@ -80,11 +82,13 @@
         return box;
     }
 
-    // 소유/구매 상태: defaultOwned 또는 소유면 owned. 선행조건 없음.
+    // 소유/구매 상태: defaultOwned 또는 소유면 owned. 에픽·전설 스킨은 코인이 아니라 자유이용권(ticketCost 장)으로 받는다 — 서버 socket/deguri.js TICKET_COST 와 같은 값
+    var TICKET_COST = { epic: 3, legend: 5 };
     function itemState(item) {
         var wallet = ShopModule.getWallet();
         var owned = !!item.defaultOwned || wallet.owned.indexOf(item.id) !== -1;
-        return owned ? { owned: true, buyable: true } : { owned: false, buyable: true };
+        if (owned) return { owned: true, buyable: true };
+        return { owned: false, buyable: true, ticketCost: item.creature ? (TICKET_COST[item.rarity] || 0) : 0 };
     }
 
     // 지갑(deguri:shop:get) 조회 — 서버가 준 equipped 가 장착값의 권위. 로그인 불필요(손님은 방 지갑)
@@ -96,6 +100,11 @@
     function buyRequest(id, done) {
         if (!_socket) return done(null);
         _socket.emit('deguri:shop:buy', { cosmeticId: id }, function (res) { done(res); });
+    }
+    // 자유이용권으로 받기(deguri:ticket:redeem) — 응답 { ok, gauge, tickets, owned }
+    function redeemRequest(id, done) {
+        if (!_socket) return done(null);
+        _socket.emit('deguri:ticket:redeem', { cosmeticId: id }, function (res) { done(res); });
     }
     // 지갑을 받을 때마다 방 장착값을 서버 값으로 맞춘다(getEquippedSkinFor·선택 버튼 배지 기준)
     function applyRoomEquip(wallet) {
@@ -129,44 +138,45 @@
         roomWallet: true,             // 지갑을 데구리 이벤트로 받는다(wallet:get 대신) — 로그인 계정이면 서버가 계정 지갑을, 손님이면 방 1회용 지갑(입장 200코인·나가면 소멸)을 준다
         closetTitle: '옷장',
         closetSubtitle: '데구리 · 내 꾸미기 장착',
-        slots: [{ key: SKIN_SLOT, label: '동물 스킨' }, { key: BALLOON_SLOT, label: '🍔 야식' }],   // 둘 → 공유 셸이 탭바를 그린다
+        slots: [{ key: SKIN_SLOT, label: '동물 스킨' }, { key: BALLOON_SLOT, label: '🍔 야식' }],
+        // 상점 하위 탭(슬롯 탭바 대신): 전체 = 두 슬롯 다(동물 칩) · 테마 = 스킨을 테마별 묶음 · 야식 = 야식 슬롯만
+        shopTabs: [
+            { key: 'all', label: '전체', slots: [SKIN_SLOT, BALLOON_SLOT], chips: 'creature' },
+            { key: 'theme', label: '테마', slots: [SKIN_SLOT], sections: 'theme' },
+            { key: 'snack', label: '야식', slots: [BALLOON_SLOT] }
+        ],
+        tickets: true,                // 상점 위에 자유이용권 상태 줄 + 에픽·전설은 이용권으로 받기(docs/goal/deguri-free-pass-tickets.md)
         coinShopOpen: true,   // 공통 COIN_SHOP_COMING_SOON 게이트를 데구리만 연다(사용자 2026-09-22) — 다른 게임 코인샵은 그대로 준비 중
         hooks: {
             noticeText: function () { return ''; },   // 안내 상자 없음(사용자 2026-09-22: 설명 문구 제거) — 공유 셸이 '' 면 상자를 안 그린다
-            // 필터 칩의 기준 둘 — 동물별(전체/고슴도치/…) · 테마별(전체/5090/수영복/…). 공유 셸이 상점 뷰 [상점|옷장] 아래 서브탭으로 그린다
-            groupModes: [{ key: 'creature', label: '전체보기' }, { key: 'theme', label: '테마별보기' }],   // 상점 서브탭(옷장은 늘 동물 칩)
+            // 그룹 기준 둘 — 'creature'(전체 탭·옷장의 칩: 고슴도치/돼지/…) · 'theme'(테마 탭의 묶음: 5090/수영복/…)
             // 동물: 순서는 선택 버튼 순서(DEGURI_CREATURES), 이름은 렌더러 CREATURE_NAMES(돼지 등). 테마: themeList()
             groups: function (mode) {
-                if (mode === 'theme') return themeList().map(function (t) { return { key: t.name, label: t.name }; });
+                if (mode === 'theme') return themeList().map(function (name) { return { key: name, label: name }; });
                 var names = (window.DeguriRender && DeguriRender.CREATURE_NAMES) || {};
                 var order = (typeof window.DEGURI_CREATURES !== 'undefined' && window.DEGURI_CREATURES) || Object.keys(names);
                 return order.map(function (c) { return { key: c, label: names[c] || c }; });
             },
-            // 테마 기준: 테마 없는 스킨은 ''(어느 테마 칩에도 안 걸림 — '전체'에서만 보인다). 동물 없는 항목(기본 카드·야식)은 null = 늘 보인다
+            // 테마 기준: 테마 없는 스킨은 ''(어느 묶음에도 안 걸려 테마 탭에 안 보인다). 동물 없는 항목(기본 카드·야식)은 null = 어느 동물 칩에서도 보인다
             itemGroup: function (item, mode) {
                 if (mode === 'theme') return item.creature ? (item.theme || '') : null;
                 return item.creature || null;
             },
-            // 칩 아이콘 — 동물: 그 동물 기본 시트의 서 있는 얼굴(선택 버튼과 같은 그림). 테마: 그 테마 첫 스킨을 입은 모습
-            groupIcon: function (key, mode) {
+            // 칩 아이콘 — 동물 칩만(테마는 묶음 제목이라 칩이 없다): 그 동물 기본 시트의 서 있는 얼굴(선택 버튼과 같은 그림)
+            groupIcon: function (key) {
                 var R = window.deguriRendererForShop;
                 if (!R || typeof R.drawCreatureIcon !== 'function') return null;
-                var first = mode === 'theme' ? themeList().filter(function (t) { return t.name === key; })[0] : null;
                 var cv = document.createElement('canvas'); cv.width = 40; cv.height = 40; cv.className = 'mshop-chip-icon';
-                if (first) R.drawCreatureIcon(cv, first.item.creature, 0, first.item.skin);
-                else {
-                    R.drawCreatureIcon(cv, key, 0, null);
-                    // 동물 칩은 그림만(css/deguri.css .mshop-chip-icon--creature) — 이름은 마우스를 올리면. 테마 칩은 그림만으론 몰라서 글자를 둔다
-                    cv.classList.add('mshop-chip-icon--creature');
-                    cv.title = (DeguriRender.CREATURE_NAMES && DeguriRender.CREATURE_NAMES[key]) || key;
-                }
+                R.drawCreatureIcon(cv, key, 0, null);
+                // 동물 칩은 그림만(css/deguri.css .mshop-chip-icon--creature) — 이름은 마우스를 올리면
+                cv.classList.add('mshop-chip-icon--creature');
+                cv.title = (DeguriRender.CREATURE_NAMES && DeguriRender.CREATURE_NAMES[key]) || key;
                 return cv;
             },
             // 스킨 목록 순서(docs/goal/deguri-shop-declutter-common-tier.md): 지금 고른 동물 먼저 → 선택 버튼 순서(DEGURI_CREATURES) → 동물 안에서는 전설→일반.
             // 상점 뷰에서는 기본 제공 카드('기본'·야식 '없음')를 뺀다(살 게 아니다) — 옷장에서는 "벗기"라 맨 앞에 남긴다. 공유 셸(shop-shared.js)에는 이 정렬 훅만 있다
             sortItems: function (items, ctx) {
                 if (ctx.view === 'shop') items = items.filter(function (it) { return !it.defaultOwned; });
-                if (ctx.view === 'shop' && ctx.groupMode === 'theme' && ctx.slot === SKIN_SLOT) items = items.filter(function (it) { return it.theme; });   // 테마별보기 '전체' = 테마가 있는 스킨만(아니면 전체보기와 같다)
                 if (ctx.slot !== SKIN_SLOT) return items;
                 var picks = (window.deguriState && deguriState.picks) || {}, mine = picks[window.currentUser];
                 var order = (typeof window.DEGURI_CREATURES !== 'undefined' && window.DEGURI_CREATURES) || [];
@@ -182,6 +192,7 @@
             itemState: itemState,
             walletRequest: walletRequest,
             buyRequest: buyRequest,
+            redeemRequest: redeemRequest,
             equipRequest: equipRequest,
             onEquipApplied: onEquipApplied,
             onWalletRefreshed: applyRoomEquip   // 상점/옷장을 열 때마다 서버 방 장착값으로 동기화

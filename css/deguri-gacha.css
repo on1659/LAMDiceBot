@@ -29,6 +29,13 @@ body.mgacha-open { overflow: hidden; }
     font-size: 12px; font-weight: 800; line-height: 1; white-space: nowrap; pointer-events: none;
     box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.15);
 }
+/* 자유이용권 — 무대 왼쪽 위(코인 알약과 같은 모양, 반대쪽) */
+.mgacha-pass {
+    position: absolute; top: 8px; left: 8px; z-index: 1; padding: 4px 9px; border-radius: 999px;
+    background: var(--mgacha-chip-bg); color: var(--mgacha-ink); font-size: 12px; font-weight: 800; line-height: 1;
+    white-space: nowrap; pointer-events: none; box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.15);
+}
+.mgacha-pass[hidden] { display: none; }
 /* 확률 안내 ? — 빨간 뽑기 버튼 안 오른쪽. 말풍선은 버튼 위로(모달 크기 불변). PC 는 호버 중에만, 폰(hover: none)은 탭으로 .is-open */
 .mgacha-pull-wrap { position: relative; margin-top: 10px; }
 .mgacha-modal .mgacha-help {

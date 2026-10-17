@@ -712,6 +712,9 @@
         // 잔고 — ✕ 바로 아래(무대 오른쪽 위에 얹음 → 모달 크기 불변): 코인 아이콘 + "N · +10 m:ss"
         var bal = coinLabel('mgacha-coin');
         stageWrap.appendChild(bal);
+        // 자유이용권 — 무대 왼쪽 위: "🎟 N"(가진 개수). 결과 화면이 뜰 때 갱신(캡슐이 나오기 전엔 결과를 흘리지 않는다)
+        var pass = h('div', 'mgacha-pass'); pass.hidden = true;
+        stageWrap.appendChild(pass);
         // 중복 환급(데구리 f5dc19f 역반영) — 글줄 대신 무대 오른쪽 위(잔고 아래) '중복!' 도장 + 잔고로 올라가는 '+30'. 무대 위에 얹어 모달 크기가 뽑기 전후 같다
         var dupe = h('div', 'mgacha-dupe', '중복!'); dupe.hidden = true; dupe.setAttribute('aria-hidden', 'true');
         var gain = h('div', 'mgacha-gain'); gain.hidden = true; gain.setAttribute('aria-hidden', 'true');
@@ -734,6 +737,9 @@
         tip.appendChild(h('span', null, ODDS_TEXT));
         var stayLine = h('span', 'mgacha-tip-stay', '방에 있으면 5분마다 ' + STAY_COIN + '코인이 쌓여요');
         tip.appendChild(stayLine);
+        var passLine = h('span', 'mgacha-tip-stay'); tip.appendChild(passLine);
+        var passText = '🎟 레어 이하가 3번 나오면 자유이용권 1개 · 에픽은 3개, 전설은 5개로 구매';
+        if (window.UIIcons) UIIcons.setIconText(passLine, passText); else passLine.textContent = passText;
         help.onclick = function (e) { e.stopPropagation(); if (TOUCH_ONLY()) help.classList.toggle('is-open'); };   // PC 는 호버로만(누르면 남아 있지 않게), 폰은 탭으로
         document.addEventListener('click', function () { help.classList.remove('is-open'); });   // 바깥을 누르면 닫힘(모바일)
         pullWrap.appendChild(pull); pullWrap.appendChild(help); pullWrap.appendChild(tip);   // tip 은 ? 바로 뒤 형제(:hover + 선택자)
@@ -744,7 +750,7 @@
         document.body.appendChild(ov);
         _ctx = cv.getContext('2d');
         window.addEventListener('resize', function () { if (_el && !_el.ov.hidden) { fitCanvas(); if (!_raf) drawAt(_anim && _anim.done ? 1e9 : 0); } });
-        _el = { ov: ov, cv: cv, bal: bal, stayLine: stayLine, hint: hint, result: result, badge: badge, name: name, dupe: dupe, gain: gain, equip: equip, pull: pull, msg: msg };
+        _el = { ov: ov, cv: cv, bal: bal, pass: pass, stayLine: stayLine, hint: hint, result: result, badge: badge, name: name, dupe: dupe, gain: gain, equip: equip, pull: pull, msg: msg };
         return _el;
     }
     // 코인 아이콘(공용 아틀라스 coin) + 숫자 칸. el.txt 에 글자를 넣는다
@@ -809,9 +815,22 @@
         }
     }
     // 지갑 응답 반영 + 다음 보상 시각에 다시 받기 예약(창이 열려 있을 때만)
+    // 자유이용권 표시(서버 응답 { tickets, gauge, gaugeMax }) — 뽑기 응답은 결과 화면에서(showResult), 지갑 응답은 바로
+    var _pass = null;
+    function setPass(r) {
+        if (!r || typeof r.tickets !== 'number') return;
+        _pass = { tickets: r.tickets, gauge: r.gauge || 0, max: r.gaugeMax || 3 };
+        renderPass();
+    }
+    function renderPass() {
+        if (!_el || !_pass) return;
+        if (window.UIIcons) UIIcons.setIconText(_el.pass, '🎟 ' + _pass.tickets); else _el.pass.textContent = '🎟 ' + _pass.tickets;   // 게이지 숫자는 안 보인다(사용자 2026-10-16) — 가진 자유이용권 개수만
+        _el.pass.hidden = false;
+    }
     function applyWallet(w) {
         if (!w || !w.ok) return;
         setBalance(w.balance);
+        if (!_anim || _anim.done) setPass(w);
         _stayDone = w.stayNextMs === null;
         if (typeof w.stayNextMs === 'number') _nextStayAt = Date.now() + w.stayNextMs;
         else if (_stayDone) _nextStayAt = 0;
@@ -855,6 +874,8 @@
         _el.dupe.hidden = !res.dupe;   // 뻔한 안내는 없음(사용자 2026-09-24) — 중복이면 도장 + 올라가는 '+30'(showRefund)만. 다시 열면 도장만(이미 더했다)
         if (res.dupe && !_anim.refunded) showRefund();
         _el.equip.disabled = false; _el.equip.textContent = '장착하기';
+        setPass(res);
+        if (res.ticketGained) setMsg('자유이용권 1개를 받았어요!');
         _el.result.hidden = false;
         _busy = false;
         _el.pull.disabled = false; _el.pull.textContent = '한 번 더 · ' + PRICE + '코인';

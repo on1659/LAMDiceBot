@@ -40,6 +40,12 @@ const GACHA_PRICE = 60;
 const GACHA_REFUND = 30;
 const GACHA_WEIGHTS = { common: 40, rare: 35, epic: 18, legend: 7 };   // 일반 등급 추가(사용자 2026-10-01, docs/goal/deguri-shop-declutter-common-tier.md) — 전에는 rare 60 · epic 30 · legend 10
 const GACHA_TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+// ─── 자유이용권 (docs/goal/deguri-free-pass-tickets.md, 사용자 2026-10-16) ───
+// 뽑기에서 에픽 미만(일반·레어·야식)이 나오면 실패 — 실패 GAUGE_FAILS 번마다 이용권 1장. 에픽·전설 스킨은 코인으로 못 사고,
+// 이용권 TICKET_COST[등급] 장 또는 뽑기로만 얻는다. 게이지·이용권은 손님은 방 지갑(w.gauge/w.tickets), 계정은 user_coins 칸.
+const GAUGE_FAILS = 3;
+const TICKET_COST = { epic: 3, legend: 5 };
+function isFailTier(tier) { return tier === 'common' || tier === 'rare'; }
 const CHAT_HISTORY_MAX = 100;     // socket/chat.js·scheduled-start.js 와 같은 상한
 // 방에 머문 시간 보상(사용자 2026-09-23: 광고 클릭 보상은 애드센스 정책 위반이라 대신) — 입장(joinTime)부터 STAY_COIN_MS 마다 +STAY_COIN.
 // 타이머 없이 지갑을 볼 때(상점·구매·뽑기·한 판 보상) 밀린 만큼 한 번에 넣는다. 나가면 지갑과 함께 사라진다.
@@ -272,7 +278,7 @@ function gachaNotice(io, room, gameState, message) {
 // stayNextMs = 다음 머문 시간 보상까지 남은 ms(클라 안내용)
 function walletView(mb, user) {
     const w = userWallet(mb, user);
-    return { balance: w.balance, owned: w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: w.balance >= WALLET_MAX ? null : Math.max(0, w.stayFrom + STAY_COIN_MS - Date.now()) };
+    return { balance: w.balance, gauge: w.gauge || 0, tickets: w.tickets || 0, ticketCost: TICKET_COST, gaugeMax: GAUGE_FAILS, owned: w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: w.balance >= WALLET_MAX ? null : Math.max(0, w.stayFrom + STAY_COIN_MS - Date.now()) };
 }
 // 클라 공용 형식 { slot: id } — 안 낀 슬롯은 키 자체를 뺀다(ShopModule 이 그렇게 읽는다)
 // 클라(ShopModule)가 '장착중' 표시에 쓴다. 한 슬롯에 여러 개가 동시에 장착될 수 있으면 배열로 준다.
@@ -690,14 +696,15 @@ module.exports = (socket, io, ctx) => {
         const daily = await grantDaily(w, userId, now, scope);
         const stayed = await grantAccountStay(w, user, userId, now, scope);
         const balance = await coins.getBalance(userId, scope);
+        const pass = await coins.getTickets(userId, scope);
         if (fresh || topped || daily || stayed) socket.emit('wallet:updated', { balance });
         // 매일 코인 알림 — 나에게만 보이는 채팅 시스템 한 줄(방 기록엔 안 남긴다). 코인 알약은 접힌 칸 안이라 기본 화면에서 안 보여서 채팅으로
         if (daily) socket.emit('newMessage', { userName: '시스템', message: `오늘의 코인 +${daily}이 들어왔어요`, time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }), isHost: false, isSystemMessage: true, isSystem: true });
-        return { w, balance, stayDone: w.staySlot > STAY_DAILY_MAX };
+        return { w, balance, gauge: pass.gauge, tickets: pass.tickets, stayDone: w.staySlot > STAY_DAILY_MAX };
     }
     // 계정 지갑 응답 — 손님 walletView 와 같은 모양. 오늘 머문 시간 보상을 다 받았거나 잔고가 상한이면 stayNextMs = null
     function accountView(s, mb, user) {
-        return { balance: s.balance, owned: s.w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: (s.stayDone || s.balance >= WALLET_MAX) ? null : Math.max(0, s.w.stayFrom + STAY_COIN_MS - Date.now()) };
+        return { balance: s.balance, gauge: s.gauge, tickets: s.tickets, ticketCost: TICKET_COST, gaugeMax: GAUGE_FAILS, owned: s.w.owned.slice(), equipped: equippedIds(mb, user.name), stayNextMs: (s.stayDone || s.balance >= WALLET_MAX) ? null : Math.max(0, s.w.stayFrom + STAY_COIN_MS - Date.now()) };
     }
 
     // 동물 선택 (idle·finished 단계, 준비 여부 무관 — 선택 → 준비 순서)
@@ -772,6 +779,7 @@ module.exports = (socket, io, ctx) => {
         // 슬롯을 안 보고 "어느 슬롯으로든 해석되면" 으로 두면, 나중에 다른 게임 항목이 sprite 키를 얻는 순간 데구리 방 코인으로 팔린다.
         const item = (entry && EQUIP_SLOTS.includes(entry.slot) && equipFromItem(entry.slot, entry.item)) ? entry.item : null;
         if (!item || !Number.isInteger(item.price) || item.price < 0) return cb({ ok: false, reason: 'notfound' });
+        if (entry.slot === 'deguri_skin' && TICKET_COST[item.rarity]) return cb({ ok: false, reason: 'ticket' });   // 에픽·전설은 코인으로 못 산다 — 이용권(deguri:ticket:redeem) 또는 뽑기
         const mb = gameState.deguri;
         if (socket.authedUserId) {
             try {
@@ -792,6 +800,46 @@ module.exports = (socket, io, ctx) => {
         w.balance -= item.price;
         w.owned.push(id);
         cb({ ok: true, balance: w.balance, owned: w.owned.slice() });
+    });
+
+    // 자유이용권으로 받기 — 에픽 TICKET_COST.epic 장 · 전설 TICKET_COST.legend 장을 내고 그 스킨을 소유에 넣는다(코인 안 씀, 장착은 따로).
+    // { cosmeticId } → ack { ok, gauge, tickets, owned } | { ok:false, reason: room|notfound|owned|insufficient|busy|error, tickets? }
+    socket.on('deguri:ticket:redeem', async (data, callback) => {
+        if (!rateOk()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return cb({ ok: false, reason: 'room' });
+        const id = data && data.cosmeticId;
+        const entry = (typeof id === 'string') ? getCatalogEntry(id) : null;
+        const item = (entry && entry.slot === 'deguri_skin' && equipFromItem(entry.slot, entry.item)) ? entry.item : null;
+        const cost = item && !item.defaultOwned ? TICKET_COST[item.rarity] : 0;
+        if (!cost) return cb({ ok: false, reason: 'notfound' });
+        if (socket.authedUserId) {
+            if (socket._deguriGachaInFlight) return cb({ ok: false, reason: 'busy' });   // 뽑기와 같은 연타 가드
+            socket._deguriGachaInFlight = true;
+            try {
+                const s = await syncAccount(room, gameState, user);
+                if (!s) return cb({ ok: false, reason: 'room' });
+                const r = await coins.redeemTickets(socket.authedUserId, cost, id, roomScope(room));
+                if (!r.ok) return cb({ ok: false, reason: r.reason, gauge: r.gauge, tickets: r.tickets });
+                if (s.w.owned.indexOf(id) === -1) s.w.owned.push(id);
+                return cb({ ok: true, gauge: r.gauge, tickets: r.tickets, owned: s.w.owned.slice() });
+            } catch (e) {
+                console.warn('[데구리] 이용권 사용 실패:', e.message);
+                return cb({ ok: false, reason: 'error' });
+            } finally {
+                socket._deguriGachaInFlight = false;
+            }
+        }
+        const w = userWallet(gameState.deguri, user);
+        if (w.owned.indexOf(id) !== -1) return cb({ ok: false, reason: 'owned', gauge: w.gauge || 0, tickets: w.tickets || 0 });
+        if ((w.tickets || 0) < cost) return cb({ ok: false, reason: 'insufficient', gauge: w.gauge || 0, tickets: w.tickets || 0 });
+        w.tickets -= cost;
+        w.owned.push(id);
+        cb({ ok: true, gauge: w.gauge || 0, tickets: w.tickets, owned: w.owned.slice() });
     });
 
     // 구슬 뽑기 — GACHA_PRICE 차감, 서버가 등급·항목 추첨. 이미 가진 거면 GACHA_REFUND 돌려주고 소유 변화 없음.
@@ -817,10 +865,10 @@ module.exports = (socket, io, ctx) => {
                 if (s.balance < GACHA_PRICE) return cb({ ok: false, reason: 'insufficient', balance: s.balance });
                 got = drawGacha(gachaPool(), Math.random);   // 서버 RNG 허용(결과 결정)
                 if (!got) return cb({ ok: false, reason: 'empty', balance: s.balance });
-                const r = await coins.drawAndGrant(socket.authedUserId, GACHA_PRICE, got.id, roomScope(room));
+                const r = await coins.drawAndGrant(socket.authedUserId, GACHA_PRICE, got.id, roomScope(room), { fail: isFailTier(got.tier), every: GAUGE_FAILS });
                 if (!r.ok) return cb({ ok: false, reason: r.reason, balance: r.balance });
                 if (!r.isDupe && s.w.owned.indexOf(got.id) === -1) s.w.owned.push(got.id);
-                res = { ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe: r.isDupe, refund: r.refunded, balance: r.balance, owned: s.w.owned.slice() };
+                res = { ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe: r.isDupe, refund: r.refunded, balance: r.balance, gauge: r.gauge, tickets: r.tickets, ticketGained: r.ticketGained, gaugeMax: GAUGE_FAILS, owned: s.w.owned.slice() };
             } catch (e) {
                 console.warn('[데구리] 계정 뽑기 실패:', e.message);
                 return cb({ ok: false, reason: 'error' });
@@ -836,7 +884,12 @@ module.exports = (socket, io, ctx) => {
             const dupe = w.owned.indexOf(got.id) !== -1;
             if (dupe) w.balance += GACHA_REFUND;
             else w.owned.push(got.id);
-            res = { ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe, refund: dupe ? GACHA_REFUND : 0, balance: w.balance, owned: w.owned.slice() };
+            let ticketGained = false;
+            if (isFailTier(got.tier)) {
+                w.gauge = (w.gauge || 0) + 1;
+                if (w.gauge >= GAUGE_FAILS) { w.gauge = 0; w.tickets = (w.tickets || 0) + 1; ticketGained = true; }
+            }
+            res = { ok: true, cosmeticId: got.id, slot: got.slot, tier: got.tier, dupe, refund: dupe ? GACHA_REFUND : 0, balance: w.balance, gauge: w.gauge || 0, tickets: w.tickets || 0, ticketGained, gaugeMax: GAUGE_FAILS, owned: w.owned.slice() };
         }
         cb(res);
         if (got.tier === 'legend') {
@@ -1047,6 +1100,8 @@ module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;
 module.exports.WALLET_MAX_LIVE = WALLET_MAX_LIVE;
 module.exports.ROOM_SEED_COINS = ROOM_SEED_COINS;
 module.exports.GACHA_PRICE = GACHA_PRICE;
+module.exports.GAUGE_FAILS = GAUGE_FAILS;
+module.exports.TICKET_COST = TICKET_COST;
 module.exports.GACHA_REFUND = GACHA_REFUND;
 module.exports.GACHA_WEIGHTS = GACHA_WEIGHTS;
 module.exports.gachaPool = gachaPool;
