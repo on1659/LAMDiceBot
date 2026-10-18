@@ -134,7 +134,8 @@ const EAGLE_DROP_LATE_W = 0.6;       // 후반일수록 낮게: 낮은 정도 = 
 const EAGLE_DROP_DX = 130;        // 시소 좌우 이만큼 떨어진 자리(쪽은 시드)
 const EAGLE_MISS_P = 0.5;         // 헛발톱 확률(사용자 2026-09-23 "독수리 킹받는다"): 급강하는 똑같이 하되 못 채고 빈 발로 같은 곡선을 날아오른다. 동물은 제자리, 출격 예산·쉬는 시간·재도전 금지는 잡은 것과 같이 친다
 const EAGLE_SLIP_P = 0.35;        // 공중 놓침 확률(잡은 것 중, 사용자 2026-10-18): 채서 올라가다 끝까지 못 가고 떨어뜨린다 — 이때만 '놓쳤다!'
-const EAGLE_SLIP_K_MIN = 0.35, EAGLE_SLIP_K_MAX = 0.75;   // 비행 진행도 이 구간에서 놓는다. 놓는 자리는 보통 낙하 띠(시소 위 ~ 구멍밭 윗변 위) 안일 때만 — 밖이면 띠에 들 때까지 더 들고 간다
+const EAGLE_SLIP_K_MIN = 0.35, EAGLE_SLIP_K_MAX = 0.75;   // 비행 진행도 이 구간에서 놓는다. 떨어질 땅(그림자 자리)이 보통 낙하 띠(시소 위 ~ 구멍밭 윗변 위) 안일 때만 — 밖이면 띠에 들 때까지 더 들고 간다
+const EAGLE_SLIP_FALL_MS = 450;   // 놓친 자리(공중) → 그림자 자리(땅)까지 떨어지는 시간 — 이 동안은 carried(충돌 없음), 닿으면 eagleDrop(slip)
 // ─── 1등 룰(opts.target === 'first') 전용 — 꼴등 룰 타임라인은 바이트 단위로 그대로 (docs/goal/deguri-first-rule-flow.md, 사용자 2026-10-06) ───
 // 1등 룰은 첫 공이 골에 들어가는 순간 경주가 끝나고(당첨 = 벌칙 = 먼저 들어온 주인), 나머지는 낙하산으로 스탠드까지 내려온다. 착지 순서 = 2위 이하 순위.
 const FIRST_EAGLE_EXTRA = 1, EAGLE_COUNT_MAX = 3;   // 독수리 +1(최대 3) — 결승전(첫 공이 통로에 내려온 순간부터)에 걷는 선두를 채 가는 횟수를 늘린다
@@ -793,7 +794,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp(n = 그 천의 몇 번째 튕김, life 면 찢어짐)|quake
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleMiss|eagleSlip|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish|tramp(n = 그 천의 몇 번째 튕김, life 면 찢어짐)|quake
  *              scuffle/scuffleEnd 는 ball 대신 { a, b, hole } (a = 왼쪽 공). scuffleEnd.startled = 뚜껑이 열려 떨어진 것(→ land.dizzy)
  *              1등 룰(opts.target 'first')에만: nap.deep = 깊은 잠(안 깸) / pitStuck = 분출 때 온천에 남음 /
  *              chute { x, y, tx, ty, t0, t1, deep? } = 첫 골인 뒤 그 자리에 멈춤(t0 에 펴짐, t1 에 통로 착지 예정 — 제 x 로 수직 낙하) → 착지는 land(걷기 시작) 또는 chuteLand(자는 공: 통로에 눕고 끝까지 안 깬다)
@@ -1153,7 +1154,7 @@ async function simulate(balls, seed, track, opts) {
                 v.eagledBy[ei] = true;
                 if (!miss) {
                     v.carry = { x0: v.x, y0: v.y, x1: tx, y1: ty, t0: t, t1: t + EAGLE_FLY_MS };
-                    if (rng() < EAGLE_SLIP_P) Object.assign(v.carry, { slipK: EAGLE_SLIP_K_MIN + rng() * (EAGLE_SLIP_K_MAX - EAGLE_SLIP_K_MIN), slipTop: dropTop, slipLow: dropLow });
+                    if (rng() < EAGLE_SLIP_P) Object.assign(v.carry, { slipK: EAGLE_SLIP_K_MIN + rng() * (EAGLE_SLIP_K_MAX - EAGLE_SLIP_K_MIN), slipTop: dropTop, slipLow: dropLow, eagle: ei });
                     v.eagled = true; v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.scuffled = false;
                 }
                 const alive = B.filter(b => b.state !== 'done').length;
@@ -1167,9 +1168,19 @@ async function simulate(balls, seed, track, opts) {
         for (const b of B) {
             if (b.state === 'done' || b.state === 'walk') continue;
             if (b.state === 'carried') {   // 독수리 발톱에: 곡선(위로 EAGLE_ARC)으로 떨어뜨릴 자리까지, 도착하면 놓는다
-                const c = b.carry, k = Math.min(1, (t - c.t0) / (c.t1 - c.t0)), e = k * k * (3 - 2 * k);
-                b.x = c.x0 + (c.x1 - c.x0) * e; b.y = c.y0 + (c.y1 - c.y0) * e - Math.sin(k * Math.PI) * EAGLE_ARC;
-                if (c.slipK != null && k >= c.slipK && t < c.t1 && b.y >= c.slipTop && b.y <= c.slipLow) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y), slip: true }); }   // 공중 놓침 — 그 자리에서 떨어져 다시 굴러 내려온다
+                const c = b.carry;
+                if (c.fall) {   // 공중 놓침 뒤: 놓친 자리(공중) → 그림자 자리(땅)로 가속하며 떨어진다. 닿으면 굴러 내려간다
+                    const f = c.fall, kf = Math.min(1, (t - f.t0) / (f.t1 - f.t0));
+                    b.y = f.yA + (f.yG - f.yA) * kf * kf;
+                    if (t >= f.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y), slip: true }); }
+                    continue;
+                }
+                const k = Math.min(1, (t - c.t0) / (c.t1 - c.t0)), e = k * k * (3 - 2 * k), gy = c.y0 + (c.y1 - c.y0) * e;   // gy = 땅(그림자) 자리
+                b.x = c.x0 + (c.x1 - c.x0) * e; b.y = gy - Math.sin(k * Math.PI) * EAGLE_ARC;
+                if (c.slipK != null && k >= c.slipK && t < c.t1 && gy >= c.slipTop && gy <= c.slipLow) {   // 공중 놓침 — 떨어질 땅이 낙하 띠 안일 때만
+                    c.fall = { yA: b.y, yG: gy, t0: t, t1: t + EAGLE_SLIP_FALL_MS };
+                    pushEvent(t, 'eagleSlip', b, { eagle: c.eagle, x: Math.round(b.x), y: Math.round(b.y), gy: Math.round(gy), dur: EAGLE_SLIP_FALL_MS });
+                }
                 else if (t >= c.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
                 continue;
             }

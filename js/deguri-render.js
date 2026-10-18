@@ -53,6 +53,8 @@ var DeguriRender = (function () {
     var QUAKE_SHAKE_PX = 6;          // 지진 카메라 흔들림 진폭(감쇠)
     var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
     var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
+    var EAGLE_PANIC_MS = 800, EAGLE_PANIC_WING = 3, EAGLE_PANIC_SHAKE = 5;   // 공중에서 놓친 독수리 허둥지둥: 머리 위 '!'·날갯짓 배속·좌우 흔들림(px)
+    var SLIP_LABEL_MS = 1100, SLIP_SPIN_MS = 70;   // '앗! 놓쳤다!' 표시 시간 / 떨어지는 공 회전(이 ms 당 1rad)
     var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 40, EAGLE_PATROL_H = 130;   // 구멍밭 위 순찰: 좌우 폭·기준 높이·상하 폭(구멍밭~통로 위를 오르내림)
     var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
     var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
@@ -468,7 +470,7 @@ var DeguriRender = (function () {
         function applyTrack(payload) {   // 타임라인·트랙 조각 교체(캐시 무효화). 공·시계·카메라는 건드리지 않는다
             data = payload;
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
-            eagleSlipT = {}; (payload.events || []).forEach(function (se) { if (se.type === 'eagleDrop' && se.slip) eagleSlipT[se.ball] = se.t; });
+            eagleSlipT = {}; (payload.events || []).forEach(function (se) { if (se.type === 'eagleSlip') eagleSlipT[se.ball] = se.t; });
             mmCache = null; celCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
         }
         // 조각에 적어 두는 연출 상태(스프링 발사·쿨타임, 트램펄린 눌림) 비우기 — 되감을 때와 새 타임라인을 걸 때.
@@ -812,7 +814,8 @@ var DeguriRender = (function () {
                     }
                     case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.scuffle = -1; b.startledAt = -1e9; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'eagleMiss': fxList.push({ type: 'eaglemiss', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;   // 헛발톱 — 동물은 그대로, 독수리만 빈 발로 날아오른다(drawEagleFree)
-                    case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: e.slip ? 'eagleslip' : 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;   // slip = 올라가다 공중에서 놓침
+                    case 'eagleSlip': if (b.carry) b.carry.fall = { yG: e.gy, t0: e.t, dur: e.dur }; fxList.push({ type: 'eagleslip', x: e.x, y: e.y, t0: e.t, dur: SLIP_LABEL_MS }); break;   // 올라가다 공중에서 놓침 — 공은 그림자 자리로 떨어지는 중(상태는 carried 그대로, 닿으면 eagleDrop slip)
+                    case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', thud: !!e.slip, x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;   // thud = 놓쳐서 떨어진 착지('쿵!')
                     case 'land':
                         if (data.cutMs != null && e.t >= data.cutMs && b.id === data.finishOrder[data.finishOrder.length - 1]) {   // 혼자 내려온 꼴찌: 착지 = 확정, 그 자리에 비석(drawLastBall). 자리는 착지 직후 샘플에서
                             var lf = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))];
@@ -1795,6 +1798,14 @@ var DeguriRender = (function () {
         // 독수리에 잡혀 가는 공: 땅 그림자(곡선 높이만큼 아래) + 공(말린 채) + 발톱이 공을 쥔 독수리(날갯짓 4프레임, 왼쪽으로 갈 땐 반전). 에셋 없으면 코드 실루엣
         function drawEagleCarry(b, t, mine) {
             var c = b.carry, k = c ? clamp((t - c.t0) / c.dur, 0, 1) : 0.5, lift = Math.sin(k * Math.PI) * EAGLE_ARC;
+            if (c && c.fall) {   // 놓쳐서 떨어지는 중: 그림자(땅 자리)가 점점 짙어지고 공은 빙글빙글 돌며 그쪽으로 — 독수리는 drawEagleFree 가 따로
+                var fk = clamp((t - c.fall.t0) / c.fall.dur, 0, 1);
+                drawShadow(b.x, c.fall.yG, BALL_R * (0.6 + 0.4 * fk));
+                drawCreatureFrame(b, 2, 0, b.x, b.y + 4, (t - c.fall.t0) / SLIP_SPIN_MS, 1);
+                drawRing(b, b.x, b.y + 4, BALL_R + 1, mine, true);
+                drawNameTag(b, b.x, toScreenY(b.y) - 30, mine);
+                return;
+            }
             var faceLeft = c ? c.x1 < c.x0 : false;
             var gy = b.y + lift;   // 땅 자리
             if (!drawSprite('fx', 'eagle-shadow', b.x, gy, 128, 48, { alpha: 0.35 + 0.3 * (1 - lift / EAGLE_ARC), scale: 1 - 0.3 * lift / EAGLE_ARC })) drawShadow(b.x, gy, BALL_R + 6);
@@ -1888,11 +1899,13 @@ var DeguriRender = (function () {
             for (var ei = 0; ei < count; ei++) {
                 var grab = null;   // 이 독수리가 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
                 for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if ((ge.type === 'eagleGrab' || ge.type === 'eagleMiss') && (ge.eagle || 0) === ei && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
-                var pos, left;
+                var pos, left, panic = -1;
                 if (grab && grab.type === 'eagleGrab' && t >= grab.t && t < (eagleSlipT[grab.ball] != null ? eagleSlipT[grab.ball] : grab.t + grab.dur)) continue;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
                 if (grab && t >= grab.t && t < grab.t + grab.dur) {   // 헛발톱·공중 놓침 뒤: 잡았을 때와 같은 곡선으로 빈 발만 날아오른다
                     var km = (t - grab.t) / grab.dur, em = km * km * (3 - 2 * km);
                     pos = { x: grab.x + (grab.tx - grab.x) * em, y: grab.y + (grab.ty - grab.y) * em - Math.sin(km * Math.PI) * EAGLE_ARC - 8 }; left = grab.tx < grab.x;
+                    var slipT = grab.type === 'eagleGrab' ? eagleSlipT[grab.ball] : null;
+                    if (slipT != null && t - slipT < EAGLE_PANIC_MS) panic = t - slipT;   // 방금 놓쳤다 — 허둥지둥
                 } else if (grab && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
                     var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS, ei); if (!p0) continue;
                     var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
@@ -1903,7 +1916,11 @@ var DeguriRender = (function () {
                 } else { pos = eaglePatrol(tt, ei); if (!pos) continue; left = pos.left; }
                 if (!visible(pos.y, 60)) continue;
                 drawSprite('fx', 'eagle-shadow', pos.x, pos.y + 70, 128, 48, { alpha: 0.28, scale: 0.8 });
-                drawEagleSprite(pos.x, pos.y, left, tt + ei * 37);
+                if (panic >= 0) {   // 놓친 직후: 좌우로 흔들리며 날개를 몇 배 빨리 퍼덕이고 머리 위에 '!'
+                    var px = pos.x + Math.sin(panic / 35) * EAGLE_PANIC_SHAKE;
+                    drawEagleSprite(px, pos.y, left, tt * EAGLE_PANIC_WING);
+                    label('!', px, pos.y - 44 - Math.min(1, panic / 120) * 6, '#ffd84a', 24);
+                } else drawEagleSprite(pos.x, pos.y, left, tt + ei * 37);
             }
         }
         // zz(잠·졸음) — 2차 zz 스트립, 없으면 글자. y 는 세계 좌표(공 중심 기준)
@@ -2561,8 +2578,13 @@ var DeguriRender = (function () {
                         break;
                     }
                     case 'eaglemiss': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y - 6, 80, 80, { sx: frame * 80, sw: 80, alpha: 0.7 * (1 - k) }); label('헛발질!', x, y - 40 - k * 24, 'rgba(255,255,255,' + (1 - k).toFixed(2) + ')', 14); break;   // 못 채면 '헛발질!', 채서 올라가다 떨어뜨리면 '놓쳤다!'(eagleslip) — 둘은 다른 문구(사용자 2026-10-18)
-                    case 'eagleslip': if (!visible(y, 40)) return; label('놓쳤다!', x, y - 30 - k * 24, 'rgba(255,255,255,' + (1 - k).toFixed(2) + ')', 14); break;
-                    case 'eagledrop': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y + 8, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } label('툭!', x, y - 24 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14); break;
+                    case 'eagleslip': {   // '앗! 놓쳤다!' — 독수리('!') 위에 노란 큰 글자가 톡 튀어나왔다가(처음 15% 커짐) 머문 뒤 사라진다
+                        if (!visible(y, 60)) return;
+                        var pop = k < 0.15 ? 0.6 + 0.6 * (k / 0.15) : Math.max(1, 1.2 - (k - 0.15) * 2), sa = k < 0.7 ? 1 : (1 - k) / 0.3;
+                        label('앗! 놓쳤다!', x, y - 100 - k * 16, 'rgba(255,214,64,' + sa.toFixed(2) + ')', 20 * pop);
+                        break;
+                    }
+                    case 'eagledrop': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y + 8, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } label(f.thud ? '쿵!' : '툭!', x, y - 24 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', f.thud ? 18 : 14); break;
                     case 'warpout':   // 짝 파이프에서 뿅
                         if (!visible(y, 40)) return;
                         if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); }
