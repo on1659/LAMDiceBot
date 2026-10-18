@@ -34,13 +34,26 @@
     var EAGLE = { cell: 256, h: 160, frames: 4, fps: 10, w: 92 };
     var STAR = { cell: 96, frames: 4 };
     var BAL_SPRITE = { w: 96, h: 128, knotX: 48, knotY: 106, worldH: 46 };   // 야식 풍선(deguri_balloon) 셀·매듭 — docs/goal/deguri-balloon-accessory.md 계약
-    var CAUSE_TEXT = { spike: '가시에 찔렸다', blade: '풍차에 펑!', pend: '통나무에 펑!', bolt: '번개에 펑!', bee: '벌한테 펑!', thorn: '가시벽에 펑!', eagle: '독수리한테 펑!' };
+    var CAUSE_TEXT = { spike: '가시에 찔렸다', blade: '풍차에 펑!', pend: '통나무에 펑!', bolt: '번개에 펑!', bee: '벌한테 펑!', thorn: '가시벽에 펑!', eagle: '독수리한테 펑!', finale: '풍선이 펑!' };
+    // 풍선 타기 전용 그림(assets/balloon/, SpriteMake 2026-10-18 — 의뢰서 docs/spritemake-request/2026-10-18-balloon-sprites.md, 도구 AutoTest/spritemake/balloon-sheet.py)
+    //  creatures/{동물}-{hang|blow|fall}.webp : 4×1, 칸 160, 오른쪽 향함. hang 은 줄 토막 꼭대기가 (HANG_ANCHOR) — 풍선 줄·낙하산 줄이 여기 붙는다
+    //  props/balloon.webp : 칸 96×120, 행 = 색(BALLOON 순서), c0 풍선(매듭 아래 끝 BAL_KNOT) · c1~c3 터짐
+    //  props/chute.webp : 칸 160×112, c0 접힘 → c3 펼침, 캐노피 아랫단 가운데 = CHUTE_RIM
+    //  props/{chestnut,storm,storm-flash,gravestone,bolt,plank,thorn,shutter}.webp
+    //  스킨은 creatures/{동물}-{스킨}-{kind}.webp(데구리 deguri_skin 전부) — 없으면 기본 동물 포즈로 그린다(서기·착지는 스킨 시트 그대로)
+    var BA = '/assets/balloon/', BVER = '?v=1';
+    var HANG_ANCHOR = [80, 4];
+    var MOUTH = { hedgehog: [141, 91], armadillo: [145, 95], pillbug: [139, 102], turtle: [146, 100], panda: [141, 84], hamster: [141, 92], pufferfish: [145, 100], raccoon: [142, 89], rabbit: [133, 89], ribbonpig: [131, 78] };   // blow 칸 분홍 꼭지 끝(입) — balloon-sheet.py mouth 로 잰 값
+    var BAL_CELL = { w: 96, h: 120, knotX: 48, knotY: 116, bodyW: 88, popCY: 60 };
+    var CHUTE = { w: 160, h: 112, rimX: 80, rimY: 108, openW: 150, worldW: 60, lift: 30 };
+    var POSE_FPS = { hang: 5, blow: 4, fall: 10 };
+    var GRAVE_WORLD_H = 58;            // 비석 키(세계 단위) — 몸(44)보다 커야 끝 장면의 주인공이 된다
 
     var A = '/assets/deguri/', VER = '?v=6';   // 데구리 에셋 그대로(js/deguri-render.js ASSET_VER 와 같은 캐시 키)
     var CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
     var PIECES = { eagle: 'pieces/eagle.webp', beam: 'pieces/start-platform-mid.webp', fan: 'pieces/fan.webp', hive: 'pieces/beehive.webp', plog: 'pieces/pendulum-log.webp',
         pivot: 'pieces/pendulum-pivot.webp', flag: 'pieces/flag.webp', star: 'fx/impact-star.webp', swarm: 'fx/bee-swarm.webp', wind: 'fx/wind.webp', dust: 'fx/dust-puff.webp',
-        meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp' };
+        meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp', rotor: 'pieces/windmill-rotor.webp' };
     var images = {}, loadState = 0, loadWaiters = [], instances = [];
     function image(path) {
         var im = images[path];
@@ -61,12 +74,28 @@
         if (cb) loadWaiters.push(cb);
         if (loadState === 1) return;
         loadState = 1;
+        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'bolt', 'plank', 'thorn', 'shutter'].forEach(BP);   // 풍선 타기 소품 — 기다리지 않는다(없으면 코드 도형)
         var list = CREATURES.map(function (c) { return 'creatures/' + c + '.webp'; }).concat(Object.keys(PIECES).map(function (k) { return PIECES[k]; }));
         var left = list.length;
         var done = function () { if (--left > 0) return; loadState = 2; var w = loadWaiters; loadWaiters = []; w.forEach(function (f) { f(); }); };
         list.forEach(function (p) { var im = image(p); if (im.complete) done(); else { im.addEventListener('load', done, { once: true }); im.addEventListener('error', done, { once: true }); } });
     }
     var P = function (k) { return image(PIECES[k]); };
+    var bimages = {};
+    function bimage(path) {
+        var im = bimages[path];
+        if (!im) {
+            im = new Image(); im.src = BA + path + BVER; bimages[path] = im;
+            im.addEventListener('load', function () { instances.forEach(function (r) { r.redrawIfIdle(); }); }, { once: true });
+        }
+        return im;
+    }
+    var BP = function (k) { return bimage('props/' + k + '.webp'); };
+    // 포즈 시트 — 스킨이면 {동물}-{스킨}-{kind} 를 먼저(없거나 아직 못 받았으면 기본 동물 것). 둘 다 없으면 null → 코드 도형
+    function poseSheet(p, kind) {
+        if (p.skin) { var sk = bimage('creatures/' + p.creature + '-' + p.skin + '-' + kind + '.webp'); if (ok(sk)) return sk; }
+        var im = bimage('creatures/' + p.creature + '-' + kind + '.webp'); return ok(im) ? im : null;
+    }
 
     // 장식 — 고정 시드(판과 무관)
     function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -133,20 +162,21 @@
             tl = data; me = myName || ''; map = data.map; idle = null;
             var n = data.players.length;
             people = data.players.map(function (p, i) {
-                return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length],
+                return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i,
                     ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], finishT: -1 };
             });
             var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
             var nameOf = function (id) { return byId[id] ? byId[id].name : ''; };
             tl.toasts = [{ t: 0, text: '출발!' }];
-            tl.spikeFall = {}; tl.popFx = []; tl.dust = []; tl.eagles = []; tl.gusts = []; tl.decided = null;
+            tl.spikeFall = {}; tl.popFx = []; tl.dust = []; tl.eagles = []; tl.gusts = []; tl.decided = null; tl.grave = null;
+            people.forEach(function (p) { ['hang', 'blow', 'fall'].forEach(function (k) { bimage('creatures/' + p.creature + '-' + k + '.webp'); if (p.skin) bimage('creatures/' + p.creature + '-' + p.skin + '-' + k + '.webp'); }); });
             var curEagle = null;
             data.events.forEach(function (e) {
                 var p = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
                     case 'pop':
-                        p.trans.push({ t: e.t, st: 'pop' }); p.pops.push(e.t);
-                        tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color });
+                        p.trans.push({ t: e.t, st: e.cause === 'finale' ? 'fdrop' : 'pop' }); p.pops.push(e.t);   // 피날레 펑 = 낙하산 없이 바로 떨어진다
+                        tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color, row: (p.colorIdx || 0) % BALLOON.length });
                         if (e.spike != null) tl.spikeFall[e.spike] = e.t;
                         tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + (e.cause === 'spike' ? '펑! ' : '') + (CAUSE_TEXT[e.cause] || '펑!') });
                         break;
@@ -156,6 +186,8 @@
                     case 'inflate': p.trans.push({ t: e.t, st: 'inflate', dur: e.dur }); break;
                     case 'rise': p.trans.push({ t: e.t, st: 'rise', safe: true }); break;
                     case 'finish': p.trans.push({ t: e.t, st: 'done' }); p.finishT = e.t; break;
+                    case 'shock': p.trans.push({ t: e.t, st: 'shock' }); break;
+                    case 'grave': p.trans.push({ t: e.t, st: 'grave' }); tl.grave = { t: e.t, ball: e.ball, x: e.x, y: e.y }; break;
                     case 'gust': tl.gusts.push({ t: e.t, dur: e.dur, dir: e.dir }); tl.toasts.push({ t: e.t, text: e.dir > 0 ? '돌풍 →' : '← 돌풍' }); break;
                     case 'eagleWarn': curEagle = { warnT: e.t, flyT: Infinity, ball: e.ball, dir: e.dir }; tl.eagles.push(curEagle); tl.toasts.push({ t: e.t, text: '독수리가 ' + shortName(nameOf(e.ball)) + '를 노린다!' }); break;
                     case 'eagleFly': if (curEagle) curEagle.flyT = e.t; break;
@@ -300,7 +332,7 @@
             stop(); mode = 'idle'; tl = null; me = myName || ''; idle = preview; map = preview.map; setToast('');
             var n = Math.max(1, preview.players.length);
             people = preview.players.map(function (p, i) {
-                return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], ph: i * 1.7 + 0.3, dim: !!p.dim, x0: (i + 0.5) / n * WORLD_W };
+                return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i, ph: i * 1.7 + 0.3, dim: !!p.dim, x0: (i + 0.5) / n * WORLD_W };
             });
             flaps = map.plats.map(function () { return { open: 0, hold: 0 }; });
             if (camMode === 'auto' || typeof camMode === 'object') { camMode = 'auto'; if (camBtn) camBtn.hidden = true; cam = camMin(); }
@@ -371,14 +403,18 @@
                 }
                 // 가운데가 갈라진 여닫이 판 두 쪽 — 양 끝 경첩, 위로만 열린다
                 var x0 = sx(q.x - q.w / 2), x1 = sx(q.x + q.w / 2), half = q.w / 2 * s - 1, a = (flaps[i] ? flaps[i].open : 0) * R.flapOpen, th = 9 * s;
+                var plank = BP('plank'), pth = 11 * s;
                 [[x0, -1], [x1, 1]].forEach(function (hd) {
                     var hx = hd[0], d = hd[1];
                     ctx.save(); ctx.translate(hx, y); ctx.rotate(d * a); ctx.scale(-d, 1);
-                    ctx.fillStyle = C.platDark; ctx.beginPath(); ctx.roundRect(0, 0, half, th, 3); ctx.fill();
-                    ctx.fillStyle = C.plat; ctx.fillRect(2, 3, half - 4, 3 * s);
-                    ctx.fillStyle = C.platTop; ctx.beginPath(); ctx.roundRect(-1, -2, half + 1, 4, 2); ctx.fill();
+                    if (ok(plank)) ctx.drawImage(plank, d < 0 ? 0 : 96, 0, 96, 32, d < 0 ? 0 : 0, -2, half, pth);   // plank.webp 192×32 — 왼쪽 판은 왼쪽 반(경첩 쇠가 바깥 끝), 오른쪽 판은 오른쪽 반을 뒤집어
+                    else {
+                        ctx.fillStyle = C.platDark; ctx.beginPath(); ctx.roundRect(0, 0, half, th, 3); ctx.fill();
+                        ctx.fillStyle = C.plat; ctx.fillRect(2, 3, half - 4, 3 * s);
+                        ctx.fillStyle = C.platTop; ctx.beginPath(); ctx.roundRect(-1, -2, half + 1, 4, 2); ctx.fill();
+                    }
                     ctx.restore();
-                    ctx.fillStyle = C.hinge; dot(hx, y + th / 2, 3);
+                    if (!ok(plank)) { ctx.fillStyle = C.hinge; dot(hx, y + th / 2, 3); }
                 });
                 if (a < 0.1) {   // 밑면 ▲ — 밑에서는 열린다
                     ctx.strokeStyle = C.platHint; ctx.lineWidth = 1.5;
@@ -390,7 +426,9 @@
                 var ft = tl && tl.spikeFall[i] != null && sim >= tl.spikeFall[i] ? (sim - tl.spikeFall[i]) / 1000 : -1;
                 if (ft >= 2) return;
                 var y = sy(q.y) + (ft > 0 ? 0.5 * R.dropG * ft * ft * s : 0); if (y < -30 || y > H + 30) return;
-                spikeBall(sx(q.x) + (ft >= 0 && ft < 0.25 ? Math.sin(clockS * 60) * 2 : 0), y, R.spikeR * s);
+                var shx = sx(q.x) + (ft >= 0 && ft < 0.25 ? Math.sin(clockS * 60) * 2 : 0);
+                if (ok(BP('chestnut'))) { var cs = R.spikeR * 2.8 * s; ctx.save(); ctx.translate(shx, y); ctx.rotate(ft > 0 ? ft * 6 : 0); ctx.drawImage(BP('chestnut'), -cs / 2, -cs / 2, cs, cs); ctx.restore(); }
+                else spikeBall(shx, y, R.spikeR * s);
             });
             drawHazards(t, clockS);
             drawSigns();
@@ -416,9 +454,14 @@
                     for (var y = q.y0; y < q.y1 + 12; y += 12) { var yy = Math.min(y, q.y1); ctx.lineTo(sx(BW.sectionBounds(q, yy - q.y0)[side]), sy(yy)); }
                     ctx.lineTo(side ? W : 0, sy(q.y1)); ctx.closePath();
                     ctx.fillStyle = C.rock; ctx.fill(); ctx.strokeStyle = C.rockDark; ctx.lineWidth = 3; ctx.stroke();
-                    if (q.thorn) {   // 가시벽 — 닿으면 터진다
-                        ctx.fillStyle = C.thorn; var d = side ? -1 : 1;
-                        for (var y2 = q.y0 + R.funnel; y2 < q.y1 - R.funnel; y2 += 16) { var x = sx(BW.sectionBounds(q, y2 - q.y0)[side]), yy2 = sy(y2); ctx.beginPath(); ctx.moveTo(x, yy2 - 5); ctx.lineTo(x + d * 9, yy2); ctx.lineTo(x, yy2 + 5); ctx.fill(); }
+                    if (q.thorn) {   // 가시벽 — 닿으면 터진다. 가시 덩굴 타일(thorn.webp 32×96, 가시가 오른쪽)을 벽 따라 세운다 — 오른쪽 벽은 뒤집어 안쪽을 향하게
+                        var d = side ? -1 : 1, th2 = ok(BP('thorn'));
+                        var tw = 14 * s, tH = 42 * s;
+                        for (var y2 = q.y0 + R.funnel; y2 < q.y1 - R.funnel; y2 += th2 ? 42 : 16) {
+                            var x = sx(BW.sectionBounds(q, y2 - q.y0)[side]), yy2 = sy(y2);
+                            if (th2) { ctx.save(); ctx.translate(x, yy2); ctx.scale(d, 1); ctx.drawImage(BP('thorn'), -tw * 0.45, -tH, tw, tH); ctx.restore(); }
+                            else { ctx.fillStyle = C.thorn; ctx.beginPath(); ctx.moveTo(x, yy2 - 5); ctx.lineTo(x + d * 9, yy2); ctx.lineTo(x, yy2 + 5); ctx.fill(); }
+                        }
                     }
                 });
             });
@@ -437,7 +480,10 @@
                 var x = sx(h.x), y = sy(h.y);
                 if (y < -320 || y > H + 320) return;
                 ctx.lineCap = 'round';
-                if (h.type === 'blade') {
+                if (h.type === 'blade' && ok(P('rotor'))) {   // windmill-rotor.webp 192×192, 날개 끝까지 96px — 화면은 y 가 아래라 각도 부호가 반대
+                    var rs = Z.bladeLen * s / 96 * 1.02;
+                    ctx.save(); ctx.translate(x, y); ctx.rotate(-BW.bladeAng(h, t)); ctx.drawImage(P('rotor'), -96 * rs, -96 * rs, 192 * rs, 192 * rs); ctx.restore();
+                } else if (h.type === 'blade') {
                     var a0 = BW.bladeAng(h, t);
                     for (var i = 0; i < 4; i++) {
                         var a = a0 + i * Math.PI / 2, ex = sx(h.x + Math.cos(a) * Z.bladeLen), ey = sy(h.y + Math.sin(a) * Z.bladeLen);
@@ -456,13 +502,17 @@
                     var st = BW.boltState(h, t), bw = Z.boltW * s;
                     if (st >= 1) { ctx.fillStyle = C.boltZone; ctx.fillRect(x - bw / 2, y, bw, Z.boltLen * s); }   // 내리칠 자리 미리 보이기
                     if (st === 2) {
-                        ctx.strokeStyle = C.bolt; ctx.lineWidth = 5;
-                        ctx.beginPath(); ctx.moveTo(x, y + 10);
-                        for (var j = 1; j <= 7; j++) ctx.lineTo(x + (j % 2 ? 1 : -1) * (8 + Math.sin(clockS * 50 + j) * 6), y + 10 + Z.boltLen * s * j / 7);
-                        ctx.stroke();
+                        if (ok(BP('bolt'))) { var bwid = 34 * s, flick = Math.floor(clockS * 30) % 2 ? 1 : -1; ctx.save(); ctx.translate(x, y + 12 * s); ctx.scale(flick, 1); ctx.drawImage(BP('bolt'), -bwid / 2, 0, bwid, Z.boltLen * s); ctx.restore(); }   // bolt.webp 72×288 — 내리치는 길이(boltLen)로 늘린다
+                        else {
+                            ctx.strokeStyle = C.bolt; ctx.lineWidth = 5;
+                            ctx.beginPath(); ctx.moveTo(x, y + 10);
+                            for (var j = 1; j <= 7; j++) ctx.lineTo(x + (j % 2 ? 1 : -1) * (8 + Math.sin(clockS * 50 + j) * 6), y + 10 + Z.boltLen * s * j / 7);
+                            ctx.stroke();
+                        }
                     }
-                    ctx.fillStyle = st === 1 && Math.floor(clockS * 12) % 2 ? C.stormHi : C.storm;
-                    [[0, 0, 26], [-26, 8, 18], [26, 6, 20], [-12, -12, 18], [14, -14, 16]].forEach(function (o) { dot(x + o[0] * s, y + o[1] * s, o[2] * s); });
+                    var flash = st === 2 || (st === 1 && Math.floor(clockS * 12) % 2), cloud = BP(flash ? 'storm-flash' : 'storm');
+                    if (ok(cloud)) { var cw2 = 104 * s, ch2 = cw2 * 128 / 192; ctx.drawImage(cloud, x - cw2 / 2, y - ch2 * 0.55, cw2, ch2); }   // storm(-flash).webp 192×128
+                    else { ctx.fillStyle = flash ? C.stormHi : C.storm; [[0, 0, 26], [-26, 8, 18], [26, 6, 20], [-12, -12, 18], [14, -14, 16]].forEach(function (o) { dot(x + o[0] * s, y + o[1] * s, o[2] * s); }); }
                 } else if (h.type === 'fan') {
                     var on = BW.fanOn(h, t), d = -h.s, fs = 44 * s, fr = on ? Math.floor(clockS * 20) % 2 : Math.floor(clockS * 2.5) % 2;   // fan.webp 128×128 ×2(벽 받침이 왼쪽)
                     ctx.save(); ctx.translate(x + d * fs * 0.3, y); ctx.scale(d, 1); if (ok(P('fan'))) ctx.drawImage(P('fan'), fr * 128, 0, 128, 128, -fs / 2, -fs / 2, fs, fs); ctx.restore();
@@ -478,9 +528,15 @@
                     var open = BW.shutOpen(h, t), c = BW.cyc(h, t, Z.shutPeriod), pr = Math.min(1, c / Z.shutSlide), e = pr * pr * (3 - 2 * pr), halfW = W / 2, dth = 10 * s;
                     var lOff = open < 0 ? e : 1 - e, rOff = open > 0 ? e : 1 - e;   // 열리는 쪽은 벽 속으로, 닫히는 쪽은 나온다
                     ctx.fillStyle = C.doorDark; ctx.fillRect(0, y - 2, W, 4);
-                    ctx.fillStyle = C.door; ctx.strokeStyle = C.doorDark; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.rect(-lOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
-                    ctx.beginPath(); ctx.rect(halfW + rOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
+                    if (ok(BP('shutter'))) {   // shutter.webp 192×32 — 경고 줄무늬가 가운데(맞닿는 쪽)에 오게 왼쪽 문은 뒤집는다
+                        var sh = 13 * s;
+                        ctx.save(); ctx.translate(-lOff * halfW + halfW, y - sh / 2); ctx.scale(-1, 1); ctx.drawImage(BP('shutter'), 0, 0, halfW, sh); ctx.restore();
+                        ctx.drawImage(BP('shutter'), halfW + rOff * halfW, y - sh / 2, halfW, sh);
+                    } else {
+                        ctx.fillStyle = C.door; ctx.strokeStyle = C.doorDark; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.rect(-lOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
+                        ctx.beginPath(); ctx.rect(halfW + rOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
+                    }
                 } else if (h.type === 'up') {
                     var uw = h.w * s, top = sy(h.y + h.h);
                     ctx.fillStyle = C.updraft; ctx.fillRect(x - uw / 2, top, uw, h.h * s);
@@ -489,85 +545,141 @@
                 }
             });
         }
-        function drawBalloon(v, gx, gy, k, clockS) {
-            var bx = sx(v.x + v.wind * R.balTilt), by = sy(v.y + BAL_OFF), pulse = v.st === 'inflate' ? 1 + 0.06 * Math.sin(clockS * 22) : 1;
-            var r = R.balloonR * s * Math.max(0.15, k) * pulse;
-            var cx = gx + (bx - gx) * k, cy = gy + (by - gy) * k;   // 불면서 손에서 줄 끝으로 올라간다
-            var alpha = v.safe && Math.floor(clockS * SAFE_BLINK_HZ) % 2 ? 0.45 : 1;
-            var spr = v.p.balloon ? balloonSprite(v.p.balloon) : null;
-            ctx.strokeStyle = C.string; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.quadraticCurveTo(gx + (cx - gx) * 0.3 + 4, (gy + cy) / 2, cx, cy + r * 1.15); ctx.stroke();
+        // ── 동물 한 칸 그리기 — 칸 160 을 몸 크기 S 로, 칸 아래 = 발(feet). face < 0 이면 좌우 반전(시트는 오른쪽 향함) ──
+        function cellTo(img, col, row, x, feet, S, face) {
+            ctx.save(); ctx.translate(x, feet - S / 2); if (face < 0) ctx.scale(-1, 1);
+            ctx.drawImage(img, col * SPRITE.size, row * SPRITE.size, SPRITE.size, SPRITE.size, -S / 2, -S / 2, S, S);
+            ctx.restore();
+        }
+        // 칸 안 점(cx, cy) → 화면 점
+        function cellPt(x, feet, S, face, cx, cy) { return [x + face * (cx - 80) / 160 * S, feet - S + cy / 160 * S]; }
+        function frameOf(kind, clockS, p, fast) { return Math.floor((clockS + p.ph) * POSE_FPS[kind] * (fast ? 1.8 : 1)) % 4; }
+
+        // 풍선 — 색 풍선 시트(행 = 색) 또는 야식 풍선. knot = 매듭 아래 끝(화면), k = 크기(불 때 0.15→1)
+        function drawBalloonAt(v, kx, ky, k, alpha) {
+            var p = v.p, spr = p.balloon ? balloonSprite(p.balloon) : null;
             ctx.globalAlpha = alpha;
             if (spr && ok(spr)) {   // 야식 풍선(deguri_balloon) — 매듭이 줄 끝에 오게
-                var hpx = BAL_SPRITE.worldH * s * Math.max(0.15, k) * pulse, sc = hpx / BAL_SPRITE.h;
-                ctx.drawImage(spr, 0, 0, BAL_SPRITE.w, BAL_SPRITE.h, cx - BAL_SPRITE.knotX * sc, cy + r * 1.15 - BAL_SPRITE.knotY * sc, BAL_SPRITE.w * sc, hpx);
-                ctx.globalAlpha = 1; return;
+                var hpx = BAL_SPRITE.worldH * s * k, sc = hpx / BAL_SPRITE.h;
+                ctx.drawImage(spr, 0, 0, BAL_SPRITE.w, BAL_SPRITE.h, kx - BAL_SPRITE.knotX * sc, ky - BAL_SPRITE.knotY * sc, BAL_SPRITE.w * sc, hpx);
+            } else if (ok(BP('balloon'))) {
+                var sc2 = 2 * R.balloonR * 1.15 * s * k / BAL_CELL.bodyW, row = p.colorIdx % BALLOON.length;
+                ctx.drawImage(BP('balloon'), 0, row * BAL_CELL.h, BAL_CELL.w, BAL_CELL.h, kx - BAL_CELL.knotX * sc2, ky - BAL_CELL.knotY * sc2, BAL_CELL.w * sc2, BAL_CELL.h * sc2);
+            } else {   // 그림을 못 받았을 때 — 목업 도형
+                var r = R.balloonR * s * Math.max(0.15, k), cx = kx, cy = ky - r * 1.15;
+                ctx.fillStyle = p.color; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 1.18, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             }
-            ctx.fillStyle = v.p.color; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 1.18, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx, cy + r * 1.12); ctx.lineTo(cx - 3, cy + r * 1.32); ctx.lineTo(cx + 3, cy + r * 1.32); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = C.popInk; ctx.globalAlpha = 0.7 * alpha; ctx.beginPath(); ctx.ellipse(cx - r * 0.35, cy - r * 0.45, r * 0.22, r * 0.34, -0.5, 0, Math.PI * 2); ctx.fill();
             ctx.globalAlpha = 1;
         }
-        function drawChute(v, gx, gy) {
-            var open = Math.min(1, v.since / 0.25), w = 30 * s * open + 4, top = gy - 34 * s * open - 4, cx = gx + Math.sin(v.since * 2.2 + v.p.ph) * 4;
+        function stringTo(ax, ay, kx, ky, sag) {
+            ctx.strokeStyle = C.string; ctx.lineWidth = Math.max(1, 0.9 * s);
+            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + kx) / 2 + sag, (ay + ky) / 2, kx, ky); ctx.stroke();
+        }
+        function drawChuteAt(v, ax, ay) {
+            var t = v.since, f = t < 0.08 ? 0 : t < 0.18 ? 1 : 2 + (Math.floor(t * 2) % 2), sway = Math.sin(t * 2.2 + v.p.ph) * 4 * s;
+            var sc = CHUTE.worldW * s / CHUTE.openW, rimX = ax + sway, rimY = ay - CHUTE.lift * s;
+            var half = [0.18, 0.32, 0.47, 0.47][f] * CHUTE.worldW * s;
             ctx.strokeStyle = C.string; ctx.lineWidth = 1;
-            [-1, -0.4, 0.4, 1].forEach(function (f) { ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(cx + f * w, top); ctx.stroke(); });
-            for (var g = 0; g < 4; g++) {
-                ctx.fillStyle = g % 2 ? C.chuteA : C.chuteB; ctx.beginPath();
-                ctx.moveTo(cx, top - w * 0.15); ctx.ellipse(cx, top, w, w * 0.8, 0, Math.PI + g * Math.PI / 4, Math.PI + (g + 1) * Math.PI / 4); ctx.closePath(); ctx.fill();
-            }
-            ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(cx, top, w, w * 0.8, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.stroke();
+            [-1, -0.35, 0.35, 1].forEach(function (k) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(rimX + k * half, rimY); ctx.stroke(); });
+            if (ok(BP('chute'))) ctx.drawImage(BP('chute'), f * CHUTE.w, 0, CHUTE.w, CHUTE.h, rimX - CHUTE.rimX * sc, rimY - CHUTE.rimY * sc, CHUTE.w * sc, CHUTE.h * sc);
+            else { ctx.fillStyle = C.chuteB; ctx.beginPath(); ctx.ellipse(rimX, rimY, half, half * 0.8, 0, Math.PI, Math.PI * 2); ctx.fill(); }
+        }
+        // 그림 시트가 없는 동물(못 받음) — 목업처럼 서기 칸에 코드 팔
+        function codeArms(x, cy, S, gy, flail, clockS) {
+            var hands = flail ? [[-S * 0.46, -S * 0.32 + Math.sin(clockS * 30) * 4], [S * 0.46, -S * 0.32 - Math.sin(clockS * 30) * 4]] : [[-3, gy - cy], [3, gy - cy]];
+            hands.forEach(function (hd, k) {
+                var shx = x + (k ? S * 0.2 : -S * 0.2), shy = cy - S * 0.1;
+                ctx.beginPath(); ctx.lineWidth = 6; ctx.strokeStyle = C.ink; ctx.moveTo(shx, shy); ctx.lineTo(x + hd[0], cy + hd[1]); ctx.stroke();
+                ctx.beginPath(); ctx.lineWidth = 3.5; ctx.strokeStyle = C.hand; ctx.moveTo(shx, shy); ctx.lineTo(x + hd[0], cy + hd[1]); ctx.stroke();
+            });
         }
         function drawPlayer(v, clockS, picked) {
-            var S = BODY * s, x = sx(v.x), feet = sy(v.y), p = v.p;
-            if (feet < -120 || feet > H + 60) return;
-            var hop = picked === v ? Math.abs(Math.sin(clockS * 6)) * 12 : 0;
-            var cy = feet - S / 2 - hop, gx = x, gy = cy - S * 0.62;
-            var st = v.st, holding = st === 'inflate' || st === 'rise' || st === 'done' || st === 'chute';
+            var S = BODY * s, x = sx(v.x), feet = sy(v.y), p = v.p, st = v.st;
+            if (feet < -160 || feet > H + 80) return;
+            var hop = picked === v && tl && tl.target === 'first' ? Math.abs(Math.sin(clockS * 6)) * 12 : 0;   // 1등 룰 당첨자만 폴짝(꼴등은 비석)
+            feet -= hop;
             if (p.dim) ctx.globalAlpha = 0.45;
-            if (st === 'inflate' || st === 'rise' || st === 'done') drawBalloon(v, gx, gy, st === 'inflate' ? v.k : 1, clockS);
-            if (st === 'chute') drawChute(v, gx, gy);
-            if (p.dim) ctx.globalAlpha = 0.45;
-            ctx.lineCap = 'round';
-            var flail = st === 'pop' || st === 'drop', hang = st === 'rise' || st === 'chute' || st === 'done';
-            // 몸 기울기·찌그러짐(그림 전용) — 매달리면 손잡이를 축으로 진자처럼, 터지면 허우적, 내려앉으면 납작, 불 땐 숨 쉬듯
-            var rot = 0, sqY = 1;
-            if (hang) rot = clamp(v.vx / 260, -0.35, 0.35) + Math.sin(clockS * 2.1 + p.ph) * (st === 'chute' ? 0.16 : 0.08);
-            else if (flail) rot = Math.sin(clockS * 22 + p.ph) * 0.45;
-            if (st === 'land') sqY = 0.8 + 0.2 * clamp(v.since / R.landDur, 0, 1);
-            else if (st === 'inflate') sqY = 1 - 0.06 * Math.abs(Math.sin(clockS * 11));
-            var px = hang ? gx : x, py = hang ? gy : cy + S / 2;   // 회전·찌그러짐 축: 매달림 = 손잡이, 아니면 발
-            ctx.save(); ctx.translate(px, py); ctx.rotate(rot); ctx.scale(1, sqY); ctx.translate(-px, -py);
-            if (holding || flail) {
-                var hands = flail ? [[-S * 0.46, -S * 0.32 + Math.sin(clockS * 30) * 4], [S * 0.46, -S * 0.32 - Math.sin(clockS * 30) * 4]] : [[-3, gy - cy], [3, gy - cy]];
-                hands.forEach(function (hd, k) {
-                    var shx = x + (k ? S * 0.2 : -S * 0.2), shy = cy - S * 0.1;
-                    ctx.beginPath(); ctx.lineWidth = 6; ctx.strokeStyle = C.ink; ctx.moveTo(shx, shy); ctx.lineTo(x + hd[0], cy + hd[1]); ctx.stroke();
-                    ctx.beginPath(); ctx.lineWidth = 3.5; ctx.strokeStyle = C.hand; ctx.moveTo(shx, shy); ctx.lineTo(x + hd[0], cy + hd[1]); ctx.stroke();
-                });
-                hands.forEach(function (hd) { ctx.beginPath(); ctx.fillStyle = C.hand; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.arc(x + hd[0], cy + hd[1], 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+            var hangSt = st === 'rise' || st === 'done' || st === 'chute', flail = st === 'pop' || st === 'drop' || st === 'fdrop' || st === 'shock';
+            var face = v.face, main = sheet(p.creature, p.skin);
+            // 매달림: 줄 토막 꼭대기(HANG_ANCHOR)를 축으로 진자처럼 흔들린다
+            var rot = 0;
+            if (hangSt) rot = clamp(v.vx / 260, -0.35, 0.35) + Math.sin(clockS * 2.1 + p.ph) * (st === 'chute' ? 0.16 : 0.07);
+            var bx = sx(v.x + v.wind * R.balTilt), knotY = sy(v.y + BAL_OFF) + R.balloonR * 1.15 * s;   // 풍선 매듭(화면)
+            var blink = v.safe && Math.floor(clockS * SAFE_BLINK_HZ) % 2 ? 0.45 : 1;
+            if (hangSt || st === 'shock') {
+                var hs = st === 'shock' ? poseSheet(p, 'fall') : poseSheet(p, 'hang');
+                var anc = st === 'shock' ? cellPt(x, feet, S, face, 80, 28) : cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]);
+                if (st !== 'chute') { stringTo(anc[0], anc[1], bx, knotY, (bx - anc[0]) * 0.2 + 3 * s); drawBalloonAt(v, bx, knotY, 1, blink * (p.dim ? 0.45 : 1)); }
+                else drawChuteAt(v, anc[0], anc[1]);
+                ctx.save(); ctx.translate(anc[0], anc[1]); ctx.rotate(st === 'shock' ? Math.sin(clockS * 40) * 0.06 : rot); ctx.translate(-anc[0], -anc[1]);
+                if (hs) cellTo(hs, st === 'shock' ? 0 : frameOf('hang', clockS, p, Math.abs(v.vx) > 30), 0, x, feet, S, face);
+                else { codeArms(x, feet - S / 2, S, feet - S / 2 - S * 0.62, false, clockS); if (ok(main)) cellTo(main, 0, 0, x, feet, S, face); }
+                ctx.restore();
+                if (st === 'shock') drawExclaim(x, feet - S * 1.02, clockS);
+            } else if (st === 'inflate') {
+                var bs = poseSheet(p, 'blow'), mouth = MOUTH[p.creature] || [116, 66];
+                var m = bs ? cellPt(x, feet, S, face, mouth[0], mouth[1]) : [x, feet - S * 0.9];
+                var k = Math.max(0.15, v.k) * (1 + 0.05 * Math.sin(clockS * 22));
+                var kx = m[0] + (bx - m[0]) * v.k * 0.35, ky = m[1] + (knotY - m[1]) * v.k * 0.35 - 2 * s;   // 다 불수록 머리 위로 떠오른다
+                if (bs) { cellTo(bs, frameOf('blow', clockS, p), 0, x, feet, S, face); drawBalloonAt(v, kx, ky, k, 1); }
+                else { drawBalloonAt(v, kx, ky, k, 1); if (ok(main)) cellTo(main, 0, 0, x, feet, S, face); }
+            } else if (flail) {
+                var fs = poseSheet(p, 'fall');
+                if (fs) cellTo(fs, st === 'pop' ? 0 : 1 + (frameOf('fall', clockS, p) % 3), 0, x, feet, S, face);
+                else if (ok(main)) { ctx.save(); ctx.translate(x, feet - S / 2); ctx.rotate(Math.sin(clockS * 22 + p.ph) * 0.45); ctx.translate(-x, -(feet - S / 2)); codeArms(x, feet - S / 2, S, 0, true, clockS); cellTo(main, 0, 0, x, feet, S, face); ctx.restore(); }
+            } else if (st === 'grave') {
+                drawGrave(v, x, feet, S, face, main, clockS);
+            } else {   // wait · land — 서기(착지 순간은 납작)
+                var sq = st === 'land' ? 0.8 + 0.2 * clamp(v.since / R.landDur, 0, 1) : 1, frame = Math.floor((clockS + p.ph) * SPRITE.fps) % SPRITE.frames;
+                ctx.save(); ctx.translate(x, feet); ctx.scale(1, sq); ctx.translate(-x, -feet);
+                if (ok(main)) cellTo(main, frame, 0, x, feet, S, face);
+                else { ctx.fillStyle = C.hand; ctx.beginPath(); ctx.arc(x, feet - S / 2, S * 0.4, 0, Math.PI * 2); ctx.fill(); }
+                ctx.restore();
             }
-            var im = sheet(p.creature, p.skin), frame = Math.floor((clockS + p.ph) * SPRITE.fps * (flail ? 3 : hang && Math.abs(v.vx) > 30 ? 1.8 : 1)) % SPRITE.frames;
-            ctx.translate(x, cy); if (v.face < 0) ctx.scale(-1, 1);   // 움직이는 쪽을 본다(시트는 오른쪽 보기)
-            if (ok(im)) ctx.drawImage(im, frame * SPRITE.size, 0, SPRITE.size, SPRITE.size, -S / 2, -S / 2, S, S);
-            else { ctx.fillStyle = C.hand; ctx.beginPath(); ctx.arc(0, 0, S * 0.4, 0, Math.PI * 2); ctx.fill(); }
-            ctx.restore();
+            ctx.globalAlpha = p.dim ? 0.45 : 1;
+            if (st !== 'grave') nameTag(p, x, st === 'rise' || st === 'done' || st === 'chute' ? feet + 2 : feet - S * 0.06);
+            ctx.globalAlpha = 1;
+        }
+        function nameTag(p, x, y) {
             var mine = p.name === me, label = shortName(p.name);
             ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            var tw = ctx.measureText(label).width + 12, ty = cy + S / 2 + 9;
+            var tw = ctx.measureText(label).width + 12, ty = y + 9;
             ctx.fillStyle = mine ? C.tagMe : C.tag; ctx.strokeStyle = C.tagInk; ctx.lineWidth = mine ? 2 : 1.5;
             ctx.beginPath(); ctx.roundRect(x - tw / 2, ty - 8, tw, 16, 8); ctx.fill(); ctx.stroke();
             ctx.fillStyle = C.tagInk; ctx.fillText(label, x, ty + 0.5);
-            ctx.globalAlpha = 1;
+        }
+        function drawExclaim(x, y, clockS) {   // 놀람 "!" — 머리 위에서 톡 튄다
+            var pop = 1 + 0.25 * Math.abs(Math.sin(clockS * 18));
+            ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop);
+            ctx.fillStyle = C.warn; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = C.warnInk; ctx.font = '900 15px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 1);
+            ctx.restore();
+        }
+        // 비석 — 착지 자리에 위에서 떨어져 박히고(graveDrop), 동물은 그 앞에 어질어질 앉는다(기본 시트 row 4 c3)
+        function drawGrave(v, x, feet, S, face, main, clockS) {
+            var k = clamp(v.since / R.graveDrop, 0, 1), e = k * k, gh = GRAVE_WORLD_H * s, gw = gh * 96 / 128;
+            var gy = feet - (1 - e) * 160;
+            if (ok(BP('gravestone'))) ctx.drawImage(BP('gravestone'), x - gw / 2 - S * 0.1, gy - gh, gw, gh);
+            else { ctx.fillStyle = C.door; ctx.strokeStyle = C.doorDark; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x - gw / 2 - S * 0.18, gy - gh, gw, gh, [gw / 2, gw / 2, 2, 2]); ctx.fill(); ctx.stroke(); }
+            if (ok(main)) cellTo(main, 3, 4, x + S * 0.22, feet, S * 0.9, face);
+            if (k < 1) return;
+            if (v.since - R.graveDrop < 0.4 && ok(P('dust'))) { var dk = (v.since - R.graveDrop) / 0.4, ds = 46 * s; ctx.globalAlpha = 1 - dk * 0.6; ctx.drawImage(P('dust'), Math.min(3, Math.floor(dk * 4)) * 80, 0, 80, 80, x - ds / 2 - S * 0.18, feet - ds * 0.8, ds, ds); ctx.globalAlpha = 1; }
         }
         function drawFx(sim, view) {
             tl.popFx.forEach(function (f) {
                 if (sim < f.t || sim - f.t >= POP_FX_MS) return;
                 var k = (sim - f.t) / POP_FX_MS, x = sx(f.x), y = sy(f.y);
-                if (ok(P('star')) && k < 0.5) { var fr = Math.min(STAR.frames - 1, Math.floor(k * 2 * STAR.frames)), sz = 56 * s; ctx.drawImage(P('star'), fr * STAR.cell, 0, STAR.cell, STAR.cell, x - sz / 2, y - sz / 2, sz, sz); }
-                ctx.fillStyle = f.color; ctx.globalAlpha = 1 - k;
-                for (var i = 0; i < 7; i++) { var a = i / 7 * Math.PI * 2 + 0.3, d = (8 + 40 * k) * s; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * d, y + Math.sin(a) * d + 20 * k * k * s); ctx.lineTo(x + Math.cos(a + 0.25) * (d + 7), y + Math.sin(a + 0.25) * (d + 7)); ctx.lineTo(x + Math.cos(a - 0.2) * (d + 5), y + Math.sin(a - 0.2) * (d + 5)); ctx.fill(); }
-                ctx.font = '900 18px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = C.countInk; ctx.strokeText('펑!', x, y - 26 - 18 * k); ctx.fillStyle = C.popInk; ctx.fillText('펑!', x, y - 26 - 18 * k);
+                if (ok(BP('balloon')) && k < 0.6) {   // 풍선 시트의 터짐 3칸(그 사람 색)
+                    var fr = 1 + Math.min(2, Math.floor(k / 0.6 * 3)), sc = 2 * R.balloonR * 1.15 * s / BAL_CELL.bodyW * 1.15;
+                    ctx.drawImage(BP('balloon'), fr * BAL_CELL.w, f.row * BAL_CELL.h, BAL_CELL.w, BAL_CELL.h, x - BAL_CELL.knotX * sc, y - BAL_CELL.popCY * sc, BAL_CELL.w * sc, BAL_CELL.h * sc);
+                } else if (!ok(BP('balloon'))) {
+                    ctx.fillStyle = f.color; ctx.globalAlpha = 1 - k;
+                    for (var i = 0; i < 7; i++) { var a = i / 7 * Math.PI * 2 + 0.3, d = (8 + 40 * k) * s; ctx.beginPath(); ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 3 * s, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.globalAlpha = 1;
+                }
+                ctx.globalAlpha = 1 - k;
+                ctx.font = '900 18px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = C.countInk; ctx.strokeText('펑!', x, y - 30 - 18 * k); ctx.fillStyle = C.popInk; ctx.fillText('펑!', x, y - 30 - 18 * k);
                 ctx.globalAlpha = 1;
             });
             if (!ok(P('dust'))) return;

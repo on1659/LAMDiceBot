@@ -12,7 +12,8 @@ const SIM_DT_MS = 10;             // 내부 스텝(초당 100) — 상승 ≤ 15
 const SAMPLE_MS = 40;             // 프레임 기록 간격(SIM_DT_MS 배수)
 const SIM_CAP_MS = 150000;        // 하드 캡(사용자 2026-10-18 §10 Q5) — 넘으면 1등 룰은 가장 높은, 꼴등 룰은 가장 낮은 동물이 당첨
 const SIM_YIELD_EVERY = 500;      // 이 스텝마다 setImmediate (CPU 양보)
-const HIT_SIM_MS = 470;           // 당첨 확정 뒤 더 계산하는 시뮬 시각 — 재생은 hitStop(0.25s 정지) + 0.35배속 1.35s = 목업 resultDelay 1.6s
+const HIT_SIM_MS = 470;           // 1등 룰: 당첨 확정 뒤 더 계산하는 시뮬 시각 — 재생은 hitStop(0.25s 정지) + 0.35배속 1.35s = 목업 resultDelay 1.6s
+const GRAVE_HOLD_MS = Math.round(R.graveHold * 1000);   // 꼴등 룰: 비석이 박힌 뒤 결과까지
 const MAX_PLAYERS = 30;
 const SEED_SALT = 0x5bd1e995;     // 경기 rng = mulberry32(seed ^ SEED_SALT) — 맵 rng 와 섞이지 않게
 const MAP_SALT = 0x9e3779b9;      // 맵 rng = mulberry32(trackSeed ^ MAP_SALT) — 데구리와 같은 짝
@@ -40,9 +41,10 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *  frames[k] = [x0, y0, lean0, x1, y1, lean1, …, eagleX, eagleY] 정수(시뮬 시각 k·sampleMs).
  *              lean = 바람(돌풍·선풍기) 세기 — 풍선이 x + lean·R.balTilt 로 기운다. 도착한 동물은 도착 자리(y = worldH)에 남는다.
  *              eagleX/Y = 독수리(경고 중엔 노리는 높이, 아니면 화면 밖 -999)
- *  events    = [{ t(ms), type, … }] — inflate{ball,dur} · rise{ball} · pop{ball,cause,spike?|hz?|sec?,x,y,dir} · drop{ball} · chute{ball} ·
+ *  events    = [{ t(ms), type, … }] — inflate{ball,dur} · rise{ball} · pop{ball,cause,spike?|hz?|sec?,x,y,dir} · shock{ball} · grave{ball,plat,x,y} · drop{ball} · chute{ball} ·
  *              land{ball,plat(-1 = 땅)} · finish{ball} · gust{dir,dur} · eagleWarn{ball,dir} · eagleFly{ball,hit} · eagleMiss{ball} ·
- *              cap · decided{ball}. cause ∈ spike|blade|pend|bolt|bee|thorn|eagle
+ *              cap · decided{ball}. cause ∈ spike|blade|pend|bolt|bee|thorn|eagle|finale
+ *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
  *  finishOrder = 순위 순 id 전부(도착 순 → 판정 순간 미도착은 높이 순)
  *  slow      = [{ startMs, endMs, rate, holdMs? }] 시뮬 시각 — 결승 슬로모(0.5) + 판정 순간 정지(holdMs)·0.35배속. durationMs 에 반영(BalloonWorld.realDuration)
  *  opts.target = 'first' | 'last'(기본). 'last' 는 opts 없음과 결과가 같다
@@ -65,7 +67,7 @@ async function simulate(players, seed, map, opts) {
     const eagle = { st: 'wait', t: R.eagleFirst + rng() * 2, x: -999, y: -999, dir: 1, target: null, hit: false, passed: false };
     const gust = { t: 0, next: range(R.gustMin, R.gustMax), dir: 1 };
     const events = [], frames = [], arrived = [], slow = [];
-    let tMs = 0, t = 0, phase = 'run', decidedBall = -1, decidedMs = 0, rankOrder = null, finalStart = -1;
+    let tMs = 0, t = 0, phase = 'run', decidedBall = -1, decidedMs = 0, rankOrder = null, finalStart = -1, finale = false, graveMs = -1;
 
     const ev = (type, o) => { events.push(Object.assign({ t: tMs, type }, o)); };
     const live = () => P.filter(p => p.st !== 'done');
@@ -82,6 +84,10 @@ async function simulate(players, seed, map, opts) {
         // 순위는 판정 순간으로 고정 — 도착 순, 미도착은 높이 순(목업 showResult). 꼴등 룰의 당첨자는 남은 한 명이라 늘 맨 뒤
         rankOrder = arrived.slice().concat(live().sort((a, b) => b.y - a.y || a.id - b.id).map(q => q.id));
         ev('decided', { ball: p.id });
+        if (!first && p.st !== 'done') {   // 꼴등 피날레 — 남은 한 명이 놀란다(풍선은 아직 잡고 있다, 제자리)
+            finale = true; p.st = 'shock'; p.stT = R.finaleShock; p.vy = 0; p.kick = 0;
+            ev('shock', { ball: p.id });
+        }
     }
     function finish(p) {
         p.st = 'done'; p.y = worldH; arrived.push(p.id);
@@ -185,6 +191,25 @@ async function simulate(players, seed, map, opts) {
             case 'land':
                 if ((p.stT -= dt) <= 0) { p.st = 'inflate'; p.stT = 0; p.inflDur = range(R.reInflMin, R.reInflMax); ev('inflate', { ball: p.id, dur: Math.round(p.inflDur * 1000) }); }
                 break;
+            case 'shock':
+                if ((p.stT -= dt) <= 0) {
+                    ev('pop', { ball: p.id, cause: 'finale', x: Math.round(balloonX(p)), y: Math.round(p.y + BAL_OFF), dir: 0 });
+                    p.st = 'fdrop'; p.stT = 0; p.pops++; p.vy = 0; p.wind = 0;
+                }
+                break;
+            case 'fdrop': {   // 낙하산 없이 똑바로 — 처음 닿는 발판(위에서 내려오면 여닫이·들보 모두 선다) 또는 땅
+                const prevY = p.y;
+                p.stT += dt;
+                p.vy = Math.max(-R.finaleVMax, p.vy - R.dropG * dt);
+                p.y += p.vy * dt;
+                let pl = -1;
+                for (let i = 0; i < plats.length; i++) { const q = plats[i]; if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (pl < 0 || q.y > plats[pl].y)) pl = i; }
+                if (pl >= 0 || p.y <= 0 || p.stT >= R.finaleFallMax) {
+                    p.y = pl >= 0 ? plats[pl].y : Math.max(0, p.y); p.vy = 0; p.st = 'grave'; graveMs = tMs;
+                    ev('grave', { ball: p.id, plat: pl, x: Math.round(p.x), y: Math.round(p.y) });
+                }
+                break;
+            }
         }
     }
 
@@ -242,11 +267,12 @@ async function simulate(players, seed, map, opts) {
             decide(first ? ls[0] : ls[ls.length - 1]);
         }
         if (step % sampleEvery === 0) record();
-        if (phase === 'hit' && tMs >= decidedMs + HIT_SIM_MS) break;
+        if (phase === 'hit' && (finale ? graveMs >= 0 && tMs >= graveMs + GRAVE_HOLD_MS : tMs >= decidedMs + HIT_SIM_MS)) break;
         if (step % SIM_YIELD_EVERY === 0) await new Promise(r => setImmediate(r));
     }
     if (finalStart >= 0) slow.push({ startMs: finalStart, endMs: decidedMs, rate: R.finalSlow });
-    slow.push({ startMs: decidedMs, endMs: decidedMs + HIT_SIM_MS, rate: R.hitSlow, holdMs: Math.round(R.hitStop * 1000) });   // 판정 순간 0.25s 정지 → 0.35배속
+    if (finale) slow.push({ startMs: decidedMs, endMs: decidedMs, rate: 1, holdMs: Math.round(R.hitStop * 1000) });   // 꼴등 룰: 판정 순간 0.25s 정지 → 놀람·낙하·비석은 제 속도
+    else slow.push({ startMs: decidedMs, endMs: decidedMs + HIT_SIM_MS, rate: R.hitSlow, holdMs: Math.round(R.hitStop * 1000) });   // 1등 룰: 판정 순간 0.25s 정지 → 0.35배속
     const simEndMs = tMs;
     if (frames.length && (frames.length - 1) * SAMPLE_MS < simEndMs) record();
     return { map, sampleMs: SAMPLE_MS, frames, events, finishOrder: rankOrder, simEndMs, slow, durationMs: Math.round(W.realDuration(simEndMs, slow)), decidedBall };
@@ -263,5 +289,5 @@ function rankPlayers(players, finishOrder, target) {
 
 module.exports = {
     mulberry32, drawOrder, buildMap, simulate, rankPlayers,
-    constants: { SIM_DT_MS, SAMPLE_MS, SIM_CAP_MS, HIT_SIM_MS, MAX_PLAYERS, MAP_SALT, SEED_SALT }
+    constants: { SIM_DT_MS, SAMPLE_MS, SIM_CAP_MS, HIT_SIM_MS, GRAVE_HOLD_MS, MAX_PLAYERS, MAP_SALT, SEED_SALT }
 };

@@ -18,7 +18,10 @@
         gustMin: 5, gustMax: 8, gustDur: 1.5, gustPush: 80, gustSlow: 0.55, windEase: 3,
         eagleFirst: 8, eagleMin: 7, eagleMax: 10, eagleWarn: 0.9, eagleFly: 1.1, eagleHitP: 0.4, eagleFromH: 0.12, eagleTopGap: 150, eagleMissDy: 46,
         flapOpen: 1.25, flapEase: 14, flapHold: 0.3, solidP: 0.35, solidReach: 220, finalZone: 220, finalSlow: 0.5,
-        inflate: 3, hitStop: 0.25, hitSlow: 0.35, resultDelay: 1.6, shakeDur: 0.3, camEase: 3
+        inflate: 3, hitStop: 0.25, hitSlow: 0.35, resultDelay: 1.6, shakeDur: 0.3, camEase: 3,
+        // 꼴등 피날레(사용자 2026-10-18): N-1 명이 도착하면 남은 한 명이 놀라고(finaleShock) → 풍선 펑 → 낙하산 없이 떨어져(종단 finaleVMax)
+        // 처음 닿는 발판·땅에 착지 → 그 자리에 비석(graveDrop 동안 떨어져 박힘) → graveHold 뒤 결과
+        finaleShock: 0.5, finaleVMax: 700, finaleFallMax: 8, graveDrop: 0.45, graveHold: 1.6
     };
     // 구간 장치 — 위치는 시각 t(초) 만의 함수
     const Z = {
