@@ -30,9 +30,27 @@
 
 - 소품 3장 모두 첫 시도 채택. 풍선 터짐 2·3칸은 조각이 풍선보다 넓게 흩어져 칸에 맞춰 따로 줄임.
 - hang: 햄스터·판다·고슴도치·아르마딜로·공벌레·거북이·토끼·돼지 첫 시도, 복어 2번(끈이 가운데). **너구리는 이미지 도구 안전 검사에 3번 막힘** — "밧줄에 매달림(hang from a rope)" 표현 탓으로 보고 "풍선 끈을 쥐고 둥실 떠 있음"으로 바꿔 재의뢰(`_blocked-raccoon/` 보관). 이후 hang 문구는 전부 이 표현.
-- blow·fall: 아래 표에 이어 적는다.
+- blow: 전부 첫 시도(햄스터·고슴도치·아르마딜로·판다·공벌레·거북이·복어·너구리·토끼), 돼지는 꼬리가 둘(머리 뒤에도 말린 꼬리)이라 "꼬리 하나, 엉덩이에만" 을 덧붙여 재의뢰(`ribbonpig-r2/` 2번 채택). 아르마딜로·너구리는 투명 대신 체크무늬를 그렸지만 배경 제거(Δ60 flood)로 지워짐.
+- fall: 공벌레 3번, 토끼 2번, 나머지 첫 시도.
+- 너구리 hang 은 "풍선 끈을 쥐고 둥실" 표현으로도 두 번 더 막혀(자해 필터) **끈 없이 두 팔 만세 자세**로 그렸다(`_blocked-raccoon-2/` 보관). 끈 토막이 없으니 앞발 꼭대기가 기준점 — `balloon-sheet.py NO_ROPE`.
+- 기본 10종 × 3 = 30장을 서기 칸과 나란히 4칸씩 확대해 확인한 뒤(크기·얼굴·색 일관, 섞인 칸 없음) 스킨의 기준 그림으로 삼았다.
 
 ## 겪은 것
 
 - 원본 끈 토막이 칸 키의 ~25%를 먹어 몸 넓이가 서기의 0.64~0.68배로 나왔다 → 리팩 때 끈을 아래 30%만 남겨 0.82~0.96배.
-- 스킨(70종)은 아직 전용 포즈 시트가 없다 — 매달림·불기·낙하는 기본 동물 그림으로 그려진다(서기·착지는 스킨 그대로). 스킨 시트는 걷기 시트처럼 "기본 동물 포즈 시트 + 스킨 main 시트 → 옷 입히기"로 이어 만들 수 있다.
+## 스킨 — deguri_skin 69종 × 3포즈 (사용자 2026-10-18: "스킨이 없으면 매달려 올라가는 동안 스킨이 벗겨져 보인다")
+
+받기 경로 `assets/balloon/creatures/{동물}-{스킨}-{kind}.webp`, 렌더러 `poseSheet` 가 먼저 찾고 없으면 기본 동물 것. 갈래는 `balloon-sheet.py skin-kind` 가 정한다:
+
+| 갈래 | 방법 | look |
+|---|---|---|
+| recolor (6) | `recolor-creature.py` PRESETS — GPT 없음 | hedgehog-cherry armadillo-gold pufferfish-blue rabbit-black turtle-ocean hamster-grey |
+| remap (20) | 프리셋은 없지만 기본 시트와 **알파가 100% 같고** 색 대응 편차 < 5 인 색 스킨 — 기본 main ↔ 스킨 main 같은 자리 픽셀로 "기본 색 → 스킨 색" 표를 만들어 포즈 시트에 입힘(가까운 기본 색 + 원래 음영 차). GPT 없음 | hedgehog-lemon/blueberry, armadillo-silver/rose, pillbug-tangerine/matcha, turtle-lavender/coral, panda-brown/strawberry, hamster-choco/snow, pufferfish-peach/kiwi, raccoon-white/sunset, rabbit-cheese/sky, ribbonpig-jeju/mintchoco |
+| pixelate (2) | `pixelate-creature.py` 방식 — GPT 없음 | panda-dot hamster-dot |
+| dress (41) | GPT 옷 입히기: 1번 입력 = 기본 동물 포즈 시트, 2번 입력 = 스킨 main 시트. 포즈 그대로, 의상은 스킨 시트와 같은 디자인, 기본 동물에 없는 색·무늬만 | 나머지 전부(ribbonpig-red 포함 — PRESETS 에 있지만 서기 시트에 머리 위 불꽃 장식이 있어 색만 바꾸면 장식이 빠진다, 걷기 시트 때도 옷 입히기) |
+
+채택(dress): 스킨 서기 4칸 | hang | blow | fall 을 한 줄로 놓고 확대해서 본다(동시 실행 섞임·기본 동물 특징 잔존 확인). GPT 가 hang 의 끈 토막을 빼먹은 시트는 그림 꼭대기(앞발)가 기준점이 되므로 그대로 받는다(검사는 참고 표시).
+- ribbonpig-ribbon · ribbonpig-scarf(매달림에도 시큰둥한 반눈 유지 확인) · hamster-cookie · hedgehog-knight · panda-red(배·팔다리 짙은 색 확인) · pillbug-rainbow · rabbit-tophat · turtle-melon — 첫 시도 또는 Codex 가 다시 그린 마지막 시도 채택
+- armadillo-cowboy · armadillo-gpu · hamster-bee · hamster-hachi · hamster-nyang · hedgehog-apple · panda-bamboo · panda-honey · panda-lifeguard · panda-malang · panda-mochi · panda-snorkel · panda-trunks · pillbug-gpu · pillbug-ladybug · pufferfish-crown · rabbit-ura · rabbit-yaho · ribbonpig-angry · ribbonpig-gold · ribbonpig-iron · ribbonpig-pilot · ribbonpig-zhu · turtle-garden · turtle-gpu — 같은 방법으로 확인해 채택
+- 마지막 묶음: rabbit-wreath · ribbonpig-chef · ribbonpig-red(머리 위 불꽃 유지 확인) · raccoon-ninja · raccoon-swimcap · raccoon-tube · raccoon-beanie · raccoon-aloha
+- 스킨 쪽에서 겪은 것: panda-honey blow 가 투명 대신 회색 체크무늬를 그렸는데 Δ60 flood 로 안 지워짐 → `remove_checker()`(밝은 회색 두 톤이 칸 단위로 번갈아 나오는 바탕을 먼저 지움). 너구리 스킨 hang 은 기본 너구리와 같은 문구(끈 없이 두 팔 만세)로 미리 바꿔서 돌려 막힘 없음. raccoon-aloha fall 은 Codex 가 그림을 받고 저장에 실패해 한 번 더 돌림.

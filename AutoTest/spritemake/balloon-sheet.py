@@ -133,7 +133,32 @@ Your job is ONLY to DRAW with the built-in image generation tool. Do NOT write a
 
 
 # ── 리팩 ──
+def remove_checker(a):
+    """GPT 가 투명 대신 회색 체크무늬를 '그려' 넣은 원본 — 모서리가 무채색이면, 테두리에서 이어진 채도 낮은 중간 밝기 픽셀을 지운다.
+    체크의 짙은 칸은 모서리 색과 Δ60 이상 달라 remove_backdrop 이 남긴다(2026-10-18 꿀곰 판다 불기). 동물은 짙은 외곽선(밝기 < 90)에 막혀 안쪽은 안 닿는다"""
+    from collections import deque
+    h, w = a.shape[:2]; rgb = a[..., :3].astype(int); op = a[..., 3] >= ALPHA_MIN
+    corners = [rgb[y, x] for y, x in ((0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)) if op[y, x]]
+    if not corners or any(c.max() - c.min() > 18 for c in corners): return a
+    cand = op & ((rgb.max(-1) - rgb.min(-1)) <= 18) & (rgb.max(-1) >= 90)
+    seen = np.zeros((h, w), bool); q = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            if cand[y, x] and not seen[y, x]: seen[y, x] = True; q.append((y, x))
+    for y in range(h):
+        for x in (0, w - 1):
+            if cand[y, x] and not seen[y, x]: seen[y, x] = True; q.append((y, x))
+    while q:
+        y, x = q.popleft()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and cand[ny, nx] and not seen[ny, nx]: seen[ny, nx] = True; q.append((ny, nx))
+    out = a.copy(); out[seen] = 0
+    return out
+
+
 def cut_frames(a, cols):
+    a = remove_checker(a)
     a, bg = W.remove_backdrop(a)
     a[a[..., 3] < 128] = 0; a[..., 3] = np.where(a[..., 3] >= 128, 255, 0).astype(np.uint8)
     a, _ = W.despill(a, bg)
@@ -211,14 +236,16 @@ def verify(path, c, kind):
         for i, s in enumerate(st if c.split('-')[0] not in NO_ROPE else []):
             band = a[HANG_TOP:HANG_TOP + 4, i * CELL:(i + 1) * CELL, 3] >= ALPHA_MIN
             wmax = max(int(r.sum()) for r in band)
-            if wmax > 12: ok = False; notes.append(f'c{i} no thin rope at the top (width {wmax})'); break
+            if wmax > 12:   # 스킨 옷 입히기는 GPT 가 끈 토막을 빼먹기도 한다 — 렌더러는 그림 꼭대기(앞발)에 끈을 이으니 참고만
+                if '-' not in c: ok = False
+                notes.append(f'c{i} no thin rope at the top (width {wmax})'); break
     elif kind == 'blow':
         if any(s['y1'] != PLANE for s in st): ok = False; notes.append(f'bottoms {[int(s["y1"]) for s in st]}')
     def diff(i, j): return int((a[:, i * CELL:(i + 1) * CELL] != a[:, j * CELL:(j + 1) * CELL]).any(-1).sum())
     d = [diff(0, 1), diff(1, 2), diff(2, 3), diff(0, 3)]
     if min(d) < 120: ok = False; notes.append(f'cells nearly identical {d}')
     print(f'  {Path(path).name}: boxes {[(int(s["x1"] - s["x0"]), int(s["y1"] - s["y0"])) for s in st]} | area {area:.2f}x stand | diffs {d}')
-    print('  ' + ('OK' if ok else 'FAIL: ' + '; '.join(notes)))
+    print('  ' + ('OK' if ok else 'FAIL: ' + '; '.join(notes)) + (f'  (note: {"; ".join(notes)})' if ok and notes else ''))
     return ok
 
 

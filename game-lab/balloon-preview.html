@@ -47,6 +47,7 @@
         <label>맵 시드 <input type="number" id="mapSeed" value="1" min="1"></label>
         <button onclick="bump('mapSeed', 1)" title="맵 시드 +1">＋</button>
         <label>구간 <input type="text" id="order" placeholder="비우면 덱에서 뽑기 · 예: windmill,fans" style="width:220px"></label>
+        <label>동물 <input type="text" id="looks" placeholder="비우면 10종 순서 · 예: hedgehog-knight,panda-red,raccoon" style="width:260px"></label>
         <button onclick="run()">⚙ 계산</button>
         <label>내 이름 <select id="me"></select></label>
     </div>
@@ -96,7 +97,12 @@
             if (bad.length) { $('summary').textContent = '모르는 구간: ' + bad.join(', ') + ' (가능: ' + BW.SECTION_NAMES.join(', ') + ')'; return; }
             var order = typed.length ? typed : Sim.drawOrder([], mapSeed, null).order;
             var map = Sim.buildMap(mapSeed, order);
-            var players = names(n).map(function (name, i) { return { id: i, owner: name, creature: CREATURES[i % CREATURES.length], colorIdx: i % 8 }; });
+            var looks = $('looks').value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);   // 스킨 동물로 보기 — '{동물}-{스킨}' (스킨 포즈 시트 확인용)
+            if (looks.length) n = looks.length;
+            var players = names(n).map(function (name, i) {
+                var look = looks[i] || '', c = look ? look.split('-')[0] : CREATURES[i % CREATURES.length], sk = look.indexOf('-') > 0 ? look.slice(look.indexOf('-') + 1) : undefined;
+                return { id: i, owner: name, creature: c, skin: sk, colorIdx: i % 8 };
+            });
             var meSel = $('me'), keep = meSel.value;
             meSel.innerHTML = '<option value="">(없음)</option>' + players.map(function (p) { return '<option>' + p.owner + '</option>'; }).join('');
             meSel.value = players.some(function (p) { return p.owner === keep; }) ? keep : players[0].owner;
@@ -134,7 +140,7 @@
         }
         $('events').addEventListener('click', function (e) { var row = e.target.closest('[data-t]'); if (row) { stopDriver(); seekTo(+row.getAttribute('data-t')); } });
         $('me').addEventListener('change', function () { if (data) { var t = R.time(); R.setTimeline(data, $('me').value); seekTo(t); } });
-        ['n', 'rule', 'seed', 'mapSeed'].forEach(function (id) { $(id).addEventListener('change', run); });
+        ['n', 'rule', 'seed', 'mapSeed', 'looks'].forEach(function (id) { $(id).addEventListener('change', run); });
         $('order').addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
         $('rate').addEventListener('change', function () { rate = +$('rate').value; });
 
