@@ -146,7 +146,6 @@ function createRoomGameState() {
         balloon: {                  // 풍선 타기(socket/balloon.js, docs/goal/balloon-climb.md)
             phase: 'idle',          // idle | playing | finished
             picks: {},              // { userName: creatureId } — 동물은 데구리와 같은 목록
-            looks: {},              // { userName: { skins: {동물: {skin, skinName}}, balloon } } 로그인 계정의 데구리 장착(DB 읽기만) — 나가면 지운다
             rankVotes: {},          // { userName: 'first' | 'last' }
             target: 'last',
             participants: [],

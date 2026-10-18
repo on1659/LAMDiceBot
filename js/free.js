@@ -36,7 +36,7 @@
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
         deguri:   '데구리',
-        balloon:  '풍선 타기'
+        balloon:  '둥둥라이더'
     };
 
     // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})

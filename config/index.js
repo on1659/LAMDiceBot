@@ -29,7 +29,7 @@ const DEV_GATED_GAMES = {
     'bridge': '지금은 열 수 없는 게임이에요.',
     'pirate': '지금은 열 수 없는 게임이에요.',
     // 풍선 타기(docs/goal/balloon-climb.md) — 1차는 테스트 서버(DEV_GAMES=1)·로컬에서만. free:createRoom 은 슬러그 표에 없어 따로 막을 필요 없다(C-38)
-    'balloon': '풍선 타기는 아직 준비 중이에요. 곧 만나요!'
+    'balloon': '둥둥라이더는 아직 준비 중이에요. 곧 만나요!'
 };
 
 // 예약 시작 (.env로 재정의 가능)

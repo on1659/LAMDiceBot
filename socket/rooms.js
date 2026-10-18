@@ -171,7 +171,7 @@ module.exports = (socket, io, ctx) => {
                     : undefined,
                 // 보안: deguri.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
-                // 풍선 타기: timeline / result / seed / trackSeed / looks 마스킹 (C-20)
+                // 풍선 타기: timeline / result / seed / trackSeed 마스킹 (C-20)
                 balloon: gameState.balloon
                     ? { phase: gameState.balloon.phase, picks: gameState.balloon.picks, round: gameState.balloon.round, history: gameState.balloon.history }
                     : undefined,
@@ -1294,10 +1294,9 @@ module.exports = (socket, io, ctx) => {
                     io.to(roomId).emit('deguri:rankVotesUpdated', { votes: { ...gameState.deguri.rankVotes } });
                 }
             }
-            // 풍선 타기: 퇴장한 사용자의 동물 선택·장착 읽음·투표 삭제 — socket/chat.js disconnect 와 짝(C-19)
+            // 풍선 타기: 퇴장한 사용자의 동물 선택·투표 삭제 — socket/chat.js disconnect 와 짝(C-19)
             if (gameState.balloon) {
                 const bl = gameState.balloon;
-                if (bl.looks) delete bl.looks[socket.userName];
                 if (bl.picks && bl.picks[socket.userName] !== undefined) {
                     delete bl.picks[socket.userName];
                     if (bl.phase === 'idle') io.to(roomId).emit('balloon:stateUpdated', { picks: { ...bl.picks } });

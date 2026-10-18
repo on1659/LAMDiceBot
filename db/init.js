@@ -352,6 +352,22 @@ async function initDatabase() {
             )
         `);
 
+        // ─── 둥둥라이더 Jev 하이라이트 반응 — 데구리와 같은 모양(db/balloon-highlight-feedback.js) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS balloon_highlight_feedback (
+                rid        VARCHAR(32) NOT NULL,
+                viewer     VARCHAR(64) NOT NULL,
+                arm        VARCHAR(16) NOT NULL,
+                mode       VARCHAR(8)  NOT NULL,
+                facts      JSONB       NOT NULL,
+                vote       SMALLINT,
+                saved      BOOLEAN     NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (rid, viewer)
+            )
+        `);
+
         // ─── 앱 비밀값 영속 (key/value) — 토큰 서명키 등을 env 없이 DB에 유지 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS app_secrets (

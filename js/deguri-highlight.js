@@ -5,6 +5,7 @@
 // 저절로 한 번(사용자 2026-10-12): 결과 카드가 열리고 3초 뒤(GIF 가 덜 됐으면 다 되는 대로, 열린 뒤 10초까지) 하이라이트로 바꿔 보여 준다. 판마다 한 번, 뭘 누르면 그만둔다.
 // GIF 는 반복 없이 한 번 재생하고 마지막 장면에 멈추며, 그 위에 "이 장면 어땠어요?" 👍/👎 + [다시 재생]·[닫기] 가 뜬다(사용자 2026-10-12 — 보고 나서 좋아요·별로예요를 받고, 한 바퀴 뒤 순위로 저절로 돌아가지 않는다).
 // 경주 결과·시뮬에는 아무 영향이 없다. GIF 는 어디로도 보내지 않는다.
+// 둥둥라이더도 이 파일을 쓴다(js/balloon.js connect) — 이벤트 머리(prefix)·화면 밖 렌더러(createRenderer)·이유 문장·파일 이름만 connect 옵션으로 바꾼다.
 (function () {
     'use strict';
 
@@ -58,20 +59,20 @@
             stopAuto();
             if (!cur || !cur.blob) return;
             if (!cur.saved) { cur.saved = true; report(cur); }   // 저장도 좋은 반응으로 친다
-            window.DeguriReplayGif.saveGif(cur.blob, cur.url, FILE_NAME, SHARE_TITLE);
+            window.DeguriReplayGif.saveGif(cur.blob, cur.url, opts.fileName || FILE_NAME, opts.shareTitle || SHARE_TITLE);
         });
         els.up.addEventListener('click', function () { vote(1); });
         els.down.addEventListener('click', function () { vote(-1); });
         return els;
     }
-    function ready() { return !!(bind() && window.DeguriRender && window.DeguriReplayGif && typeof window.DeguriReplayGif.encoder === 'function' && typeof Worker !== 'undefined'); }
+    function ready() { return !!(bind() && opts && (opts.createRenderer || window.DeguriRender) && window.DeguriReplayGif && typeof window.DeguriReplayGif.encoder === 'function' && typeof Worker !== 'undefined'); }
     function overlayOpen() { return !!(els && els.overlay && els.overlay.classList.contains('visible')); }
     function ranksEl() { return els && els.body ? els.body.querySelector('.deguri-result-ranks') : null; }
 
     // 반응 보내기 — rid·👍/👎·저장만. 사실·arm 은 서버가 제 기록에서 붙인다. 실패해도 화면은 그대로
     function report(st) {
         if (!socket) return;
-        socket.emit('deguri:highlight:feedback', { rid: st.rid, vote: st.vote, saved: !!st.saved }, function () { /* 무시 */ });
+        socket.emit(prefix() + ':highlight:feedback', { rid: st.rid, vote: st.vote, saved: !!st.saved }, function () { /* 무시 */ });
     }
     function vote(v) {
         stopAuto();
@@ -110,10 +111,13 @@
         var canvas = document.createElement('canvas');
         var R;
         try {
-            R = window.DeguriRender.create(canvas, { dpr: 1 });   // GIF 는 폭 360px — 폰의 2배 밀도로 그릴 까닭이 없다(그리기 4배)
-            R.setTimeline(tl, null);   // 개인 강조 없음 — GIF 는 누구 화면도 아니다
-            R.setHighlight(false);
-            R.setPhase('play');        // idle 이면 HUD 가 '출발대 대기' 문구를 찍는다 — 화면과 같은 경주 HUD 로
+            if (opts.createRenderer) R = opts.createRenderer(canvas, tl);   // 다른 게임 — 그 게임 렌더러(setTimeline·frameBalls·seek·render 를 갖춘 것)
+            else {
+                R = window.DeguriRender.create(canvas, { dpr: 1 });   // GIF 는 폭 360px — 폰의 2배 밀도로 그릴 까닭이 없다(그리기 4배)
+                R.setTimeline(tl, null);   // 개인 강조 없음 — GIF 는 누구 화면도 아니다
+                R.setHighlight(false);
+                R.setPhase('play');        // idle 이면 HUD 가 '출발대 대기' 문구를 찍는다 — 화면과 같은 경주 HUD 로
+            }
         } catch (err) { fail(st); return; }
         var out = document.createElement('canvas');
         out.width = OUT_W; out.height = Math.max(2, Math.round(OUT_W * canvas.height / canvas.width));
@@ -170,14 +174,15 @@
         return parts.join(' · ');
     }
     function reasonOne(st, r) {
-        if (!r || !REASON[r.key]) return '';
-        var tl = opts.reveal(), b = null;
-        if (r.ball != null && tl && tl.balls) for (var i = 0; i < tl.balls.length; i++) if (tl.balls[i].id === r.ball) { b = tl.balls[i]; break; }
+        var table = opts.reasons || REASON, names = opts.creatureName || CREATURE_NAME;
+        if (!r || !table[r.key]) return '';
+        var tl = opts.reveal(), b = null, list = tl && (tl.balls || tl.players);   // 데구리 = balls, 둥둥라이더 = players(같은 { id, owner, creature })
+        if (r.ball != null && list) for (var i = 0; i < list.length; i++) if (list[i].id === r.ball) { b = list[i]; break; }
         var params = {};
         Object.keys(r.params || {}).forEach(function (k) { params[k] = r.params[k]; });
         if (b && r.owner) params.name = opts.shortName(String(b.owner || ''));
-        else if (b) params.name = CREATURE_NAME[b.creature] || b.creature;
-        return REASON[r.key].replace(/\{(\w+)\}/g, function (m, k) { return params[k] != null ? String(params[k]) : ''; }).replace(/\s+/g, ' ').trim();
+        else if (b) params.name = names[b.creature] || b.creature;
+        return table[r.key].replace(/\{(\w+)\}/g, function (m, k) { return params[k] != null ? String(params[k]) : ''; }).replace(/\s+/g, ' ').trim();
     }
 
     // 하이라이트 판 채우기 — 'Jev' 표(Jev 가 고른 때만)와 이유 한 줄, 다 만들었으면 GIF
@@ -273,11 +278,14 @@
         lockedView = null;
     }
 
+    function prefix() { return (opts && opts.prefix) || 'deguri'; }
+
     window.DeguriHighlight = {
         // js/deguri.js 가 소켓을 만든 뒤 한 번. o = { reveal() → deguriState.reveal, me() → currentUser, shortName(name) }
+        // 다른 게임은 더해서 { prefix: 'balloon', createRenderer(canvas, tl), reasons, creatureName, fileName, shareTitle }
         connect: function (sock, o) {
             socket = sock; opts = o;
-            sock.on('deguri:highlight', function (h) { start(h); });
+            sock.on(prefix() + ':highlight', function (h) { start(h); });
         },
         onReveal: function () { cancel(); },                       // 새 경주 — 지난 하이라이트는 버린다
         onGameEnd: function (data) { if (data && data.highlight && !cur) start(data.highlight); },   // 경주 중 못 받았으면 결과 뒤에라도

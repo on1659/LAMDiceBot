@@ -75,6 +75,9 @@ function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 //   deguri_balloon = 머리 위에 줄로 매단 스프라이트. **공용이라 하나만** 장착된다(사용자 2026-09-23) — 값 하나.
 // 둘 다 시뮬 입력이 아니다: layoutBalls 뒤에 공에 문자열만 얹는다. 손님도 동일하게 동작(DB 없음).
 const EQUIP_SLOTS = ['deguri_skin', 'deguri_balloon'];
+// 이 지갑(상점·옷장·뽑기·장착 이벤트)을 같이 쓰는 게임 — 둥둥라이더(balloon) 방도 같은 gameState.deguri.wallets/equip 칸을 쓴다(사용자 2026-10-18: 스킨 상점 그대로).
+// 모든 방에 gameState.deguri 가 있어서(utils/room-helpers.js) 방을 나갈 때 지우는 곳(rooms.js·chat.js)도 그대로 맞는다
+const WALLET_GAMES = ['deguri', 'balloon'];
 
 // 카탈로그 항목 → 방 장착값. 슬롯이 요구하는 필드가 없으면(deguri_*_none) 해제(null). 소유 검사는 호출부.
 const SLOT_RESOLVERS = {
@@ -382,21 +385,22 @@ function attachCosmetics(balls, gameState) {
 // 한 판 참여 코인 — +COIN_RACE_JOIN(승리 보너스 없음). participants 는 시작 시점 참가자(mb.participants) 중 지금 방에 있는 사람.
 // 손님은 방 지갑, 로그인 계정(u.authedUserId)은 DB — 계정 쪽은 원장 ref(방+판 시드)로 한 판 한 번을 보장한다.
 // 공정성: 결과 계산과 무관한 순수 보상 경로. endGame 이 레이스당 1회 부른다.
+// mb = 그 판의 게임 상태(참가자·시드) — 데구리면 gameState.deguri, 둥둥라이더면 gameState.balloon. 지갑은 늘 gameState.deguri 칸
 function awardRaceCoins(io, room, gameState, mb) {
     for (const name of mb.participants || []) {
         const u = gameState.users.find(x => x.name === name);
         if (!u) continue;
-        if (u.authedUserId) { awardAccountRace(io, room, mb, u); continue; }
-        const w = userWallet(mb, u);
+        if (u.authedUserId) { awardAccountRace(io, room, gameState.deguri, u, mb.seed); continue; }
+        const w = userWallet(gameState.deguri, u);
         w.balance = Math.min(WALLET_MAX, w.balance + COIN_RACE_JOIN);
         io.to(u.id).emit('wallet:updated', { balance: w.balance });
     }
 }
-async function awardAccountRace(io, room, mb, u) {
+async function awardAccountRace(io, room, mb, u, seed) {
     const userId = u.authedUserId;
     try {
         const scope = roomScope(room);
-        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + mb.seed, WALLET_MAX, scope);
+        await coins.grant(userId, COIN_RACE_JOIN, 'deguri-race', room.roomId + ':' + seed, WALLET_MAX, scope);
         const w = loadedAccount(mb, u.name, userId);
         if (w) await grantAccountStay(w, u, userId, Date.now(), scope);
         io.to(u.id).emit('wallet:updated', { balance: await coins.getBalance(userId, scope) });
@@ -676,6 +680,11 @@ module.exports = (socket, io, ctx) => {
         io.to(room.roomId).emit('deguri:stateUpdated', publicState(gameState));
     }
     ctx.emitDeguriStateUpdated = emitState;
+    // 장착이 바뀌었을 때 출발대를 다시 알린다 — 둥둥라이더 방이면 그 게임 상태로(socket/balloon.js 가 ctx.emitBalloonStateUpdated 를 단다)
+    function emitLooks(room, gameState) {
+        if (room.gameType === 'balloon') { if (ctx.emitBalloonStateUpdated) ctx.emitBalloonStateUpdated(room, gameState); }
+        else emitState(room, gameState);
+    }
 
     // 계정 지갑 동기화(로그인 소켓) — 처음이면 DB 소유·장착을 방에 싣고 출발대에 바로 보이게 알린 뒤, 테스트 충전·매일 코인·머문 시간 보상을 넣는다.
     // 반환 { w, balance, stayDone } | null(그사이 방을 나갔거나 계정이 바뀜). 코인이 들어오면 wallet:updated 로 이 소켓의 코인 표시(상점·알약)를 맞춘다
@@ -685,7 +694,9 @@ module.exports = (socket, io, ctx) => {
         const scope = roomScope(room);
         const { w, fresh } = await loadAccount(gameState, user.name, userId, scope);
         if (!w) return null;
-        if (fresh) {
+        if (fresh && room.gameType === 'balloon') {
+            if (ctx.emitBalloonStateUpdated) ctx.emitBalloonStateUpdated(room, gameState, { socket, name: user.name });   // 아래 데구리 두 줄과 같은 일 — 남에겐 출발 자리, 나에겐 myEquip 까지
+        } else if (fresh) {
             socket.to(room.roomId).emit('deguri:stateUpdated', publicState(gameState));
             socket.emit('deguri:stateUpdated', { ...publicState(gameState), myEquip: equippedIds(mb, user.name) });
         } else {
@@ -749,7 +760,7 @@ module.exports = (socket, io, ctx) => {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        if (!gameState || !room || !WALLET_GAMES.includes(room.gameType)) return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         if (!socket.authedUserId) return cb({ ok: true, ...walletView(gameState.deguri, user) });
@@ -770,7 +781,7 @@ module.exports = (socket, io, ctx) => {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        if (!gameState || !room || !WALLET_GAMES.includes(room.gameType)) return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         const id = data && data.cosmeticId;
@@ -809,7 +820,7 @@ module.exports = (socket, io, ctx) => {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        if (!gameState || !room || !WALLET_GAMES.includes(room.gameType)) return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         const id = data && data.cosmeticId;
@@ -851,7 +862,7 @@ module.exports = (socket, io, ctx) => {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        if (!gameState || !room || !WALLET_GAMES.includes(room.gameType)) return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         let got, res;
@@ -909,7 +920,7 @@ module.exports = (socket, io, ctx) => {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room || room.gameType !== 'deguri') return cb({ ok: false, reason: 'room' });
+        if (!gameState || !room || !WALLET_GAMES.includes(room.gameType)) return cb({ ok: false, reason: 'room' });
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return cb({ ok: false, reason: 'room' });
         const slot = data && data.slot;
@@ -956,7 +967,7 @@ module.exports = (socket, io, ctx) => {
             console.warn('[데구리] 장착 저장 실패:', e.message);
             return cb({ ok: false, reason: 'error' });
         }
-        emitState(room, gameState);
+        emitLooks(room, gameState);
         cb({ ok: true, equipped: equippedIds(mb, user.name) });
     });
 
@@ -1094,6 +1105,10 @@ module.exports.CREATURES = CREATURES;
 // 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
 module.exports.canStart = canStartDeguri;
 module.exports.start = startDeguri;
+// 둥둥라이더(socket/balloon.js)가 같은 지갑·장착을 쓴다 — 공에 외형 얹기·대기 화면 외형·한 판 코인
+module.exports.attachCosmetics = attachCosmetics;
+module.exports.cosmeticFields = cosmeticFields;
+module.exports.equippedIds = equippedIds;
 // 테스트(AutoTest/qa-deguri-skin-shop-test.js)용
 module.exports.awardRaceCoins = awardRaceCoins;
 module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;

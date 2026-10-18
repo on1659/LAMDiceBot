@@ -240,7 +240,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         // 한 판 참여 +10 — awardRaceCoins 를 방 지갑에 직접(소켓 없이): 두 참가자 모두 +10
         const fakeIo = { to: () => ({ emit: () => {} }) };
         const fakeMb = { participants: [host, guest], wallets: { [host]: { balance: 40, owned: [] }, [guest]: { balance: 120, owned: [] } }, equip: {} };
-        deguriHandler.awardRaceCoins(fakeIo, { roomId: 'qa' }, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }] }, fakeMb);
+        deguriHandler.awardRaceCoins(fakeIo, { roomId: 'qa' }, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }], deguri: fakeMb }, fakeMb);   // 데구리 방은 판 상태 = 지갑 칸(gameState.deguri)
         check(fakeMb.wallets[host].balance === 40 + deguriHandler.COIN_RACE_JOIN && fakeMb.wallets[guest].balance === 120 + deguriHandler.COIN_RACE_JOIN, '한 판 참여 → 방 지갑 +' + deguriHandler.COIN_RACE_JOIN + ' (손님 포함)');
         check(deguriHandler.ROOM_SEED_COINS_LIVE === 200 && (SEED === 200 || SEED === 2000000), '입장 지갑: 실서버 200 · 내부 테스트 200만', String(SEED));
 

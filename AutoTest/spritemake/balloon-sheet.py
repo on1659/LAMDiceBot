@@ -20,6 +20,8 @@ usage (/opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드�
   balloon-sheet.py scaffold-props [date]                # 소품 배치(풍선·낙하산·장애물) — 리팩은 props-repack
   balloon-sheet.py props-repack [date] [balloon=N] [chute=N] [items=N]
   balloon-sheet.py scaffold-props2|props2-repack [date] [attempt]|props2-pickup [date]   # 소품 2차(아이템 상자·슈퍼 풍선·방패·구름 쿠션)
+  balloon-sheet.py props3-repack [date] [beaver=N] [cloud=N] | props3-pickup [date]   # 소품 3차(망치 비버·웃는 흰 구름)
+  balloon-sheet.py props4-repack [date] [attempt] | props4-pickup [date]   # 소품 4차(? 상자·쇳덩이 추·폭탄)
   balloon-sheet.py skin-kind <creature> <skin>             # recolor | remap | pixelate | dress
   balloon-sheet.py recolor|remap|pixelate <creature> <skin> [kinds…]   # GPT 없이 기본 포즈 시트에서 파생 → assets/balloon/creatures/{creature}-{skin}-{kind}.webp
   balloon-sheet.py scaffold-skin <creature> <skin> <kind> [date]       # 옷 입히기 배치(balloon-<kind>-<date>/<creature>-<skin>/) — 리팩·인수는 repack/pickup <creature>-<skin> <kind>
@@ -473,6 +475,46 @@ def props2_repack(date, pick):
         Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(s, 3))
 
 
+# ── 소품 3차(2026-10-18 §12: 망치 비버·웃는 흰 구름) — 프롬프트·ref 는 배치 폴더에 손으로 만들었다(의뢰서 참고). 시트 하나 = 가로 n칸, 시트당 배율 1개 ──
+PROPS3 = {   # 이름: (원본 키, 칸 수, 칸 w, h, 정렬 b(아래)/c(가운데))
+    'beaver-hammer': ('beaver', 4, 96, 96, 'b'),
+    'cloud-happy': ('cloud', 2, 192, 128, 'c'),
+}
+
+
+def props3_repack(date, picks):
+    dst = OUT / f'balloon-props3-{date}'; fin = dst / 'final'
+    for name, (key, n, bw, bh, al) in PROPS3.items():
+        fr, _ = cut_frames(np.array(Image.open(dst / 'source' / f'{key}-attempt-{picks.get(key, 1):02d}.png').convert('RGBA')), n)
+        sc = min(min((bw - 4) / f.shape[1], (bh - 4) / f.shape[0]) for f in fr)
+        out = np.zeros((bh, bw * n, 4), np.uint8)
+        for i, f in enumerate(fr):
+            r = np.array(Image.fromarray(f, 'RGBA').resize((max(1, round(f.shape[1] * sc)), max(1, round(f.shape[0] * sc))), Image.NEAREST))
+            place(out, r, i * bw + (bw - r.shape[1]) // 2, bh - 2 - r.shape[0] if al == 'b' else (bh - r.shape[0]) // 2)
+        Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(sc, 3))
+
+
+# ── 소품 4차(2026-10-18 §13: ? 상자·쇳덩이 추·폭탄) — 4×1 한 장에서 칸을 골라 파일로. 상자 두 칸은 같은 배율 ──
+PROPS4 = {   # 이름: (원본 키, 원본 칸 수, 쓸 칸들, 칸 w, h)
+    'mystery-box': ('mystery', 4, [0, 1], 64, 64),
+    'weight': ('mystery', 4, [2], 64, 64),
+    'bomb': ('mystery', 4, [3], 64, 64),
+}
+
+
+def props4_repack(date, pick):
+    dst = OUT / f'balloon-props4-{date}'; fin = dst / 'final'; cache = {}
+    for name, (key, n, cols, bw, bh) in PROPS4.items():
+        if key not in cache: cache[key] = cut_frames(np.array(Image.open(dst / 'source' / f'{key}-attempt-{pick:02d}.png').convert('RGBA')), n)[0]
+        fr = [cache[key][c] for c in cols]
+        sc = min(min((bw - 4) / f.shape[1], (bh - 4) / f.shape[0]) for f in fr)
+        out = np.zeros((bh, bw * len(fr), 4), np.uint8)
+        for i, f in enumerate(fr):
+            r = np.array(Image.fromarray(f, 'RGBA').resize((max(1, round(f.shape[1] * sc)), max(1, round(f.shape[0] * sc))), Image.NEAREST))
+            place(out, r, i * bw + (bw - r.shape[1]) // 2, (bh - r.shape[0]) // 2)
+        Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(sc, 3))
+
+
 def props_pickup(date, batch='props'):
     fin = OUT / f'balloon-{batch}-{date}' / 'final'; (DEST / 'props').mkdir(parents=True, exist_ok=True)
     for p in sorted(fin.glob('*.png')):
@@ -600,6 +642,12 @@ if __name__ == '__main__':
     elif cmd == 'scaffold-props2': scaffold_props2(args[1] if len(args) > 1 else today)
     elif cmd == 'props2-repack': props2_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
     elif cmd == 'props2-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props2')
+    elif cmd == 'props3-repack':
+        date = next((x for x in args[1:] if '=' not in x), today)
+        props3_repack(date, {k: int(v) for k, v in (x.split('=') for x in args[1:] if '=' in x)})
+    elif cmd == 'props3-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props3')
+    elif cmd == 'props4-repack': props4_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
+    elif cmd == 'props4-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props4')
     elif cmd == 'skin-kind': print(skin_kind(args[1], args[2]))
     elif cmd in ('recolor', 'remap', 'pixelate'): {'recolor': recolor, 'remap': remap, 'pixelate': pixelate}[cmd](args[1], args[2], tuple(args[3:]) or KINDS)
     elif cmd == 'scaffold-skin': scaffold_skin(args[1], args[2], args[3], args[4] if len(args) > 4 else today)

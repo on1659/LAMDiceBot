@@ -1,13 +1,17 @@
 // 풍선 타기(balloon) 게임 소켓 핸들러 — docs/goal/balloon-climb.md
 // 데구리(socket/deguri.js) 방 흐름 복제: 결과는 서버에서만 결정(시드 결정론 시뮬 socket/balloon-sim.js), 클라는 타임라인 재생만.
-// 1차 범위(§9-1): 방장 설정 없음(사람당 1마리·맵 늘 랜덤), 데구리 장착 스킨·야식 풍선은 계정 DB 에서 읽기만(상점·뽑기·코인 없음).
+// 1차 범위(§9-1): 방장 설정 없음(사람당 1마리·맵 늘 랜덤). 스킨·야식·상점·뽑기·코인은 데구리 지갑을 그대로 쓴다(socket/deguri.js WALLET_GAMES —
+// 이벤트도 deguri:shop:* · deguri:gacha:pull · deguri:equip 그대로, 칸은 gameState.deguri.wallets/equip).
 const { IS_LOCAL_DEV } = require('../config');
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
+const crypto = require('crypto');
 const sim = require('./balloon-sim');
-const { getCatalogEntry } = require('./shop');   // 꾸미기 카탈로그(deguri_skin·deguri_balloon) — 장착 id → 시트 이름
-const cosmetics = require('../db/cosmetics');
-const { CREATURES } = require('./deguri');       // 동물 목록은 데구리와 한 벌(시트가 같다)
+const deguri = require('./deguri');
+const highlight = require('./balloon-highlight');                        // Jev 하이라이트 — 끝난 타임라인에서 장면 후보(순수 함수)
+const jev = require('./jev');                                            // TypeSafe Jev 호출(키 없으면 코드 점수)
+const highlightFeedback = require('../db/balloon-highlight-feedback');   // 👍/👎·GIF 저장 → 코드 점수 가중치 배율
+const { CREATURES } = deguri;                    // 동물 목록은 데구리와 한 벌(시트가 같다)
 
 // ─── 공유 상수 (js/balloon.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운(데구리와 같음) — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산. 풍선은 마지막 3초 동안 분다
@@ -20,9 +24,9 @@ const HISTORY_MAX = 100;
 const BALLOON_COLORS = 8;         // 색 풍선 수(클라 BALLOON 팔레트) — colorIdx = 입장 순 % 8
 const VOTE_TARGETS = ['first', 'last'];
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
+const HIGHLIGHT_CODE_SHARE = 0.2;   // Jev 하이라이트: 5판에 1판은 Jev 에 묻지 않고 코드 점수로(반응 비교용 — 데구리와 같은 값, 'Jev' 표시 없음)
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
-function roomScope(room) { return (room && room.serverId) || 0; }   // 데구리 서버별 지갑 칸(socket/deguri.js roomScope 와 같은 규칙)
 
 function clearTimers(mb) {
     if (mb.revealTimeout) { clearTimeout(mb.revealTimeout); mb.revealTimeout = null; }
@@ -61,9 +65,9 @@ function unpickedNames(gameState) {
 
 // 시작 검문 — 소켓 없이 판정한다(예약 스위퍼 socket/scheduled-start.js 가 그대로 호출)
 function canStartBalloon(room, gameState, opts) {
-    if (room.gameType !== 'balloon') return '풍선 타기 방이 아닙니다!';
+    if (room.gameType !== 'balloon') return '둥둥라이더 방이 아닙니다!';
     const mb = gameState.balloon;
-    if (!mb) return '풍선 타기 방이 아닙니다!';
+    if (!mb) return '둥둥라이더 방이 아닙니다!';
     if (mb.phase !== 'idle' && mb.phase !== 'finished') return '이미 게임이 진행 중입니다!';
     if (readyNames(gameState).length < BALLOON_MIN_PLAYERS) return `준비한 인원이 ${BALLOON_MIN_PLAYERS}명 이상이어야 합니다!`;
     if (!(opts && (opts.scheduled || opts.force))) {
@@ -71,48 +75,6 @@ function canStartBalloon(room, gameState, opts) {
         if (unpicked.length) return `${unpicked.join(', ')}님이 아직 동물을 안 골랐어요.`;
     }
     return null;
-}
-
-// ─── 데구리 장착 읽기(1차: 읽기만, §8 방식 ②) ───
-// 로그인 계정의 이 서버 칸(scope) 소유·장착을 DB 에서 읽어 mb.looks[name] = { skins: {동물: {skin, skinName}}, balloon: sprite|null } 로 둔다.
-// 데구리 지갑 함수(socket/deguri.js)는 건드리지 않는다. 손님은 꾸미기 없음. 시뮬 입력이 아니다 — 시뮬 뒤에 얹는다.
-function looksFrom(owned, equipped) {
-    const usable = (slot, id) => {
-        const entry = (typeof id === 'string') ? getCatalogEntry(id) : null;
-        if (!entry || entry.slot !== slot) return null;
-        if (!entry.item.defaultOwned && owned.indexOf(id) === -1) return null;
-        return entry.item;
-    };
-    const raw = equipped && equipped.deguri_skin;
-    const ids = (typeof raw === 'string') ? [raw] : (raw && typeof raw === 'object') ? Object.values(raw) : [];
-    const skins = {};
-    ids.forEach(id => {
-        const it = usable('deguri_skin', id);
-        if (it && typeof it.creature === 'string' && typeof it.skin === 'string' && CREATURES.includes(it.creature)) skins[it.creature] = { skin: it.skin, skinName: it.displayName || it.name || '' };
-    });
-    const b = usable('deguri_balloon', equipped && equipped.deguri_balloon);
-    const balloon = (b && typeof b.sprite === 'string' && /^[a-z0-9-]+$/.test(b.sprite)) ? b.sprite : null;   // 시트 이름이 곧 파일 경로라 형식을 제한한다
-    return { skins, balloon };
-}
-async function loadLooks(room, gameState, user) {
-    const userId = user.authedUserId;
-    if (!userId) return false;
-    const scope = roomScope(room);
-    const [owned, equipped] = await Promise.all([cosmetics.getOwned(userId, scope), cosmetics.getEquipped(userId, scope)]);
-    if (!gameState.users.includes(user) || user.authedUserId !== userId) return false;   // 읽는 사이 방을 나갔다 — 지워진 값을 되살리지 않는다
-    const mb = gameState.balloon;
-    if (!mb.looks) mb.looks = {};
-    mb.looks[user.name] = looksFrom(owned, equipped);
-    return true;
-}
-function lookFields(mb, name, creature) {
-    const l = mb.looks && mb.looks[name];
-    if (!l) return {};
-    const out = {};
-    const s = l.skins[creature];
-    if (s) { out.skin = s.skin; out.skinName = s.skinName; }
-    if (l.balloon) out.balloon = l.balloon;
-    return out;
 }
 
 // 다음 판 맵 시드 — 대기 화면 미리보기와 경주가 같은 맵을 쓴다. 시드를 새로 뽑을 때 방의 덱에서 이번 판 구간을 꺼내 둔다(데구리 ensureTrackSeed 와 같은 규칙)
@@ -125,6 +87,43 @@ function ensureTrackSeed(mb) {
     return mb.trackSeed;
 }
 function currentMap(mb) { return sim.buildMap(ensureTrackSeed(mb), mb.trackOrder); }
+
+// ─── Jev 하이라이트(데구리 socket/deguri.js 와 같은 흐름, docs/goal/balloon-climb.md §14) — 시뮬 직후 방당 한 번: 후보 → (5판에 1판 빼고) Jev → 없으면 코드 점수.
+//     reveal 뒤 방 전체로 balloon:highlight { rid, source, arm, clips[{start,end,ids}], facts, reasons[] }, gameEnd 에도 싣는다(늦게 받은 클라용).
+//     결과·시드·타임라인에는 아무 영향이 없다. 참가자 이름은 Jev 로 가지 않는다(payload 가 순번·동물 id·사건 수만) ───
+function pubHighlight(h) { return h ? { rid: h.rid, source: h.source, arm: h.arm, clips: h.clips, facts: h.facts, reasons: h.reasons } : null; }
+function emitHighlight(room, mb, io, ctx) {
+    if (!ctx.rooms[room.roomId] || !mb.highlight || mb.highlight.sent || !mb.revealed) return;
+    mb.highlight.sent = true;
+    io.to(room.roomId).emit('balloon:highlight', pubHighlight(mb.highlight));
+}
+async function pickHighlight(room, mb, timeline, io, ctx) {
+    const seed = mb.seed;
+    let mult = null;
+    try { mult = await highlightFeedback.weights(); } catch (e) { mult = null; }
+    let cands;
+    try { cands = highlight.candidates(timeline, mult); } catch (e) { console.warn('[풍선] 하이라이트 후보 실패:', e.message); return; }
+    if (!ctx.rooms[room.roomId] || mb.seed !== seed || !cands.length) return;
+    const byCode = Math.random() < HIGHLIGHT_CODE_SHARE;   // 서버 RNG 허용 — 반응 비교용 판 가르기(결과와 무관)
+    let answer = null;
+    if (!byCode && jev.hasKey()) answer = await jev.ask(highlight.payload(timeline, cands), null, highlight.request);
+    if (!ctx.rooms[room.roomId] || mb.seed !== seed || mb.phase !== 'playing') return;
+    const chosen = answer ? cands.find(c => c.id === answer.pick) : null;
+    const pick = chosen || highlight.codePick(cands);
+    const scoreOf = chosen ? c => answer.scores[c.id] || 0 : c => c.score;   // 장면 순위 — Jev 가 답했으면 그 확률, 아니면 코드 점수
+    const sel = highlight.selectScenes(cands, scoreOf, pick.id);
+    mb.highlight = {
+        rid: crypto.randomBytes(16).toString('base64url'),
+        source: chosen ? 'jev' : 'code',
+        arm: chosen ? 'jev' : byCode ? 'code' : 'fallback',
+        mode: highlight.modeOf(timeline),
+        clips: sel.scenes.map(s => ({ start: s.start, end: s.end, ids: s.ids })),
+        facts: Object.assign({}, pick.facts),
+        reasons: sel.scenes.map(s => highlight.reasons(timeline, s)[0] || null),
+        sent: false
+    };
+    emitHighlight(room, mb, io, ctx);
+}
 
 async function startBalloon(room, gameState, io, ctx) {
     // 수동 시작이 예약을 앞질렀으면 예약을 풀고 방 전체에 알린다 (예약 발화 경로는 fire() 가 이미 비우고 들어온다)
@@ -164,16 +163,12 @@ async function startBalloon(room, gameState, io, ctx) {
     }
 
     // 동물 = 고른 것, 안 골랐으면 입장 순 자동 배정. id = 참가자 순번(입장 순) — 동시 도착은 id 순(§10 Q7)
-    const players = participants.map((name, i) => ({ id: i, owner: name, creature: CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i), colorIdx: i % BALLOON_COLORS }));
+    const seats = ensureSeats(mb, participants, false);   // 대기 화면에서 서 있던 그 좌석에서 출발
+    const players = participants.map((name, i) => ({ id: i, owner: name, creature: CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i), colorIdx: i % BALLOON_COLORS, seat: seats[name] }));
     let result;
     try {
         result = await sim.simulate(players, seed, currentMap(mb), { target: mb.target });
-        // 꾸미기는 시뮬 뒤 — 순위·타임라인에 절대 안 들어간다. 시작 순간 장착을 다시 읽는다(다른 탭에서 바꿨을 수 있다)
-        await Promise.all(participants.map(name => {
-            const u = gameState.users.find(x => x.name === name);
-            return u ? loadLooks(room, gameState, u).catch(() => false) : false;
-        }));
-        players.forEach(p => Object.assign(p, lookFields(mb, p.owner, p.creature)));
+        deguri.attachCosmetics(players, gameState);   // 꾸미기는 시뮬 뒤 — 순위·타임라인에 절대 안 들어간다(소유는 시작 순간 다시 확인)
     } catch (e) {
         console.warn('[풍선] 시뮬 실패:', e.message);
         mb.phase = 'idle'; mb.isActive = false;
@@ -187,7 +182,7 @@ async function startBalloon(room, gameState, io, ctx) {
     const rank = sim.rankPlayers(players, result.finishOrder, mb.target);
     const payload = {
         durationMs: result.durationMs, sampleMs: result.sampleMs, simEndMs: result.simEndMs, map: result.map,
-        players: players.map(p => ({ id: p.id, owner: p.owner, creature: p.creature, colorIdx: p.colorIdx, skin: p.skin, skinName: p.skinName, balloon: p.balloon })),
+        players: players.map(p => ({ id: p.id, owner: p.owner, creature: p.creature, colorIdx: p.colorIdx, seat: p.seat, skin: p.skin, skinName: p.skinName, balloon: p.balloon })),
         frames: result.frames, events: result.events, finishOrder: result.finishOrder,
         slow: result.slow,            // [{startMs,endMs,rate,holdMs?}] 시뮬 시각 — 클라가 BalloonWorld.simTimeAt 으로 같은 재생 시각을 계산(2탭 동기)
         target: mb.target,
@@ -196,6 +191,8 @@ async function startBalloon(room, gameState, io, ctx) {
     };
     mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
     mb.result = payload.result;
+    mb.highlight = null; mb.revealed = false;
+    pickHighlight(room, mb, payload, io, ctx).catch(e => console.warn('[풍선] 하이라이트 실패:', e.message));   // 룰렛·사유 카드가 보이는 동안 고른다 — reveal 을 늦추지 않는다
 
     const remainMs = Math.max(0, holdMs - (Date.now() - holdStartedAt));
     clearTimers(mb);
@@ -203,6 +200,8 @@ async function startBalloon(room, gameState, io, ctx) {
         mb.revealTimeout = null;
         if (!ctx.rooms[room.roomId]) return;
         io.to(room.roomId).emit('balloon:reveal', payload);
+        mb.revealed = true;
+        emitHighlight(room, mb, io, ctx);   // 벌써 골랐으면 reveal 바로 뒤에, 아니면 pickHighlight 가 끝날 때
         console.log(`[풍선] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 / 타깃=${mb.target} / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
         mb.endTimeout = setTimeout(() => {
             if (!ctx.rooms[room.roomId]) return;
@@ -237,7 +236,8 @@ function endGame(room, gameState, io, ctx) {
     mb.history.push({ round: mb.round, selected, target: mb.target, timestamp: new Date().toISOString() });
     if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
 
-    io.to(room.roomId).emit('balloon:gameEnd', { selected, rankings, round: mb.round, target: mb.target });
+    io.to(room.roomId).emit('balloon:gameEnd', { selected, rankings, round: mb.round, target: mb.target, highlight: pubHighlight(mb.highlight) });   // highlight: 경주 중 못 받은 클라도 결과 뒤에 GIF 를 만들 수 있게
+    deguri.awardRaceCoins(io, room, gameState, mb);   // 한 판 참여 코인 — 데구리와 같은 지갑·같은 액수
 
     recordGamePlay('balloon', dbPlayers.length, room.serverId || null);
     if (room.serverId) {
@@ -263,6 +263,16 @@ function endGame(room, gameState, io, ctx) {
     ctx.updateRoomsList();
 }
 
+// 출발 자리(좌석) — 이름마다 한 번 정하면 방에 있는 동안 그대로(사용자 2026-10-18 "들어올 때마다 점프 이상해"). 새 사람은 가장 앞 빈 좌석.
+// prune = 목록에 없는 사람 좌석은 비운다(대기 화면). 좌석 → 자리는 BalloonWorld.seatPos(1층 8칸을 가운데부터 꽉 채우고 2층·3층·4층). 위치가 결과를 안 바꾼다(시뮬 부스터)
+function ensureSeats(mb, names, prune) {
+    if (!mb.seats) mb.seats = {};
+    if (prune) Object.keys(mb.seats).forEach(n => { if (!names.includes(n)) delete mb.seats[n]; });
+    const used = new Set(Object.values(mb.seats));
+    names.forEach(n => { if (mb.seats[n] != null) return; let k = 0; while (used.has(k)) k++; mb.seats[n] = k; used.add(k); });
+    return mb.seats;
+}
+
 // 다음 판 리셋 — 동물 선택은 유지, 투표는 새로. 맵은 새로 뽑는다(덱은 이어 쓴다)
 function resetBalloon(mb) {
     clearTimers(mb);
@@ -275,6 +285,7 @@ function resetBalloon(mb) {
     mb.isActive = false;
     mb.rankVotes = {};
     mb.target = 'last';
+    mb.highlight = null; mb.revealed = false;   // 반응(balloon:highlight:feedback)은 리셋 전까지 받는다
 }
 
 module.exports = (socket, io, ctx) => {
@@ -290,13 +301,21 @@ module.exports = (socket, io, ctx) => {
         const mb = gameState.balloon;
         const ready = readyNames(gameState);
         const names = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name).slice(0, sim.constants.MAX_PLAYERS);
+        const seats = ensureSeats(mb, names, true);
         const players = names.map((name, i) => {
             const creature = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i);
-            return { id: i, owner: name, creature, colorIdx: i % BALLOON_COLORS, dim: !ready.includes(name), ...lookFields(mb, name, creature) };
+            return { id: i, owner: name, creature, colorIdx: i % BALLOON_COLORS, seat: seats[name], dim: !ready.includes(name), ...deguri.cosmeticFields(gameState.deguri, name, creature) };
         });
         return { map: currentMap(mb), players };
     }
-    function emitState(room, gameState) { io.to(room.roomId).emit('balloon:stateUpdated', publicState(gameState)); }
+    // me = { socket, name } 이면 그 소켓에만 내 장착값(myEquip, 슬롯별 id)을 같이 싣는다 — 새로고침 재입장·계정 적재 뒤 상점 UI 장착 표시를 서버 값에 맞춘다(데구리 requestState 와 같은 규칙)
+    function emitState(room, gameState, me) {
+        const st = publicState(gameState);
+        if (!me) { io.to(room.roomId).emit('balloon:stateUpdated', st); return; }
+        me.socket.to(room.roomId).emit('balloon:stateUpdated', st);
+        me.socket.emit('balloon:stateUpdated', { ...st, myEquip: deguri.equippedIds(gameState.deguri, me.name) });
+    }
+    ctx.emitBalloonStateUpdated = emitState;   // 데구리 지갑(socket/deguri.js)이 장착·계정 적재 뒤 부른다
 
     function context() {
         const gameState = getCurrentRoomGameState();
@@ -344,17 +363,26 @@ module.exports = (socket, io, ctx) => {
         ctx.updateRoomsList();
     });
 
-    // 입장/재입장 시 상태 요청 — 요청 소켓에만 응답 (server-only 데이터 없음). 로그인 계정이면 데구리 장착을 읽어 출발 자리에 바로 입힌다
+    // Jev 하이라이트 반응 — 👍/👎·GIF 저장. 이 방의 이번(또는 방금 끝난) 판 rid 만 받고, 사실·arm·mode 는 서버 기록에서(클라 값은 안 믿는다). 보는 사람마다 한 줄
+    socket.on('balloon:highlight:feedback', (data, cb) => {
+        if (!ctx.checkRateLimit()) return;
+        const ack = typeof cb === 'function' ? cb : () => {};
+        const c = context();
+        if (!c) return ack({ ok: false, reason: 'room' });
+        const h = c.mb.highlight;
+        if (!c.user || !h || !data || typeof data !== 'object' || data.rid !== h.rid) return ack({ ok: false, reason: 'bad_request' });
+        const vote = data.vote === 1 || data.vote === -1 ? data.vote : null;
+        if (data.vote != null && vote === null) return ack({ ok: false, reason: 'bad_request' });
+        highlightFeedback.record({ rid: h.rid, viewer: c.user.name, arm: h.arm, mode: h.mode, facts: h.facts, vote, saved: data.saved === true })
+            .then(() => ack({ ok: true }), e => { console.warn('[풍선] 하이라이트 반응 저장 실패:', e.message); ack({ ok: false, reason: 'error' }); });
+    });
+
+    // 입장/재입장 시 상태 요청 — 요청 소켓에만 응답 (server-only 데이터 없음). 계정 장착은 지갑 조회(deguri:shop:get)가 방에 싣고 다시 알린다
     socket.on('balloon:requestState', () => {
         if (!ctx.checkRateLimit()) return;
         const c = context();
         if (!c) return;
-        socket.emit('balloon:stateUpdated', publicState(c.gameState));
-        if (c.user && c.user.authedUserId && !(c.mb.looks && c.mb.looks[c.user.name])) {
-            loadLooks(c.room, c.gameState, c.user)
-                .then(ok => { if (ok && ctx.rooms[c.room.roomId]) emitState(c.room, c.gameState); })
-                .catch(e => console.warn('[풍선] 장착 읽기 실패:', e.message));
-        }
+        socket.emit('balloon:stateUpdated', { ...publicState(c.gameState), myEquip: c.user ? deguri.equippedIds(c.gameState.deguri, c.user.name) : {} });
     });
 
     // 게임 시작 (호스트) — 검문은 canStartBalloon, 실행은 startBalloon (예약 발화와 같은 경로)
@@ -379,6 +407,5 @@ module.exports = (socket, io, ctx) => {
 module.exports.canStart = canStartBalloon;
 module.exports.start = startBalloon;
 // 테스트용
-module.exports.looksFrom = looksFrom;
 module.exports.COUNTDOWN_MS = COUNTDOWN_MS;
 module.exports.RESULT_HOLD_MS = RESULT_HOLD_MS;

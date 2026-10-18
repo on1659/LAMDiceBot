@@ -159,14 +159,15 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const longAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);   // 3시간 = 36칸 → 6칸만
         const mkMb = seed => ({ seed, participants: [nameA], wallets: { [nameA]: { userId, owned: [] } }, equip: {} });
         const gs = { users: [{ name: nameA, id: 'x', authedUserId: userId, joinTime: longAgo }] };
+        const withMb = mb => [{ ...gs, deguri: mb }, mb];   // 데구리 방은 판 상태 = 지갑 칸(gameState.deguri)
         const raceBefore = await ledgerCount(userId, 'deguri-race');
-        deguri.awardRaceCoins(fakeIo, { roomId: 'qa-' + uniq }, gs, mkMb(777));
+        deguri.awardRaceCoins(fakeIo, { roomId: 'qa-' + uniq }, ...withMb(mkMb(777)));
         await wait(800);
-        deguri.awardRaceCoins(fakeIo, { roomId: 'qa-' + uniq }, gs, mkMb(777));   // 같은 판을 두 번 불러도
+        deguri.awardRaceCoins(fakeIo, { roomId: 'qa-' + uniq }, ...withMb(mkMb(777)));   // 같은 판을 두 번 불러도
         await wait(800);
         check(await ledgerCount(userId, 'deguri-race') === raceBefore + 1, '계정 한 판 +' + deguri.COIN_RACE_JOIN + ' — 같은 판 두 번 불러도 1번(원장 멱등)');
         check(await ledgerCount(userId, 'deguri-stay', today() + '#%') === deguri.STAY_DAILY_MAX, '머문 시간 3시간 → 오늘 ' + deguri.STAY_DAILY_MAX + '칸(+60)까지만');
-        deguri.awardRaceCoins(fakeIo, { roomId: 'qa2-' + uniq }, gs, mkMb(778));   // 다른 방(새 캐시)에서 또 3시간
+        deguri.awardRaceCoins(fakeIo, { roomId: 'qa2-' + uniq }, ...withMb(mkMb(778)));   // 다른 방(새 캐시)에서 또 3시간
         await wait(800);
         check(await ledgerCount(userId, 'deguri-race') === raceBefore + 2, '다른 판 → 한 판 코인 또 +' + deguri.COIN_RACE_JOIN);
         check(await ledgerCount(userId, 'deguri-stay', today() + '#%') === deguri.STAY_DAILY_MAX, '다른 방에서도 머문 시간 보상은 하루 상한 그대로');

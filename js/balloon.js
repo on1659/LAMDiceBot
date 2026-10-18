@@ -78,22 +78,39 @@ function runWhenSocketConnected(callback) {
     if (socket.connected) { callback(); return; }
     socket.on('connect', function onConnect() { socket.off('connect', onConnect); callback(); });
 }
-// 데구리 장착 스킨을 읽으려면 서버가 이 소켓의 계정을 알아야 한다 — 매 연결 토큰 인증(js/shared/shop-shared.js authenticate 와 같은 이벤트·재발급 1회).
-// 인증이 방 입장보다 늦게 끝나면 상태를 다시 받는다 — 서버가 그때 장착을 읽어 출발 자리에 입힌다
-function authenticateSocket(token, retried) {
-    if (!token) {
-        if (!retried && window.AuthToken) window.AuthToken.renew(function (t) { if (t) authenticateSocket(t, true); });
-        return;
-    }
-    socket.emit('socket:authenticate', { token: token }, function (res) {
-        if (res && res.ok) { if (currentRoomId) socket.emit('balloon:requestState'); }
-        else if (res && res.reason === 'auth' && !retried && window.AuthToken) window.AuthToken.renew(function (t) { if (t) authenticateSocket(t, true); });
-    });
-}
+// 꾸미기·뽑기는 데구리 상점 그대로(js/deguri-shop.js·deguri-closet.js·deguri-gacha.js, 서버 socket/deguri.js WALLET_GAMES) — 같은 지갑·같은 이벤트.
+// 상점 모듈이 읽는 데구리 페이지 전역을 이 페이지 값으로 맞춘다: 선택 상태(picks)·동물 순서·미리보기 렌더러(window.deguriRendererForShop, 렌더러 생성 뒤)
+window.deguriState = balloonState;
+window.DEGURI_CREATURES = BALLOON_CREATURES;
+window.onDeguriSkinChanged = function () { renderPickStatus(); };
+// Jev 하이라이트 — 데구리 카드 모듈(js/deguri-highlight.js)을 같이 쓴다. 장면은 서버(socket/balloon.js pickHighlight)가 balloon:highlight 로, 화면 밖 렌더러는 BalloonRender(offscreen)
+var BALLOON_REASON = {   // 서버 reason.key(socket/balloon-highlight.js reasons) → 문장. {name} = 그 동물 주인
+    turnLast: '{name} 여기서 꼴찌로', turnFirst: '{name} 여기서 1등으로',
+    'turnLastBy.eagle': '{name} 독수리에 풍선 터져 꼴찌로', 'turnLastBy.bee': '{name} 벌에 쏘여 꼴찌로', 'turnLastBy.spike': '{name} 밤송이에 찔려 꼴찌로', 'turnLastBy.thorn': '{name} 가시벽에 터져 꼴찌로',
+    'turnLastBy.blade': '{name} 칼날에 터져 꼴찌로', 'turnLastBy.pend': '{name} 진자에 맞아 꼴찌로', 'turnLastBy.bolt': '{name} 번개 맞고 꼴찌로', 'turnLastBy.meteor': '{name} 별똥별 맞고 꼴찌로',
+    'turnLastBy.bomb': '{name} ? 상자 폭탄에 꼴찌로', 'turnLastBy.warp': '{name} 하수구에 빠져 꼴찌로',
+    'turnFirstBy.eagle': '선두가 독수리에 터져 {name} 1등으로', 'turnFirstBy.bee': '선두가 벌에 쏘여 {name} 1등으로', 'turnFirstBy.spike': '선두가 밤송이에 찔려 {name} 1등으로', 'turnFirstBy.thorn': '선두가 가시벽에 터져 {name} 1등으로',
+    'turnFirstBy.blade': '선두가 칼날에 터져 {name} 1등으로', 'turnFirstBy.pend': '선두가 진자에 맞아 {name} 1등으로', 'turnFirstBy.bolt': '선두가 번개 맞아 {name} 1등으로', 'turnFirstBy.meteor': '선두가 별똥별 맞아 {name} 1등으로',
+    'turnFirstBy.bomb': '선두가 폭탄에 터져 {name} 1등으로', 'turnFirstBy.warp': '선두가 하수구에 빠져 {name} 1등으로',
+    lastLate: '막판 {sec}초 꼴찌 {n}번 바뀜', lastSwaps: '꼴찌 {n}번 바뀜', lastSwap: '꼴찌 바뀜', leadLate: '막판 {sec}초 1등 {n}번 바뀜', leadSwaps: '1등 {n}번 바뀜', leadSwap: '1등 바뀜',
+    lastNeck: '꼴찌 다툼 {sec}초 접전', firstNeck: '1등 다툼 {sec}초 접전', finale: '{name} 비석 쿵',
+    eagle: '{name} 독수리에 펑', meteor: '{name} 별똥별에 펑', bolt: '{name} 번개 맞음', bomb: '{name} ? 상자 폭탄', super: '{name} 슈퍼 풍선', warp: '{name} 하수구 쏙', shieldPop: '{name} 방패로 막음', eagleMiss: '독수리 헛발질',
+    lastDecided: '꼴찌 결정 순간', firstDecided: '1등 결정 순간'
+};
+if (window.DeguriHighlight) DeguriHighlight.connect(socket, {
+    prefix: 'balloon', reasons: BALLOON_REASON, fileName: 'balloon-highlight.gif', shareTitle: '둥둥라이더 하이라이트',
+    reveal: function () { return balloonState.reveal; }, me: function () { return currentUser; }, shortName: function (n) { return resultShortName(n); },
+    createRenderer: function (canvas, tl) { var r = BalloonRender.create(canvas, { offscreen: true, dpr: 1 }); r.setTimeline(tl, null); return r; }   // 개인 강조 없음 — GIF 는 누구 화면도 아니다
+});   // 장착 직후 선택 버튼 배지 갱신(아이콘은 아래 idle 애니가 다시 그린다)
+// 매 연결 토큰 인증 — 셸(ShopModule.authenticate)이 인증 뒤 지갑을 조회하고, 서버가 그때 계정 장착을 방에 실어 출발 자리에 입힌다(만료 토큰은 셸이 1회 연장)
 socket.on('connect', function () {
+    if (window.DeguriGacha) DeguriGacha.connect(socket);
+    if (!window.DeguriShop) return;
+    DeguriShop.connect(socket);
+    DeguriShop.loadCatalog().then(function () { renderPickStatus(); });   // 카탈로그가 있어야 장착 id → creature/skin 을 풀 수 있다(배지·아이콘)
     try {
         var auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-        if (auth) authenticateSocket(auth.token || null, false);
+        if (auth) DeguriShop.authenticate(auth.token || null, function () { renderPickStatus(); });
     } catch (e) { /* 손님 */ }
 });
 // 방에 있었다면 자동 재입장 (순단 재연결 — js/deguri.js 와 같은 패턴)
@@ -139,7 +156,7 @@ function playBalloonSound(key, vol) {
             currentServerId = rd.serverId || null;
             currentServerName = rd.serverName || null;
             if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
-            if (rd.serverName) document.title = rd.serverName + ' - 풍선 타기';
+            if (rd.serverName) document.title = rd.serverName + ' - 둥둥라이더';
             runWhenSocketConnected(function () {
                 socket.emit('joinRoom', { roomId: rd.roomId, userName: rd.userName, isHost: false, password: rd.password || '', deviceId: getDeviceId(), tabId: getTabId() });
             });
@@ -158,7 +175,7 @@ function playBalloonSound(key, vol) {
             currentServerName = pd.serverName || null;
             if (currentServerId) {
                 socket.emit('setServerId', { serverId: currentServerId, userName: pd.userName });
-                if (pd.serverName) document.title = pd.serverName + ' - 풍선 타기';
+                if (pd.serverName) document.title = pd.serverName + ' - 둥둥라이더';
             }
         } catch (e) { /* 무시 */ }
     }
@@ -231,13 +248,21 @@ window.addEventListener('DOMContentLoaded', function () {
     }
 
     [['deguriReplayButton', replayRace], ['deguriResetButton', resetBalloonRound], ['deguriResultClose', closeResultOverlay]].forEach(function (b) {
-        var el = document.getElementById(b[0]); if (el) el.addEventListener('click', function () { b[1](); });
+        var el = document.getElementById(b[0]); if (el) el.addEventListener('click', function () { b[1](); });   // PiP 로 옮겨 다니는 버튼 — 인라인 onclick 금지(toggleDeguriPip 주석)
     });
 
     var canvas = document.getElementById('deguriCanvas');
     if (canvas && typeof BalloonRender !== 'undefined') {
         renderer = BalloonRender.create(canvas);
+        window.deguriRendererForShop = renderer;   // js/deguri-shop.js·deguri-closet.js 카드 미리보기(drawCreatureIcon·drawBalloonIcon)
         renderer.onEvent(onTimelineEvent);
+        renderer.setFollowMe(getMyHighlight());
+        updateHighlightButton();
+        if ('documentPictureInPicture' in window) {   // PiP 를 지원하는 데스크톱 브라우저만 [작은 창] 버튼(데구리와 같음)
+            var pipBtn = document.getElementById('deguriPipBtn');
+            if (pipBtn) pipBtn.hidden = false;
+            if (typeof SoundManager !== 'undefined' && SoundManager.setFocusBypass) SoundManager.setFocusBypass(balloonPipOpen);   // 원래 탭이 가려져도 PiP 로 보는 중이면 소리
+        }
         BalloonRender.loadAssets(function () {
             assetsLoaded = true;
             document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
@@ -322,11 +347,9 @@ function initOrderModule() {
     });
 }
 
-// 내 동물 스킨(서버가 대기 화면에 실어 준 내 줄의 skin) — 선택 버튼 아이콘을 스킨 모습으로
+// 그 동물에 장착한 스킨(동물마다 따로 장착된다 — js/deguri-shop.js) — 선택 버튼 아이콘을 스킨 모습으로
 function myLookSkin(creature) {
-    var pv = balloonState.preview;
-    var mine = pv && pv.players ? pv.players.filter(function (p) { return p.owner === currentUser; })[0] : null;
-    return mine && mine.creature === creature && mine.skin ? mine.skin : null;
+    return (window.DeguriShop && DeguriShop.getEquippedSkinFor(creature)) || null;
 }
 // 동물 선택 버튼 아이콘 idle 애니(js/deguri.js 와 같은 프레임 열)
 var PICKER_ICON_FRAMES = [0, 1, 0, 1, 0, 1, 2, 3], PICKER_ICON_MS = 230;
@@ -352,9 +375,10 @@ function sendMessage() { ChatModule.sendMessage(); }
 function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
 function toggleReady() { ReadyModule.toggleReady(); }
 function closeResultOverlay() {
-    var overlay = document.getElementById('resultOverlay');
+    var overlay = balloonEl('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     stopResultAnimation();
+    if (window.DeguriHighlight) DeguriHighlight.onResultClose();   // 다음에 열 때 순위부터, 묶은 카드 높이도 푼다
 }
 // 경주 시작 — 준비했는데 동물 안 고른 사람이 있으면 자동 배정할지 묻는다(데구리와 같은 규칙)
 function startBalloon() {
@@ -390,7 +414,7 @@ function toggleDeguriFullscreen() {
 // 결과 카드는 전체화면인 동안만 캔버스 박스 안으로 옮긴다(js/deguri.js 와 같은 방식)
 var resultOverlayHome = null;
 function syncResultOverlayHost() {
-    var box = document.getElementById('deguriCanvasBox'), overlay = document.getElementById('resultOverlay');
+    var box = document.getElementById('deguriCanvasBox'), overlay = balloonEl('resultOverlay');
     if (!box || !overlay) return;
     var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
     var inFs = fsEl === box || box.classList.contains('is-pseudo-fs');
@@ -402,9 +426,96 @@ function syncResultOverlayHost() {
         resultOverlayHome.remove(); resultOverlayHome = null;
     }
 }
+// PiP 작은 창 — js/deguri.js toggleDeguriPip 그대로(사용자 2026-10-18 §12-7 "데구리처럼"). Document Picture-in-Picture(데스크톱 크롬·엣지)로 캔버스를 세로 창에 옮긴다.
+// 결과 카드·경주 뒤 버튼 줄도 같이 옮긴다 — 그 안 요소는 balloonEl 로 찾고, 버튼은 인라인 onclick 없이 addEventListener 로 단다(처음 눌린 창의 전역으로 굳는 문제, 데구리 2026-10-14 실측).
+// 원래 자리엔 안내 문구가 남고, 창을 닫으면 전부 돌아온다
+var BALLOON_PIP_W = 360, BALLOON_PIP_H = 640;
+var BALLOON_PIP_MOVE_IDS = ['resultOverlay', 'deguriAfterRace'];
+var balloonPipWin = null, balloonPipOpening = false;
+function balloonPipOpen() { return !!(balloonPipWin && !balloonPipWin.closed); }
+function balloonEl(id) { return document.getElementById(id) || (balloonPipOpen() ? balloonPipWin.document.getElementById(id) : null); }
+function toggleDeguriPip() {
+    if (balloonPipOpen()) { balloonPipWin.close(); return; }
+    if (!('documentPictureInPicture' in window) || balloonPipOpening) return;
+    var box = document.getElementById('deguriCanvasBox'), canvas = document.getElementById('deguriCanvas');
+    if (!box || !canvas || !renderer) return;
+    balloonPipOpening = true;
+    documentPictureInPicture.requestWindow({ width: BALLOON_PIP_W, height: BALLOON_PIP_H }).then(function (pipWin) {
+        balloonPipOpening = false;
+        balloonPipWin = pipWin;
+        var pdoc = pipWin.document;
+        // 스타일·글꼴·스킨 속성을 그대로 가져간다 — 읽을 수 있는 시트는 규칙 글자를 <style> 로, 다른 출처 시트(글꼴)만 절대 주소 <link> 로(데구리와 같은 이유)
+        Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var css = null;
+            try { css = Array.prototype.map.call(sheet.cssRules, function (r) { return r.cssText; }).join('\n'); } catch (e) { /* 다른 출처 — 규칙을 못 읽는다 */ }
+            var n;
+            if (css != null) { n = pdoc.createElement('style'); n.textContent = css; }
+            else if (sheet.href) { n = pdoc.createElement('link'); n.rel = 'stylesheet'; n.href = sheet.href; }
+            if (n) { if (sheet.media && sheet.media.mediaText) n.media = sheet.media.mediaText; pdoc.head.appendChild(n); }
+        });
+        ['data-theme', 'data-skin'].forEach(function (a) { var v = document.documentElement.getAttribute(a); if (v) pdoc.documentElement.setAttribute(a, v); });
+        var fix = pdoc.createElement('style');
+        fix.textContent = 'body{margin:0;overflow:hidden;background:var(--deguri-fullscreen-bg);position:relative;}#deguriCanvas{display:block;border-radius:0;}'
+            + '#deguriAfterRace{position:fixed;left:12px;right:12px;bottom:12px;margin:0;z-index:5;}';   // 경주 뒤 버튼 줄은 창 아래에 떠 있게
+        pdoc.head.appendChild(fix);
+        var note = document.createElement('div');
+        note.className = 'deguri-pip-note';
+        note.textContent = '작은 창에서 보는 중이에요';
+        box.insertBefore(note, canvas);
+        box.classList.add('is-pip');
+        pdoc.body.appendChild(canvas);
+        var homes = BALLOON_PIP_MOVE_IDS.map(function (id) {
+            var el = document.getElementById(id); if (!el) return null;
+            var ph = document.createComment(id + '-pip-placeholder'); el.parentNode.insertBefore(ph, el);
+            pdoc.body.appendChild(el);
+            return { el: el, ph: ph };
+        });
+        renderer.rehost();
+        var fitPip = function () { renderer.resize(); if (showsIdleCanvas() && assetsLoaded) renderer.drawIdle(balloonState.preview, currentUser); };
+        fitPip();
+        pipWin.addEventListener('resize', fitPip);
+        pipWin.addEventListener('pagehide', function () {
+            box.insertBefore(canvas, note);
+            note.remove();
+            homes.forEach(function (h) { if (!h) return; h.ph.parentNode.insertBefore(h.el, h.ph); h.ph.remove(); });
+            box.classList.remove('is-pip');
+            balloonPipWin = null;
+            renderer.rehost();
+            var rOverlay = document.getElementById('resultOverlay'), rBox = document.getElementById('resultRankings');
+            if (rOverlay && rOverlay.classList.contains('visible') && rBox && rBox.querySelector('canvas[data-creature]')) startResultAnimation(rBox);
+            fitPip();
+            updatePipButton();
+        }, { once: true });
+        updatePipButton();
+    }).catch(function () { balloonPipOpening = false; });
+}
+function updatePipButton() {
+    var btn = document.getElementById('deguriPipBtn'), fsBtn = document.getElementById('deguriFullscreenOpenBtn');
+    if (btn) btn.innerHTML = balloonPipOpen() ? '<i class="ui ui-tv"></i> 원래 화면으로' : '<i class="ui ui-tv"></i> 작은 창';
+    if (fsBtn) fsBtn.hidden = balloonPipOpen();   // 캔버스가 PiP 에 가 있는 동안 전체화면은 빈 박스만 띄운다
+}
+// 내 동물 따라가기 스위치(§12-10, 데구리 toggleMyHighlight 와 같은 자리·같은 기본값 켜짐) — 보는 사람 설정, 이 탭에만(sessionStorage)
+var MY_HIGHLIGHT_KEY = 'balloonMyHighlight';
+function getMyHighlight() { try { return sessionStorage.getItem(MY_HIGHLIGHT_KEY) !== 'false'; } catch (e) { return true; } }
+function updateHighlightButton() {
+    var btn = document.getElementById('deguriHighlightBtn');
+    if (!btn) return;
+    var on = getMyHighlight();
+    btn.innerHTML = '<i class="mi mi-paw"></i> ' + (on ? '내 동물 따라가는 중' : '내 동물 따라가기');
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+function toggleMyHighlight() {
+    var on = !getMyHighlight();
+    try { sessionStorage.setItem(MY_HIGHLIGHT_KEY, on ? 'true' : 'false'); } catch (e) { /* 무시 */ }
+    if (renderer) renderer.setFollowMe(on);
+    updateHighlightButton();
+}
 window.startBalloon = startBalloon;
 window.pickCreature = pickCreature;
 window.toggleDeguriFullscreen = toggleDeguriFullscreen;
+window.toggleDeguriPip = toggleDeguriPip;
+window.toggleMyHighlight = toggleMyHighlight;
 
 function escapeHtml(str) {
     if (str == null) return '';
@@ -628,9 +739,9 @@ function showStage(show) {
     if (show && renderer) renderer.resize();
 }
 function showAfterRace(show) {
-    var box = document.getElementById('deguriAfterRace');
+    var box = balloonEl('deguriAfterRace');
     if (box) box.style.display = show ? '' : 'none';
-    var reset = document.getElementById('deguriResetButton');
+    var reset = balloonEl('deguriResetButton');
     if (reset) reset.style.display = (show && isHost) ? '' : 'none';
 }
 function goToOrders() {
@@ -660,7 +771,7 @@ function syncReplayBar() {
     replayTimeEl.textContent = replayClockText(cur) + ' / ' + replayClockText(end);
 }
 function setReplayUi(on) {
-    var btn = document.getElementById('deguriReplayButton');
+    var btn = balloonEl('deguriReplayButton');
     if (btn) btn.innerHTML = on ? '<i class="mi mi-stop"></i> 그만 보기' : '<i class="mi mi-play"></i> 경주 다시 보기';
     var badge = document.getElementById('deguriReplayBadge');
     if (badge) badge.style.display = on ? '' : 'none';
@@ -765,8 +876,8 @@ function startResultAnimation(box) {
     stopResultAnimation();
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     resultAnimTimer = setInterval(function () {
-        if (document.hidden) return;
-        var overlay = document.getElementById('resultOverlay');
+        if (document.hidden && !balloonPipOpen()) return;   // PiP 로 보는 중이면 원래 탭이 가려져도 움직인다
+        var overlay = balloonEl('resultOverlay');
         if (!overlay || !overlay.classList.contains('visible')) { stopResultAnimation(); return; }
         var step = Math.floor(performance.now() / PICKER_ICON_MS);
         drawResultIcons(box, function (i) { return PICKER_ICON_FRAMES[(step + i * 3) % PICKER_ICON_FRAMES.length]; });
@@ -784,7 +895,7 @@ function revealSelectedRankRow(list) {
 function showResultOverlay(data) {
     if (document.body) document.body.classList.remove('race-running');
     stopResultAnimation();
-    var box = document.getElementById('resultRankings'), list = null;
+    var box = balloonEl('resultRankings'), list = null;
     if (box) {
         var html = '';
         var targetLabel = TARGET_LABEL[data.target] || TARGET_LABEL.last;
@@ -810,10 +921,11 @@ function showResultOverlay(data) {
         drawResultIcons(box, function () { return 0; });
         list = box.querySelector('.deguri-result-ranks');
     }
-    var overlay = document.getElementById('resultOverlay');
+    var overlay = balloonEl('resultOverlay');
     if (overlay) overlay.classList.add('visible');
     if (list) revealSelectedRankRow(list);
     if (box && box.querySelector('canvas[data-creature]')) startResultAnimation(box);
+    if (window.DeguriHighlight) DeguriHighlight.onResultOpen();   // 하이라이트 버튼 줄 + 3초 뒤 저절로 한 번
 }
 function renderHistory(history) {
     var list = document.getElementById('historyList');
@@ -953,7 +1065,7 @@ socket.on('scheduledStartError', function (message) { showCustomAlert((typeof me
 
 function showRoomName(roomName) {
     var el = document.getElementById('roomNameDisplay');
-    if (el) el.textContent = roomName || '풍선 타기 방';
+    if (el) el.textContent = roomName || '둥둥라이더 방';
 }
 
 // ============================================
@@ -1049,6 +1161,7 @@ function initModules() {
     renderPickStatus();
     updateStartButton();
     socket.emit('balloon:requestState');
+    if (window.DeguriGacha) DeguriGacha.onRoomEntered();   // 지갑 알약(코인) + 지갑 조회 — 로그인 계정이면 서버가 이때 계정 장착을 방에 싣는다
 }
 function renderUsersList(userArray) {
     var usersList = document.getElementById('usersList'), usersCount = document.getElementById('usersCount');
@@ -1205,6 +1318,7 @@ socket.on('balloon:stateUpdated', function (data) {
     balloonState.picks = data.picks || {};
     if (typeof data.minPlayers === 'number') balloonState.minPlayers = data.minPlayers;
     if (data.votes) balloonState.votes = data.votes;
+    if (data.myEquip !== undefined && window.DeguriShop) DeguriShop.syncRoomEquip(data.myEquip);   // 나에게만 실린다 — 내 장착값 { slot: id }(새로고침 재입장·계정 적재 동기화)
     var previewChanged = data.preview !== undefined;
     if (previewChanged) balloonState.preview = data.preview;
     if (data.phase === 'playing' && !isBalloonActive && balloonState.phase !== 'playing') {
@@ -1243,6 +1357,7 @@ socket.on('balloon:reveal', function (data) {
     keepAwake(true);
     balloonState.phase = 'playing';
     balloonState.reveal = data;
+    if (window.DeguriHighlight) DeguriHighlight.onReveal(data);   // 지난 판 하이라이트는 버린다 — 이번 판 것은 balloon:highlight 로 온다
     balloonState.target = data.target || 'last';
     isBalloonActive = true;
     if (Array.isArray(data.everPlayedUsers)) { everPlayedUsers = data.everPlayedUsers.slice(); OrderModule.renderOrders(); }
@@ -1273,6 +1388,7 @@ socket.on('balloon:gameEnd', function (data) {
     localHistory.push({ round: data.round, selected: data.selected, target: data.target });
     renderHistory(localHistory);
     setGameStatus('');
+    if (window.DeguriHighlight) DeguriHighlight.onGameEnd(data);   // 경주 중 balloon:highlight 를 못 받았으면 gameEnd 의 highlight 로 지금 만든다
     showResultOverlay(data);
     showStage(false);
     showAfterRace(true);
@@ -1287,6 +1403,7 @@ socket.on('balloon:gameAborted', function (data) {
     keepAwake(false);
     balloonState.phase = 'idle';
     if (renderer) renderer.stop();
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     if (document.body) document.body.classList.remove('race-running');
     showStage(false);
     hideVoteSection();
@@ -1302,6 +1419,7 @@ socket.on('balloon:roundReset', function () {
     keepAwake(false);
     balloonState.phase = 'idle';
     balloonState.reveal = null;
+    if (window.DeguriHighlight) DeguriHighlight.cancel();
     balloonState.votes = {};
     isBalloonActive = false;
     readyUsers = [];

@@ -81,9 +81,9 @@ function request(race) {
 
 function hasKey() { return !!config.TYPESAFE_API_KEY; }
 
-// race = socket/deguri-highlight.js payload(). deps(테스트용) = { fetch, apiKey, now }.
+// race = socket/deguri-highlight.js payload(). deps(테스트용) = { fetch, apiKey, now }. build = 요청 만들기(없으면 데구리 request — 둥둥라이더는 socket/balloon-highlight.js request).
 // 반환: { pick: 고른 후보 id, scores: { 후보 id: Jev 확률 } } 또는 null(키 없음·상한·실패·시간 초과·엉뚱한 답). scores 는 장면 여러 개를 고를 때 순위로 쓴다
-async function ask(race, deps) {
+async function ask(race, deps, build) {
     const apiKey = deps && deps.apiKey !== undefined ? deps.apiKey : config.TYPESAFE_API_KEY;
     const fetchFn = (deps && deps.fetch) || (typeof fetch === 'function' ? fetch : null);
     if (!apiKey || !fetchFn || !race || !Array.isArray(race.candidates) || !race.candidates.length) return null;
@@ -92,7 +92,7 @@ async function ask(race, deps) {
         const res = await fetchFn(config.JEV_API_URL, {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(request(race)),
+            body: JSON.stringify((build || request)(race)),
             signal: AbortSignal.timeout(TIMEOUT_MS)
         });
         const body = await res.json().catch(() => null);

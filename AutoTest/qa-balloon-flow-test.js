@@ -10,7 +10,7 @@ const io = require('socket.io-client');
 const URL = 'http://localhost:' + (parseInt(process.argv[2], 10) || 5174);
 const PHONE = { width: 375, height: 812 };
 const TARGET = { chars: 60, controls: 6 };
-const SERVER_ONLY = ['timeline', 'seed', 'result', 'trackSeed', 'trackDeck', 'trackOrder', 'looks'];
+const SERVER_ONLY = ['timeline', 'seed', 'result', 'trackSeed', 'trackDeck', 'trackOrder', 'looks', 'highlight'];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const once = (s, ev, to) => new Promise((res, rej) => { const t = setTimeout(() => rej(new Error('timeout ' + ev)), to || 8000); s.once(ev, d => { clearTimeout(t); res(d); }); });
 let fails = 0;
@@ -115,6 +115,7 @@ function measureInPage() {
     await wait(1200);
     const status = await pb.evaluate(() => { const el = document.getElementById('gameStatus'); return el && !el.hidden ? el.textContent : ''; });
     check(/진행 중/.test(status), 'B 새로고침 재입장 → 진행 중 안내', status);
+    await pa.bringToFront();   // B 새로고침이 B 를 앞으로 가져와 A 의 타이머가 느려지면 하이라이트 GIF 가 늦게 된다 — 결과를 볼 A 를 앞으로
 
     // 결과
     const endMs = 4000 + rv.durationMs + 500 + 4000;
@@ -125,6 +126,21 @@ function measureInPage() {
     check(/펑 \d+번/.test(popText), '결과 카드에 펑 N번', popText);
     const botEnd = await once(bot, 'balloon:gameEnd', 5000).catch(() => null);
     check(!botEnd || botEnd.selected === winA, '봇 gameEnd 당첨자 동일');
+    // Jev 하이라이트(§14) — 서버 장면 → 화면 밖 GIF → 결과 카드 3초 뒤 저절로 → 👍 저장(키 없는 로컬은 코드 점수)
+    await pa.waitForFunction(() => !!DeguriHighlight.debug(), null, { timeout: 15000 }).catch(() => {});
+    const hl = await pa.evaluate(() => DeguriHighlight.debug());   // 페이지가 받은 서버 장면(balloon:highlight 또는 gameEnd.highlight)
+    check(!!hl && Array.isArray(hl.clips) && hl.clips.length >= 1 && hl.clips.every(c => c.end > c.start && c.ids.length), '서버 하이라이트 장면 받음', hl && JSON.stringify(hl.clips.map(c => [c.start, c.end])) + ' ' + hl.source + '/' + hl.arm);
+    check(!botEnd || !!botEnd.highlight, '봇 gameEnd 에도 하이라이트');
+    await pa.waitForFunction(() => { const d = DeguriHighlight.debug(); return d && (d.status === 'ready' || d.status === 'failed'); }, null, { timeout: 60000 });
+    const hd = await pa.evaluate(() => DeguriHighlight.debug());
+    check(hd.status === 'ready' && hd.bytes > 1000 && hd.rid === (hl && hl.rid), '하이라이트 GIF 완성', hd.status + ' ' + hd.bytes + 'B ' + JSON.stringify(hd.size) + ' ' + Math.round(hd.totalMs) + 'ms');
+    await pa.waitForFunction(() => DeguriHighlight.debug().showing, null, { timeout: 8000 }).catch(() => {});
+    const shown = await pa.evaluate(() => ({ showing: DeguriHighlight.debug().showing, gif: !document.getElementById('deguriHighlightGif').hidden, note: document.getElementById('deguriHighlightNote').textContent }));
+    check(shown.showing && shown.gif, '결과 카드에서 하이라이트 저절로 재생', shown.note);
+    const fb = await pa.evaluate(rid => new Promise(r => socket.emit('balloon:highlight:feedback', { rid, vote: 1 }, r)), hl && hl.rid);
+    check(fb && fb.ok, '👍 반응 저장', JSON.stringify(fb));
+    const fbBad = await pa.evaluate(() => new Promise(r => socket.emit('balloon:highlight:feedback', { rid: 'nope', vote: 1 }, r)));
+    check(fbBad && !fbBad.ok, '다른 판 rid 반응은 거절', JSON.stringify(fbBad));
 
     // ── 4) 다시 보기 ──
     await pa.evaluate(() => { closeResultOverlay(); replayRace(); });

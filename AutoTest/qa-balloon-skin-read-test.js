@@ -1,12 +1,14 @@
-// 풍선 타기 — 데구리 장착 스킨·야식 풍선 읽기(1차: 읽기만, docs/goal/balloon-climb.md §8 방식 ②)
-//  로그인 계정이 데구리에서 가진·장착한 스킨/야식이 풍선 방 대기 화면(preview)과 reveal 에 실리는지, 안 가진 것·손님은 안 실리는지.
-//  풍선 방은 상점·뽑기·코인을 안 건드린다(잔고 변화 0).
+// 둥둥라이더(balloon) — 로그인 계정의 데구리 지갑(docs/goal/balloon-climb.md §8, 사용자 2026-10-18 "스킨 상점 그대로")
+//  로그인 계정이 데구리에서 가진·장착한 스킨/야식이 둥둥라이더 방 대기 화면(preview)과 reveal 에 실리는지, 안 가진 것·손님은 안 실리는지.
+//  계정은 데구리처럼 지갑 조회(deguri:shop:get — 클라는 방에 들어오면 부른다) 때 방에 실린다. 한 판 끝나면 계정 코인 +COIN_RACE_JOIN.
+//  손님 지갑·구매·뽑기는 qa-balloon-skin-shop-test.js.
 // 사용: node AutoTest/qa-balloon-skin-read-test.js [port=5174]   (로컬 서버 + 로컬 PG, 서버가 떠 있어야 함)
 require('../config');   // .env(DATABASE_URL) 읽기
 const io = require('socket.io-client');
 const { initPool, getPool } = require('../db/pool');
 const cosmetics = require('../db/cosmetics');
 const coins = require('../db/coins');
+const { COIN_RACE_JOIN } = require('../socket/deguri');
 const catalog = require('../config/deguri/cosmetics.json');
 const URL = 'http://localhost:' + (parseInt(process.argv[2], 10) || 5174);
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -38,6 +40,8 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
         check(a && a.ok, '계정 인증');
         s.emit('createRoom', { userName: name.slice(0, 8), roomName: 'qa스킨', isPrivate: false, gameType: 'balloon', expiryHours: 1, deviceId: 'qa-bl-' + uniq, tabId: 'qa-blt-' + uniq });
         const rc = await once(s, 'roomCreated');
+        const w = await emitAck(s, 'deguri:shop:get', {});   // 방에 들어온 클라가 부르는 지갑 조회 — 계정 소유·장착을 방에 싣는다
+        check(w && w.ok && w.owned.includes(skin.id), '둥둥라이더 방 지갑 조회 = 계정 지갑', JSON.stringify(w && { ok: w.ok, reason: w.reason }));
         await wait(1000);   // 로컬 개발 서버는 인증된 방장 잔고를 채운다(socket/shop.js LOCAL_HOST_INFINITE) — 그 뒤를 기준으로
         const balance0 = await coins.getBalance(userId, 0);
         const guest = io(URL, { transports: ['websocket'] }); socks.push(guest); await once(guest, 'connect');
@@ -48,9 +52,6 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
         await wait(600);
         s.emit('balloon:requestState');
         let st = await once(s, 'balloon:stateUpdated');
-        await wait(800);   // 장착 읽기는 비동기 — 읽고 나면 방 전체로 다시 보낸다
-        s.emit('balloon:requestState');
-        st = await once(s, 'balloon:stateUpdated');
         const me = st.preview.players.find(p => p.owner === rc.userName), g = st.preview.players.find(p => p.owner !== rc.userName);
         check(me && me.skin === skin.skin && me.balloon === bal.sprite, '대기 화면: 가진 고슴도치 스킨·야식 풍선이 실린다', JSON.stringify(me));
         check(g && !g.skin && !g.balloon, '대기 화면: 손님은 꾸미기 없음', JSON.stringify(g));
@@ -67,7 +68,8 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
         check(rp.skin === skin.skin && rp.balloon === bal.sprite && !rg.skin && !rg.balloon, 'reveal: 스킨·야식은 계정만', JSON.stringify(rp));
         await once(s, 'balloon:gameEnd', 4000 + rv.durationMs + 5000);
         await wait(500);
-        check(await coins.getBalance(userId, 0) === balance0, '풍선 방은 코인을 안 건드린다(1차)', balance0);
+        const balance1 = await coins.getBalance(userId, 0);
+        check(balance1 === balance0 + COIN_RACE_JOIN, '한 판 끝 → 계정 코인 +' + COIN_RACE_JOIN, balance0 + ' → ' + balance1);
     } finally {
         socks.forEach(x => x.close());
         await pool.query('DELETE FROM user_cosmetics WHERE user_id = $1', [userId]).catch(() => {});

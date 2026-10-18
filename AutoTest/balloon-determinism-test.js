@@ -3,7 +3,7 @@
 //  2) 맵 기준선: trackSeed 1 의 덱·맵 JSON = balloon-map-seed1.canonical.json (구간 정의를 바꿨으면 --update 로 다시 찍는다)
 //  3) target 'last' = opts 없음
 //  4) 종료·순위: 인원 {1,2,5,8} × 룰 {first,last} — 캡 전에 판정, finishOrder 인원 수·중복 없음, 당첨 = decidedBall 의 주인 = 룰 쪽 끝
-//  5) 덱(drawOrder): 방 20개 × 20판 — 한 맵 안 중복 없음, 움직이는 장애물 ≥ 2, 높이 4200~5100, 어떤 구간도 4판 넘게 안 빠짐, 같은 입력 → 같은 결과
+//  5) 덱(drawOrder): 방 20개 × 20판 — 한 맵 안 중복 없음, 움직이는 장애물 ≥ 2, 높이 4100~5000, 어떤 구간도 4판 넘게 안 빠짐, 같은 입력 → 같은 결과
 //  6) 재생 시각 왕복: realDuration(simEnd) 로 simTimeAt 이 simEnd 에 닿고 단조 증가
 //  꼴등 룰은 피날레(놀람 → 펑 → 낙하 → 비석)가 붙는다 — 4) 에서 사건 순서·끝 시각 확인
 // 사용: node AutoTest/balloon-determinism-test.js [--update]
@@ -106,8 +106,8 @@ function mapFor(trackSeed, deck, prev) {
             assert.ok(Math.abs(W.simTimeAt(real, r.slow) - r.simEndMs) < 1e-6, 'simTimeAt(end)');
             let prevS = -1;
             for (let ms = 0; ms <= real; ms += 37) { const s = W.simTimeAt(ms, r.slow); assert.ok(s >= prevS, 'not monotonic at ' + ms); prevS = s; }
-            const hit = r.slow[r.slow.length - 1];   // 꼴등 룰: 판정 순간 정지 뒤 제 속도(피날레), 1등 룰: 정지 뒤 0.35배속
-            assert.ok(hit.holdMs > 0 && hit.rate === 1 && hit.endMs === hit.startMs, 'last-rule hit segment');
+            const hit = r.slow[r.slow.length - 1], grave = r.events.find(e => e.type === 'grave');   // 꼴등 룰: 판정 순간 정지 뒤 비석까지 느린 화면(꼴찌 하이라이트), 1등 룰: 정지 뒤 0.35배속
+            assert.ok(hit.holdMs > 0 && hit.rate === W.R.finaleSlow && hit.endMs === grave.t, 'last-rule hit segment');
         });
     }
 

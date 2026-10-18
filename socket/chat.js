@@ -659,10 +659,9 @@ module.exports = (socket, io, ctx) => {
                             io.to(roomId).emit('deguri:stateUpdated', { picks: { ...gameState.deguri.picks }, ballsPerPlayer: gameState.deguri.ballsPerPlayer });
                         }
                     }
-                    // 풍선 타기: 끊긴 사용자의 동물 선택·장착 읽음·투표 정리 — leaveRoom(socket/rooms.js)과 짝(C-19)
+                    // 풍선 타기: 끊긴 사용자의 동물 선택·투표 정리 — leaveRoom(socket/rooms.js)과 짝(C-19)
                     if (gameState.balloon) {
                         const bl = gameState.balloon;
-                        if (bl.looks) delete bl.looks[userName];
                         if (bl.picks && bl.picks[userName] !== undefined) {
                             delete bl.picks[userName];
                             if (bl.phase === 'idle') io.to(roomId).emit('balloon:stateUpdated', { picks: { ...bl.picks } });
