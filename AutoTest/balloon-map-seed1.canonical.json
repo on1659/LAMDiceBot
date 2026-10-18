@@ -1,0 +1,263 @@
+{
+ "order": [
+  "storm",
+  "windmill",
+  "bees",
+  "zigzag",
+  "shutter"
+ ],
+ "deck": [
+  "updraft",
+  "pendulum",
+  "chestnut",
+  "fans"
+ ],
+ "map": {
+  "worldH": 4100,
+  "sections": [
+   {
+    "name": "storm",
+    "label": "먹구름",
+    "y0": 240,
+    "y1": 1000,
+    "mirror": true,
+    "corr": null,
+    "thorn": false
+   },
+   {
+    "name": "windmill",
+    "label": "풍차",
+    "y0": 1000,
+    "y1": 1720,
+    "mirror": false,
+    "corr": null,
+    "thorn": false
+   },
+   {
+    "name": "bees",
+    "label": "벌집",
+    "y0": 1720,
+    "y1": 2380,
+    "mirror": false,
+    "corr": null,
+    "thorn": false
+   },
+   {
+    "name": "zigzag",
+    "label": "지그재그 굴",
+    "y0": 2380,
+    "y1": 3280,
+    "mirror": false,
+    "corr": {
+     "pts": [
+      [
+       0,
+       180
+      ],
+      [
+       200,
+       115
+      ],
+      [
+       450,
+       245
+      ],
+      [
+       700,
+       115
+      ],
+      [
+       900,
+       180
+      ]
+     ],
+     "half": 85
+    },
+    "thorn": false
+   },
+   {
+    "name": "shutter",
+    "label": "셔터",
+    "y0": 3280,
+    "y1": 3820,
+    "mirror": true,
+    "corr": null,
+    "thorn": false
+   }
+  ],
+  "plats": [
+   {
+    "x": 60,
+    "y": 370,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 540,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 60,
+    "y": 710,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 180,
+    "y": 880,
+    "w": 80,
+    "solid": false
+   },
+   {
+    "x": 50,
+    "y": 1140,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 310,
+    "y": 1140,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 35,
+    "y": 1380,
+    "w": 70,
+    "solid": false
+   },
+   {
+    "x": 325,
+    "y": 1380,
+    "w": 70,
+    "solid": false
+   },
+   {
+    "x": 180,
+    "y": 1620,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 300,
+    "y": 1830,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 60,
+    "y": 2020,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 2180,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 92.8,
+    "y": 2510,
+    "w": 70,
+    "solid": true
+   },
+   {
+    "x": 232.8,
+    "y": 2720,
+    "w": 70,
+    "solid": false
+   },
+   {
+    "x": 127.2,
+    "y": 2970,
+    "w": 70,
+    "solid": false
+   },
+   {
+    "x": 195.8,
+    "y": 3190,
+    "w": 70,
+    "solid": true
+   },
+   {
+    "x": 180,
+    "y": 3400,
+    "w": 100,
+    "solid": false
+   },
+   {
+    "x": 300,
+    "y": 3720,
+    "w": 90,
+    "solid": false
+   },
+   {
+    "x": 60,
+    "y": 3720,
+    "w": 90,
+    "solid": false
+   }
+  ],
+  "spikes": [
+   {
+    "x": 180.4,
+    "y": 2600
+   },
+   {
+    "x": 179.6,
+    "y": 2850
+   },
+   {
+    "x": 176.5,
+    "y": 3100
+   }
+  ],
+  "hazards": [
+   {
+    "type": "bolt",
+    "x": 265,
+    "y": 570,
+    "s": -1,
+    "phase": 0
+   },
+   {
+    "type": "bolt",
+    "x": 95,
+    "y": 780,
+    "s": -1,
+    "phase": 1.2
+   },
+   {
+    "type": "bolt",
+    "x": 210,
+    "y": 980,
+    "s": -1,
+    "phase": 2.4
+   },
+   {
+    "type": "blade",
+    "x": 180,
+    "y": 1370,
+    "s": 1,
+    "phase": 4.277452755020931
+   },
+   {
+    "type": "bee",
+    "x": 40,
+    "y": 2320,
+    "s": 1,
+    "phase": 0
+   },
+   {
+    "type": "shutter",
+    "x": 360,
+    "y": 3600,
+    "s": 1,
+    "phase": 0
+   }
+  ]
+ }
+}
