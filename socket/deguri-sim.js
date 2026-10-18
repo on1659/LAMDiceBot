@@ -133,6 +133,8 @@ const EAGLE_DROP_MIN_ABOVE_HF = 40;   // 낙하 높이는 랜덤(사용자 2026-
 const EAGLE_DROP_LATE_W = 0.6;       // 후반일수록 낮게: 낮은 정도 = 진행도(골인 비율)×이 값 + 랜덤×(1−이 값). 초반 0~40%, 막판 60~100% 구간
 const EAGLE_DROP_DX = 130;        // 시소 좌우 이만큼 떨어진 자리(쪽은 시드)
 const EAGLE_MISS_P = 0.5;         // 헛발톱 확률(사용자 2026-09-23 "독수리 킹받는다"): 급강하는 똑같이 하되 못 채고 빈 발로 같은 곡선을 날아오른다. 동물은 제자리, 출격 예산·쉬는 시간·재도전 금지는 잡은 것과 같이 친다
+const EAGLE_SLIP_P = 0.35;        // 공중 놓침 확률(잡은 것 중, 사용자 2026-10-18): 채서 올라가다 끝까지 못 가고 떨어뜨린다 — 이때만 '놓쳤다!'
+const EAGLE_SLIP_K_MIN = 0.35, EAGLE_SLIP_K_MAX = 0.75;   // 비행 진행도 이 구간에서 놓는다. 놓는 자리는 보통 낙하 띠(시소 위 ~ 구멍밭 윗변 위) 안일 때만 — 밖이면 띠에 들 때까지 더 들고 간다
 // ─── 1등 룰(opts.target === 'first') 전용 — 꼴등 룰 타임라인은 바이트 단위로 그대로 (docs/goal/deguri-first-rule-flow.md, 사용자 2026-10-06) ───
 // 1등 룰은 첫 공이 골에 들어가는 순간 경주가 끝나고(당첨 = 벌칙 = 먼저 들어온 주인), 나머지는 낙하산으로 스탠드까지 내려온다. 착지 순서 = 2위 이하 순위.
 const FIRST_EAGLE_EXTRA = 1, EAGLE_COUNT_MAX = 3;   // 독수리 +1(최대 3) — 결승전(첫 공이 통로에 내려온 순간부터)에 걷는 선두를 채 가는 횟수를 늘린다
@@ -1151,6 +1153,7 @@ async function simulate(balls, seed, track, opts) {
                 v.eagledBy[ei] = true;
                 if (!miss) {
                     v.carry = { x0: v.x, y0: v.y, x1: tx, y1: ty, t0: t, t1: t + EAGLE_FLY_MS };
+                    if (rng() < EAGLE_SLIP_P) Object.assign(v.carry, { slipK: EAGLE_SLIP_K_MIN + rng() * (EAGLE_SLIP_K_MAX - EAGLE_SLIP_K_MIN), slipTop: dropTop, slipLow: dropLow });
                     v.eagled = true; v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.scuffled = false;
                 }
                 const alive = B.filter(b => b.state !== 'done').length;
@@ -1166,7 +1169,8 @@ async function simulate(balls, seed, track, opts) {
             if (b.state === 'carried') {   // 독수리 발톱에: 곡선(위로 EAGLE_ARC)으로 떨어뜨릴 자리까지, 도착하면 놓는다
                 const c = b.carry, k = Math.min(1, (t - c.t0) / (c.t1 - c.t0)), e = k * k * (3 - 2 * k);
                 b.x = c.x0 + (c.x1 - c.x0) * e; b.y = c.y0 + (c.y1 - c.y0) * e - Math.sin(k * Math.PI) * EAGLE_ARC;
-                if (t >= c.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
+                if (c.slipK != null && k >= c.slipK && t < c.t1 && b.y >= c.slipTop && b.y <= c.slipLow) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y), slip: true }); }   // 공중 놓침 — 그 자리에서 떨어져 다시 굴러 내려온다
+                else if (t >= c.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
                 continue;
             }
             if (b.state === 'chute') {   // 1등 룰 낙하산: tf 까지 제자리, 그 뒤 제 x 로 수직 낙하(흔들림은 통로에 가까울수록 작게). 통로에 닿으면 착지

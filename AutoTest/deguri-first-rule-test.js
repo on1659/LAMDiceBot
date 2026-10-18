@@ -6,7 +6,7 @@
 //   · track.eagles = min(3, 전 + 1)
 //   · 같은 시드 두 번 → 같은 JSON (결정성)
 //   · 회귀 가드: opts {target:'last'} 와 opts 없음은 같은 JSON (꼴등 룰 바이트 동일)
-//   · 첫 골인 → 마지막 도착(걷기 포함) 중앙값 ≤ 15s, 1등 룰 재생 길이 중앙값 < 꼴등 룰의 90%(첫 골인 자체가 재생의 절반 지점이고 낙하 뒤 걷기는 평소대로 보여 준다)
+//   · 첫 골인 → 마지막 도착(걷기 포함) 중앙값 ≤ 15s, 1등 룰 재생 길이 중앙값 < 꼴등 룰의 92%(2026-10-18 90→92: 독수리 공중 놓침으로 꼴등 룰이 짧아져 2명 판이 88→90%. 첫 골인 자체가 재생의 절반 지점이고 낙하 뒤 걷기는 평소대로 보여 준다)
 const sim = require('../socket/deguri-sim');
 const SEEDS = parseInt(process.argv[2], 10) || 40;
 const PLAYERS = [2, 4, 8];
@@ -81,7 +81,7 @@ const finishT = (r, id) => r.events.find(e => e.type === 'finish' && e.ball === 
         const medF = median(durF), medL = median(durL), ratio = medF / medL;
         const meanElim = elims / SEEDS;
         console.log(`[first-rule] players=${players} balls=${setup(players, 1).balls.length} seeds=${SEEDS} 재생 중앙값 1등=${(medF / 1000).toFixed(1)}s 꼴등=${(medL / 1000).toFixed(1)}s (${(ratio * 100).toFixed(0)}%) | 첫골인→마지막 도착 중앙값=${(median(chuteSpan) / 1000).toFixed(1)}s | 탈락 평균=${meanElim.toFixed(2)}/판 (있는 판 ${elimRaces}) | 슬로모 ${slowRaces}/${SEEDS} | 결승전 독수리 납치 평균=${(finalGrabs / SEEDS).toFixed(2)}`);
-        if (ratio >= 0.9) fail(`players=${players} 1등 룰 길이 비율 ${(ratio * 100).toFixed(0)}% ≥ 90%`);
+        if (ratio >= 0.92) fail(`players=${players} 1등 룰 길이 비율 ${(ratio * 100).toFixed(0)}% ≥ 92%`);
         if (median(chuteSpan) > 15000) fail(`players=${players} 첫골인→마지막 도착 중앙값 ${(median(chuteSpan) / 1000).toFixed(1)}s > 15s`);
         if (meanElim < 0.3 || meanElim > 1.2) fail(`players=${players} 탈락 평균 ${meanElim.toFixed(2)} 이 0.3~1.2 밖`);
     }
