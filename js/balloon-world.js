@@ -14,18 +14,25 @@
         reInflMin: 1.0, reInflMax: 2.0, riseMin: 128, riseMax: 150, riseWobble: 0.22, catchUp: 0.9,
         wanderAmp: 34, wanderWMin: 0.45, wanderWMax: 0.9, balTilt: 0.12, homeK: 0.9, kickV: 110, safeDur: 1.2, popBoost: 0.07, popBoostMax: 0.35, kickDecay: 1.3,
         popStop: 0.25, dropDur: 0.3, dropG: 900, chuteV: 300, chuteEase: 4, chuteSway: 26, landDur: 0.3,
-        startYard: 240, topYard: 280, middleMin: 3500, middleMax: 4400, funnel: 120, wallPad: 16, thornPad: 4, spikeR: 13, balloonR: 15, spikeClear: 130,
+        startYard: 240, topYard: 280, middleMin: 4200, middleMax: 5100, funnel: 120, wallPad: 16, thornPad: 4, spikeR: 13, balloonR: 15, spikeClear: 130,
         gustMin: 5, gustMax: 8, gustDur: 1.5, gustPush: 80, gustSlow: 0.55, windEase: 3,
         eagleFirst: 8, eagleMin: 7, eagleMax: 10, eagleWarn: 0.9, eagleFly: 1.1, eagleHitP: 0.4, eagleFromH: 0.12, eagleTopGap: 150, eagleMissDy: 46,
         flapOpen: 1.25, flapEase: 14, flapHold: 0.3, solidP: 0.35, solidReach: 220, finalZone: 220, finalSlow: 0.5,
         inflate: 3, hitStop: 0.25, hitSlow: 0.35, resultDelay: 1.6, shakeDur: 0.3, camEase: 3,
         // 꼴등 피날레(사용자 2026-10-18): N-1 명이 도착하면 남은 한 명이 놀라고(finaleShock) → 풍선 펑 → 낙하산 없이 떨어져(종단 finaleVMax)
         // 처음 닿는 발판·땅에 착지 → 그 자리에 비석(graveDrop 동안 떨어져 박힘) → graveHold 뒤 결과
-        finaleShock: 0.5, finaleVMax: 700, finaleFallMax: 8, graveDrop: 0.45, graveHold: 1.6
+        finaleShock: 0.5, finaleVMax: 700, finaleFallMax: 8, graveDrop: 0.45, graveHold: 1.6,
+        // 2차(docs/goal/balloon-climb.md §11, 사용자 2026-10-18)
+        bridgeLead: 40, bridgeBuild: 0.9,                                   // 세이브 다리 — 꼴등 발이 경계 + bridgeLead 를 넘으면 놓인다(그림은 bridgeBuild 초)
+        itemR: 16, itemRespawn: 6, superDur: 2.5, superMul: 2.3, superPMin: 0.3, superPSpan: 0.5, shieldDur: 12, shieldSafe: 0.6,   // 아이템 상자
+        itemClear: 70, itemHzClear: 120,                                    // 상자 자리 — 가시·발판(itemClear)·움직이는 장치 축(itemHzClear)에서 이만큼 떨어진 곳
+        warpH: 56, warpMouthW: 48, warpBodyW: 40, warpSuck: 36, warpHide: 0.5, warpCool: 3, warpPop: 200, warpPlatMin: 80,   // 하수구 — 발판 위 파이프 높이·입 폭, 숨는 시간, 다시 들어가기까지, 나올 때 위로 튀는 속도
+        cloudP: 0.5, cloudW: 90, cloudInflMin: 0.4, cloudInflMax: 0.7,      // 구름 쿠션
+        bumpKick: 70, bumpDy: 40, bumpCool: 0.5                             // 동물끼리 튕김
     };
     // 구간 장치 — 위치는 시각 t(초) 만의 함수
     const Z = {
-        bladeLen: 100, bladeHub: 14, bladePeriod: 6, pendLen: 150, pendAmp: 0.8, pendPeriod: 2.8, pendR: 19,
+        bladeLen: 60, bladeHub: 10, bladePeriod: 6, pendLen: 150, pendAmp: 0.8, pendPeriod: 2.8, pendR: 19,
         boltPeriod: 3.6, boltWarn: 0.7, boltDur: 0.25, boltW: 70, boltLen: 280, fanPeriod: 3, fanOn: 1.4, fanPush: 150, fanBand: 120,
         beePeriod: 3.4, beeDur: 1.6, beeSpan: 280, beeDrop: 240, beeR: 24, shutPeriod: 3, shutSlide: 0.4, shutSteer: 2.2, shutReach: 260, upBoost: 1.9
     };
@@ -97,7 +104,8 @@
     }
 
     // 구간을 쌓아 맵을 만든다(좌우 반전은 구간마다 0.5). 반환은 JSON 그대로 클라로 간다
-    // { worldH, sections:[{name,label,y0,y1,mirror,corr,thorn}], plats:[{x,y,w,solid}], spikes:[{x,y}], hazards:[{type,x,y,s,phase,w?,h?}] }
+    // { worldH, sections:[{name,label,y0,y1,mirror,corr,thorn}], plats:[{x,y,w,solid,kind?:'cloud'}], spikes:[{x,y}], hazards:[{type,x,y,s,phase,w?,h?}],
+    //   bridges:[{y,idx}](세이브 다리 자리), items:[{x,y,idx}](아이템 상자), warps:[{x,y,top,pair,idx}](하수구 — 발판 y 위에 top 까지 선 파이프) }
     function buildMap(order, rng) {
         const sections = [], plats = [], hazards = [];
         let spikes = [], y0 = R.startYard;
@@ -111,10 +119,43 @@
         }
         // 발판 바로 위 가시는 뺀다 — 풍선 달고 뜨자마자 또 터지는 반복 방지
         spikes = spikes.filter(q => !plats.some(p => q.y > p.y && q.y - p.y < R.spikeClear && Math.abs(q.x - p.x) < p.w / 2 + 30));
+        // ── 2차 장치(§11) — 기존 구간 rng 를 다 쓴 뒤에 뽑는다(발판·가시·장치 자리는 그대로) ──
+        const bridges = sections.slice(1).map((q, i) => ({ y: q.y0, idx: i }));   // 구간 경계마다 세이브 다리
+        const nearHz = (x, y, pad) => hazards.some(h => h.type === 'bolt' ? Math.abs(x - h.x) < Z.boltW / 2 + 20 && y < h.y + 40 && y > h.y - Z.boltLen - 40
+            : h.type === 'shutter' ? Math.abs(y - h.y) < 60 : h.type === 'up' ? false : Math.hypot(x - h.x, y - h.y) < pad + (h.type === 'blade' ? Z.bladeLen : h.type === 'pend' ? Z.pendLen : h.type === 'bee' ? Z.beeSpan * 0.5 : 0));
+        const freeAt = (x, y, halfW) => {
+            const q = sectionAt({ sections }, y), b = q && q.corr ? sectionBounds(q, y - q.y0) : FULL;
+            return x - halfW > b[0] + R.wallPad && x + halfW < b[1] - R.wallPad && !nearHz(x, y, R.itemHzClear)
+                && !spikes.some(k => Math.hypot(k.x - x, k.y - y) < R.itemClear + halfW * 0.5) && !plats.some(p => Math.abs(p.y - y) < R.itemClear && Math.abs(p.x - x) < p.w / 2 + halfW + 20);
+        };
+        const pick = cands => cands.length ? cands[Math.floor(rng() * cands.length)] : null;
+        const items = [], clouds = [];
+        sections.forEach(q => {
+            const h = q.y1 - q.y0, spots = [];
+            [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].forEach(fy => [70, 125, 180, 235, 290].forEach(x => spots.push([x, q.y0 + h * fy])));
+            const it = pick(spots.filter(([x, y]) => freeAt(x, y, R.itemR)));
+            if (it) items.push({ x: it[0], y: Math.round(it[1]), idx: items.length });
+            if (rng() < R.cloudP) {
+                const c = pick(spots.filter(([x, y]) => freeAt(x, y, R.cloudW / 2) && !(it && Math.hypot(it[0] - x, it[1] - y) < 90)));
+                if (c) clouds.push({ x: c[0], y: Math.round(c[1]), w: R.cloudW, solid: false, kind: 'cloud' });
+            }
+        });
+        // 하수구 짝 — 아래 절반 구간의 넓은 발판 하나 ↔ 위 절반 구간의 넓은 발판 하나(그 발판은 늘 solid). 구간 4개 이상이면 2쌍
+        const warps = [], half = Math.floor(sections.length / 2), used = new Set();
+        const wide = (lo, hi) => plats.filter(p => !used.has(p) && p.w >= R.warpPlatMin && p.y >= sections[lo].y0 && p.y < sections[hi - 1].y1 && !sections.some(q => q.y0 > p.y && q.y0 < p.y + R.warpH + 30));   // 파이프 머리가 위 구간 경계(세이브 다리)에 닿지 않게
+        for (let k = 0; k < (sections.length >= 4 ? 2 : 1); k++) {
+            const a = pick(wide(0, half)), b = a && pick(wide(half, sections.length));
+            if (!a || !b) break;
+            [a, b].forEach(p => { used.add(p); p.solid = true; });
+            const ia = warps.length;
+            warps.push({ x: a.x, y: a.y, top: a.y + R.warpH, pair: ia + 1, idx: ia }, { x: b.x, y: b.y, top: b.y + R.warpH, pair: ia, idx: ia + 1 });
+        }
+        clouds.forEach(c => plats.push(c));
         const r1 = v => Math.round(v * 10) / 10;   // JSON 크기만 줄인다 — 시뮬·그림이 같은 값을 읽으므로 결과와 무관
         spikes.forEach(q => { q.x = r1(q.x); q.y = r1(q.y); });
         plats.forEach(q => { q.x = r1(q.x); });
-        return { worldH: y0 + R.topYard, sections, plats, spikes, hazards };
+        warps.forEach(q => { q.x = r1(q.x); });
+        return { worldH: y0 + R.topYard, sections, plats, spikes, hazards, bridges, items, warps };
     }
 
     function sectionAt(map, y) {

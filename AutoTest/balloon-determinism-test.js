@@ -3,7 +3,7 @@
 //  2) 맵 기준선: trackSeed 1 의 덱·맵 JSON = balloon-map-seed1.canonical.json (구간 정의를 바꿨으면 --update 로 다시 찍는다)
 //  3) target 'last' = opts 없음
 //  4) 종료·순위: 인원 {1,2,5,8} × 룰 {first,last} — 캡 전에 판정, finishOrder 인원 수·중복 없음, 당첨 = decidedBall 의 주인 = 룰 쪽 끝
-//  5) 덱(drawOrder): 방 20개 × 20판 — 한 맵 안 중복 없음, 움직이는 장애물 ≥ 2, 높이 3500~4400, 어떤 구간도 4판 넘게 안 빠짐, 같은 입력 → 같은 결과
+//  5) 덱(drawOrder): 방 20개 × 20판 — 한 맵 안 중복 없음, 움직이는 장애물 ≥ 2, 높이 4200~5100, 어떤 구간도 4판 넘게 안 빠짐, 같은 입력 → 같은 결과
 //  6) 재생 시각 왕복: realDuration(simEnd) 로 simTimeAt 이 simEnd 에 닿고 단조 증가
 //  꼴등 룰은 피날레(놀람 → 펑 → 낙하 → 비석)가 붙는다 — 4) 에서 사건 순서·끝 시각 확인
 // 사용: node AutoTest/balloon-determinism-test.js [--update]

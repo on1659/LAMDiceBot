@@ -44,6 +44,8 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *  events    = [{ t(ms), type, … }] — inflate{ball,dur} · rise{ball} · pop{ball,cause,spike?|hz?|sec?,x,y,dir} · shock{ball} · grave{ball,plat,x,y} · drop{ball} · chute{ball} ·
  *              land{ball,plat(-1 = 땅)} · finish{ball} · gust{dir,dur} · eagleWarn{ball,dir} · eagleFly{ball,hit} · eagleMiss{ball} ·
  *              cap · decided{ball}. cause ∈ spike|blade|pend|bolt|bee|thorn|eagle|finale
+ *              2차(§11): bridge{idx}(세이브 다리 놓임 — land.plat = -2 - idx) · item{ball,kind:'super'|'shield',box} · superEnd{ball} · shieldPop{ball} · shieldEnd{ball} ·
+ *              warp{ball,from,to}(하수구에 쏙) · warpOut{ball,x,y} · bump{a,b}
  *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
  *  finishOrder = 순위 순 id 전부(도착 순 → 판정 순간 미도착은 높이 순)
  *  slow      = [{ startMs, endMs, rate, holdMs? }] 시뮬 시각 — 결승 슬로모(0.5) + 판정 순간 정지(holdMs)·0.35배속. durationMs 에 반영(BalloonWorld.realDuration)
@@ -56,13 +58,16 @@ async function simulate(players, seed, map, opts) {
     const n = players.length;
     const worldH = map.worldH, plats = map.plats, hazards = map.hazards;
     const spikeUsed = map.spikes.map(() => false);
+    const bridges = map.bridges || [], items = map.items || [], warps = map.warps || [];
+    const bridgeOn = bridges.map(() => false), itemBack = items.map(() => 0);   // itemBack = 상자가 다시 생기는 시뮬 초
+    const bumpAt = {};   // 'a,b' → 마지막 튕김 시뮬 초
     const dt = SIM_DT_MS / 1000;
     const sampleEvery = SAMPLE_MS / SIM_DT_MS;
 
     const P = players.map((pl, i) => ({
         id: pl.id, x: (i + 0.5) / n * WORLD_W, frac: (i + 0.5) / n, y: 0, vy: 0, kick: 0,
         st: 'rise', stT: 0, inflDur: 0, base: range(R.riseMin, R.riseMax), ph: rng() * 6.283, ww: range(R.wanderWMin, R.wanderWMax),
-        wind: 0, chuteT: 0, safeT: 0, pops: 0
+        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0
     }));
     const eagle = { st: 'wait', t: R.eagleFirst + rng() * 2, x: -999, y: -999, dir: 1, target: null, hit: false, passed: false };
     const gust = { t: 0, next: range(R.gustMin, R.gustMax), dir: 1 };
@@ -75,6 +80,11 @@ async function simulate(players, seed, map, opts) {
     const balloonX = p => p.x + p.wind * R.balTilt;
 
     function popBalloon(p, cause, dir, extra) {
+        if (p.shieldT > 0) {   // 방패가 한 번 막는다 — 잠깐 무적 + 옆으로 살짝 튕김
+            p.shieldT = 0; p.safeT = R.shieldSafe; p.kick = dir * R.kickV * 0.6;
+            ev('shieldPop', Object.assign({ ball: p.id, cause }, extra));
+            return;
+        }
         p.kick = dir * R.kickV;   // 옆으로 튕겨 나간다 — 같은 가시에 또 찔리는 반복 방지
         ev('pop', Object.assign({ ball: p.id, cause, x: Math.round(balloonX(p)), y: Math.round(p.y + BAL_OFF), dir }, extra));
         p.st = 'pop'; p.stT = R.popStop; p.pops++; p.vy = 0;
@@ -95,6 +105,31 @@ async function simulate(players, seed, map, opts) {
         if (phase !== 'run') return;
         if (first || n === 1) decide(p);   // 혼자면(로컬 개발 서버) 도착이 곧 판정
         else if (arrived.length === n - 1) decide(P.find(q => q.st !== 'done'));
+    }
+    // 지금 순위(0 = 선두) — 도착 순 → 미도착은 높이 순. 아이템 확률에만 쓴다
+    function rankOf(p) {
+        const a = arrived.indexOf(p.id); if (a >= 0) return a;
+        return arrived.length + live().filter(q => q.y > p.y || (q.y === p.y && q.id < p.id)).length;
+    }
+    // 떨어지는 동물(prevY → y)이 처음 닿는 바닥: 발판·놓인 세이브 다리 → { y, plat, cloud } | null
+    function floorHit(p, prevY) {
+        let best = null;
+        for (let i = 0; i < plats.length; i++) { const q = plats[i]; if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (!best || q.y > best.y)) best = { y: q.y, plat: i, cloud: q.kind === 'cloud' }; }
+        for (let i = 0; i < bridges.length; i++) { const b = bridges[i]; if (bridgeOn[i] && prevY >= b.y && p.y <= b.y && (!best || b.y > best.y)) best = { y: b.y, plat: -2 - i, cloud: false }; }
+        return best;
+    }
+    // 떨어지는 동물이 하수구 입에 들어갔나 → 들어간 파이프 | null
+    function warpHit(p, prevY) {
+        if (p.warpCool > 0) return null;
+        for (const w of warps) if (prevY >= w.top && p.y <= w.top && Math.abs(p.x - w.x) < R.warpSuck) return w;   // 입 가장자리 근처도 빨려 든다(warpSuck)
+        return null;
+    }
+    function enterWarp(p, w) {
+        const o = warps[w.pair], side = p.x >= w.x ? 1 : -1;   // 짝 파이프 옆(들어간 쪽과 같은 쪽)으로 나온다 — 그 발판 위
+        p.st = 'warp'; p.warpT = R.warpHide; p.vy = 0; p.kick = 0; p.wind = 0;
+        p.warpOut = { x: o.x + side * (R.warpBodyW / 2 + 14), y: o.top };
+        p.x = p.warpOut.x; p.y = p.warpOut.y;   // 숨어 있는 동안 기록 좌표는 나올 자리(재생은 그리지 않는다)
+        ev('warp', { ball: p.id, from: w.idx, to: o.idx });
     }
     function inFinal() {
         if (!(first || live().length === 2)) return false;
@@ -119,6 +154,8 @@ async function simulate(players, seed, map, opts) {
     function fanPush(y) { let v = 0; for (const h of hazards) if (h.type === 'fan' && Math.abs(y - h.y) < Z.fanBand / 2 && W.fanOn(h, t)) v += -h.s * Z.fanPush; return v; }
 
     function updatePlayer(p, lead) {
+        if (p.warpCool > 0) p.warpCool -= dt;
+        if (p.shieldT > 0 && (p.shieldT -= dt) <= 0) ev('shieldEnd', { ball: p.id });
         if (p.st === 'rise' || p.st === 'chute' || p.st === 'drop') p.wind += ((gust.t > 0 ? gust.dir * R.gustPush : 0) + fanPush(p.y + 40) - p.wind) * Math.min(1, dt * R.windEase);
         switch (p.st) {
             case 'inflate':
@@ -128,7 +165,7 @@ async function simulate(players, seed, map, opts) {
             case 'rise': {
                 let up = false;
                 for (const h of hazards) if (h.type === 'up' && Math.abs(p.x - h.x) < h.w / 2 && p.y > h.y && p.y < h.y + h.h) { up = true; break; }
-                const v = p.base * (1 + R.riseWobble * Math.sin(t * 1.3 + p.ph)) * (1 + (lead - p.y) / worldH * R.catchUp) * (gust.t > 0 ? R.gustSlow : 1) * (up ? Z.upBoost : 1) * (1 + Math.min(R.popBoostMax, p.pops * R.popBoost));   // 많이 터진 쪽은 조금 빨리 오른다
+                const v = p.base * (1 + R.riseWobble * Math.sin(t * 1.3 + p.ph)) * (1 + (lead - p.y) / worldH * R.catchUp) * (gust.t > 0 ? R.gustSlow : 1) * (up ? Z.upBoost : 1) * (1 + Math.min(R.popBoostMax, p.pops * R.popBoost)) * (p.superT > 0 ? R.superMul : 1);   // 많이 터진 쪽은 조금 빨리 오른다 · 슈퍼 풍선
                 const prevTop = p.y + BAL_OFF + R.balloonR;
                 p.y += v * dt;
                 const [b0, b1] = boundsAt(p.y + BAL_OFF);   // 풍선 높이의 벽 기준 — 좁아지는 입구에서 풍선이 먼저 벽에 닿는다
@@ -148,8 +185,21 @@ async function simulate(players, seed, map, opts) {
                     }
                     if (prevTop <= q.y && p.y + BAL_OFF + R.balloonR > q.y) p.y = q.y - BAL_OFF - R.balloonR;
                 }
-                p.x = clamp(p.x + (Math.cos(t * p.ww + p.ph) * R.wanderAmp * p.ww + p.wind + (tx - p.x) * k) * dt, b0 + R.wallPad, b1 - R.wallPad);
+                p.kick *= Math.exp(-dt * R.kickDecay);
+                p.x = clamp(p.x + (Math.cos(t * p.ww + p.ph) * R.wanderAmp * p.ww + p.wind + p.kick + (tx - p.x) * k) * dt, b0 + R.wallPad, b1 - R.wallPad);
                 if (p.y >= worldH) { finish(p); break; }
+                if (p.superT <= 0 && p.shieldT <= 0) {   // 아이템 상자 — 들고 있는 게 없을 때만 먹는다
+                    const bx0 = balloonX(p), by0 = p.y + BAL_OFF;
+                    for (const it of items) if (t >= itemBack[it.idx] && Math.hypot(it.x - bx0, it.y - by0) < R.itemR + R.balloonR) {
+                        itemBack[it.idx] = t + R.itemRespawn;
+                        const superP = R.superPMin + R.superPSpan * (n > 1 ? rankOf(p) / (n - 1) : 0);   // 뒤에 있을수록 슈퍼 풍선이 잘 나온다
+                        const kind = rng() < superP ? 'super' : 'shield';
+                        if (kind === 'super') p.superT = R.superDur; else p.shieldT = R.shieldDur;
+                        ev('item', { ball: p.id, kind, box: it.idx });
+                        break;
+                    }
+                }
+                if (p.superT > 0) { if ((p.superT -= dt) <= 0) ev('superEnd', { ball: p.id }); break; }   // 슈퍼 풍선 동안은 안 터진다
                 if (p.safeT > 0) { p.safeT -= dt; break; }
                 const bx = balloonX(p), by = p.y + BAL_OFF;
                 let si = -1;
@@ -179,17 +229,24 @@ async function simulate(players, seed, map, opts) {
                     p.x = clamp(p.x + (Math.sin(p.chuteT * 2.2 + p.ph) * R.chuteSway + p.wind + p.kick) * dt, b0 + R.wallPad, b1 - R.wallPad);
                 }
                 p.y += p.vy * dt;
-                let pl = -1;
-                for (let i = 0; i < plats.length; i++) { const q = plats[i]; if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (pl < 0 || q.y > plats[pl].y)) pl = i; }
-                if (pl >= 0 || p.y <= 0) {
-                    p.y = pl >= 0 ? plats[pl].y : 0; p.vy = 0; p.st = 'land'; p.stT = R.landDur; p.wind = 0; p.kick = 0;
+                const wp = warpHit(p, prevY);
+                if (wp) { enterWarp(p, wp); break; }
+                const fl = floorHit(p, prevY);
+                if (fl || p.y <= 0) {
+                    p.y = fl ? fl.y : 0; p.vy = 0; p.st = 'land'; p.stT = R.landDur; p.wind = 0; p.kick = 0; p.landCloud = !!(fl && fl.cloud);
                     const [c0, c1] = boundsAt(p.y + 30); p.frac = clamp((p.x - c0) / (c1 - c0), 0.1, 0.9);
-                    ev('land', { ball: p.id, plat: pl });
+                    ev('land', { ball: p.id, plat: fl ? fl.plat : -1 });
                 }
                 break;
             }
+            case 'warp':   // 짝 파이프 안에 숨었다가 위로 뿅 → 떨어져 그 발판에 선다
+                if ((p.warpT -= dt) <= 0) {
+                    p.st = 'drop'; p.stT = R.dropDur; p.vy = R.warpPop; p.warpCool = R.warpCool;
+                    ev('warpOut', { ball: p.id, x: Math.round(p.x), y: Math.round(p.y) });
+                }
+                break;
             case 'land':
-                if ((p.stT -= dt) <= 0) { p.st = 'inflate'; p.stT = 0; p.inflDur = range(R.reInflMin, R.reInflMax); ev('inflate', { ball: p.id, dur: Math.round(p.inflDur * 1000) }); }
+                if ((p.stT -= dt) <= 0) { p.st = 'inflate'; p.stT = 0; p.inflDur = p.landCloud ? range(R.cloudInflMin, R.cloudInflMax) : range(R.reInflMin, R.reInflMax); p.landCloud = false; ev('inflate', { ball: p.id, dur: Math.round(p.inflDur * 1000) }); }
                 break;
             case 'shock':
                 if ((p.stT -= dt) <= 0) {
@@ -202,11 +259,10 @@ async function simulate(players, seed, map, opts) {
                 p.stT += dt;
                 p.vy = Math.max(-R.finaleVMax, p.vy - R.dropG * dt);
                 p.y += p.vy * dt;
-                let pl = -1;
-                for (let i = 0; i < plats.length; i++) { const q = plats[i]; if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (pl < 0 || q.y > plats[pl].y)) pl = i; }
-                if (pl >= 0 || p.y <= 0 || p.stT >= R.finaleFallMax) {
-                    p.y = pl >= 0 ? plats[pl].y : Math.max(0, p.y); p.vy = 0; p.st = 'grave'; graveMs = tMs;
-                    ev('grave', { ball: p.id, plat: pl, x: Math.round(p.x), y: Math.round(p.y) });
+                const fl = floorHit(p, prevY);   // 하수구는 안 탄다 — 피날레는 그대로 떨어져 비석
+                if (fl || p.y <= 0 || p.stT >= R.finaleFallMax) {
+                    p.y = fl ? fl.y : Math.max(0, p.y); p.vy = 0; p.st = 'grave'; graveMs = tMs;
+                    ev('grave', { ball: p.id, plat: fl ? fl.plat : -1, x: Math.round(p.x), y: Math.round(p.y) });
                 }
                 break;
             }
@@ -261,6 +317,20 @@ async function simulate(players, seed, map, opts) {
         let lead = -Infinity;
         for (const p of P) if (p.y > lead) lead = p.y;
         for (const p of P) updatePlayer(p, lead);
+        // 세이브 다리 — 아직 안 도착한 동물 중 가장 낮은 동물(꼴등)의 발이 경계 + bridgeLead 를 넘으면 비버가 다리를 놓는다
+        let low = Infinity;
+        for (const p of P) if (p.st !== 'done' && p.y < low) low = p.y;
+        for (let i = 0; i < bridges.length; i++) if (!bridgeOn[i] && low > bridges[i].y + R.bridgeLead) { bridgeOn[i] = true; ev('bridge', { idx: i }); }
+        // 동물끼리 튕김 — 둘 다 오르는 중이고 풍선이 겹치면 반대쪽으로
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+            const a = P[i], b = P[j];
+            if (a.st !== 'rise' || b.st !== 'rise' || Math.abs(a.y - b.y) > R.bumpDy) continue;
+            const dx = balloonX(b) - balloonX(a); if (Math.abs(dx) >= R.balloonR * 2) continue;
+            const key = i + ',' + j; if (bumpAt[key] != null && t - bumpAt[key] < R.bumpCool) continue;
+            bumpAt[key] = t; const d = dx > 0 || (dx === 0 && a.id < b.id) ? 1 : -1;
+            a.kick -= d * R.bumpKick; b.kick += d * R.bumpKick;
+            ev('bump', { a: a.id, b: b.id });
+        }
         if (phase === 'run' && tMs >= SIM_CAP_MS) {
             const ls = live().sort((a, b) => b.y - a.y || a.id - b.id);
             ev('cap', {});

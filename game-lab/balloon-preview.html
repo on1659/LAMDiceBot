@@ -130,8 +130,11 @@
         };
         function renderEvents() {
             var nameOf = function (id) { return data.players[id] ? data.players[id].owner : ''; };
-            var rows = data.events.filter(function (e) { return /^(pop|land|finish|eagleWarn|eagleMiss|gust|decided|cap)$/.test(e.type); }).map(function (e) {
-                var txt = e.type === 'pop' ? nameOf(e.ball) + ' 펑 — ' + (CAUSE[e.cause] || e.cause) : e.type === 'land' ? nameOf(e.ball) + ' 착지(' + (e.plat < 0 ? '땅' : '발판 ' + e.plat) + ')'
+            var rows = data.events.filter(function (e) { return /^(pop|land|finish|eagleWarn|eagleMiss|gust|decided|cap|bridge|item|shieldPop|warp)$/.test(e.type); }).map(function (e) {
+                var txt = e.type === 'pop' ? nameOf(e.ball) + ' 펑 — ' + (CAUSE[e.cause] || e.cause)
+                    : e.type === 'land' ? nameOf(e.ball) + ' 착지(' + (e.plat === -1 ? '땅' : e.plat <= -2 ? '세이브 다리 ' + (-2 - e.plat) : data.map.plats[e.plat].kind === 'cloud' ? '구름 쿠션' : '발판 ' + e.plat) + ')'
+                    : e.type === 'bridge' ? '세이브 다리 ' + e.idx + ' 놓임' : e.type === 'item' ? nameOf(e.ball) + ' 아이템 — ' + (e.kind === 'super' ? '슈퍼 풍선' : '방패')
+                    : e.type === 'shieldPop' ? nameOf(e.ball) + ' 방패로 막음' : e.type === 'warp' ? nameOf(e.ball) + ' 하수구 ' + (data.map.warps[e.to].y > data.map.warps[e.from].y ? '↑ 인생역전' : '↓')
                     : e.type === 'finish' ? nameOf(e.ball) + ' 도착' : e.type === 'eagleWarn' ? '독수리 → ' + nameOf(e.ball) : e.type === 'eagleMiss' ? '독수리 놓침' : e.type === 'gust' ? '돌풍 ' + (e.dir > 0 ? '→' : '←')
                     : e.type === 'decided' ? '당첨 확정 — ' + nameOf(e.ball) : '캡';
                 return '<div class="' + e.type + '" data-t="' + Math.max(0, realOf(e.t) - 600) + '"><span class="t">' + fmt(realOf(e.t)) + '</span>' + txt + '</div>';
@@ -177,7 +180,7 @@
             run();
         });
 
-        R = BalloonRender.create($('cv'));
+        R = BalloonRender.create($('cv')); window.__balloonR = R;   // 콘솔 확인용(camY·camMode)
         window.addEventListener('resize', function () { R.resize(); });
         BalloonRender.loadAssets(function () { loadSim().then(function (m) { Sim = m; window.BalloonSim = m; run(); }); });
     })();

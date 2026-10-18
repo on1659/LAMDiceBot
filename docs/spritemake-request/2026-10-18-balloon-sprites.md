@@ -54,3 +54,17 @@
 - armadillo-cowboy · armadillo-gpu · hamster-bee · hamster-hachi · hamster-nyang · hedgehog-apple · panda-bamboo · panda-honey · panda-lifeguard · panda-malang · panda-mochi · panda-snorkel · panda-trunks · pillbug-gpu · pillbug-ladybug · pufferfish-crown · rabbit-ura · rabbit-yaho · ribbonpig-angry · ribbonpig-gold · ribbonpig-iron · ribbonpig-pilot · ribbonpig-zhu · turtle-garden · turtle-gpu — 같은 방법으로 확인해 채택
 - 마지막 묶음: rabbit-wreath · ribbonpig-chef · ribbonpig-red(머리 위 불꽃 유지 확인) · raccoon-ninja · raccoon-swimcap · raccoon-tube · raccoon-beanie · raccoon-aloha
 - 스킨 쪽에서 겪은 것: panda-honey blow 가 투명 대신 회색 체크무늬를 그렸는데 Δ60 flood 로 안 지워짐 → `remove_checker()`(밝은 회색 두 톤이 칸 단위로 번갈아 나오는 바탕을 먼저 지움). 너구리 스킨 hang 은 기본 너구리와 같은 문구(끈 없이 두 팔 만세)로 미리 바꿔서 돌려 막힘 없음. raccoon-aloha fall 은 Codex 가 그림을 받고 저장에 실패해 한 번 더 돌림.
+
+## 2차 소품·배경 (사용자 2026-10-18 플레이 피드백 — goal 문서 §11)
+
+| 파일 | 칸 | 내용 | 배치 |
+|---|---|---|---|
+| props/item-box.webp | 64×64 × 2 | 아이템 상자(무지개 선물 상자·별) — 가만 · 반짝 | `balloon-props2-2026-10-18` (`scaffold-props2`, 4×2 한 장) |
+| props/super-balloon.webp | 96×120 × 2 | 슈퍼 풍선(금색 별 풍선, 매듭 아래 끝 48,116) — 풍선 · 무지개 꼬리(꼭대기를 첫 칸에 맞추고 꼬리는 칸 밑에서 자름) | 같음 |
+| props/shield.webp | 128×128 × 2 | 방패 비눗방울(속 비움) · 깨짐 | 같음 |
+| props/cloud.webp | 192×96 × 2 | 구름 쿠션 · 눌림(아래 정렬) | 같음 |
+| bg/sky-mid · sky-high · sky-top.webp | 512×768(top 은 위 62%만 512×476) | 먼 배경 — 구름 위 낮 · 노을 · 밤하늘. 가운데 띠는 비우고 양옆에 섬·열기구·달. 데구리 `stage/sky-far.webp` 를 화풍 참조로 | `balloon-sky-2026-10-18` (수동 스캐폴드, 그림 1장씩) |
+
+- 소품 2차는 첫 시도 채택. 4×2 를 반으로 자르니 슈퍼 풍선 무지개 꼬리가 아래 줄 구름 칸에 넘어가 구름이 작게 배율됨 → 두 줄 사이 가장 빈 가로줄에서 자르게 고침(`props2_repack`).
+- 하늘 3장 첫 시도 채택(밤하늘은 Codex 가 한 번 더 그렸지만 1번이 구름이 더 많아 1번). 밤하늘 아래쪽에 언덕이 그려져 있어 위 62%만 쓴다(높은 하늘에 땅이 보이면 안 됨). 그림체가 부드러운 평면 채색이라 webp 손실 압축(q80) — 장당 9KB.
+- 세이브 다리 비버·하수구 파이프는 데구리 `pieces/beaver-v2.webp` · `pieces/warp-pipe.webp` 를 그대로 쓴다(새 그림 없음).

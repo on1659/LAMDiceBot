@@ -19,6 +19,7 @@ usage (/opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드�
   balloon-sheet.py strip <out.png> <kind>               # 눈으로 볼 대조 그림(서기 4칸 | 그 kind 4칸, 동물 10줄)
   balloon-sheet.py scaffold-props [date]                # 소품 배치(풍선·낙하산·장애물) — 리팩은 props-repack
   balloon-sheet.py props-repack [date] [balloon=N] [chute=N] [items=N]
+  balloon-sheet.py scaffold-props2|props2-repack [date] [attempt]|props2-pickup [date]   # 소품 2차(아이템 상자·슈퍼 풍선·방패·구름 쿠션)
   balloon-sheet.py skin-kind <creature> <skin>             # recolor | remap | pixelate | dress
   balloon-sheet.py recolor|remap|pixelate <creature> <skin> [kinds…]   # GPT 없이 기본 포즈 시트에서 파생 → assets/balloon/creatures/{creature}-{skin}-{kind}.webp
   balloon-sheet.py scaffold-skin <creature> <skin> <kind> [date]       # 옷 입히기 배치(balloon-<kind>-<date>/<creature>-<skin>/) — 리팩·인수는 repack/pickup <creature>-<skin> <kind>
@@ -413,8 +414,67 @@ def props_repack(date, picks):
             Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(s, 3))
 
 
-def props_pickup(date):
-    fin = OUT / f'balloon-props-{date}' / 'final'; (DEST / 'props').mkdir(parents=True, exist_ok=True)
+# ── 소품 2차(2026-10-18 사용자: 아이템·방패·구름 쿠션) — 4×2 한 장 → 파일 하나씩. 프레임 둘은 같은 파일에 가로로 붙인다 ──
+PROPS2 = {
+    'items2': ("items, power-ups & cloud cushion (4x2)",
+               "Layout: exactly 4 columns x 2 rows of equal square cells, ONE item per cell, each item centred in its cell with padding:\n"
+               "r0c0: a floating MYSTERY GIFT BOX power-up — a small cube present wrapped in rainbow stripes with a gold ribbon bow on top and a big white STAR on its front face (no letters, no question mark).\n"
+               "r0c1: the SAME gift box, identical shape and colours, but glowing — a soft yellow outer glow outline and 3 tiny sparkle stars around it.\n"
+               "r0c2: a SUPER BALLOON — a shiny GOLD party balloon, upright and egg-shaped (taller than wide), a big gold star emblem on it, a bright white highlight at the upper left, a small tied KNOT at the bottom centre, NO string.\n"
+               "r0c3: the SAME gold balloon with a burst of small white-yellow sparkles around it and a short rainbow trail streaming DOWN from the knot.\n"
+               "r1c0: a round SHIELD BUBBLE — a big soap-bubble circle drawn as a THICK light-blue ring outline with two white shine marks; the inside of the ring is EMPTY / transparent (draw nothing inside).\n"
+               "r1c1: the SAME bubble breaking — the ring cracked into 6 curved light-blue pieces flying apart, inside still empty.\n"
+               "r1c2: a fluffy white CLOUD CUSHION platform — a wide flat-bottomed puffy cloud (about 3x wider than tall) with a soft blue shadow underneath, cute and soft.\n"
+               "r1c3: the SAME cloud SQUISHED by a landing — flatter and a bit wider, with little puff lines at both ends.\n"
+               "Same pixel-art style in all cells. No text, no letters, no numbers."),
+}
+ITEM_BOX2 = {   # 셀 → (파일, 프레임 번호, 칸 w, h, 정렬)
+    (0, 0): ('item-box', 0, 64, 64, 'c'), (0, 1): ('item-box', 1, 64, 64, 'c'),
+    (0, 2): ('super-balloon', 0, 96, 120, 'k'), (0, 3): ('super-balloon', 1, 96, 120, 'k'),
+    (1, 0): ('shield', 0, 128, 128, 'c'), (1, 1): ('shield', 1, 128, 128, 'c'),
+    (1, 2): ('cloud', 0, 192, 96, 'b'), (1, 3): ('cloud', 1, 192, 96, 'b'),
+}
+
+
+def scaffold_props2(date):
+    dst = OUT / f'balloon-props2-{date}'
+    if dst.exists(): sys.exit(f'exists: {dst}')
+    for d in ('ref', 'source', 'final'): (dst / d).mkdir(parents=True)
+    Image.open(CREATURES / 'hamster.webp').convert('RGBA').save(dst / 'ref' / 'style.png')
+    jobs = []
+    for key, (title, body) in PROPS2.items():
+        (dst / f'prompt-{key}.md').write_text(f"# {title}\n\n{PROP_STYLE}\n\n{body}\n\nBACKDROP: transparent (preferred) or one flat mid-green #6EBE64 — never on the items. No border, drawn grid, labels or watermark. Each item fully inside its cell. Large PNG.\n")
+        jobs.append((f'source/{key}-attempt-NN.png', f'prompt-{key}.md', '`ref/style.png` as the only input image'))
+    brief(dst, f'balloon-props2-{date}', jobs, 'wrong number of cells/rows, items bleeding across cells, an item missing, text or letters drawn, a string on the balloon, or the shield bubble filled in')
+    print(dst)
+
+
+def props2_repack(date, pick):
+    dst = OUT / f'balloon-props2-{date}'; fin = dst / 'final'
+    src = np.array(Image.open(dst / 'source' / f'items2-attempt-{pick:02d}.png').convert('RGBA')); h = src.shape[0]
+    rows = W.remove_backdrop(src.copy())[0][..., 3] >= ALPHA_MIN
+    lo, hi = int(h * 0.4), int(h * 0.6); cut = lo + int(np.argmin(rows[lo:hi].sum(1)))   # 두 줄 사이 가장 빈 가로줄에서 자른다(무지개 꼬리가 아래 칸으로 넘어가지 않게)
+    cells = {}
+    for rowi, (y0, y1) in enumerate([(0, cut), (cut, h)]):
+        fr, _ = cut_frames(src[y0:y1].copy(), 4)
+        for ci, f in enumerate(fr): cells[(rowi, ci)] = f
+    files = {}
+    for (rc, (name, k, bw, bh, al)) in ITEM_BOX2.items(): files.setdefault(name, []).append((k, cells[rc], bw, bh, al))
+    for name, frs in files.items():
+        bw, bh, al = frs[0][2], frs[0][3], frs[0][4]
+        s = min(min((bw - 4) / f.shape[1], ((BAL_KNOT_Y - 4) if al == 'k' else (bh - 4)) / f.shape[0]) for _, f, *_ in frs)   # 프레임끼리 같은 배율
+        out = np.zeros((bh, bw * len(frs), 4), np.uint8); top0 = None
+        for k, f, *_ in sorted(frs, key=lambda z: z[0]):
+            r = np.array(Image.fromarray(f, 'RGBA').resize((max(1, round(f.shape[1] * s)), max(1, round(f.shape[0] * s))), Image.NEAREST))
+            if al == 'k' and top0 is None: top0 = BAL_KNOT_Y - r.shape[0]   # 첫 칸 = 풍선만 — 매듭 아래 끝을 BAL_KNOT_Y 에
+            y = top0 if al == 'k' else bh - 2 - r.shape[0] if al == 'b' else (bh - r.shape[0]) // 2   # 다음 칸(꼬리 달린 풍선)은 꼭대기를 첫 칸에 맞추고 꼬리는 칸 밑에서 자른다
+            r = r[:bh - max(0, y), :bw]
+            place(out, r, k * bw + (bw - r.shape[1]) // 2, max(0, y))
+        Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(s, 3))
+
+
+def props_pickup(date, batch='props'):
+    fin = OUT / f'balloon-{batch}-{date}' / 'final'; (DEST / 'props').mkdir(parents=True, exist_ok=True)
     for p in sorted(fin.glob('*.png')):
         d = DEST / 'props' / (p.stem + '.webp'); W.to_webp(p, d); print('copied', d, d.stat().st_size, 'B')
 
@@ -537,6 +597,9 @@ if __name__ == '__main__':
         date = next((x for x in args[1:] if '=' not in x), today)
         props_repack(date, {k: int(v) for k, v in (x.split('=') for x in args[1:] if '=' in x)})
     elif cmd == 'props-pickup': props_pickup(args[1] if len(args) > 1 else today)
+    elif cmd == 'scaffold-props2': scaffold_props2(args[1] if len(args) > 1 else today)
+    elif cmd == 'props2-repack': props2_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
+    elif cmd == 'props2-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props2')
     elif cmd == 'skin-kind': print(skin_kind(args[1], args[2]))
     elif cmd in ('recolor', 'remap', 'pixelate'): {'recolor': recolor, 'remap': remap, 'pixelate': pixelate}[cmd](args[1], args[2], tuple(args[3:]) or KINDS)
     elif cmd == 'scaffold-skin': scaffold_skin(args[1], args[2], args[3], args[4] if len(args) > 4 else today)

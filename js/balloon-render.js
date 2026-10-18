@@ -19,6 +19,16 @@
     var SEEK_SNAP_MS = 500;           // 이보다 크게 건너뛰면(이동 막대) 카메라를 바로 옮기고 소리를 안 낸다
     var NAME_MAX = 6;
     var SAFE_BLINK_HZ = 12;
+    // 2차(docs/goal/balloon-climb.md §11)
+    var MANUAL_IDLE_RETURN_MS = 3000;  // 끌어서 옮긴 카메라는 이만큼 입력이 없으면 자동으로(데구리와 같은 값). 동물 따라가기는 유지
+    var CAM_EASE = 7, CAM_EASE_FAST = 16, CAM_EDGE = 0.3;   // 자동 추적 — 목표가 화면 가운데에서 CAM_EDGE×높이 넘게 벗어나면 빠르게 따라잡는다
+    var RANK_ROW = 18, RANK_NAME_MAX = 5, RANK_MAX_H = 0.55, RANK_COLLAPSED = 3;   // 순위표 한 줄 높이·이름 글자 수·최대 높이(캔버스 비율)·접혔을 때 줄 수
+    var SMILE_MS = 1400;               // ^ ^ 말풍선 — 다리·구름 착지, 아이템 먹은 뒤
+    var BUMP_FX_MS = 350, WARP_FX_MS = 600, ITEM_FX_MS = 600, SHIELD_FX_MS = 450, CLOUD_SQUISH_MS = 350;
+    var BEAVER = { cell: 96, worldH: 30, n: 3 };   // 데구리 beaver-v2.webp 96×96 ×4(통나무 밀기 2칸 · 놀람 · 도망) — 세이브 다리에 서 있는 비버 수
+    var PIPE = { rimTop: 8, bodyW: 101, rimW: 135 };   // 데구리 warp-pipe.webp 192×224 — 몸통 폭(px)을 R.warpBodyW 로 맞춘다
+    var SKY_BANDS = [   // 높이(cam/worldH)에 따라 겹쳐 그리는 먼 배경 — [이름, 보이기 시작, 다 보임, 사라지기 시작, 다 사라짐]
+        ['sky-mid', 0.08, 0.22, 0.45, 0.6], ['sky-high', 0.45, 0.6, 0.72, 0.85], ['sky-top', 0.72, 0.85, 2, 2]];
 
     // 게임 그림 색(캔버스) — 스킨과 무관(목업 C)
     var C = { skyLow: [159, 211, 245], skyHigh: [34, 44, 98], star: '#ffffff', cloud: '#ffffff', ground: '#7cc24a', groundDark: '#4e9a2e',
@@ -35,6 +45,7 @@
     var STAR = { cell: 96, frames: 4 };
     var BAL_SPRITE = { w: 96, h: 128, knotX: 48, knotY: 106, worldH: 46 };   // 야식 풍선(deguri_balloon) 셀·매듭 — docs/goal/deguri-balloon-accessory.md 계약
     var CAUSE_TEXT = { spike: '가시에 찔렸다', blade: '풍차에 펑!', pend: '통나무에 펑!', bolt: '번개에 펑!', bee: '벌한테 펑!', thorn: '가시벽에 펑!', eagle: '독수리한테 펑!', finale: '풍선이 펑!' };
+    var ITEM_TEXT = { super: '슈퍼 풍선!', shield: '방패!' };
     // 풍선 타기 전용 그림(assets/balloon/, SpriteMake 2026-10-18 — 의뢰서 docs/spritemake-request/2026-10-18-balloon-sprites.md, 도구 AutoTest/spritemake/balloon-sheet.py)
     //  creatures/{동물}-{hang|blow|fall}.webp : 4×1, 칸 160, 오른쪽 향함. hang 은 줄 토막 꼭대기가 (HANG_ANCHOR) — 풍선 줄·낙하산 줄이 여기 붙는다
     //  props/balloon.webp : 칸 96×120, 행 = 색(BALLOON 순서), c0 풍선(매듭 아래 끝 BAL_KNOT) · c1~c3 터짐
@@ -53,6 +64,7 @@
     var CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
     var PIECES = { eagle: 'pieces/eagle.webp', beam: 'pieces/start-platform-mid.webp', fan: 'pieces/fan.webp', hive: 'pieces/beehive.webp', plog: 'pieces/pendulum-log.webp',
         pivot: 'pieces/pendulum-pivot.webp', flag: 'pieces/flag.webp', star: 'fx/impact-star.webp', swarm: 'fx/bee-swarm.webp', wind: 'fx/wind.webp', dust: 'fx/dust-puff.webp',
+        beaver: 'pieces/beaver-v2.webp', pipe: 'pieces/warp-pipe.webp', skyFar: 'stage/sky-far.webp',
         meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp', rotor: 'pieces/windmill-rotor.webp' };
     var images = {}, loadState = 0, loadWaiters = [], instances = [];
     function image(path) {
@@ -74,7 +86,8 @@
         if (cb) loadWaiters.push(cb);
         if (loadState === 1) return;
         loadState = 1;
-        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'bolt', 'plank', 'thorn', 'shutter'].forEach(BP);   // 풍선 타기 소품 — 기다리지 않는다(없으면 코드 도형)
+        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'bolt', 'plank', 'thorn', 'shutter', 'item-box', 'super-balloon', 'shield', 'cloud'].forEach(BP);
+        SKY_BANDS.forEach(function (b) { bimage('bg/' + b[0] + '.webp'); });   // 풍선 타기 소품 — 기다리지 않는다(없으면 코드 도형)
         var list = CREATURES.map(function (c) { return 'creatures/' + c + '.webp'; }).concat(Object.keys(PIECES).map(function (k) { return PIECES[k]; }));
         var left = list.length;
         var done = function () { if (--left > 0) return; loadState = 2; var w = loadWaiters; loadWaiters = []; w.forEach(function (f) { f(); }); };
@@ -117,6 +130,7 @@
         var lastSim = -1, finaleFired = false, onFinaleCb = null, onEventCb = null;
         var flaps = [];
         var toastEl = null, camBtn = null, toastText = '';
+        var lastInput = 0, rankOpen = false, rankHits = [], rankToggle = null;
 
         // ── DOM: 카메라 복귀 버튼 · 토스트(캔버스 박스 안, 캔버스에 그리지 않음 — C-41) ──
         if (box && !(opts && opts.offscreen)) {
@@ -163,18 +177,23 @@
             var n = data.players.length;
             people = data.players.map(function (p, i) {
                 return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i,
-                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], finishT: -1 };
+                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], finishT: -1, superIv: [], shieldIv: [], smiles: [], warps: [] };
             });
             var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
             var nameOf = function (id) { return byId[id] ? byId[id].name : ''; };
             tl.toasts = [{ t: 0, text: '출발!' }];
             tl.spikeFall = {}; tl.popFx = []; tl.dust = []; tl.eagles = []; tl.gusts = []; tl.decided = null; tl.grave = null;
+            tl.bridgeT = {}; tl.boxTaken = {}; tl.fx = []; tl.cloudHit = {};   // 2차: 다리 놓인 시각 · 상자 먹힌 시각들 · 짧은 연출(퉁·쏙·뿅·방패 깨짐·아이템) · 구름 착지
+            var openIv = function (list, t) { list.push({ a: t, b: Infinity }); };
+            var closeIv = function (list, t) { var last = list[list.length - 1]; if (last && last.b === Infinity) last.b = t; };
+            var warpsOf = map.warps || [];
             people.forEach(function (p) { ['hang', 'blow', 'fall'].forEach(function (k) { bimage('creatures/' + p.creature + '-' + k + '.webp'); if (p.skin) bimage('creatures/' + p.creature + '-' + p.skin + '-' + k + '.webp'); }); });
             var curEagle = null;
             data.events.forEach(function (e) {
                 var p = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
                     case 'pop':
+                        closeIv(p.shieldIv, e.t); closeIv(p.superIv, e.t);
                         p.trans.push({ t: e.t, st: e.cause === 'finale' ? 'fdrop' : 'pop' }); p.pops.push(e.t);   // 피날레 펑 = 낙하산 없이 바로 떨어진다
                         tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color, row: (p.colorIdx || 0) % BALLOON.length });
                         if (e.spike != null) tl.spikeFall[e.spike] = e.t;
@@ -182,7 +201,33 @@
                         break;
                     case 'drop': p.trans.push({ t: e.t, st: 'drop' }); break;
                     case 'chute': p.trans.push({ t: e.t, st: 'chute' }); break;
-                    case 'land': p.trans.push({ t: e.t, st: 'land' }); tl.dust.push({ t: e.t, ball: e.ball }); break;
+                    case 'land':
+                        p.trans.push({ t: e.t, st: 'land' }); tl.dust.push({ t: e.t, ball: e.ball });
+                        if (e.plat <= -2) p.smiles.push(e.t);   // 세이브 다리에 섰다
+                        else if (e.plat >= 0 && map.plats[e.plat].kind === 'cloud') { p.smiles.push(e.t); (tl.cloudHit[e.plat] = tl.cloudHit[e.plat] || []).push(e.t); }
+                        break;
+                    case 'bridge': tl.bridgeT[e.idx] = e.t; tl.toasts.push({ t: e.t, text: '세이브! 비버들이 다리를 놓았다' }); break;
+                    case 'item':
+                        (tl.boxTaken[e.box] = tl.boxTaken[e.box] || []).push(e.t); p.smiles.push(e.t);
+                        openIv(e.kind === 'super' ? p.superIv : p.shieldIv, e.t);
+                        tl.fx.push({ t: e.t, type: 'item', ball: e.ball, kind: e.kind });
+                        tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + ITEM_TEXT[e.kind] });
+                        break;
+                    case 'superEnd': closeIv(p.superIv, e.t); break;
+                    case 'shieldEnd': closeIv(p.shieldIv, e.t); break;
+                    case 'shieldPop':
+                        closeIv(p.shieldIv, e.t); tl.fx.push({ t: e.t, type: 'shield', ball: e.ball });
+                        tl.toasts.push({ t: e.t, text: shortName(p.name) + ' 방패로 막았다!' });
+                        break;
+                    case 'warp': {
+                        var wf = warpsOf[e.from], wt = warpsOf[e.to], up = wt && wf && wt.y > wf.y;
+                        p.trans.push({ t: e.t, st: 'warp' }); p.warps.push(e.t);
+                        if (wf) tl.fx.push({ t: e.t, type: 'warpIn', x: wf.x, y: wf.top });
+                        tl.toasts.push({ t: e.t, text: shortName(p.name) + (up ? ' 인생역전! 위로 슝~' : ' 하수구로 쏙!') });
+                        break;
+                    }
+                    case 'warpOut': p.trans.push({ t: e.t, st: 'drop' }); tl.fx.push({ t: e.t, type: 'warpOut', x: e.x, y: e.y }); break;
+                    case 'bump': tl.fx.push({ t: e.t, type: 'bump', a: e.a, b: e.b }); break;
                     case 'inflate': p.trans.push({ t: e.t, st: 'inflate', dur: e.dur }); break;
                     case 'rise': p.trans.push({ t: e.t, st: 'rise', safe: true }); break;
                     case 'finish': p.trans.push({ t: e.t, st: 'done' }); p.finishT = e.t; break;
@@ -242,6 +287,8 @@
         }
         function posAt(i, sim) {
             var f = tl.frames, k = sim / tl.sampleMs, a = Math.min(f.length - 1, Math.floor(k)), b = Math.min(f.length - 1, a + 1), u = k - a;
+            var wps = people[i] && people[i].warps;   // 하수구 순간이동이 두 표본 사이에 있으면 미끄러지지 않게 — 그 전은 앞 표본, 그 뒤는 뒤 표본
+            if (wps) for (var w = 0; w < wps.length; w++) if (wps[w] > a * tl.sampleMs && wps[w] <= b * tl.sampleMs) { u = sim < wps[w] ? 0 : 1; break; }
             var fa = f[a], fb = f[b];
             return { x: fa[i * 3] + (fb[i * 3] - fa[i * 3]) * u, y: fa[i * 3 + 1] + (fb[i * 3 + 1] - fa[i * 3 + 1]) * u, lean: fa[i * 3 + 2] + (fb[i * 3 + 2] - fa[i * 3 + 2]) * u };
         }
@@ -273,10 +320,14 @@
                 else v.k = 1;
                 v.safe = st.st === 'rise' && st.safe && sim - st.t < R.safeDur * 1000;
                 v.face = Math.abs(vx) > 14 ? Math.sign(vx) : (Math.sin(t * 0.45 + p.ph * 7) > 0.15 ? 1 : -1);   // 움직이는 쪽을 보고, 멈추면 두리번(그림 전용)
+                var inIv = function (list) { for (var q = 0; q < list.length; q++) if (sim >= list[q].a && sim < list[q].b) return true; return false; };
+                v.super = !counting && inIv(p.superIv); v.shield = !counting && inIv(p.shieldIv);
+                v.smile = st.st === 'done' || p.smiles.some(function (ts) { return sim >= ts && sim - ts < SMILE_MS; });
                 return v;
             });
             var picked = tl.decided && sim >= tl.decided.t ? view[tl.decided.ball] : null;
-            // 카메라
+            // 카메라 — 끌어서 옮긴 수동 카메라는 입력 없이 3초 지나면 자동으로(데구리 MANUAL_IDLE_RETURN_MS)
+            if (camMode === 'free' && playing && !paused && !drag && now() - lastInput > MANUAL_IDLE_RETURN_MS) setCam('auto');
             if (camMode !== 'free') {
                 var target;
                 if (camMode !== 'auto') { var fv = view.filter(function (v) { return v.p === camMode; })[0]; target = fv ? fv.y + 60 : cam; }
@@ -284,15 +335,17 @@
                 else {
                     var ys = view.filter(function (v) { return v.st !== 'done'; }).map(function (v) { return v.y; }).sort(function (a, b) { return a - b; });
                     if (!ys.length) ys = view.map(function (v) { return v.y; });
-                    target = rule === 'first' ? ys[ys.length - 1] + 120 : (ys.length > 1 ? (ys[0] + ys[1]) / 2 : ys[0]) + 60;
+                    var span = H / s * 0.55;   // 꼴등 룰: 아래 두 마리가 한 화면에 들어오면 둘의 중간, 멀면 꼴등만(중간을 비추면 아무도 안 보인다)
+                    target = rule === 'first' ? ys[ys.length - 1] + 120 : (ys.length > 1 && ys[1] - ys[0] < span ? (ys[0] + ys[1]) / 2 : ys[0]) + 60;
                 }
                 target = clamp(target, camMin(), camMax());
-                cam = jump || counting ? (counting ? camMin() : target) : cam + (target - cam) * Math.min(1, simDt * R.camEase);
+                var ease = Math.abs(target - cam) * s > H * CAM_EDGE ? CAM_EASE_FAST : CAM_EASE;   // 화면 끝 쪽으로 벗어나면 빨리 따라잡는다(슈퍼 풍선·하수구)
+                cam = jump || counting ? (counting ? camMin() : target) : cam + (target - cam) * Math.min(1, Math.max(simDt, dt) * ease);
             }
             // 여닫이 발판 — 밑에서 오르는 동물이 지나가는 동안 열린다(그림 전용)
             var fdt = jump ? 1 : dt;
             map.plats.forEach(function (q, i) {
-                if (q.solid) return;
+                if (q.solid || q.kind) return;
                 var fl = flaps[i];
                 if (view.some(function (v) { return v.st === 'rise' && v.y < q.y + 6 && v.y + BAL_OFF + R.balloonR > q.y - 6 && Math.abs(v.x - q.x) < q.w / 2 + 14; })) fl.hold = R.flapHold;
                 fl.hold -= fdt; fl.open += ((fl.hold > 0 ? 1 : 0) - fl.open) * Math.min(1, fdt * R.flapEase);
@@ -305,13 +358,14 @@
             if (tl.decided && sim >= tl.decided.t && sim - tl.decided.t < DECIDE_SHAKE_MS) shake = 1;
             if (shake > 0) ctx.translate(Math.sin(clockS * 80) * 6 * shake * 0.6, Math.cos(clockS * 70) * 4 * shake * 0.6);
             drawBackground();
-            drawWorld(sim, t, clockS);
+            drawWorld(sim, t, clockS, view);
             view.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (v) { drawPlayer(v, clockS, picked); });
             drawFx(sim, view);
             drawEagle(sim, clockS);
             drawGust(sim, clockS);
             drawGauge(view);
             drawHud(view, rule);
+            drawRank(view, rule, picked);
             if (counting) drawCountdown(-rr);
             ctx.restore();
             // 토스트(시뮬 시각 기준 마지막 한 줄)
@@ -329,7 +383,7 @@
         // ── 대기 화면: 다음 판 맵 + 출발 자리 ──
         function drawIdle(preview, myName) {
             if (!preview || !preview.map) return;
-            stop(); mode = 'idle'; tl = null; me = myName || ''; idle = preview; map = preview.map; setToast('');
+            stop(); mode = 'idle'; tl = null; me = myName || ''; idle = preview; map = preview.map; setToast(''); rankHits = []; rankToggle = null;
             var n = Math.max(1, preview.players.length);
             people = preview.players.map(function (p, i) {
                 return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i, ph: i * 1.7 + 0.3, dim: !!p.dim, x0: (i + 0.5) / n * WORLD_W };
@@ -360,6 +414,7 @@
         function drawBackground() {
             var k = clamp(cam / worldH(), 0, 1);
             ctx.fillStyle = skyColor(k); ctx.fillRect(-10, -10, W + 20, H + 20);
+            drawFarBackground(k);
             if (k > 0.45) { ctx.globalAlpha = (k - 0.45) / 0.55; ctx.fillStyle = C.star; STARS.forEach(function (st) { ctx.beginPath(); ctx.arc(st.x * W, st.y * H, st.r, 0, Math.PI * 2); ctx.fill(); }); ctx.globalAlpha = 1; }
             ctx.fillStyle = C.cloud; ctx.globalAlpha = 0.55 * (1 - k * 0.6);
             CLOUDS.forEach(function (c) {
@@ -374,6 +429,26 @@
                 ctx.fillStyle = C.alt; ctx.fillText(y / 10 + 'm', 6, yy - 2);
             }
         }
+        // 먼 배경(빈 하늘 채우기, §11-5) — 땅 근처는 데구리 sky-far(언덕), 그 위는 높이 띠마다 balloon/bg/sky-*.webp 를 겹쳐 흐리게 바꾼다. 천천히 미끄러진다(시차)
+        function drawFarBackground(k) {
+            var far = P('skyFar'), gy = sy(0);
+            if (ok(far) && gy > -H * 0.2) {   // 1920×1080 — 언덕이 땅선 조금 위에 오게, 땅보다 느리게 따라 올라간다
+                var fh = Math.max(H, W * 1080 / 1920) * 1.05, fw = fh * 1920 / 1080, fy = Math.min(0, H - fh) + (gy - H) * 0.35;
+                ctx.globalAlpha = clamp((gy + H * 0.2) / (H * 0.6), 0, 1); ctx.drawImage(far, (W - fw) / 2, fy, fw, fh); ctx.globalAlpha = 1;
+                if (fy > -fh * 0.4) {   // 그림 윗단이 화면 안에 들어오면 경계선이 보인다 — 위쪽 40% 를 지금 하늘색으로 덮어 이어지게
+                    var sk = skyColor(k), g = ctx.createLinearGradient(0, fy, 0, fy + fh * 0.4);
+                    g.addColorStop(0, sk); g.addColorStop(1, sk.replace('rgb', 'rgba').replace(')', ',0)'));
+                    ctx.fillStyle = sk; ctx.fillRect(-10, -10, W + 20, fy + 10); ctx.fillStyle = g; ctx.fillRect(-10, fy, W + 20, fh * 0.4);
+                }
+            }
+            SKY_BANDS.forEach(function (b) {
+                var im = bimage('bg/' + b[0] + '.webp'); if (!ok(im)) return;
+                var a = clamp(k < b[2] ? (k - b[1]) / (b[2] - b[1]) : k < b[3] ? 1 : 1 - (k - b[3]) / (b[4] - b[3]), 0, 1); if (a <= 0) return;
+                var ih = Math.max(H * 1.15, W * im.naturalHeight / im.naturalWidth), iw = ih * im.naturalWidth / im.naturalHeight;
+                var prog = clamp((k - b[1]) / (b[4] - b[1]), 0, 1), iy = -(ih - H) * (1 - prog);   // 띠를 지나는 동안 그림이 위에서 아래로 천천히 내려온다
+                ctx.globalAlpha = a * 0.9; ctx.drawImage(im, (W - iw) / 2, iy, iw, ih); ctx.globalAlpha = 1;
+            });
+        }
         var dot = function (x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); };
         var seg = function (ax, ay, bx, by) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); };
         function spikeBall(x, y, r) {
@@ -381,7 +456,7 @@
             for (var a = 0; a < 12; a++) { var an = a / 12 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * r * 0.6, y + Math.sin(an) * r * 0.6); ctx.lineTo(x + Math.cos(an) * r * 1.35, y + Math.sin(an) * r * 1.35); ctx.stroke(); }
             ctx.fillStyle = C.spike; ctx.beginPath(); ctx.arc(x, y, r * 0.85, 0, Math.PI * 2); ctx.fill();
         }
-        function drawWorld(sim, t, clockS) {
+        function drawWorld(sim, t, clockS, view) {
             var gy = sy(0);
             if (gy < H + 40) {
                 if (ok(P('tree'))) ctx.drawImage(P('tree'), sx(8), gy - 112 * s, 80 * s, 112 * s);
@@ -395,6 +470,7 @@
             }
             map.plats.forEach(function (q, i) {
                 var y = sy(q.y); if (y < -40 || y > H + 20) return;
+                if (q.kind === 'cloud') { drawCloudPlat(q, i, sim, y); return; }
                 if (q.solid) {   // 안 열리는 들보 — 데구리 출발대 나무(128×96, 칠해진 곳 3~47줄)
                     var bx0 = sx(q.x - q.w / 2), bw = q.w * s, tw = 44 * s, th0 = tw * 44 / 128;
                     if (ok(P('beam'))) for (var x = bx0; x < bx0 + bw - 0.5; x += tw) { var cw = Math.min(tw, bx0 + bw - x); ctx.drawImage(P('beam'), 0, 3, 128 * cw / tw, 44, x, y - 2, cw, th0); }
@@ -407,7 +483,7 @@
                 [[x0, -1], [x1, 1]].forEach(function (hd) {
                     var hx = hd[0], d = hd[1];
                     ctx.save(); ctx.translate(hx, y); ctx.rotate(d * a); ctx.scale(-d, 1);
-                    if (ok(plank)) ctx.drawImage(plank, d < 0 ? 0 : 96, 0, 96, 32, d < 0 ? 0 : 0, -2, half, pth);   // plank.webp 192×32 — 왼쪽 판은 왼쪽 반(경첩 쇠가 바깥 끝), 오른쪽 판은 오른쪽 반을 뒤집어
+                    if (ok(plank)) ctx.drawImage(plank, 0, 0, 96, 32, 0, -2, half, pth);   // plank.webp 192×32 의 왼쪽 반(경첩 쇠가 왼쪽 끝) — 오른쪽 판은 scale(-1) 로 뒤집혀 경첩이 오른쪽 끝에 온다(ㅇ==ㅇ)
                     else {
                         ctx.fillStyle = C.platDark; ctx.beginPath(); ctx.roundRect(0, 0, half, th, 3); ctx.fill();
                         ctx.fillStyle = C.plat; ctx.fillRect(2, 3, half - 4, 3 * s);
@@ -421,13 +497,17 @@
                     [-1, 1].forEach(function (d) { var cx = sx(q.x) + d * q.w * 0.22 * s, cy = y + th + 5; seg(cx - 4, cy + 3, cx, cy - 1); seg(cx, cy - 1, cx + 4, cy + 3); });
                 }
             });
+            drawPipes();
+            drawBridges(sim, clockS, view);
+            drawItems(sim, clockS);
             drawWalls();
             map.spikes.forEach(function (q, i) {
                 var ft = tl && tl.spikeFall[i] != null && sim >= tl.spikeFall[i] ? (sim - tl.spikeFall[i]) / 1000 : -1;
                 if (ft >= 2) return;
                 var y = sy(q.y) + (ft > 0 ? 0.5 * R.dropG * ft * ft * s : 0); if (y < -30 || y > H + 30) return;
                 var shx = sx(q.x) + (ft >= 0 && ft < 0.25 ? Math.sin(clockS * 60) * 2 : 0);
-                if (ok(BP('chestnut'))) { var cs = R.spikeR * 2.8 * s; ctx.save(); ctx.translate(shx, y); ctx.rotate(ft > 0 ? ft * 6 : 0); ctx.drawImage(BP('chestnut'), -cs / 2, -cs / 2, cs, cs); ctx.restore(); }
+                var spin = clockS * (0.5 + (i % 3) * 0.18) * (i % 2 ? 1 : -1) + i;   // 제자리에서 천천히 돈다(밤송이마다 방향·속도 다르게, 그림 전용)
+                if (ok(BP('chestnut'))) { var cs = R.spikeR * 2.8 * s; ctx.save(); ctx.translate(shx, y); ctx.rotate(spin + (ft > 0 ? ft * 6 : 0)); ctx.drawImage(BP('chestnut'), -cs / 2, -cs / 2, cs, cs); ctx.restore(); }
                 else spikeBall(shx, y, R.spikeR * s);
             });
             drawHazards(t, clockS);
@@ -445,6 +525,64 @@
                 }
                 ctx.fillStyle = C.finish; ctx.font = '800 13px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('도착', W / 2, fy - 4);
             }
+        }
+        // ── 2차 장치(§11) ──
+        function drawCloudPlat(q, i, sim, y) {   // 구름 쿠션 — cloud.webp 192×96 ×2(가만 · 눌림). 착지 순간 잠깐 눌린다
+            var hit = tl && tl.cloudHit[i] && tl.cloudHit[i].some(function (ts) { return sim >= ts && sim - ts < CLOUD_SQUISH_MS; });
+            var w = (q.w + 24) * s, h = w * 96 / 192;
+            if (ok(BP('cloud'))) ctx.drawImage(BP('cloud'), hit ? 192 : 0, 0, 192, 96, sx(q.x) - w / 2, y - h * 0.55, w, h);
+            else { ctx.fillStyle = C.cloud; [[-0.3, 0, 0.22], [0, -0.08, 0.28], [0.3, 0, 0.22]].forEach(function (o) { dot(sx(q.x) + o[0] * w, y + o[1] * w, o[2] * w); }); }
+        }
+        function drawPipes() {   // 하수구 — 발판 위에 선 파이프(입이 위). 몸통 폭 = R.warpBodyW, 키 = R.warpH(아래는 발판 뒤로 잘림)
+            (map.warps || []).forEach(function (w) {
+                var top = sy(w.top), base = sy(w.y); if (base < -20 || top > H + 20) return;
+                var k = R.warpBodyW * s / PIPE.bodyW, srcH = (base - top) / k;
+                if (ok(P('pipe'))) ctx.drawImage(P('pipe'), 0, PIPE.rimTop, 192, srcH, sx(w.x) - 96 * k, top, 192 * k, base - top);
+                else { ctx.fillStyle = '#2fa84f'; ctx.fillRect(sx(w.x) - R.warpBodyW * s / 2, top, R.warpBodyW * s, base - top); }
+                ctx.font = '800 10px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';   // 짝 표시 — 위로 가는 파이프는 ▲, 아래로 가는 파이프는 ▼
+                var pair = map.warps[w.pair], up = pair && pair.y > w.y;
+                ctx.fillStyle = up ? C.tagMe : C.tag; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(sx(w.x), top + (base - top) * 0.55, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = C.tagInk; ctx.fillText(up ? '▲' : '▼', sx(w.x), top + (base - top) * 0.55 + 0.5);
+            });
+        }
+        function drawBridges(sim, clockS, view) {   // 세이브 다리 — 놓인 뒤 통나무 들보 + 비버. 놓이는 동안(bridgeBuild) 양 끝에서 가운데로 자라고 비버가 통나무를 민다
+            (map.bridges || []).forEach(function (b) {
+                var bt = tl && tl.bridgeT[b.idx]; if (bt == null || sim < bt) return;
+                var y = sy(b.y); if (y < -40 || y > H + 40) return;
+                var k = clamp((sim - bt) / (R.bridgeBuild * 1000), 0, 1), e = 1 - (1 - k) * (1 - k), reach = W / 2 * e;
+                var tw = 44 * s, th = tw * 44 / 128, gaps = [];
+                (view || []).forEach(function (v) { if (v.st === 'rise' && Math.abs(v.y + BAL_OFF - b.y) < 60) gaps.push(sx(v.x)); });   // 밑에서 오르는 동물 — 비버가 비켜 준다
+                [[0, 1], [W, -1]].forEach(function (side) {
+                    for (var x = 0; x < reach; x += tw) {
+                        var cw = Math.min(tw, reach - x), x0 = side[1] > 0 ? x : W - x - cw;
+                        if (gaps.some(function (g) { return Math.abs(x0 + cw / 2 - g) < 26 * s; })) continue;
+                        if (ok(P('beam'))) ctx.drawImage(P('beam'), 0, 3, 128 * cw / tw, 44, x0, y - 2, cw, th); else { ctx.fillStyle = C.platDark; ctx.fillRect(x0, y, cw, 10 * s); }
+                    }
+                });
+                if (!ok(P('beaver'))) return;
+                var bh = BEAVER.worldH * s, fr;
+                for (var j = 0; j < BEAVER.n; j++) {
+                    var home = (j + 0.5) / BEAVER.n * W, from = j < BEAVER.n / 2 ? -bh : W + bh, bx = from + (home - from) * e;
+                    var near = gaps.some(function (g) { return Math.abs(g - bx) < 40 * s; });
+                    fr = near ? 2 : k < 1 ? Math.floor(clockS * 6) % 2 : 0;
+                    var hop = near ? Math.abs(Math.sin(clockS * 10)) * 6 * s : 0;
+                    ctx.save(); ctx.translate(bx + (near ? (bx < W / 2 ? -14 : 14) * s : 0), y - hop); if (home < from) ctx.scale(-1, 1);
+                    ctx.drawImage(P('beaver'), fr * BEAVER.cell, 0, BEAVER.cell, BEAVER.cell, -bh / 2, -bh, bh, bh);
+                    ctx.restore();
+                }
+            });
+        }
+        function drawItems(sim, clockS) {   // 아이템 상자 — item-box.webp 64×64 ×2(가만 · 반짝). 먹힌 뒤 itemRespawn 초 동안 없다
+            if (!map.items) return;
+            map.items.forEach(function (it) {
+                var taken = tl && (tl.boxTaken[it.idx] || []).some(function (ts) { return sim >= ts && sim < ts + R.itemRespawn * 1000; });
+                if (taken) return;
+                var y = sy(it.y + Math.sin(clockS * 2.4 + it.idx) * 4); if (y < -30 || y > H + 30) return;
+                var sz = R.itemR * 2.4 * s, fr = Math.floor(clockS * 2.5 + it.idx) % 2;
+                if (ok(BP('item-box'))) ctx.drawImage(BP('item-box'), fr * 64, 0, 64, 64, sx(it.x) - sz / 2, y - sz / 2, sz, sz);
+                else { ctx.fillStyle = C.tagMe; ctx.fillRect(sx(it.x) - sz / 3, y - sz / 3, sz / 1.5, sz / 1.5); }
+            });
         }
         function drawWalls() {
             map.sections.forEach(function (q) {
@@ -559,7 +697,10 @@
         function drawBalloonAt(v, kx, ky, k, alpha) {
             var p = v.p, spr = p.balloon ? balloonSprite(p.balloon) : null;
             ctx.globalAlpha = alpha;
-            if (spr && ok(spr)) {   // 야식 풍선(deguri_balloon) — 매듭이 줄 끝에 오게
+            if (v.super && ok(BP('super-balloon'))) {   // 슈퍼 풍선 — 금색 별 풍선(super-balloon.webp 96×120 ×2, 무지개 꼬리 칸과 번갈아), 1.3배
+                var sc3 = 2 * R.balloonR * 1.15 * s * k * 1.3 / BAL_CELL.bodyW, sf = Math.floor(performance.now() / 120) % 2;
+                ctx.drawImage(BP('super-balloon'), sf * BAL_CELL.w, 0, BAL_CELL.w, BAL_CELL.h, kx - BAL_CELL.knotX * sc3, ky - BAL_CELL.knotY * sc3, BAL_CELL.w * sc3, BAL_CELL.h * sc3);
+            } else if (spr && ok(spr)) {   // 야식 풍선(deguri_balloon) — 매듭이 줄 끝에 오게
                 var hpx = BAL_SPRITE.worldH * s * k, sc = hpx / BAL_SPRITE.h;
                 ctx.drawImage(spr, 0, 0, BAL_SPRITE.w, BAL_SPRITE.h, kx - BAL_SPRITE.knotX * sc, ky - BAL_SPRITE.knotY * sc, BAL_SPRITE.w * sc, hpx);
             } else if (ok(BP('balloon'))) {
@@ -596,7 +737,7 @@
         }
         function drawPlayer(v, clockS, picked) {
             var S = BODY * s, x = sx(v.x), feet = sy(v.y), p = v.p, st = v.st;
-            if (feet < -160 || feet > H + 80) return;
+            if (st === 'warp' || feet < -160 || feet > H + 80) return;   // 하수구 안 — 안 보인다
             var hop = picked === v && tl && tl.target === 'first' ? Math.abs(Math.sin(clockS * 6)) * 12 : 0;   // 1등 룰 당첨자만 폴짝(꼴등은 비석)
             feet -= hop;
             if (p.dim) ctx.globalAlpha = 0.45;
@@ -638,8 +779,26 @@
                 ctx.restore();
             }
             ctx.globalAlpha = p.dim ? 0.45 : 1;
+            if (v.shield) drawShield(x, feet - S * 0.5, S, clockS);
             if (st !== 'grave') nameTag(p, x, st === 'rise' || st === 'done' || st === 'chute' ? feet + 2 : feet - S * 0.06);
+            if (v.smile && st !== 'grave') drawSmile(x + face * S * 0.5, feet - S * (hangSt ? 0.95 : 1.05), clockS + p.ph);
             ctx.globalAlpha = 1;
+        }
+        function drawShield(x, cy, S, clockS) {   // 방패 — shield.webp 128×128 ×2 의 첫 칸(속이 빈 비눗방울 고리), 몸을 감싼다
+            var r = S * 0.78 * (1 + 0.04 * Math.sin(clockS * 5));
+            if (ok(BP('shield'))) { ctx.globalAlpha *= 0.9; ctx.drawImage(BP('shield'), 0, 0, 128, 128, x - r, cy - r, r * 2, r * 2); ctx.globalAlpha = 1; }
+            else { ctx.strokeStyle = 'rgba(120,200,255,0.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, cy, r * 0.9, 0, Math.PI * 2); ctx.stroke(); }
+        }
+        function drawSmile(x, y, ph) {   // ^ ^ 말풍선
+            var b = 1 + 0.06 * Math.sin(ph * 6);
+            ctx.save(); ctx.translate(x, y); ctx.scale(b, b);
+            ctx.fillStyle = C.tag; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.roundRect(-15, -10, 30, 18, 9); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(-8, 13); ctx.lineTo(1, 8); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = C.tag; ctx.fillRect(-5, 6, 7, 3);
+            ctx.strokeStyle = C.tagInk; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            [-6, 6].forEach(function (ex) { ctx.beginPath(); ctx.moveTo(ex - 4, 1); ctx.lineTo(ex, -3); ctx.lineTo(ex + 4, 1); ctx.stroke(); });
+            ctx.restore();
         }
         function nameTag(p, x, y) {
             var mine = p.name === me, label = shortName(p.name);
@@ -670,8 +829,9 @@
             tl.popFx.forEach(function (f) {
                 if (sim < f.t || sim - f.t >= POP_FX_MS) return;
                 var k = (sim - f.t) / POP_FX_MS, x = sx(f.x), y = sy(f.y);
-                if (ok(BP('balloon')) && k < 0.6) {   // 풍선 시트의 터짐 3칸(그 사람 색)
+                if (ok(BP('balloon')) && k < 0.6) {   // 풍선 시트의 터짐 3칸(그 사람 색) — 지나며 알파로 서서히 사라진다
                     var fr = 1 + Math.min(2, Math.floor(k / 0.6 * 3)), sc = 2 * R.balloonR * 1.15 * s / BAL_CELL.bodyW * 1.15;
+                    ctx.globalAlpha = 1 - k / 0.6;
                     ctx.drawImage(BP('balloon'), fr * BAL_CELL.w, f.row * BAL_CELL.h, BAL_CELL.w, BAL_CELL.h, x - BAL_CELL.knotX * sc, y - BAL_CELL.popCY * sc, BAL_CELL.w * sc, BAL_CELL.h * sc);
                 } else if (!ok(BP('balloon'))) {
                     ctx.fillStyle = f.color; ctx.globalAlpha = 1 - k;
@@ -680,6 +840,34 @@
                 }
                 ctx.globalAlpha = 1 - k;
                 ctx.font = '900 18px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = C.countInk; ctx.strokeText('펑!', x, y - 30 - 18 * k); ctx.fillStyle = C.popInk; ctx.fillText('펑!', x, y - 30 - 18 * k);
+                ctx.globalAlpha = 1;
+            });
+            tl.fx.forEach(function (f) {   // 2차 짧은 연출
+                var dur = f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : WARP_FX_MS;
+                if (sim < f.t || sim - f.t >= dur) return;
+                var k = (sim - f.t) / dur, x, y;
+                ctx.globalAlpha = 1 - k;
+                ctx.font = '900 14px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = C.countInk; ctx.fillStyle = C.popInk;
+                if (f.type === 'bump') {
+                    var a = view[f.a], b = view[f.b]; if (!a || !b) return;
+                    x = sx((a.x + b.x) / 2); y = sy((a.y + b.y) / 2 + BAL_OFF) - 6 * k * s;
+                    if (ok(P('star'))) { var ss = 26 * s; ctx.drawImage(P('star'), Math.min(3, Math.floor(k * 4)) * STAR.cell, 0, STAR.cell, STAR.cell, x - ss / 2, y - ss / 2, ss, ss); }
+                    ctx.strokeText('퉁', x, y - 14); ctx.fillText('퉁', x, y - 14);
+                } else if (f.type === 'item') {
+                    var v = view[f.ball]; if (!v) return;
+                    x = sx(v.x); y = sy(v.y + BAL_OFF) - 20 - 20 * k;
+                    var label = f.kind === 'super' ? '슈퍼!' : '방패!';
+                    ctx.strokeText(label, x, y); ctx.fillText(label, x, y);
+                } else if (f.type === 'shield') {
+                    var w = view[f.ball]; if (!w) return;
+                    var r = BODY * s * 0.78 * (1 + k * 0.4);
+                    if (ok(BP('shield'))) ctx.drawImage(BP('shield'), 128, 0, 128, 128, sx(w.x) - r, sy(w.y) - BODY * s * 0.5 - r, r * 2, r * 2);
+                } else {   // 하수구 들어감·나옴 — 먼지 + 글자
+                    x = sx(f.x); y = sy(f.y);
+                    if (ok(P('dust'))) { var ds = 44 * s; ctx.drawImage(P('dust'), Math.min(3, Math.floor(k * 4)) * 80, 0, 80, 80, x - ds / 2, y - ds * 0.8, ds, ds); }
+                    var word = f.type === 'warpIn' ? '쏙!' : '뿅!';
+                    ctx.strokeText(word, x, y - 26 - 10 * k); ctx.fillText(word, x, y - 26 - 10 * k);
+                }
                 ctx.globalAlpha = 1;
             });
             if (!ok(P('dust'))) return;
@@ -733,13 +921,58 @@
             ctx.fillStyle = C.hud; ctx.beginPath(); ctx.roundRect(8, 8, tw, 22, 11); ctx.fill();
             ctx.fillStyle = C.hudInk; ctx.fillText(text, 16, 19.5);
         }
+        // 순위표(데구리처럼 오른쪽 위, 높이 게이지 왼쪽) — 도착 순 → 미도착은 높이 순. 접힘 = 당첨 자리·나·따라가는 동물, 제목을 누르면 펼침. 행을 누르면 그 동물 따라가기
+        function rankOrder(view) {
+            return view.slice().sort(function (a, b) {
+                var da = a.st === 'done', db = b.st === 'done';
+                if (da !== db) return da ? -1 : 1;
+                if (da) return a.p.finishT - b.p.finishT || a.p.id - b.p.id;
+                return b.y - a.y || a.p.id - b.p.id;
+            });
+        }
+        function drawRank(view, rule, picked) {
+            rankHits = []; rankToggle = null;
+            if (!view.length) return;
+            var order = rankOrder(view), n = order.length, endIdx = rule === 'first' ? 0 : n - 1;
+            if (picked) { order = order.filter(function (v) { return v !== picked; }); order.splice(rule === 'first' ? 0 : order.length, 0, picked); }   // 판정 뒤엔 당첨자를 룰 쪽 끝에
+            var keep = {};
+            keep[endIdx] = true;
+            order.forEach(function (v, i) { if (v.p.name === me || (camMode !== 'auto' && camMode !== 'free' && v.p === camMode)) keep[i] = true; });
+            for (var i = 0; Object.keys(keep).length < Math.min(RANK_COLLAPSED, n) && i < n; i++) keep[rule === 'first' ? i : n - 1 - i] = true;
+            var collapsible = n > RANK_COLLAPSED + 1, open = rankOpen || !collapsible;
+            var rows = [];
+            order.forEach(function (v, i) { if (open || keep[i]) rows.push({ v: v, i: i }); });
+            var maxRows = Math.max(2, Math.floor((H * RANK_MAX_H - RANK_ROW) / RANK_ROW));
+            if (rows.length > maxRows) rows = rows.filter(function (r) { return keep[r.i]; }).concat(rows.filter(function (r) { return !keep[r.i]; })).slice(0, maxRows).sort(function (a, b) { return a.i - b.i; });
+            ctx.font = '700 11px Pretendard, sans-serif';
+            var nameW = 0; rows.forEach(function (r) { nameW = Math.max(nameW, ctx.measureText(shortRank(r.v.p.name)).width); });
+            var pw = 24 + 18 + nameW + 10, x0 = W - 20 - pw, y0 = 8, ph = RANK_ROW * (rows.length + 1) + 4;
+            ctx.fillStyle = C.hud; ctx.beginPath(); ctx.roundRect(x0, y0, pw, ph, 8); ctx.fill();
+            ctx.fillStyle = C.hudInk; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.font = '800 11px Pretendard, sans-serif';
+            ctx.fillText('순위' + (collapsible ? (open ? ' ▴' : ' ▾') : ''), x0 + 8, y0 + RANK_ROW / 2 + 2);
+            if (collapsible) rankToggle = { x: x0, y: y0, w: pw, h: RANK_ROW + 2 };
+            ctx.font = '700 11px Pretendard, sans-serif';
+            rows.forEach(function (r, k) {
+                var v = r.v, ry = y0 + RANK_ROW * (k + 1) + 2, cy = ry + RANK_ROW / 2;
+                if (k > 0 && r.i - rows[k - 1].i > 1) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x0 + 8, ry, pw - 16, 1); }   // 건너뛴 줄
+                var isEnd = r.i === endIdx, following = camMode === v.p, mine = v.p.name === me;
+                if (isEnd || following) { ctx.fillStyle = isEnd ? (rule === 'first' ? 'rgba(255,209,102,0.35)' : 'rgba(230,57,70,0.4)') : 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.roundRect(x0 + 3, ry + 1, pw - 6, RANK_ROW - 2, 5); ctx.fill(); }
+                ctx.fillStyle = C.hudInk; ctx.textAlign = 'right'; ctx.fillText(String(r.i + 1), x0 + 20, cy);
+                ctx.fillStyle = v.p.color; ctx.beginPath(); ctx.arc(x0 + 31, cy, 5.5, 0, Math.PI * 2); ctx.fill();
+                ctx.textAlign = 'left'; ctx.fillStyle = mine ? C.tagMe : C.hudInk;
+                ctx.fillText(shortRank(v.p.name), x0 + 42, cy);
+                rankHits.push({ x: x0, y: ry, w: pw, h: RANK_ROW, p: v.p });
+            });
+        }
+        function shortRank(nm) { var c = Array.from(String(nm || '')); return c.length > RANK_NAME_MAX ? c.slice(0, RANK_NAME_MAX).join('') + '…' : c.join(''); }
         function drawCountdown(left) {   // left = 출발까지 남은 ms. 첫 1초는 "준비", 그다음 3·2·1 동안 풍선을 분다
             var n = Math.ceil(left / 1000), label = n > R.inflate ? '준비' : String(n), k = left / 1000 - Math.floor(left / 1000), sc = 1 + 0.5 * k;
             ctx.save(); ctx.translate(W / 2, H * 0.4); ctx.scale(sc, sc); ctx.font = (n > R.inflate ? '900 40px' : '900 72px') + ' Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.lineWidth = 8; ctx.strokeStyle = C.countInk; ctx.strokeText(label, 0, 0); ctx.fillStyle = C.count; ctx.fillText(label, 0, 0); ctx.restore();
         }
 
-        // ── 카메라 조작 — 끌면 그 자리 고정, 동물 탭하면 그 동물 따라가기, 휠도 고정. 왼쪽 아래 버튼으로 자동 복귀(3초 자동 복귀 없음) ──
+        // ── 카메라 조작 — 끌면 그 자리 고정(3초 입력 없으면 자동으로), 동물·순위표 행을 탭하면 그 동물 따라가기, 휠도 고정. 왼쪽 아래 버튼으로 자동 복귀 ──
         function viewPeople() {
             if (mode === 'idle') return people.map(function (p) { return { p: p, x: p.x0, y: 0 }; });
             var sim = simAt(playing ? raceReal() : tl.durationMs);
@@ -755,12 +988,18 @@
             if (!drag.moved && Math.abs(dy) < DRAG_PX) return;
             if (!drag.moved) { drag.moved = true; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ } }
             if (camMode !== 'free') setCam('free');
+            lastInput = now();
             cam = clamp(drag.cam + dy / s, camMin(), camMax());
             if (!playing || paused) redraw();
         });
         canvas.addEventListener('pointerup', function (e) {
-            if (drag && !drag.moved && map) {   // 탭 — 가장 가까운 동물(몸·풍선 근처)을 따라간다
+            if (drag && drag.moved) lastInput = now();
+            if (drag && !drag.moved && map) {   // 탭 — 순위표(제목 = 펼치기, 행 = 따라가기) 먼저, 아니면 가장 가까운 동물(몸·풍선 근처)을 따라간다
                 var r = canvas.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, best = null, bd = TAP_PX;
+                var inBox = function (h) { return px >= h.x && px <= h.x + h.w && py >= h.y && py <= h.y + h.h; };
+                if (mode === 'play' && rankToggle && inBox(rankToggle)) { rankOpen = !rankOpen; drag = null; if (!playing || paused) redraw(); return; }
+                var hit = mode === 'play' ? rankHits.filter(inBox)[0] : null;
+                if (hit) { setCam(hit.p); drag = null; return; }
                 viewPeople().forEach(function (v) { var d = Math.hypot(sx(v.x) - px, sy(v.y + 30) - py); if (d < bd) { bd = d; best = v.p; } });
                 if (best && mode === 'play') setCam(best);
             }
@@ -771,6 +1010,7 @@
             if (!map) return;
             e.preventDefault();
             if (camMode !== 'free') setCam('free');
+            lastInput = now();
             cam = clamp(cam - e.deltaY / s, camMin(), camMax());
             if (!playing || paused) redraw();
         }, { passive: false });
@@ -792,6 +1032,7 @@
             hasCreatureSprite: function (c) { return ok(image('creatures/' + c + '.webp')); },
             drawCreatureIcon: drawCreatureIcon,
             camMode: function () { return camMode === 'auto' || camMode === 'free' ? camMode : 'follow'; },   // 테스트용
+            camY: function () { return cam; },   // 테스트용 — 화면 가운데의 세계 높이
             redrawIfIdle: function () { if (!playing || paused) redraw(); }
         };
         instances.push(api);

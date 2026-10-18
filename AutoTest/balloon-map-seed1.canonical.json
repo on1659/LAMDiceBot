@@ -1,25 +1,25 @@
 {
  "order": [
-  "storm",
+  "updraft",
   "windmill",
-  "bees",
   "zigzag",
+  "bees",
+  "storm",
   "shutter"
  ],
  "deck": [
-  "updraft",
   "pendulum",
   "chestnut",
   "fans"
  ],
  "map": {
-  "worldH": 4100,
+  "worldH": 4740,
   "sections": [
    {
-    "name": "storm",
-    "label": "먹구름",
+    "name": "updraft",
+    "label": "상승 기류",
     "y0": 240,
-    "y1": 1000,
+    "y1": 880,
     "mirror": true,
     "corr": null,
     "thorn": false
@@ -27,17 +27,8 @@
    {
     "name": "windmill",
     "label": "풍차",
-    "y0": 1000,
-    "y1": 1720,
-    "mirror": false,
-    "corr": null,
-    "thorn": false
-   },
-   {
-    "name": "bees",
-    "label": "벌집",
-    "y0": 1720,
-    "y1": 2380,
+    "y0": 880,
+    "y1": 1600,
     "mirror": false,
     "corr": null,
     "thorn": false
@@ -45,8 +36,8 @@
    {
     "name": "zigzag",
     "label": "지그재그 굴",
-    "y0": 2380,
-    "y1": 3280,
+    "y0": 1600,
+    "y1": 2500,
     "mirror": false,
     "corr": {
      "pts": [
@@ -76,10 +67,28 @@
     "thorn": false
    },
    {
+    "name": "bees",
+    "label": "벌집",
+    "y0": 2500,
+    "y1": 3160,
+    "mirror": true,
+    "corr": null,
+    "thorn": false
+   },
+   {
+    "name": "storm",
+    "label": "먹구름",
+    "y0": 3160,
+    "y1": 3920,
+    "mirror": false,
+    "corr": null,
+    "thorn": false
+   },
+   {
     "name": "shutter",
     "label": "셔터",
-    "y0": 3280,
-    "y1": 3820,
+    "y0": 3920,
+    "y1": 4460,
     "mirror": true,
     "corr": null,
     "thorn": false
@@ -88,175 +97,303 @@
   "plats": [
    {
     "x": 60,
-    "y": 370,
-    "w": 90,
-    "solid": true
-   },
-   {
-    "x": 300,
-    "y": 540,
-    "w": 90,
+    "y": 420,
+    "w": 80,
     "solid": false
    },
    {
-    "x": 60,
-    "y": 710,
-    "w": 90,
+    "x": 300,
+    "y": 600,
+    "w": 80,
     "solid": false
    },
    {
     "x": 180,
-    "y": 880,
+    "y": 800,
     "w": 80,
     "solid": false
    },
    {
     "x": 50,
-    "y": 1140,
+    "y": 1020,
     "w": 90,
-    "solid": false
+    "solid": true
    },
    {
     "x": 310,
-    "y": 1140,
+    "y": 1020,
     "w": 90,
-    "solid": false
+    "solid": true
    },
    {
     "x": 35,
-    "y": 1380,
+    "y": 1260,
     "w": 70,
     "solid": false
    },
    {
     "x": 325,
-    "y": 1380,
+    "y": 1260,
     "w": 70,
     "solid": false
    },
    {
     "x": 180,
-    "y": 1620,
-    "w": 90,
-    "solid": false
-   },
-   {
-    "x": 300,
-    "y": 1830,
-    "w": 90,
-    "solid": true
-   },
-   {
-    "x": 60,
-    "y": 2020,
-    "w": 90,
-    "solid": true
-   },
-   {
-    "x": 300,
-    "y": 2180,
+    "y": 1500,
     "w": 90,
     "solid": false
    },
    {
     "x": 92.8,
-    "y": 2510,
+    "y": 1730,
     "w": 70,
     "solid": true
    },
    {
     "x": 232.8,
-    "y": 2720,
+    "y": 1940,
     "w": 70,
-    "solid": false
+    "solid": true
    },
    {
     "x": 127.2,
-    "y": 2970,
+    "y": 2190,
     "w": 70,
     "solid": false
    },
    {
     "x": 195.8,
-    "y": 3190,
+    "y": 2410,
     "w": 70,
-    "solid": true
-   },
-   {
-    "x": 180,
-    "y": 3400,
-    "w": 100,
     "solid": false
    },
    {
+    "x": 60,
+    "y": 2610,
+    "w": 90,
+    "solid": true
+   },
+   {
     "x": 300,
-    "y": 3720,
+    "y": 2800,
     "w": 90,
     "solid": false
    },
    {
     "x": 60,
-    "y": 3720,
+    "y": 2960,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 3290,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 60,
+    "y": 3460,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 3630,
     "w": 90,
     "solid": false
+   },
+   {
+    "x": 180,
+    "y": 3800,
+    "w": 80,
+    "solid": false
+   },
+   {
+    "x": 180,
+    "y": 4040,
+    "w": 100,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 4360,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 60,
+    "y": 4360,
+    "w": 90,
+    "solid": true
+   },
+   {
+    "x": 290,
+    "y": 752,
+    "w": 90,
+    "solid": false,
+    "kind": "cloud"
+   },
+   {
+    "x": 125,
+    "y": 4136,
+    "w": 90,
+    "solid": false,
+    "kind": "cloud"
    }
   ],
   "spikes": [
    {
+    "x": 180,
+    "y": 690
+   },
+   {
     "x": 180.4,
-    "y": 2600
+    "y": 1820
    },
    {
     "x": 179.6,
-    "y": 2850
+    "y": 2070
    },
    {
     "x": 176.5,
-    "y": 3100
+    "y": 2320
    }
   ],
   "hazards": [
    {
-    "type": "bolt",
-    "x": 265,
-    "y": 570,
+    "type": "up",
+    "x": 260,
+    "y": 300,
+    "w": 70,
+    "h": 520,
+    "s": -1
+   },
+   {
+    "type": "blade",
+    "x": 180,
+    "y": 1250,
+    "s": 1,
+    "phase": 4.277452755020931
+   },
+   {
+    "type": "bee",
+    "x": 320,
+    "y": 3100,
     "s": -1,
     "phase": 0
    },
    {
     "type": "bolt",
     "x": 95,
-    "y": 780,
-    "s": -1,
+    "y": 3490,
+    "s": 1,
+    "phase": 0
+   },
+   {
+    "type": "bolt",
+    "x": 265,
+    "y": 3700,
+    "s": 1,
     "phase": 1.2
    },
    {
     "type": "bolt",
-    "x": 210,
-    "y": 980,
-    "s": -1,
+    "x": 150,
+    "y": 3900,
+    "s": 1,
     "phase": 2.4
-   },
-   {
-    "type": "blade",
-    "x": 180,
-    "y": 1370,
-    "s": 1,
-    "phase": 4.277452755020931
-   },
-   {
-    "type": "bee",
-    "x": 40,
-    "y": 2320,
-    "s": 1,
-    "phase": 0
    },
    {
     "type": "shutter",
     "x": 360,
-    "y": 3600,
-    "s": 1,
+    "y": 4240,
+    "s": -1,
     "phase": 0
+   }
+  ],
+  "bridges": [
+   {
+    "y": 880,
+    "idx": 0
+   },
+   {
+    "y": 1600,
+    "idx": 1
+   },
+   {
+    "y": 2500,
+    "idx": 2
+   },
+   {
+    "y": 3160,
+    "idx": 3
+   },
+   {
+    "y": 3920,
+    "idx": 4
+   }
+  ],
+  "items": [
+   {
+    "x": 70,
+    "y": 688,
+    "idx": 0
+   },
+   {
+    "x": 290,
+    "y": 1456,
+    "idx": 1
+   },
+   {
+    "x": 290,
+    "y": 2050,
+    "idx": 2
+   },
+   {
+    "x": 180,
+    "y": 2830,
+    "idx": 3
+   },
+   {
+    "x": 290,
+    "y": 3768,
+    "idx": 4
+   },
+   {
+    "x": 235,
+    "y": 4136,
+    "idx": 5
+   }
+  ],
+  "warps": [
+   {
+    "x": 50,
+    "y": 1020,
+    "top": 1076,
+    "pair": 1,
+    "idx": 0
+   },
+   {
+    "x": 60,
+    "y": 3460,
+    "top": 3516,
+    "pair": 0,
+    "idx": 1
+   },
+   {
+    "x": 310,
+    "y": 1020,
+    "top": 1076,
+    "pair": 3,
+    "idx": 2
+   },
+   {
+    "x": 60,
+    "y": 2610,
+    "top": 2666,
+    "pair": 2,
+    "idx": 3
    }
   ]
  }
