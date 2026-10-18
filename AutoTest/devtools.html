@@ -302,6 +302,33 @@ const GAMES = [
             'deguri:error': (b, d) => { if (isLead(b)) dlog(`데구리 오류: ${d}`, 'err'); },
         },
     },
+    {
+        type: 'balloon', name: '풍선 타기', emoji: '🎈', accent: '#3d8fd6', maxBots: 29,
+        hint: '사람당 1마리(최대 30명). 봇은 입장하면 자동 준비, 동물은 10종 순환(안 골라도 서버가 자동 배정). 투표 없이 시작하면 꼴등 찾기. 결과는 서버 시뮬로 즉시 확정되고 로그에 길이·당첨·터진 횟수가 찍힙니다. 로비 방 만들기 라디오는 로컬·테스트 서버(DEV_GAMES)에서만 보입니다.',
+        actions: [
+            { label: '동물 선택(10종 순환)', cls: 'btn-orange', fn: () => balloonPickAll() },
+            { label: '전원 1등 투표', cls: 'btn-purple', fn: () => balloonVoteAll('first') },
+            { label: '전원 꼴등 투표', cls: 'btn-ghost btn-sm', fn: () => balloonVoteAll('last') },
+        ],
+        quick: () => balloonPickAll(),
+        info: (b) => (b.info.creature ? `🎈 ${DEGURI_CREATURE_NAMES[b.info.creature] || b.info.creature}` : '') + (b.info.pops != null ? ` · 펑 ${b.info.pops}번` : ''),
+        events: {
+            'balloon:stateUpdated': (b, d) => { const map = (d && d.picks) || {}; if (map[b.name]) { b.info.creature = map[b.name]; updateBotList(); } },
+            'balloon:rouletteStart': (b, d) => { if (isLead(b)) dlog(`룰렛 — ${d && d.winning === 'first' ? '1등' : '꼴등'} 찾기 (${d && d.reason})`, 'event'); },
+            'balloon:reveal': (b, d) => {
+                const me = d && d.players ? d.players.find(p => p.owner === b.name) : null;
+                b.info.pops = me ? d.events.filter(e => e.type === 'pop' && e.ball === me.id).length : null; updateBotList();
+                if (!isLead(b)) return;
+                const pops = d.events.filter(e => e.type === 'pop'), why = {};
+                pops.forEach(e => { why[e.cause] = (why[e.cause] || 0) + 1; });
+                dlog(`공개 — ${d.players.length}마리 / ${d.target === 'first' ? '1등' : '꼴등'} 찾기 / 길이 ${(d.durationMs / 1000).toFixed(1)}s / 당첨=${d.result && d.result.selected} / 구간 ${d.map.sections.map(s => s.label).join('·')} / 펑 ${pops.length}번 ${JSON.stringify(why)}`, 'event');
+            },
+            'balloon:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 당첨=${d && d.selected} (round ${d && d.round})`, 'event'); },
+            'balloon:gameAborted': (b, d) => { if (isLead(b)) dlog(`게임 취소: ${d && d.reason || '?'}`, 'err'); },
+            'balloon:roundReset': (b) => { b.info.pops = null; updateBotList(); },
+            'balloon:error': (b, d) => { if (isLead(b)) dlog(`풍선 타기 오류: ${d}`, 'err'); },
+        },
+    },
 ];
 // 데구리 동물 5종 (socket/deguri.js CREATURES 와 동일 순서)
 const DEGURI_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
@@ -651,6 +678,20 @@ function deguriPickAll() {
     j.forEach((b, i) => { const id = DEGURI_CREATURES[i % DEGURI_CREATURES.length]; b.socket.emit('deguri:pick', { creatureId: id }); b.info.creature = id; });
     dlog(`${j.length}봇 동물 선택 (5종 순환)`, 'ok');
     updateBotList();
+}
+// 풍선 타기 — 동물은 데구리와 같은 10종, 투표는 준비한 봇만(서버 규칙)
+function balloonPickAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => { const id = DEGURI_CREATURES[i % DEGURI_CREATURES.length]; b.socket.emit('balloon:pick', { creatureId: id }); b.info.creature = id; });
+    dlog(`${j.length}봇 동물 선택 (10종 순환)`, 'ok');
+    updateBotList();
+}
+function balloonVoteAll(target) {
+    const ready = joined().filter(b => b.ready);
+    if (!ready.length) { dlog('준비된 봇 없음 (먼저 입장/준비)', 'err'); return; }
+    ready.forEach(b => b.socket.emit('balloon:voteRank', { target }));
+    dlog(`${ready.length}봇 ${target === 'first' ? '1등' : '꼴등'} 투표 (같은 칸을 다시 누르면 취소)`, 'ok');
 }
 
 // ===================================================================

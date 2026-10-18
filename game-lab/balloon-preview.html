@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>풍선 타기 프리뷰 (game-lab)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+    <style>
+        /* 개발 도구 — 게임 화면이 아니라 색 토큰 대상 아님(game-lab 은 색 검사 제외) */
+        body { margin: 0; background: #16202c; color: #e8eef5; font-family: Pretendard, -apple-system, sans-serif; font-size: 13px; }
+        .bar { display: flex; gap: 8px 12px; align-items: center; padding: 8px 12px; background: #0f1721; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+        .bar strong { font-size: 15px; }
+        .bar button, .bar input, .bar select { font: inherit; padding: 5px 9px; border-radius: 6px; border: 1px solid #3d6f9e; background: #1d3550; color: #fff; }
+        .bar button:hover { background: #28507a; }
+        .bar input[type=number] { width: 72px; }
+        .bar input[type=range] { width: 260px; padding: 0; }
+        .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+        .chips button { padding: 3px 7px; font-size: 12px; }
+        .wrap { display: flex; gap: 12px; padding: 12px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+        #box { position: relative; width: 420px; max-width: 100%; border-radius: 12px; overflow: hidden; background: #9fd3f5; }
+        #box canvas { display: block; touch-action: none; }
+        .side { width: 380px; max-width: 100%; }
+        .summary { background: #0f1721; border-radius: 10px; padding: 10px 12px; line-height: 1.6; margin-bottom: 10px; }
+        .summary b { color: #ffd166; }
+        #events { background: #0f1721; border-radius: 10px; max-height: 60vh; overflow: auto; }
+        #events div { padding: 4px 10px; border-bottom: 1px solid #1d2a38; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #events div:hover { background: #1d3550; }
+        #events .t { display: inline-block; width: 56px; color: #8fb3d6; }
+        #events .pop { color: #ff8f8f; } #events .finish { color: #9be89b; } #events .decided { color: #ffd166; font-weight: 700; }
+        .hint { padding: 0 12px 8px; opacity: .7; line-height: 1.5; }
+        code { background: #0f1721; padding: 1px 4px; border-radius: 4px; }
+        /* 렌더러가 캔버스 박스에 붙이는 토스트·카메라 버튼 — 게임 페이지(css/balloon.css)와 같은 모양 */
+        .balloon-toast { position: absolute; top: 38px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 999px; background: rgba(43,36,22,.88); color: #fff8e6; font-size: 12px; font-weight: 700; white-space: nowrap; opacity: 0; transition: opacity .2s; pointer-events: none; }
+        .balloon-toast.on { opacity: 1; }
+        .balloon-cam-btn { position: absolute; left: 12px; bottom: 12px; min-height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(43,36,22,.9); color: #fff8e6; font: inherit; font-weight: 700; }
+        .balloon-cam-btn[hidden] { display: none; }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <strong>🎈 풍선 타기 프리뷰</strong>
+        <label>인원 <input type="number" id="n" value="4" min="1" max="30"></label>
+        <label>룰 <select id="rule"><option value="last">꼴등 찾기</option><option value="first">1등 찾기</option></select></label>
+        <label>경기 시드 <input type="number" id="seed" value="1" min="1"></label>
+        <button onclick="bump('seed', 1)" title="경기 시드 +1">＋</button>
+        <label>맵 시드 <input type="number" id="mapSeed" value="1" min="1"></label>
+        <button onclick="bump('mapSeed', 1)" title="맵 시드 +1">＋</button>
+        <label>구간 <input type="text" id="order" placeholder="비우면 덱에서 뽑기 · 예: windmill,fans" style="width:220px"></label>
+        <button onclick="run()">⚙ 계산</button>
+        <label>내 이름 <select id="me"></select></label>
+    </div>
+    <div class="bar">
+        <button onclick="play(true)">▶ 재생(카운트다운 포함)</button>
+        <button onclick="play(false)">▶ 바로 시작</button>
+        <button onclick="togglePause()">⏸ 멈춤/재생</button>
+        <label>속도 <select id="rate"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+        <label>t <input type="range" id="seek" min="0" max="60000" value="0" step="20" oninput="seekTo(+this.value)"> <span id="tlabel">0.0s</span></label>
+        <span class="chips" id="chips"></span>
+    </div>
+    <div class="hint">서버 시뮬(<code>socket/balloon-sim.js</code>)을 이 페이지에서 그대로 돌려 렌더러(<code>js/balloon-render.js</code>)로 재생한다 — 방·소켓 없음. 같은 시드면 서버와 같은 결과. 구간 칩을 누르면 그 구간이 목록에 붙는다. 오른쪽 사건을 누르면 그 순간으로 간다(재생 시각 기준). 카메라: 끌기 = 고정, 동물 누르기 = 따라가기.</div>
+    <div class="wrap">
+        <div id="box"><canvas id="cv"></canvas></div>
+        <div class="side">
+            <div class="summary" id="summary">계산 중…</div>
+            <div id="events"></div>
+        </div>
+    </div>
+    <script src="/js/balloon-world.js"></script>
+    <script src="/js/balloon-render.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        var BW = window.BalloonWorld, Sim = null, R = null, data = null, rate = 1, driver = 0, drivenT = 0, lastWall = 0;
+        var CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
+        var CAUSE = { spike: '밤송이', blade: '풍차', pend: '통나무', bolt: '번개', bee: '벌', thorn: '가시벽', eagle: '독수리' };
+        var $ = function (id) { return document.getElementById(id); };
+        // 서버 모듈을 이 페이지 안에서 함수로 감싸 읽는다 — require('../js/balloon-world') 는 이미 읽은 BalloonWorld, setImmediate 는 setTimeout
+        function loadSim() {
+            return fetch('/socket/balloon-sim.js').then(function (r) { return r.text(); }).then(function (src) {
+                var mod = { exports: {} };
+                new Function('require', 'module', 'setImmediate', src)(function () { return BW; }, mod, function (fn) { setTimeout(fn, 0); });
+                return mod.exports;
+            });
+        }
+        window.bump = function (id, d) { $(id).value = Math.max(1, (+$(id).value || 1) + d); run(); };
+        function names(n) { var a = []; for (var i = 0; i < n; i++) a.push('플레이어' + (i + 1)); return a; }
+        function fmt(ms) { return (ms / 1000).toFixed(1) + 's'; }
+        function realOf(simMs) { return BW.realDuration(simMs, data.slow); }
+
+        window.run = function () {
+            if (!Sim) return;
+            var n = Math.max(1, Math.min(30, +$('n').value || 4)), target = $('rule').value, seed = +$('seed').value || 1, mapSeed = +$('mapSeed').value || 1;
+            var typed = $('order').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            var bad = typed.filter(function (s) { return !BW.SECTIONS[s]; });
+            if (bad.length) { $('summary').textContent = '모르는 구간: ' + bad.join(', ') + ' (가능: ' + BW.SECTION_NAMES.join(', ') + ')'; return; }
+            var order = typed.length ? typed : Sim.drawOrder([], mapSeed, null).order;
+            var map = Sim.buildMap(mapSeed, order);
+            var players = names(n).map(function (name, i) { return { id: i, owner: name, creature: CREATURES[i % CREATURES.length], colorIdx: i % 8 }; });
+            var meSel = $('me'), keep = meSel.value;
+            meSel.innerHTML = '<option value="">(없음)</option>' + players.map(function (p) { return '<option>' + p.owner + '</option>'; }).join('');
+            meSel.value = players.some(function (p) { return p.owner === keep; }) ? keep : players[0].owner;
+            $('summary').textContent = '계산 중…';
+            var t0 = performance.now();
+            Sim.simulate(players, seed, map, { target: target }).then(function (r) {
+                var rank = Sim.rankPlayers(players, r.finishOrder, target);
+                data = { durationMs: r.durationMs, sampleMs: r.sampleMs, simEndMs: r.simEndMs, map: r.map, players: players, frames: r.frames, events: r.events,
+                    finishOrder: r.finishOrder, slow: r.slow, target: target, result: rank };
+                var pops = r.events.filter(function (e) { return e.type === 'pop'; }), why = {};
+                pops.forEach(function (e) { why[CAUSE[e.cause] || e.cause] = (why[CAUSE[e.cause] || e.cause] || 0) + 1; });
+                var popsBy = players.map(function (p) { return p.owner.replace('플레이어', 'P') + ' ' + pops.filter(function (e) { return e.ball === p.id; }).length; });
+                $('summary').innerHTML = '길이 <b>' + fmt(r.durationMs) + '</b> (시뮬 ' + fmt(r.simEndMs) + ', 계산 ' + Math.round(performance.now() - t0) + 'ms)' +
+                    (r.events.some(function (e) { return e.type === 'cap'; }) ? ' · <b>캡 걸림</b>' : '') +
+                    '<br>당첨 <b>' + rank.selected + '</b> (' + (target === 'first' ? '1등' : '꼴등') + ') · 순위 ' + rank.rankings.map(function (x) { return x.name.replace('플레이어', 'P'); }).join(' > ') +
+                    '<br>구간 ' + r.map.sections.map(function (s) { return s.label + (s.mirror ? '↔' : ''); }).join(' · ') + ' (높이 ' + r.map.worldH + ')' +
+                    '<br>펑 ' + pops.length + '번 ' + JSON.stringify(why).replace(/"/g, '') + '<br>사람별 ' + popsBy.join(' · ');
+                renderEvents();
+                $('seek').max = r.durationMs;
+                stopDriver();
+                R.setTimeline(data, meSel.value);
+                R.renderEnd();
+                seekTo(0);
+            });
+        };
+        function renderEvents() {
+            var nameOf = function (id) { return data.players[id] ? data.players[id].owner : ''; };
+            var rows = data.events.filter(function (e) { return /^(pop|land|finish|eagleWarn|eagleMiss|gust|decided|cap)$/.test(e.type); }).map(function (e) {
+                var txt = e.type === 'pop' ? nameOf(e.ball) + ' 펑 — ' + (CAUSE[e.cause] || e.cause) : e.type === 'land' ? nameOf(e.ball) + ' 착지(' + (e.plat < 0 ? '땅' : '발판 ' + e.plat) + ')'
+                    : e.type === 'finish' ? nameOf(e.ball) + ' 도착' : e.type === 'eagleWarn' ? '독수리 → ' + nameOf(e.ball) : e.type === 'eagleMiss' ? '독수리 놓침' : e.type === 'gust' ? '돌풍 ' + (e.dir > 0 ? '→' : '←')
+                    : e.type === 'decided' ? '당첨 확정 — ' + nameOf(e.ball) : '캡';
+                return '<div class="' + e.type + '" data-t="' + Math.max(0, realOf(e.t) - 600) + '"><span class="t">' + fmt(realOf(e.t)) + '</span>' + txt + '</div>';
+            });
+            $('events').innerHTML = rows.join('');
+        }
+        $('events').addEventListener('click', function (e) { var row = e.target.closest('[data-t]'); if (row) { stopDriver(); seekTo(+row.getAttribute('data-t')); } });
+        $('me').addEventListener('change', function () { if (data) { var t = R.time(); R.setTimeline(data, $('me').value); seekTo(t); } });
+        ['n', 'rule', 'seed', 'mapSeed'].forEach(function (id) { $(id).addEventListener('change', run); });
+        $('order').addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+        $('rate').addEventListener('change', function () { rate = +$('rate').value; });
+
+        // 재생: 1배속은 렌더러 시계 그대로(카운트다운 포함 가능), 그 밖은 멈춘 렌더러를 이 페이지가 시각을 밀며 seek 로 그린다
+        function stopDriver() { if (driver) { cancelAnimationFrame(driver); driver = 0; } }
+        function drive() {
+            var now = performance.now(); drivenT = Math.min(data.durationMs, drivenT + (now - lastWall) * rate); lastWall = now;
+            R.seek(drivenT); syncBar();
+            driver = drivenT < data.durationMs ? requestAnimationFrame(drive) : 0;
+        }
+        window.play = function (withCountdown) {
+            if (!data) return;
+            stopDriver();
+            R.setTimeline(data, $('me').value);
+            if (rate === 1) { R.play(withCountdown ? BalloonRender.COUNTDOWN_MS : 0); return; }
+            R.play(0); R.pause(); drivenT = 0; lastWall = performance.now(); driver = requestAnimationFrame(drive);
+        };
+        window.togglePause = function () {
+            if (!data) return;
+            if (driver) { stopDriver(); return; }
+            if (rate !== 1 && R.isPaused()) { drivenT = R.time(); lastWall = performance.now(); driver = requestAnimationFrame(drive); return; }
+            if (R.isPaused()) R.resume(); else R.pause();
+        };
+        function seekTo(ms) { if (!data) return; drivenT = ms; R.seek(ms); syncBar(); }
+        window.seekTo = function (ms) { stopDriver(); seekTo(ms); };
+        function syncBar() { var t = R.time(); $('seek').value = Math.round(t); $('tlabel').textContent = fmt(t); }
+        setInterval(function () { if (data && !driver) syncBar(); }, 100);
+
+        $('chips').innerHTML = BW.SECTION_NAMES.map(function (nm) { var lab = BW.SECTIONS[nm](function () { return 0.5; }).label; return '<button data-s="' + nm + '" title="' + nm + '">' + lab + '</button>'; }).join('') + '<button data-s="">지우기</button>';
+        $('chips').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-s]'); if (!b) return;
+            var nm = b.getAttribute('data-s'), cur = $('order').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            $('order').value = nm ? cur.concat(nm).join(',') : '';
+            run();
+        });
+
+        R = BalloonRender.create($('cv'));
+        window.addEventListener('resize', function () { R.resize(); });
+        BalloonRender.loadAssets(function () { loadSim().then(function (m) { Sim = m; window.BalloonSim = m; run(); }); });
+    })();
+    </script>
+</body>
+</html>
