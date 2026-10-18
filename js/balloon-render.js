@@ -41,10 +41,13 @@
     var PIECES = { eagle: 'pieces/eagle.webp', beam: 'pieces/start-platform-mid.webp', fan: 'pieces/fan.webp', hive: 'pieces/beehive.webp', plog: 'pieces/pendulum-log.webp',
         pivot: 'pieces/pendulum-pivot.webp', flag: 'pieces/flag.webp', star: 'fx/impact-star.webp', swarm: 'fx/bee-swarm.webp', wind: 'fx/wind.webp', dust: 'fx/dust-puff.webp',
         meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp' };
-    var images = {}, loadState = 0, loadWaiters = [];
+    var images = {}, loadState = 0, loadWaiters = [], instances = [];
     function image(path) {
         var im = images[path];
-        if (!im) { im = new Image(); im.src = A + path + VER; images[path] = im; }
+        if (!im) {
+            im = new Image(); im.src = A + path + VER; images[path] = im;
+            im.addEventListener('load', function () { instances.forEach(function (r) { r.redrawIfIdle(); }); }, { once: true });   // 스킨·야식은 처음 쓸 때 받는다 — 멈춘 화면(대기·일시정지·끝 장면)도 도착하면 다시 그린다
+        }
         return im;
     }
     var ok = function (im) { return !!im && im.complete && im.naturalWidth > 0; };
@@ -669,15 +672,18 @@
         }
 
         resize();
-        return {
+        var api = {
             resize: resize, setTimeline: setTimeline, drawIdle: drawIdle, play: play, stop: stop, pause: pause, resume: resume, seek: seek, time: time,
             renderEnd: renderEnd, redraw: redraw,
             isPlaying: function () { return playing && !paused; }, isPaused: function () { return paused; },
             onFinale: function (fn) { onFinaleCb = fn; }, onEvent: function (fn) { onEventCb = fn; },
             hasCreatureSprite: function (c) { return ok(image('creatures/' + c + '.webp')); },
             drawCreatureIcon: drawCreatureIcon,
-            camMode: function () { return camMode === 'auto' || camMode === 'free' ? camMode : 'follow'; }   // 테스트용
+            camMode: function () { return camMode === 'auto' || camMode === 'free' ? camMode : 'follow'; },   // 테스트용
+            redrawIfIdle: function () { if (!playing || paused) redraw(); }
         };
+        instances.push(api);
+        return api;
     }
 
     window.BalloonRender = { create: create, loadAssets: loadAssets, COUNTDOWN_MS: COUNTDOWN_MS };

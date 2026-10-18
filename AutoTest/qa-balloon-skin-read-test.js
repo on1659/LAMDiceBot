@@ -2,6 +2,7 @@
 //  로그인 계정이 데구리에서 가진·장착한 스킨/야식이 풍선 방 대기 화면(preview)과 reveal 에 실리는지, 안 가진 것·손님은 안 실리는지.
 //  풍선 방은 상점·뽑기·코인을 안 건드린다(잔고 변화 0).
 // 사용: node AutoTest/qa-balloon-skin-read-test.js [port=5174]   (로컬 서버 + 로컬 PG, 서버가 떠 있어야 함)
+require('../config');   // .env(DATABASE_URL) 읽기
 const io = require('socket.io-client');
 const { initPool, getPool } = require('../db/pool');
 const cosmetics = require('../db/cosmetics');
@@ -31,13 +32,14 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
         for (const id of [skin.id, bal.id]) await pool.query('INSERT INTO user_cosmetics (user_id, cosmetic_id, scope) VALUES ($1, $2, 0) ON CONFLICT DO NOTHING', [userId, id]);
         await cosmetics.setDeguriEquipped(userId, 'deguri_skin', { hedgehog: skin.id, panda: other.id }, 0);
         await cosmetics.setDeguriEquipped(userId, 'deguri_balloon', bal.id, 0);
-        const balance0 = await coins.getBalance(userId, 0);
 
         const s = io(URL, { transports: ['websocket'] }); socks.push(s); await once(s, 'connect');
         const a = await emitAck(s, 'socket:authenticate', { token: reg.token });
         check(a && a.ok, '계정 인증');
         s.emit('createRoom', { userName: name.slice(0, 8), roomName: 'qa스킨', isPrivate: false, gameType: 'balloon', expiryHours: 1, deviceId: 'qa-bl-' + uniq, tabId: 'qa-blt-' + uniq });
         const rc = await once(s, 'roomCreated');
+        await wait(1000);   // 로컬 개발 서버는 인증된 방장 잔고를 채운다(socket/shop.js LOCAL_HOST_INFINITE) — 그 뒤를 기준으로
+        const balance0 = await coins.getBalance(userId, 0);
         const guest = io(URL, { transports: ['websocket'] }); socks.push(guest); await once(guest, 'connect');
         guest.emit('joinRoom', { roomId: rc.roomId, userName: 'qa손' + uniq.slice(-3), isHost: false, password: '', deviceId: 'qa-g-' + uniq, tabId: 'qa-gt-' + uniq });
         await once(guest, 'roomJoined');
