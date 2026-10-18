@@ -659,6 +659,19 @@ module.exports = (socket, io, ctx) => {
                             io.to(roomId).emit('deguri:stateUpdated', { picks: { ...gameState.deguri.picks }, ballsPerPlayer: gameState.deguri.ballsPerPlayer });
                         }
                     }
+                    // 풍선 타기: 끊긴 사용자의 동물 선택·장착 읽음·투표 정리 — leaveRoom(socket/rooms.js)과 짝(C-19)
+                    if (gameState.balloon) {
+                        const bl = gameState.balloon;
+                        if (bl.looks) delete bl.looks[userName];
+                        if (bl.picks && bl.picks[userName] !== undefined) {
+                            delete bl.picks[userName];
+                            if (bl.phase === 'idle') io.to(roomId).emit('balloon:stateUpdated', { picks: { ...bl.picks } });
+                        }
+                        if (bl.rankVotes && bl.rankVotes[userName] !== undefined) {
+                            delete bl.rankVotes[userName];
+                            if (bl.phase !== 'playing') io.to(roomId).emit('balloon:rankVotesUpdated', { votes: { ...bl.rankVotes } });
+                        }
+                    }
 
                     // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
                     // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.

@@ -438,6 +438,12 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
                 delete gameState.deguri.rankVotes[userName];
                 io.to(room.roomId).emit('deguri:rankVotesUpdated', { votes: { ...gameState.deguri.rankVotes } });
             }
+            // 풍선 타기: 준비 취소 시 당첨 순위 투표 취소(데구리와 같은 규칙)
+            if (room.gameType === 'balloon' && gameState.balloon && gameState.balloon.rankVotes &&
+                gameState.balloon.rankVotes[userName] !== undefined) {
+                delete gameState.balloon.rankVotes[userName];
+                io.to(room.roomId).emit('balloon:rankVotesUpdated', { votes: { ...gameState.balloon.rankVotes } });
+            }
         } else {
             // 준비
             gameState.readyUsers.push(userName);

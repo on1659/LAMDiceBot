@@ -10,6 +10,7 @@ const registerLadderHandlers = require('./ladder');
 const registerSpinArenaHandlers = require('./spin-arena');
 const registerPirateHandlers = require('./pirate');
 const registerDeguriHandlers = require('./deguri');
+const registerBalloonHandlers = require('./balloon');
 const registerFreeHandlers = require('./free');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
@@ -198,7 +199,7 @@ function setupSocketHandlers(io, rooms) {
         // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 / 미출시 데구리 라벨 노출 — 로컬 개발 서버 또는 DEV_GAMES=1 서비스)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: DEV_GAMES_ENABLED, deguriEnabled: DEV_GAMES_ENABLED });
+            socket.emit('devFlags', { ladderEnabled: DEV_GAMES_ENABLED, deguriEnabled: DEV_GAMES_ENABLED, balloonEnabled: DEV_GAMES_ENABLED });
         });
 
         // 각 핸들러 등록
@@ -212,6 +213,7 @@ function setupSocketHandlers(io, rooms) {
         registerSpinArenaHandlers(socket, io, ctx);
         registerPirateHandlers(socket, io, ctx);
         registerDeguriHandlers(socket, io, ctx);
+        registerBalloonHandlers(socket, io, ctx);
         registerFreeHandlers(socket, io, ctx);
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);

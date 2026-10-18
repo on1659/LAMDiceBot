@@ -171,6 +171,10 @@ module.exports = (socket, io, ctx) => {
                     : undefined,
                 // 보안: deguri.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
+                // 풍선 타기: timeline / result / seed / trackSeed / looks 마스킹 (C-20)
+                balloon: gameState.balloon
+                    ? { phase: gameState.balloon.phase, picks: gameState.balloon.picks, round: gameState.balloon.round, history: gameState.balloon.history }
+                    : undefined,
                 deguri: gameState.deguri
                     ? { phase: gameState.deguri.phase, picks: gameState.deguri.picks, crowd: gameState.deguri.crowd, randomTrack: gameState.deguri.randomTrack !== false, round: gameState.deguri.round, history: gameState.deguri.history }
                     : undefined,
@@ -249,7 +253,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'deguri'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'deguri', 'balloon'].includes(gameType) ? gameType : 'dice';
 
         // 미출시 게임(사다리타기·데구리)은 로컬 개발 서버 또는 DEV_GAMES=1 서비스에서만 방을 만들 수 있다
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
@@ -1288,6 +1292,19 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.deguri.rankVotes[socket.userName];
                 if (gameState.deguri.phase !== 'playing') {
                     io.to(roomId).emit('deguri:rankVotesUpdated', { votes: { ...gameState.deguri.rankVotes } });
+                }
+            }
+            // 풍선 타기: 퇴장한 사용자의 동물 선택·장착 읽음·투표 삭제 — socket/chat.js disconnect 와 짝(C-19)
+            if (gameState.balloon) {
+                const bl = gameState.balloon;
+                if (bl.looks) delete bl.looks[socket.userName];
+                if (bl.picks && bl.picks[socket.userName] !== undefined) {
+                    delete bl.picks[socket.userName];
+                    if (bl.phase === 'idle') io.to(roomId).emit('balloon:stateUpdated', { picks: { ...bl.picks } });
+                }
+                if (bl.rankVotes && bl.rankVotes[socket.userName] !== undefined) {
+                    delete bl.rankVotes[socket.userName];
+                    if (bl.phase !== 'playing') io.to(roomId).emit('balloon:rankVotesUpdated', { votes: { ...bl.rankVotes } });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

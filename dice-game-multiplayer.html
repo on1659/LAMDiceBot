@@ -163,6 +163,7 @@
         .room-item.game-spin-arena { --accent: var(--game-type-spin-arena); --accent-rgb: var(--spin-arena-500-rgb); }
         .room-item.game-pirate { --accent: var(--game-type-pirate); --accent-rgb: var(--pirate-500-rgb); }
         .room-item.game-deguri { --accent: var(--game-type-deguri); --accent-rgb: var(--deguri-500-rgb); }
+        .room-item.game-balloon { --accent: var(--game-type-balloon); --accent-rgb: var(--balloon-500-rgb); }
 
         .room-item:hover {
             border-color: var(--accent);
@@ -2124,6 +2125,13 @@
                         <span class="gt-name">데구리</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
+                    <!-- 풍선 타기: 미출시 — 기본 숨김, 서버가 devFlags.balloonEnabled(로컬·테스트 서버)로 알려줄 때만 보인다 -->
+                    <label id="balloonLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-balloon); --gt-rgb: var(--balloon-500-rgb);">
+                        <input type="radio" name="gameType" value="balloon" id="balloonRadio" />
+                        <span class="gt-emoji"><i class="ui ui-cloudsun"></i></span>
+                        <span class="gt-name">풍선 타기</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">개발 중</span>
+                    </label>
                 </div>
                 <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
                 <div id="gameTypeInfo">
@@ -3340,6 +3348,9 @@
                 } else if (room.gameType === 'deguri') {
                     gameTypeIcon = UIIcons.tag('paw');
                     gameTypeLabel = '데구리';
+                } else if (room.gameType === 'balloon') {
+                    gameTypeIcon = UIIcons.tag('cloudsun');
+                    gameTypeLabel = '풍선 타기';
                 }
                 
                 // 남은 시간 표시
@@ -3522,6 +3533,20 @@
                 return;
             }
 
+            // 풍선 타기 방이면 풍선 타기 페이지로 이동
+            if (room && room.gameType === 'balloon') {
+                localStorage.setItem('balloonUserName', userName);
+                localStorage.setItem('pendingBalloonJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/balloon?joinRoom=true';
+                return;
+            }
+
             // 데구리 방이면 데구리 페이지로 이동
             if (room && room.gameType === 'deguri') {
                 localStorage.setItem('deguriUserName', userName);
@@ -3607,6 +3632,10 @@
             if (flags.deguriEnabled) {
                 const deguriLabel = document.getElementById('deguriLabel');
                 if (deguriLabel) deguriLabel.style.display = '';
+            }
+            if (flags.balloonEnabled) {   // 풍선 타기: 미출시 — 로컬·테스트 서버에서만 방 만들기 라벨
+                const balloonLabel = document.getElementById('balloonLabel');
+                if (balloonLabel) balloonLabel.style.display = '';
             }
             if (!flags.ladderEnabled) return;
 
@@ -4527,6 +4556,23 @@
                 return;
             }
 
+            // 풍선 타기 게임이면 풍선 타기 페이지로 이동
+            if (gameType === 'balloon') {
+                localStorage.setItem('balloonUserName', hostName);
+                localStorage.setItem('pendingBalloonRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/balloon?createRoom=true';
+                return;
+            }
+
             // 데구리 게임이면 데구리 페이지로 이동
             if (gameType === 'deguri') {
                 localStorage.setItem('deguriUserName', hostName);
@@ -4660,6 +4706,20 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/pirate?joinRoom=true';
+                return;
+            }
+
+            // 풍선 타기 방이면 풍선 타기 페이지로 이동
+            if (room && room.gameType === 'balloon') {
+                localStorage.setItem('balloonUserName', userName);
+                localStorage.setItem('pendingBalloonJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/balloon?joinRoom=true';
                 return;
             }
 

@@ -66,7 +66,8 @@ const SUPPORTED_GAME_TYPES = {
     'dice': './dice',
     'roulette': './roulette',
     'horse-race': './horse',
-    'deguri': './deguri'
+    'deguri': './deguri',
+    'balloon': './balloon'   // 실서버는 DEV_GATED_GAMES 로 방 자체가 안 생긴다 — 테스트 서버·로컬에서만 닿는다
 };
 
 function isSupported(gameType) {

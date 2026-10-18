@@ -35,7 +35,8 @@
         horse:    '경마',
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
-        deguri:   '데구리'
+        deguri:   '데구리',
+        balloon:  '풍선 타기'
     };
 
     // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})
@@ -46,7 +47,8 @@
         bridge:   'bridge',
         ladder:   'ladder',
         'spin-arena': 'swords',
-        deguri:   'paw'
+        deguri:   'paw',
+        balloon:  'cloudsun'
     };
 
     // 게임별 로딩 화면 바탕 — css/theme.css 의 --free-loading-* (라이트 = 게임 그라데이션, 다크 = 그 게임 페이지 바닥)
@@ -57,7 +59,8 @@
         bridge:   'var(--free-loading-bridge)',
         ladder:   'var(--free-loading-ladder)',
         'spin-arena': 'var(--free-loading-spin-arena)',
-        deguri:   'var(--free-loading-deguri)'
+        deguri:   'var(--free-loading-deguri)',
+        balloon:  'var(--free-loading-balloon)'
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -68,7 +71,8 @@
         'bridge':     '/bridge-cross',
         'ladder':     '/ladder',
         'spin-arena': '/spin-arena',
-        'deguri':     '/deguri'   // gameType 은 deguri, 공개 경로는 /deguri(2026-09-29)
+        'deguri':     '/deguri',   // gameType 은 deguri, 공개 경로는 /deguri(2026-09-29)
+        'balloon':    '/balloon'
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
@@ -76,7 +80,8 @@
         'bridge':     'pendingBridgeJoin',
         'ladder':     'pendingLadderJoin',
         'spin-arena': 'pendingSpinArenaJoin',
-        'deguri':     'pendingDeguriJoin'
+        'deguri':     'pendingDeguriJoin',
+        'balloon':    'pendingBalloonJoin'
         // dice는 sessionStorage.diceActiveRoom을 사용 (게임 페이지 IIFE가 자동 joinRoom)
     };
     // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
@@ -87,7 +92,8 @@
         'bridge':     'bridgeActiveRoom',
         'ladder':     'ladderActiveRoom',
         'spin-arena': 'spinArenaActiveRoom',
-        'deguri':     'deguriActiveRoom'
+        'deguri':     'deguriActiveRoom',
+        'balloon':    'balloonActiveRoom'
     };
 
     // ─── DOM ──────────────────────────────────
@@ -161,7 +167,8 @@
         'bridge-cross': 'bridge',
         'ladder': 'ladder',
         'spin-arena': 'spin-arena',
-        'deguri': 'deguri'
+        'deguri': 'deguri',
+        'balloon': 'balloon'
     };
     var gameFromPath      = null;
     var shortcodeFromPath = null;

@@ -26,7 +26,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType deguri)의 링크 슬러그
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri', 'balloon'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType deguri)의 링크 슬러그
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -135,6 +135,13 @@ function setupRoutes(app) {
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'deguri-multiplayer.html'));
     });
+    // 풍선 타기(docs/goal/balloon-climb.md) — 실서버는 DEV_GATED_GAMES 로 방 생성을 막는다(페이지는 열려도 방을 못 만든다)
+    app.get('/balloon', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'balloon-multiplayer.html'));
+    });
     // 옛 데구리 링크(/marble, /marble/:code, /free/marble/:code) → deguri 로 301. /free/:game 일반 라우트보다 먼저 걸어야 슬러그 검사에 안 걸린다
     app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
     app.get('/free/marble/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/marble\//, '/free/deguri/')));
@@ -207,7 +214,8 @@ function setupRoutes(app) {
         '/horse-race':   'horse',
         '/ladder':       'ladder',
         '/spin-arena':   'spin-arena',
-        '/deguri':       'deguri'
+        '/deguri':       'deguri',
+        '/balloon':      'balloon'
     };
     Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
@@ -239,7 +247,8 @@ function setupRoutes(app) {
             (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished') ||
             (gs.ladder && gs.ladder.phase && gs.ladder.phase !== 'idle' && gs.ladder.phase !== 'finished') ||
             (gs.spinArena && gs.spinArena.phase === 'playing') ||
-            (gs.deguri && gs.deguri.phase === 'playing')
+            (gs.deguri && gs.deguri.phase === 'playing') ||
+            (gs.balloon && gs.balloon.phase === 'playing')
         );
 
         // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
@@ -347,6 +356,11 @@ function setupRoutes(app) {
         return res.redirect(301, `/spin-arena${query}`);
     });
 
+    app.get('/balloon-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/balloon${query}`);
+    });
+
     app.get('/marble-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
         return res.redirect(301, `/deguri${query}`);
@@ -440,7 +454,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 }, 'deguri': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 }, 'deguri': { count: 0, totalParticipants: 0 }, 'balloon': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

@@ -143,6 +143,25 @@ function createRoomGameState() {
             endTimeout: null,
             resetTimeout: null
         },
+        balloon: {                  // 풍선 타기(socket/balloon.js, docs/goal/balloon-climb.md)
+            phase: 'idle',          // idle | playing | finished
+            picks: {},              // { userName: creatureId } — 동물은 데구리와 같은 목록
+            looks: {},              // { userName: { skins: {동물: {skin, skinName}}, balloon } } 로그인 계정의 데구리 장착(DB 읽기만) — 나가면 지운다
+            rankVotes: {},          // { userName: 'first' | 'last' }
+            target: 'last',
+            participants: [],
+            timeline: null,         // server-only: reveal 페이로드(재진입 마스킹 대상)
+            result: null,           // server-only
+            seed: 0,                // server-only
+            trackSeed: 0,           // server-only: 다음 판 맵 시드(대기 미리보기 = 경주 맵). 리셋 때 0
+            trackDeck: [],          // server-only: 구간 덱 — 판을 넘어 이어 쓴다
+            trackOrder: null,       // server-only: 이번 판 구간 순서
+            round: 0,
+            history: [],
+            isActive: false,
+            revealTimeout: null,
+            endTimeout: null
+        },
     };
 }
 
