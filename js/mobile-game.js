@@ -6,8 +6,8 @@
     const HORSE_PREVIEW_WIDTH = 700;
     const HORSE_VIEW_ACTION_HEIGHT = 44;
     const HORSE_SELECTION_SPRITE_WIDTH = 68;
-    const PENDING_KEYS = ['pendingHorseRaceRoom', 'pendingHorseRaceJoin', 'pendingRouletteRoom', 'pendingRouletteJoin', 'pendingDeguriRoom', 'pendingDeguriJoin'];
-    const ROOM_KEYS = ['diceActiveRoom', 'horseRaceActiveRoom', 'rouletteActiveRoom', 'deguriActiveRoom'];
+    const PENDING_KEYS = ['pendingHorseRaceRoom', 'pendingHorseRaceJoin', 'pendingRouletteRoom', 'pendingRouletteJoin', 'pendingDeguriRoom', 'pendingDeguriJoin', 'pendingBalloonRoom', 'pendingBalloonJoin'];
+    const ROOM_KEYS = ['diceActiveRoom', 'horseRaceActiveRoom', 'rouletteActiveRoom', 'deguriActiveRoom', 'balloonActiveRoom'];
     const media = matchMedia('(max-width: ' + MOBILE_WIDTH + 'px)');
     const landscapeMedia = matchMedia('(orientation: landscape) and (max-height: ' + MOBILE_WIDTH + 'px) and (pointer: coarse)');
     const byId = id => document.getElementById(id);
@@ -25,7 +25,7 @@
     let horseOrdersSummary = null, horseOrderInput = null, horseMenuInput = null, horseOrderSort = 'asc', horseOrdersSignature = '';
     const horseOrderSortListeners = [];
     const mobileMatches = () => media.matches || (isHorse && landscapeMedia.matches);
-    const title = byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
+    const title = document.body.dataset.game === 'balloon' ? '풍선 타기' : byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
     const node = (tag, text, attrs) => {
         const result = document.createElement(tag);
         if (text) result.textContent = text;
@@ -514,7 +514,7 @@
         const summary = byId('mobileGameReadySummary');
         const readyText = '준비 ' + (byId('readyCount')?.textContent.trim() || '0') + '/' + count;
         if (summary.textContent !== readyText) summary.textContent = readyText;
-        const running = title === '경마' ? horseCountdown || (typeof isRaceActive !== 'undefined' && isRaceActive) : title === '데구리' ? typeof isDeguriActive !== 'undefined' && isDeguriActive : title === '룰렛' ? typeof isSpinning !== 'undefined' && isSpinning : isDice && typeof isGameActive !== 'undefined' && isGameActive;
+        const running = title === '경마' ? horseCountdown || (typeof isRaceActive !== 'undefined' && isRaceActive) : title === '데구리' ? typeof isDeguriActive !== 'undefined' && isDeguriActive : title === '풍선 타기' ? typeof isBalloonActive !== 'undefined' && isBalloonActive : title === '룰렛' ? typeof isSpinning !== 'undefined' && isSpinning : isDice && typeof isGameActive !== 'undefined' && isGameActive;
         if (document.body.classList.contains('mobile-app-running') !== running) document.body.classList.toggle('mobile-app-running', running);
         const mapVisible = nativeVisible(byId('raceMinimap'));
         if (document.body.classList.contains('mobile-stage-map-visible') !== mapVisible) document.body.classList.toggle('mobile-stage-map-visible', mapVisible);

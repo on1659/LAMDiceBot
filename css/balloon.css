@@ -1,0 +1,69 @@
+/* 풍선 타기(balloon) — deguri.css 위에 다른 점만. 페이지는 데구리 복사본이라 DOM id·클래스가 같다(balloon-multiplayer.html 맨 위 주석).
+   색은 전부 css/theme.css 토큰. 캔버스 위 HUD(토스트·카메라 버튼)는 스킨과 무관한 고정 HUD 토큰(--deguri-hud-*)을 쓴다 */
+
+/* 위로 오르는 게임이라 캔버스는 세로로 길게, 폭은 목업(.app 480)만큼 — 높이는 렌더러가 폭 × 1.5 를 창 높이 안으로 맞춘다(js/balloon-render.js) */
+#deguriCanvasBox {
+    max-width: 480px;
+    margin: 0 auto;
+    overflow: hidden;
+}
+#deguriCanvas {
+    touch-action: none;   /* 끌기 = 카메라 고정(목업) — 페이지 스크롤은 캔버스 밖에서 */
+    cursor: grab;
+}
+
+/* 토스트 한 줄 — 캔버스 위 가운데(목업 .toast) */
+.balloon-toast {
+    position: absolute;
+    top: 38px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100% - 24px);
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(var(--deguri-hud-rgb), 0.88);
+    color: var(--deguri-hud-cream);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 4;
+}
+.balloon-toast.on { opacity: 1; }
+
+/* 카메라 자동 복귀 — 끌거나 동물을 눌렀을 때만 왼쪽 아래(목업 .cam). 3초 자동 복귀 없음 */
+.balloon-cam-btn {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    margin: 0;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(var(--deguri-hud-rgb), 0.9);
+    color: var(--deguri-hud-cream);
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 4;
+}
+.balloon-cam-btn[hidden] { display: none; }
+
+/* 결과 카드 순위 줄 — "펑 N번" */
+.balloon-pops {
+    margin-left: auto;
+    padding-left: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--deguri-muted);
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .balloon-toast { font-size: 11px; }
+}
