@@ -1,9 +1,8 @@
-// 풍선 타기 실서버 잠금 테스트 (C-38 — 방 생성 경로 2곳을 짝으로)
+// 둥둥라이더 실서버 공개 테스트 — 2026-10-19 사용자 결정으로 잠금 해제(처음엔 잠금 테스트였다, C-38)
 // 실서버 모사: 원격처럼 보이는 DATABASE_URL(닿지 않는 문서용 주소) + DEV_GAMES 없음 + 별도 포트로 server.js 를 직접 띄운다.
-//  1) createRoom { gameType: 'balloon' } → roomError(안내 문구), 방 0개
-//  2) free:createRoom { gameSlug: 'balloon' } → ack error(슬러그 표에 없음)
-//  3) 대조군: 같은 서버에서 데구리 방은 만들어진다(다른 게임 무영향)
-//  4) 같은 서버의 devFlags.balloonEnabled = false (로비 라디오 숨김)
+//  1) createRoom { gameType: 'balloon' } → 방이 만들어진다
+//  2) 대조군: 같은 서버에서 데구리 방도 만들어진다
+//  3) 미사용 게임(해적)은 여전히 막힌다
 // 사용: node AutoTest/qa-balloon-gate-test.js [port=5199]
 const { spawn } = require('child_process');
 const path = require('path');
@@ -31,17 +30,15 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
     if (!up) { console.log('FAIL: 서버 부팅 안 됨\n' + log.slice(-2000)); srv.kill(); process.exit(1); }
     try {
         const s = io(URL, { transports: ['websocket'] }); await once(s, 'connect');
-        const flagsP = once(s, 'devFlags', 4000).catch(() => null);
-        s.emit('getDevFlags');
-        const flags = await flagsP;
-        check(flags && flags.balloonEnabled === false, 'devFlags.balloonEnabled = false', JSON.stringify(flags));
-
-        s.emit('createRoom', { userName: 'qa잠금', roomName: 'qa', isPrivate: false, gameType: 'balloon', expiryHours: 1, deviceId: 'qa-gate', tabId: 'qa-gate-t' });
+        s.emit('createRoom', { userName: 'qa공개', roomName: 'qa', isPrivate: false, gameType: 'balloon', expiryHours: 1, deviceId: 'qa-gate', tabId: 'qa-gate-t' });
         const res = await Promise.race([once(s, 'roomError', 5000).then(m => ({ err: m })), once(s, 'roomCreated', 5000).then(d => ({ created: d }))]);
-        check(!!res.err && /준비 중/.test(res.err), 'createRoom balloon → roomError', res.err || JSON.stringify(res.created && res.created.gameType));
+        check(!!res.created && res.created.gameType === 'balloon', '실서버 createRoom balloon → 방 만들어짐', res.err || (res.created && res.created.gameType));
 
-        const ack = await new Promise(r => s.emit('free:createRoom', { gameSlug: 'balloon', userName: 'qa잠금' }, r));
-        check(ack && ack.error, 'free:createRoom balloon → 거부', JSON.stringify(ack));
+        const s3 = io(URL, { transports: ['websocket'] }); await once(s3, 'connect');
+        s3.emit('createRoom', { userName: 'qa해적', roomName: 'qa3', isPrivate: false, gameType: 'pirate', expiryHours: 1, deviceId: 'qa-gate3', tabId: 'qa-gate3-t' });
+        const pr = await once(s3, 'roomError', 5000).catch(() => null);
+        check(!!pr, '미사용 게임(해적)은 여전히 막힘', pr);
+        s3.close();
 
         const s2 = io(URL, { transports: ['websocket'] }); await once(s2, 'connect');
         s2.emit('createRoom', { userName: 'qa대조', roomName: 'qa2', isPrivate: false, gameType: 'deguri', expiryHours: 1, deviceId: 'qa-gate2', tabId: 'qa-gate2-t' });

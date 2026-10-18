@@ -135,7 +135,7 @@ function setupRoutes(app) {
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'deguri-multiplayer.html'));
     });
-    // 풍선 타기(docs/goal/balloon-climb.md) — 실서버는 DEV_GATED_GAMES 로 방 생성을 막는다(페이지는 열려도 방을 못 만든다)
+    // 둥둥라이더(docs/goal/balloon-climb.md) — 2026-10-19 실서버 베타 공개
     app.get('/balloon', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');

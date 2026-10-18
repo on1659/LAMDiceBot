@@ -67,7 +67,7 @@ const SUPPORTED_GAME_TYPES = {
     'roulette': './roulette',
     'horse-race': './horse',
     'deguri': './deguri',
-    'balloon': './balloon'   // 실서버는 DEV_GATED_GAMES 로 방 자체가 안 생긴다 — 테스트 서버·로컬에서만 닿는다
+    'balloon': './balloon'   // 둥둥라이더 — 2026-10-19 실서버 베타 공개
 };
 
 function isSupported(gameType) {
