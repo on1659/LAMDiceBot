@@ -2099,7 +2099,7 @@
                     </label>
                     <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate/deguri)의 인라인 display:none을 제거하면 됨 -->
                     <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
-                    <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
+                    <label id="ladderLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
@@ -2118,12 +2118,11 @@
                         <span class="gt-name">해적 룰렛</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <!-- 데구리: 베타 테스트로 공개(2026-09-21) — 배지 "베타" -->
+                    <!-- 데구리: 2026-09-21 베타 공개 → 베타 배지 제거 -->
                     <label id="deguriLabel" class="game-type-option" style="--gt-color: var(--game-type-deguri); --gt-rgb: var(--deguri-500-rgb);">
                         <input type="radio" name="gameType" value="deguri" id="deguriRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
                     <!-- 둥둥라이더(balloon): 베타 공개(2026-10-19) — 배지 "베타" -->
                     <label id="balloonLabel" class="game-type-option" style="--gt-color: var(--game-type-balloon); --gt-rgb: var(--balloon-500-rgb);">
@@ -2133,7 +2132,6 @@
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">베타</span>
                     </label>
                 </div>
-                <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
                 <div id="gameTypeInfo">
                     룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
@@ -3646,8 +3644,6 @@
             if (ladderDevBadge) ladderDevBadge.style.display = 'none';
             const ladderNewBadge = document.getElementById('ladderNewBadge');
             if (ladderNewBadge) ladderNewBadge.style.display = '';
-            const gameTypeInfo = document.getElementById('gameTypeInfo');
-            if (gameTypeInfo) gameTypeInfo.textContent = '룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.';
         });
 
         // 선택 불가 상태에서 사다리타기를 누르면 안내 (라디오가 disabled여도 라벨 클릭은 발생)
