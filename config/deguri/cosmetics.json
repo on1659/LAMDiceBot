@@ -69,7 +69,18 @@
     {"id": "deguri_skin_pufferfish_crown", "name": "왕관복", "displayName": "왕관복", "rarity": "rare", "emoji": "👑", "price": 50, "creature": "pufferfish", "skin": "crown", "desc": "노란 몸에 작은 금관을 쓴 복어. 복어를 고르면 적용돼요."},
     {"id": "deguri_skin_raccoon_beanie", "name": "비니너굴", "displayName": "비니너굴", "rarity": "rare", "emoji": "🧶", "price": 50, "creature": "raccoon", "skin": "beanie", "desc": "빨간 털모자에 줄무늬 목도리를 두른 너구리. 너구리를 고르면 적용돼요."},
     {"id": "deguri_skin_rabbit_wreath", "name": "화관토끼", "displayName": "화관토끼", "rarity": "rare", "emoji": "💐", "price": 50, "creature": "rabbit", "skin": "wreath", "desc": "머리에 분홍 꽃 화관을 쓴 토끼. 토끼를 고르면 적용돼요."},
-    {"id": "deguri_skin_ribbonpig_chef", "name": "셰프돼지", "displayName": "셰프돼지", "rarity": "rare", "emoji": "🍳", "price": 50, "creature": "ribbonpig", "skin": "chef", "desc": "하얀 요리사 모자에 빨간 스카프를 맨 돼지. 돼지를 고르면 적용돼요."}
+    {"id": "deguri_skin_ribbonpig_chef", "name": "셰프돼지", "displayName": "셰프돼지", "rarity": "rare", "emoji": "🍳", "price": 50, "creature": "ribbonpig", "skin": "chef", "desc": "하얀 요리사 모자에 빨간 스카프를 맨 돼지. 돼지를 고르면 적용돼요."},
+    {"id": "deguri_skin_pufferfish_bukang", "name": "부캉복", "displayName": "부캉복", "rarity": "rare", "emoji": "🐟", "price": 50, "creature": "pufferfish", "skin": "bukang", "desc": "2026-10-15 오늘의 스킨 부캉복. 복어를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_sharkhood", "name": "부캉도치", "displayName": "부캉도치", "rarity": "epic", "emoji": "🦈", "price": 100, "creature": "hedgehog", "skin": "sharkhood", "desc": "2026-10-15 오늘의 스킨 부캉도치. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_armadillo_finshell", "name": "상어딜로", "displayName": "상어딜로", "rarity": "rare", "emoji": "🌊", "price": 50, "creature": "armadillo", "skin": "finshell", "desc": "2026-10-15 오늘의 스킨 상어딜로. 아르마딜로를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_maple", "name": "단풍토끼", "displayName": "단풍토끼", "rarity": "rare", "emoji": "🍁", "price": 50, "creature": "rabbit", "skin": "maple", "desc": "2026-10-17 오늘의 스킨 단풍토끼. 토끼를 고르면 적용돼요."},
+    {"id": "deguri_skin_pillbug_goguma", "name": "고구마공", "displayName": "고구마공", "rarity": "rare", "emoji": "🍠", "price": 50, "creature": "pillbug", "skin": "goguma", "desc": "2026-10-17 오늘의 스킨 고구마공. 공벌레를 고르면 적용돼요."},
+    {"id": "deguri_skin_hamster_hoppang", "name": "호빵햄", "displayName": "호빵햄", "rarity": "rare", "emoji": "🥟", "price": 50, "creature": "hamster", "skin": "hoppang", "desc": "2026-10-17 오늘의 스킨 호빵햄. 햄스터를 고르면 적용돼요."},
+    {"id": "deguri_skin_pufferfish_lantern", "name": "유등복", "displayName": "유등복", "rarity": "rare", "emoji": "🏮", "price": 50, "creature": "pufferfish", "skin": "lantern", "desc": "2026-10-18 오늘의 스킨 유등복. 복어를 고르면 적용돼요."},
+    {"id": "deguri_skin_turtle_chococrack", "name": "초코부기", "displayName": "초코부기", "rarity": "rare", "emoji": "🍫", "price": 50, "creature": "turtle", "skin": "chococrack", "desc": "2026-10-18 오늘의 스킨 초코부기. 거북이를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_meringue", "name": "머랭도치", "displayName": "머랭도치", "rarity": "rare", "emoji": "🍓", "price": 50, "creature": "hedgehog", "skin": "meringue", "desc": "2026-10-18 오늘의 스킨 머랭도치. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_armadillo_mummy", "name": "미라딜로", "displayName": "미라딜로", "rarity": "epic", "emoji": "🩹", "price": 100, "creature": "armadillo", "skin": "mummy", "desc": "2026-10-19 오늘의 스킨 미라딜로. 아르마딜로를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_butter", "name": "버터토끼", "displayName": "버터토끼", "rarity": "rare", "emoji": "🧈", "price": 50, "creature": "rabbit", "skin": "butter", "desc": "2026-10-19 오늘의 스킨 버터토끼. 토끼를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
