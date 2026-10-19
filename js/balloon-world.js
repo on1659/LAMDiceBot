@@ -29,7 +29,7 @@
         warpH: 56, warpMouthW: 48, warpBodyW: 40, warpSuck: 36, warpGapMin: 800, warpGapMax: 1600, warpHide: 0.5, warpCool: 3, warpPop: 200, warpPlatMin: 80,   // 하수구 — 발판 위 파이프 높이·입 폭, 숨는 시간, 다시 들어가기까지, 나올 때 위로 튀는 속도
         cloudP: 0.3, cloudW: 90, cloudInflMin: 0.25, cloudInflMax: 0.4,      // 구름 쿠션
         bumpKick: 70, bumpDy: 40, bumpCool: 0.5,                            // 동물끼리 튕김
-        beamHP: 3, beamKnock: 160, beamHitCool: 0.5,                        // 안 열리는 들보 — HP · 부딪힌 동물을 아래로 튕기는 속도 · 같은 동물이 다시 깎기까지(초)
+        beamHP: 3, beamKnock: 120, beamHitCool: 0.5, beamThick: 16,         // 안 열리는 들보 — HP · 부딪힌 동물을 아래로 튕기는 속도 · 같은 동물이 다시 깎기까지(초) · 두께(풍선은 밑면에서 막힌다, 그림 BEAM.worldH 와 같은 값)
         bodyCY: 20, bodyR: 16, fenceBodyR: 12,                              // 풍선 ↔ 남의 몸 충돌 — 몸 원 중심(발 위 높이)·반지름(사용자 2026-10-19 "풍선이 몸을 뚫고 지나간다") · fenceBodyR = 울타리에 쓰는 몸 반지름(조금 작게 — 걸린 몸이 비탈 끝으로 빨리 빠져나온다)
         // 남의 풍선 콕 찌르기(docs/goal/balloon-poke.md, 사용자 2026-10-19) — 모든 동물 같은 규칙. 막힘: 맞닿음 pokeStuck 초 + 아래 풍선 상승 < 제 속도·pokeBlock → 아래가 위 pokeLow · 나머지는 위가 아래(맞찌르기는 없앰)
         // 지나가며 툭: 맞닿기 시작할 때 아래가 pokePassDv 이상 빨리 오르면 pokePassP. 준비 pokeWind 초 뒤 풍선 사이가 pokeReach 안이면 펑(아니면 헛찌르기)

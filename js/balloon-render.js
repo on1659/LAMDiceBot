@@ -36,6 +36,7 @@
     var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };   // 카메라 버튼 아이콘 — 데구리(js/deguri-render.js)와 같은 그림
     var MM_TOP = 46, MM_W = 10, MM_H_RATIO = 0.4, MM_H_MIN = 120, MM_H_MAX = 240;   // 높이 막대 — 위끝(깃발 아래)·캡슐 폭·캔버스 높이 대비 길이(최소·최대 px)
     var RANK_ROW = 20, RANK_NAME_MAX = 5, RANK_MAX_H = 0.55, RANK_COLLAPSED = 3;   // 순위표 한 줄 높이·이름 글자 수·최대 높이(캔버스 비율)·접혔을 때 줄 수
+    var BEAM_FX_MS = 550, BEAM_BREAK_FX_MS = 900;   // 들보 부딪힘 · 부서짐 연기·나무 부스러기(사용자 2026-10-20 "연기 나는 것 같은 이펙트로 실감나게")
     var BUMP_FX_MS = 350, WARP_FX_MS = 600, ITEM_FX_MS = 600, SHIELD_FX_MS = 450, FINISH_FX_MS = 1400, CLOUD_SQUISH_MS = 350;
     var BEAVER = { cell: 96, worldH: 32 };   // balloon/props/beaver-hammer.webp 96×96 ×4(걷기 2 · 망치 들기 · 내려치기) — 없으면 데구리 beaver-v2.webp(통나무 밀기)
     var PIPE = { rimTop: 8, bodyW: 101, rimW: 135 };   // 데구리 warp-pipe.webp 192×224 — 몸통 폭(px)을 R.warpBodyW 로 맞춘다
@@ -64,7 +65,7 @@
     var DISMOUNT_FLY_S = 1.6, DISMOUNT_DROP_H = 40, DISMOUNT_DROP_S = 0.35, DISMOUNT_RISE_S = 0.25;   // 도착 — 놓은 풍선이 날아가는 시간 · 구름 위로 더 떠오르는 높이 · 떨어지는 시간 · 더 떠오르는 시간          // 도착해서 놓은 풍선이 날아가 사라지는 시간(§13-3)
     // 안 열리는 들보(사용자 2026-10-19 "절대 안 움직이는 나무 발판 느낌") — props/beam.webp 256×72 칸 × 4줄(멀쩡 · 금 · 크게 갈라짐 · 두 동강, 줄 = HP 단계).
     // 3조각으로 늘린다: 양 끝 쇠 걸쇠 cap px 는 그대로, 가운데 나무만 늘림. 나무 윗선·아랫선 = woodTop·woodBot(칸 px), 화면 나무 두께 = worldH
-    var BEAM = { w: 256, h: 72, cap: 36, woodTop: 17, woodBot: 55, worldH: 16, shakeMs: 160, breakMs: 700 };
+    var BEAM = { w: 256, h: 72, cap: 36, woodTop: 17, woodBot: 55, worldH: R.beamThick, shakeMs: 160, breakMs: 700 };
     var BOLT_RAIN_LEAD = 0.7, BOLT_AFTER = 0.35;   // 먹구름 3단계(사용자 2026-10-19): 하얀 구름 → 비(경고보다 BOLT_RAIN_LEAD 초 먼저 먹구름·비) → 천둥(내리친 뒤 BOLT_AFTER 초 먹구름으로 남음). 그림만 — 판정은 boltState 그대로
     var ROCK_TILE_WORLD = 110;         // 바위 벽 질감 타일 한 장의 세계 크기(§13-2)
     // 풍선 타기 전용 그림(assets/balloon/, SpriteMake 2026-10-18 — 의뢰서 docs/spritemake-request/2026-10-18-balloon-sprites.md, 도구 AutoTest/spritemake/balloon-sheet.py)
@@ -301,7 +302,8 @@
                         break;
                     case 'beamHit':   // 들보에 부딪혀 아래로 튕김 — 들보 HP 단계·흔들림, 부딪힌 자리 별, 부서지면 토스트
                         (tl.beamHits[e.plat] = tl.beamHits[e.plat] || []).push({ t: e.t, hp: e.hp });
-                        tl.fx.push({ t: e.t, type: 'bump', a: e.ball, b: e.ball });
+                        var bfr = data.frames[Math.min(data.frames.length - 1, Math.round(e.t / data.sampleMs))], bq = map.plats[e.plat];
+                        tl.fx.push({ t: e.t, type: 'beam', x: bfr[e.ball * 3] + bfr[e.ball * 3 + 2] * R.balTilt, y: bq.y - BEAM.worldH, q: bq, broke: e.hp === 0, seed: e.plat * 7 + e.ball });   // 연기는 부딪힌 자리 들보 밑면에서
                         if (e.hp === 0) tl.toasts.push({ t: e.t, text: '쾅! 들보가 부서졌다' });
                         break;
                     case 'gateHold': (tl.gateHolds[e.fence] = tl.gateHolds[e.fence] || []).push({ a: e.t, b: Infinity }); break;
@@ -1283,11 +1285,12 @@
                 ctx.globalAlpha = 1;   // 떠오르는 '펑!' 글자는 뺐다 — 터짐 그림·토스트가 이미 있어 헷갈렸다(사용자 2026-10-18)
             });
             tl.fx.forEach(function (f) {   // 2차 짧은 연출
-                var dur = f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : f.type === 'finish' ? FINISH_FX_MS : WARP_FX_MS;
+                var dur = f.type === 'beam' ? (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) : f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : f.type === 'finish' ? FINISH_FX_MS : WARP_FX_MS;
                 if (sim < f.t || sim - f.t >= dur) return;
                 var k = (sim - f.t) / dur, x, y;
                 ctx.globalAlpha = 1 - k;
                 ctx.font = '900 14px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = C.countInk; ctx.fillStyle = C.popInk;
+                if (f.type === 'beam') { drawBeamFx(f, k); ctx.globalAlpha = 1; return; }
                 if (f.type === 'bump') {
                     var a = view[f.a], b = view[f.b]; if (!a || !b) return;
                     x = sx((a.x + b.x) / 2); y = sy((a.y + b.y) / 2 + BAL_OFF) - 6 * k * s;
@@ -1373,6 +1376,28 @@
                 return;
             } else if (p.creature === 'armadillo' && hit >= -0.04 && hit < 0.22) pokeFx(POKE_FX.swoosh, tx - face * 6 * s, ty, 26 * s, 26 * s, 1 - Math.max(0, hit) / 0.22, face);   // 발톱 휙
             if (q.hit && hit >= 0 && hit < 0.25) pokeFx(POKE_FX.spark, tx, ty, sz * (1 + hit * 2), sz * (1 + hit * 2), 1 - hit / 0.25);   // 맞힌 자리 번쩍(헛찌르기는 없음)
+        }
+        // 들보 부딪힘 — 밑면에서 먼지 연기(데구리 dust-puff 80×80 ×4)가 양옆으로 퍼지고 나무 부스러기가 튀어 떨어진다. 부서지면 들보 길이 전체에서 크게
+        function drawBeamFx(f, k) {
+            var tS = k * (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) / 1000, rnd = mulberry32(f.seed + Math.round(f.t));   // 부스러기 방향은 사건마다 같은 값(되감기·두 탭 같음)
+            // 연기 덩어리 [세계 x, 퍼지는 방향, 크기 배율, 늦게 나오는 비율] — 부딪힘은 풍선 양 어깨에서 두 덩어리, 부서짐은 들보 길이를 따라 크기·시점이 제각각
+            var puffs = f.broke ? [0, 1, 2, 3, 4, 5].map(function (i) { var u = -0.45 + i * 0.18 + (rnd() - 0.5) * 0.08; return [f.q.x + u * f.q.w, u >= 0 ? 1 : -1, 0.8 + rnd() * 0.6, rnd() * 0.25]; })
+                : [[f.x - R.balloonR * 0.9, -1, 1, 0], [f.x + R.balloonR * 0.9, 1, 1, 0.05]];
+            if (ok(P('dust'))) puffs.forEach(function (pf) {
+                var kk = clamp((k - pf[3]) / (1 - pf[3]), 0, 1); if (k < pf[3]) return;
+                var spread = (f.broke ? 16 : 20) * kk * pf[1], rise = (f.broke ? 12 : 6) * kk;
+                var ds = (f.broke ? 44 : 28) * pf[2] * s * (0.8 + 0.6 * kk), fr = Math.min(3, Math.floor(kk * 4));
+                ctx.globalAlpha = (1 - kk) * 0.95;
+                ctx.drawImage(P('dust'), fr * 80, 0, 80, 80, sx(pf[0] + spread) - ds / 2, sy(f.y - rise) - ds * 0.55, ds, ds);
+            });
+            var n = f.broke ? 14 : 5;
+            for (var c = 0; c < n; c++) {   // 나무 부스러기 — 작은 조각이 튀었다가 떨어지며 돈다
+                var vx = (rnd() - 0.5) * (f.broke ? 220 : 130), vy = -(rnd() * 60 + 20), x0 = f.broke ? f.q.x + (rnd() - 0.5) * f.q.w : f.x + (rnd() - 0.5) * 16;
+                var cx = sx(x0 + vx * tS), cy = sy(f.y + vy * tS - 0.5 * R.dropG * 0.6 * tS * tS), sz = (2 + rnd() * 2.5) * s, rot = tS * (rnd() * 14 - 7);
+                ctx.globalAlpha = 1 - k * k; ctx.fillStyle = c % 3 ? C.plat : C.platDark;
+                ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.fillRect(-sz, -sz * 0.45, sz * 2, sz * 0.9); ctx.restore();
+            }
+            ctx.globalAlpha = 1;
         }
         function drawEagle(sim, clockS) {
             var e = null;

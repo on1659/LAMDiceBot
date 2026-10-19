@@ -73,6 +73,7 @@ async function simulate(players, seed, map, opts) {
     // 안 열리는 들보 HP(사용자 2026-10-19 "풍선으로 칠 때마다 밑으로 내려보내고 hp 깎기") — 남은 HP · -1 = 안 부서짐(하수구 파이프 발판·통나무 받침). 0 = 부서져 사라짐
     const beamHP = plats.map(q => q.solid && !q.kind && !warps.some(w => w.x === q.x && w.y === q.y) ? R.beamHP : -1), beamHitAt = {};   // 'plat,id' → 다시 칠 수 있는 시뮬 초
     const beamUp = i => plats[i].solid && beamHP[i] !== 0;
+    const beamBot = q => q.kind ? q.y : q.y - R.beamThick;   // 풍선이 막히는 높이 = 들보 밑면(그림 두께만큼 아래 — 풍선이 들보에 박혀 보이지 않게). 위에 앉는 건 윗면 q.y
     const ft = i => t - gateHold[i].acc - (gateHold[i].t0 >= 0 ? t - gateHold[i].t0 : 0);
     const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b'(풍선끼리)·'ba,b'(a 풍선 ↔ b 몸) → { t0, y0: {id: 발 높이} } · 같은 두 마리('작은id,큰id') 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
     const flapOpenUntil = plats.map(() => -1);   // 여닫이 판이 열려 있는 시뮬 초(그때까지)
@@ -255,7 +256,7 @@ async function simulate(players, seed, map, opts) {
                     const open = W.shutOpen(h, t), g = h.y - prevTop;
                     if (g > -2 && (open > 0 ? bxNow < WORLD_W / 2 + R.balloonR : bxNow > WORLD_W / 2 - R.balloonR)) block = Math.min(block, g);
                 }
-                plats.forEach((q, i) => { if (beamUp(i) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = q.y - prevTop; if (g > -2) block = Math.min(block, g); } });
+                plats.forEach((q, i) => { if (beamUp(i) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = beamBot(q) - prevTop; if (g > -2) block = Math.min(block, g); } });
                 const vT = v * clamp(block / R.blockSlow, 0, 1);
                 p.vy += (vT - p.vy) * Math.min(1, dt * R.riseAccel);   // 상승 속도는 목표로 서서히 — 출발할 때 0 에서 가속, 바뀔 때도 부드럽게
                 p.y += p.vy * dt;
@@ -270,13 +271,13 @@ async function simulate(players, seed, map, opts) {
                 for (let i = 0; i < plats.length; i++) {   // 안 열리는 들보: 밑에 오면 가까운 끝으로 비켜 가고, 못 비키면 들보에 부딪혀 아래로 튕긴다(그때마다 HP -1)
                     const q = plats[i]; if (!beamUp(i)) continue;
                     if (Math.abs(balloonX(p) - q.x) > q.w / 2 + R.balloonR * 0.7) continue;
-                    const gap = q.y - prevTop;
+                    const qb = beamBot(q), gap = qb - prevTop;
                     if (gap > -2 && gap < R.solidReach) {
                         const L = q.x - q.w / 2 - 24, Rt = q.x + q.w / 2 + 24, okL = L > b0 + R.wallPad, okR = Rt < b1 - R.wallPad;
                         tx = okL && (!okR || p.x - L < Rt - p.x) ? L : Rt; k = Z.shutSteer;
                     }
-                    if (prevTop <= q.y && p.y + BAL_OFF + R.balloonR > q.y) {
-                        p.y = q.y - BAL_OFF - R.balloonR; p.vy = 0;
+                    if (prevTop <= qb && p.y + BAL_OFF + R.balloonR > qb) {
+                        p.y = qb - BAL_OFF - R.balloonR; p.vy = 0;
                         const hk = i + ',' + p.id;
                         if (!(t < beamHitAt[hk])) {
                             beamHitAt[hk] = t + R.beamHitCool; p.vy = -R.beamKnock;
