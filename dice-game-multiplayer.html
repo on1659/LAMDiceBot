@@ -1759,7 +1759,7 @@
             width: 24px;
             height: 24px;
             /* = .ui-sparkle (css/ui-icons.css) — 의사요소엔 클래스를 못 붙여 배경을 직접 적는다 */
-            background: url("/assets/ui/icons.webp?v=5") no-repeat 66.6667% 44.4444% / 1000% 1000%;
+            background: url("/assets/ui/icons.webp?v=6") no-repeat 66.6667% 44.4444% / 1000% 1000%;
             position: absolute;
             top: -8px;
             right: -8px;
@@ -2128,7 +2128,7 @@
                     <!-- 둥둥라이더(balloon): 베타 공개(2026-10-19) — 배지 "베타" -->
                     <label id="balloonLabel" class="game-type-option" style="--gt-color: var(--game-type-balloon); --gt-rgb: var(--balloon-500-rgb);">
                         <input type="radio" name="gameType" value="balloon" id="balloonRadio" />
-                        <span class="gt-emoji"><i class="ui ui-cloudsun"></i></span>
+                        <span class="gt-emoji"><i class="ui ui-balloon"></i></span>
                         <span class="gt-name">둥둥라이더</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">베타</span>
                     </label>
@@ -3349,7 +3349,7 @@
                     gameTypeIcon = UIIcons.tag('paw');
                     gameTypeLabel = '데구리';
                 } else if (room.gameType === 'balloon') {
-                    gameTypeIcon = UIIcons.tag('cloudsun');
+                    gameTypeIcon = UIIcons.tag('balloon');
                     gameTypeLabel = '둥둥라이더';
                 }
                 

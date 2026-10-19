@@ -6,7 +6,7 @@
     width: 1.2em;
     height: 1.2em;
     vertical-align: -0.25em;
-    background: url("/assets/ui/icons.webp?v=5") no-repeat 0 0 / 1000% 1000%;
+    background: url("/assets/ui/icons.webp?v=6") no-repeat 0 0 / 1000% 1000%;
     flex-shrink: 0;
 }
 /* 크기 변형 — 게임 카드·로딩 화면·빈 상태 */
@@ -111,3 +111,4 @@
 .ui-d5        { background-position: 55.5556% 100%; }
 .ui-d6        { background-position: 66.6667% 100%; }
 .ui-ticket    { background-position: 77.7778% 100%; }
+.ui-balloon   { background-position: 88.8889% 100%; }   /* 98 = 둥둥라이더(풍선에 매달린 고슴도치, 2026-10-19 SpriteMake ui-icon-balloon 배치 — GPT 생성·Claude 정규화) */

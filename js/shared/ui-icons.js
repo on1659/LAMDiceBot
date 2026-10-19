@@ -17,7 +17,7 @@
 (function (global) {
     'use strict';
 
-    var ATLAS_URL = '/assets/ui/icons.webp?v=5';
+    var ATLAS_URL = '/assets/ui/icons.webp?v=6';
     var UI_ICON_COLS = 10;
     var UI_ICON_PX = 128;
 
@@ -32,7 +32,7 @@
         'clapper', 'camera', 'tv', 'sound', 'soundlow', 'mute', 'pencil', 'door', 'link', 'mail',
         'pin', 'key', 'chart', 'calendar', 'wave', 'eye', 'grad', 'question', 'pc', 'phone',
         'apple', 'fire', 'rocket', 'dizzy', 'carrot', 'banana', 'snow', 'barrier', 'ghost', 'tomb',
-        'bolt', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'ticket'   // 97 ticket = 데구리 자유이용권(2026-10-16, SpriteMake ui-icon-ticket 배치 — GPT 생성·Claude 정규화)
+        'bolt', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'ticket', 'balloon'   // 97 ticket = 데구리 자유이용권(2026-10-16), 98 balloon = 둥둥라이더(2026-10-19) — SpriteMake GPT 생성·Claude 정규화
     ];
     var UI_ICON_CELL = {};
     UI_ICON_IDS.forEach(function (id, i) { UI_ICON_CELL[id] = i; });
@@ -54,7 +54,7 @@
         '🚪': 'door', '🔗': 'link', '📨': 'mail', '📌': 'pin', '🔑': 'key', '📊': 'chart', '📅': 'calendar', '👋': 'wave',
         '👁': 'eye', '👀': 'eye', '🎓': 'grad', '❓': 'question', '💻': 'pc', '🖥': 'pc', '📱': 'phone', '🍎': 'apple',
         '🔥': 'fire', '🚀': 'rocket', '💫': 'dizzy', '🥕': 'carrot', '🍌': 'banana', '❄': 'snow', '🚧': 'barrier', '👻': 'ghost',
-        '🪦': 'tomb', '⚡': 'bolt', '⚀': 'd1', '⚁': 'd2', '⚂': 'd3', '⚃': 'd4', '⚄': 'd5', '⚅': 'd6', '🎟': 'ticket', '🎫': 'ticket'
+        '🪦': 'tomb', '⚡': 'bolt', '⚀': 'd1', '⚁': 'd2', '⚂': 'd3', '⚃': 'd4', '⚄': 'd5', '⚅': 'd6', '🎟': 'ticket', '🎫': 'ticket', '🎈': 'balloon'
     };
 
     var VS_RE = /\uFE0F/g;   // 변형 선택자(U+FE0F) — 보이지 않는 문자라 이스케이프로 적는다

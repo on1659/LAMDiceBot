@@ -535,7 +535,7 @@ function updateStartButton() {
     var canStart = isHost && balloonState.phase !== 'playing' && !isBalloonActive && rc >= minP;
     if (startBtn) {
         startBtn.disabled = !canStart;
-        startBtn.innerHTML = '<i class="ui ui-cloudsun"></i> ' + (rc < minP ? '경주 시작 (' + minP + '명 이상 준비)' : '경주 시작');
+        startBtn.innerHTML = '<i class="ui ui-balloon"></i> ' + (rc < minP ? '경주 시작 (' + minP + '명 이상 준비)' : '경주 시작');
     }
 }
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 동물 안 고른 사람
@@ -903,7 +903,7 @@ function showResultOverlay(data) {
         var win = data.selected ? resultPlayerFor(data.selected) : null;
         if (data.selected) {
             html += '<div class="deguri-result-selected">' + (win ? '<canvas class="deguri-result-sprite" width="112" height="112"' + spriteAttr(win) + ' aria-hidden="true"></canvas>' : '') +
-                '<div class="deguri-result-selected-name"><i class="ui ui-cloudsun"></i> 당첨자: <span title="' + escapeHtml(data.selected) + '">' + escapeHtml(resultShortName(data.selected)) + '</span> <small>(' + targetLabel + ')</small></div></div>';
+                '<div class="deguri-result-selected-name"><i class="ui ui-balloon"></i> 당첨자: <span title="' + escapeHtml(data.selected) + '">' + escapeHtml(resultShortName(data.selected)) + '</span> <small>(' + targetLabel + ')</small></div></div>';
         } else html += '<div class="deguri-result-selected">당첨자가 없습니다</div>';
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
@@ -936,7 +936,7 @@ function renderHistory(history) {
         var h = history[i];
         html += '<div style="padding: 8px 12px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between;">' +
             '<span style="color: var(--text-secondary);">' + h.round + '판</span>' +
-            '<span style="font-weight: 700; color: var(--red-500);"><i class="ui ui-cloudsun"></i> ' + escapeHtml(h.selected || '-') + (h.target === 'first' ? ' <small style="font-weight: 600; color: var(--text-muted);">(1등)</small>' : '') + '</span></div>';
+            '<span style="font-weight: 700; color: var(--red-500);"><i class="ui ui-balloon"></i> ' + escapeHtml(h.selected || '-') + (h.target === 'first' ? ' <small style="font-weight: 600; color: var(--text-muted);">(1등)</small>' : '') + '</span></div>';
     }
     list.innerHTML = html;
 }

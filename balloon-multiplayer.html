@@ -30,8 +30,8 @@
     <script src="/js/shared/theme-shared.js"></script>
 
     <link rel="stylesheet" href="/css/theme.css">
-    <link rel="stylesheet" href="/css/ui-icons.css?v=5">
-    <script src="/js/shared/ui-icons.js?v=5"></script>
+    <link rel="stylesheet" href="/css/ui-icons.css?v=6">
+    <script src="/js/shared/ui-icons.js?v=6"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,7 +40,7 @@
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
     <!-- 풍선 타기는 데구리 페이지 복사본(docs/goal/balloon-climb.md §10 Q8) — 같은 DOM id 라 deguri.css 를 그대로 쓰고, 다른 점만 balloon.css 에 -->
-    <link rel="stylesheet" href="/css/deguri.css?v=47">
+    <link rel="stylesheet" href="/css/deguri.css?v=48">
     <!-- 꾸미기 상점·뽑기 모달 — 데구리 페이지와 같은 파일(horse-shop.css 의 --horse-* 는 deguri.css 가 데구리 색으로 alias) -->
     <link rel="stylesheet" href="/css/horse-shop.css?v=13">
     <link rel="stylesheet" href="/css/deguri-gacha.css?v=23">
@@ -166,7 +166,7 @@
     <!-- 로딩 화면 -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--deguri-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: var(--text-on-accent);">
-            <i class="ui ui-cloudsun mi-loading"></i>
+            <i class="ui ui-balloon mi-loading"></i>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
             <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
             <div style="margin-top: 30px;">
@@ -238,7 +238,7 @@
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()"><i class="mi mi-clock"></i> 예약</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <button class="start-button" id="startDeguriButton" onclick="startBalloon()" disabled style="flex: 1;"><i class="ui ui-cloudsun"></i> 경주 시작</button>
+                    <button class="start-button" id="startDeguriButton" onclick="startBalloon()" disabled style="flex: 1;"><i class="ui ui-balloon"></i> 경주 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--horse-warning-btn-text); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--fill-danger-soft) 100%); color: var(--text-on-accent); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
@@ -529,9 +529,9 @@
     <script src="/js/deguri-shop.js?v=19"></script>
     <script src="/js/deguri-closet.js?v=2"></script>
     <script src="/js/deguri-gacha.js?v=51"></script>
-    <script src="/js/deguri-render.js?v=pip-3"></script>
+    <script src="/js/deguri-render.js?v=pip-4"></script>
     <script src="/js/deguri-highlight.js?v=7"></script>
-    <script src="/js/balloon.js?v=4"></script>
+    <script src="/js/balloon.js?v=5"></script>
 
     <script>
         // ============================================

@@ -48,7 +48,7 @@
         ladder:   'ladder',
         'spin-arena': 'swords',
         deguri:   'paw',
-        balloon:  'cloudsun'
+        balloon:  'balloon'
     };
 
     // 게임별 로딩 화면 바탕 — css/theme.css 의 --free-loading-* (라이트 = 게임 그라데이션, 다크 = 그 게임 페이지 바닥)
