@@ -454,6 +454,20 @@ async function simulate(players, seed, map, opts) {
             a.kick -= d * R.bumpKick; b.kick += d * R.bumpKick;
             ev('bump', { a: a.id, b: b.id });
         }
+        // 풍선끼리 겹치지 않는다(사용자 2026-10-19) — 둘 다 오르는 중이면 겹친 만큼 밀어낸다. 가로 몫은 반씩 비키고, 세로 몫은 아래 풍선이 다 물러난다
+        // (위 풍선을 밀어 올리면 들보·셔터 밑에 눌린 풍선이 뚫고 나간다). 아래 풍선은 위 풍선 속도로 늦춰지고, 둥근 면을 따라 옆으로 미끄러져 비켜 간다
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+            const a = P[i], b = P[j];
+            if (a.st !== 'rise' || b.st !== 'rise') continue;
+            const dx = balloonX(b) - balloonX(a), dy = b.y - a.y, d = Math.hypot(dx, dy), over = R.balloonR * 2 - d;
+            if (over <= 0) continue;
+            const nx = d > 1e-6 ? dx / d : 1, ny = d > 1e-6 ? dy / d : 0;
+            a.x -= nx * over / 2; b.x += nx * over / 2;
+            const lo = ny > 0 ? a : b, hi = lo === a ? b : a;
+            lo.y -= Math.abs(ny) * over;
+            if (lo.vy > hi.vy) lo.vy += (hi.vy - lo.vy) * Math.abs(ny);
+            for (const p of [a, b]) { const [b0, b1] = boundsAt(p.y + BAL_OFF); p.x = clamp(p.x, b0 + R.wallPad, b1 - R.wallPad); }
+        }
         if (phase === 'run' && tMs >= SIM_CAP_MS) {
             const ls = live().sort((a, b) => b.y - a.y || a.id - b.id);
             ev('cap', {});
