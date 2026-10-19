@@ -108,3 +108,11 @@
 - 스킨 69종 찌르기: 도구 28종(`recolor|remap|pixelate <c> <skin> poke` — 도트는 224 칸을 240 정사각으로 패딩해 바꾼 뒤 잘라 냄) + 옷 입히기 41종(`scaffold-skin <c> <skin> poke`, Codex 6개 병렬 ~50분). ribbonpig-red 는 `skin-kind` 가 recolor 라 해도 머리 위 불꽃 때문에 옷 입히기.
   - 너구리 스킨 5종은 프롬프트의 "string stub" 문구를 "한 팔 만세 · 포크로 콕" 으로 바꿔 돌림 — 막힘 없음.
   - 채택: 판다 말랑 2번(1번에 원래 없는 갈색 무늬), 리본돼지 앵그리·셰프·아이언·파일럿·스카프·저팔계·레드 2번(1번은 앞발을 안 들고 누운 자세 — 기본 돼지 찌르기와 다름), 나머지 1번. GPT 가 끈 토막을 빼먹은 칸은 그림 꼭대기(앞발)가 기준점이라 그대로 받음.
+
+## 6차 단독판 스킨 11종 × 4포즈 (2026-10-19 — cd382672 에 들어온 데구리 스킨)
+
+대상: armadillo-finshell(상어딜로) · armadillo-mummy(미라딜로) · hamster-hoppang(호빵햄) · hedgehog-meringue(머랭도치) · hedgehog-sharkhood(부캉도치) · pillbug-goguma(고구마공) · pufferfish-bukang(부캉복) · pufferfish-lantern(유등복) · rabbit-butter(버터토끼) · rabbit-maple(단풍토끼) · turtle-chococrack(초코부기). `skin-kind` 가 11종 모두 dress → `scaffold-skin <c> <skin> <kind> 2026-10-19` 44배치(`balloon-{hang,blow,fall,poke}-2026-10-19/<look>/`), Codex 6개 병렬 ~1시간.
+
+- 채택: 상어딜로 blow·poke 2번(1번은 꼭지가 칸 경계를 넘음 / 끈 쥔 앞발이 빠짐), 고구마공 hang·poke 2번 · 버터토끼 poke 2번 · 단풍토끼 poke 2번(1번은 끈 쥔 앞발이 빠짐), 부캉복 fall 2번(1번은 노란 기본 복어 그대로), 호빵햄 poke 3번(1·2번은 끈 쥔 앞발이 빠짐), 유등복 blow 1번(Codex 가 "기본보다 덜 기울었다"고 3번까지 그렸지만 유등 스킨은 원래 둥글게 서 있어 1번이 가장 깔끔), 나머지 첫 시도.
+- 확인: 스킨 서기 4칸 | 기본 포즈 | 스킨 포즈를 줄마다 놓고 확대해 봄 — 호빵 꼬다리·딸기·상어 후드·고구마 김·유등 술·버터·단풍잎·초코 금이 모든 칸에 있음, 고구마공 다리 회청색은 스킨 서기 그대로. 끈 토막 경고(c0 폭 13~32)는 앞발이 꼭대기에 닿은 것 — 참고만.
+- 렌더러는 파일 이름으로 찾기만 해서(`poseSheet`) 코드·`ASSET_VER` 변경 없음(새 파일이라 캐시 무관).
