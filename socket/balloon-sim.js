@@ -50,6 +50,8 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *              land.plat ≤ -100 = 출발 계단(-100 - 층)
  *              2차(§11): bridge{idx}(세이브 다리 놓임 — land.plat = -2 - idx) · item{ball,kind:'super'|'shield',box} · superEnd{ball} · shieldPop{ball} · shieldEnd{ball} ·
  *              warp{ball,from,to}(하수구에 쏙) · warpOut{ball,x,y} · bump{a,b}
+ *              beamHit{plat,ball,hp} — 들보에 부딪혀 아래로 튕김(hp 남은 HP, -1 = 안 부서짐, 0 = 부서짐)
+ *              gateHold{fence} · gateHoldEnd{fence} — 눈 꼭대기 문이 지나가는 동물을 기다린 구간(그동안 문 시각이 멈춘다, 렌더러도 같은 식)
  *              콕 찌르기(docs/goal/balloon-poke.md): poke{ball,target,kind:stuck|pass}(준비 시작) → R.pokeWind 뒤 pop{cause:'poke',by} 또는 pokeMiss{ball,target}
  *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
  *  finishOrder = 순위 순 id 전부(도착 순 → 판정 순간 미도착은 높이 순)
@@ -66,6 +68,12 @@ async function simulate(players, seed, map, opts) {
     const bridges = map.bridges || [], items = map.items || [], warps = map.warps || [], fences = map.fences || [];
     const bridgeOn = bridges.map(() => -1), itemBack = items.map(() => 0);   // itemBack = 상자가 다시 생기는 시뮬 초
     const bumpAt = {};   // 'a,b' → 마지막 튕김 시뮬 초
+    // 눈 꼭대기 문 기다림(사용자 2026-10-19 "스마일 구간에서 뚫고 올라간다") — 문마다 기다린 누적 초(acc)·기다리기 시작한 시뮬 초(t0, -1 = 아님). 문 시각 = t - 기다린 시간
+    const gateHold = fences.map(() => ({ acc: 0, t0: -1 }));
+    // 안 열리는 들보 HP(사용자 2026-10-19 "풍선으로 칠 때마다 밑으로 내려보내고 hp 깎기") — 남은 HP · -1 = 안 부서짐(하수구 파이프 발판·통나무 받침). 0 = 부서져 사라짐
+    const beamHP = plats.map(q => q.solid && !q.kind && !warps.some(w => w.x === q.x && w.y === q.y) ? R.beamHP : -1), beamHitAt = {};   // 'plat,id' → 다시 칠 수 있는 시뮬 초
+    const beamUp = i => plats[i].solid && beamHP[i] !== 0;
+    const ft = i => t - gateHold[i].acc - (gateHold[i].t0 >= 0 ? t - gateHold[i].t0 : 0);
     const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b'(풍선끼리)·'ba,b'(a 풍선 ↔ b 몸) → { t0, y0: {id: 발 높이} } · 같은 두 마리('작은id,큰id') 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
     const flapOpenUntil = plats.map(() => -1);   // 여닫이 판이 열려 있는 시뮬 초(그때까지)
     // bridgeOn[i] = 다리가 놓이기 시작한 시뮬 초(-1 = 아직) — 비버가 다 놓은 뒤(bridgeBuild)부터 선다
@@ -155,13 +163,14 @@ async function simulate(players, seed, map, opts) {
         for (let i = 0; i < plats.length; i++) {
             const q = plats[i], flap = !q.solid && !q.kind;
             if (flap && t < flapOpenUntil[i]) continue;   // 열린 여닫이 판은 통과
-            if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (!best || q.y > best.y)) best = { y: q.y, plat: i, cloud: q.kind === 'cloud', ref: flap ? { plat: i } : null };
+            if (q.solid && !beamUp(i)) continue;   // 부서진 들보
+            if (prevY >= q.y && p.y <= q.y && Math.abs(p.x - q.x) <= q.w / 2 && (!best || q.y > best.y)) best = { y: q.y, plat: i, cloud: q.kind === 'cloud', ref: flap ? { plat: i } : beamHP[i] > 0 ? { beam: i } : null };
         }
         for (const f of startFloors) if (prevY >= f.y && p.y <= f.y && p.x >= f.x0 && p.x <= f.x1 && (!best || f.y > best.y)) best = { y: f.y, plat: -100 - f.row, cloud: false };   // 출발 계단(plat = -100 - 층)
         for (let i = 0; i < bridges.length; i++) { const b = bridges[i]; if (bridgeOn[i] >= 0 && t >= bridgeOn[i] + R.bridgeBuild && prevY >= b.y && p.y <= b.y && (!best || b.y > best.y)) best = { y: b.y, plat: -2 - i, cloud: false }; }
         // 모든 구조물은 위에서 앉을 수 있다(사용자 2026-10-18) — 울타리(웃는 얼굴 눈·입·눈 꼭대기 문, plat = -200 - 번호) · 셔터 닫힌 쪽(plat = -300 - 장치 번호)
         for (let i = 0; i < fences.length; i++) {
-            const f = W.fenceSeg(fences[i], t), lo = Math.min(f.x1, f.x2), hi = Math.max(f.x1, f.x2);
+            const f = W.fenceSeg(fences[i], ft(i)), lo = Math.min(f.x1, f.x2), hi = Math.max(f.x1, f.x2);
             if (p.x < lo || p.x > hi || hi - lo < 1) continue;
             const yS = f.y1 + (f.y2 - f.y1) * (p.x - f.x1) / (f.x2 - f.x1);
             if (prevY >= yS && p.y <= yS && (!best || yS > best.y)) best = { y: yS, plat: -200 - i, cloud: false, ref: fences[i].gate != null ? { gate: i } : null };
@@ -176,7 +185,7 @@ async function simulate(players, seed, map, opts) {
     // 서 있던 구조물이 사라졌나(눈 꼭대기 문이 열림 · 셔터 그쪽이 열림) → 다시 떨어진다(풍선 없이 — 공중에서 다시 분다)
     function floorGone(p) {
         const r = p.floorRef; if (!r) return false;
-        return r.plat != null ? t < flapOpenUntil[r.plat] : r.gate != null ? W.gateOpen(fences[r.gate], t) : !shutClosedAt(hazards[r.shutter], p.x);
+        return r.beam != null ? beamHP[r.beam] === 0 : r.plat != null ? t < flapOpenUntil[r.plat] : r.gate != null ? W.gateOpen(fences[r.gate], ft(r.gate)) : !shutClosedAt(hazards[r.shutter], p.x);
     }
     function refall(p) {
         p.st = 'drop'; p.stT = R.airDropDur; p.airRefill = true; p.vy = 0; p.floorRef = null;
@@ -246,7 +255,7 @@ async function simulate(players, seed, map, opts) {
                     const open = W.shutOpen(h, t), g = h.y - prevTop;
                     if (g > -2 && (open > 0 ? bxNow < WORLD_W / 2 + R.balloonR : bxNow > WORLD_W / 2 - R.balloonR)) block = Math.min(block, g);
                 }
-                for (const q of plats) if (q.solid && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = q.y - prevTop; if (g > -2) block = Math.min(block, g); }
+                plats.forEach((q, i) => { if (beamUp(i) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = q.y - prevTop; if (g > -2) block = Math.min(block, g); } });
                 const vT = v * clamp(block / R.blockSlow, 0, 1);
                 p.vy += (vT - p.vy) * Math.min(1, dt * R.riseAccel);   // 상승 속도는 목표로 서서히 — 출발할 때 0 에서 가속, 바뀔 때도 부드럽게
                 p.y += p.vy * dt;
@@ -258,14 +267,23 @@ async function simulate(players, seed, map, opts) {
                     const bx = balloonX(p);
                     if (prevTop <= h.y && p.y + BAL_OFF + R.balloonR > h.y && (open > 0 ? bx < WORLD_W / 2 + R.balloonR : bx > WORLD_W / 2 - R.balloonR)) { p.y = h.y - BAL_OFF - R.balloonR; p.vy = 0; }   // 닫힌 쪽 밑에서 기다린다
                 }
-                for (const q of plats) if (q.solid) {   // 안 열리는 들보: 밑에 오면 가까운 끝으로 비켜 가고, 못 비키면 들보에 눌려 기다린다
+                for (let i = 0; i < plats.length; i++) {   // 안 열리는 들보: 밑에 오면 가까운 끝으로 비켜 가고, 못 비키면 들보에 부딪혀 아래로 튕긴다(그때마다 HP -1)
+                    const q = plats[i]; if (!beamUp(i)) continue;
                     if (Math.abs(balloonX(p) - q.x) > q.w / 2 + R.balloonR * 0.7) continue;
                     const gap = q.y - prevTop;
                     if (gap > -2 && gap < R.solidReach) {
                         const L = q.x - q.w / 2 - 24, Rt = q.x + q.w / 2 + 24, okL = L > b0 + R.wallPad, okR = Rt < b1 - R.wallPad;
                         tx = okL && (!okR || p.x - L < Rt - p.x) ? L : Rt; k = Z.shutSteer;
                     }
-                    if (prevTop <= q.y && p.y + BAL_OFF + R.balloonR > q.y) { p.y = q.y - BAL_OFF - R.balloonR; p.vy = 0; }
+                    if (prevTop <= q.y && p.y + BAL_OFF + R.balloonR > q.y) {
+                        p.y = q.y - BAL_OFF - R.balloonR; p.vy = 0;
+                        const hk = i + ',' + p.id;
+                        if (!(t < beamHitAt[hk])) {
+                            beamHitAt[hk] = t + R.beamHitCool; p.vy = -R.beamKnock;
+                            if (beamHP[i] > 0) beamHP[i]--;
+                            ev('beamHit', { plat: i, ball: p.id, hp: beamHP[i] });   // hp -1 = 안 부서지는 들보 · 0 = 이번에 부서짐
+                        }
+                    }
                 }
                 p.kick *= Math.exp(-dt * R.kickDecay);
                 if (p.fenceT > 0) { p.fenceT -= dt; k = 0; }   // 울타리에 닿아 있으면 제자리 찾기를 끈다 — 비탈을 따라 미끄러지게
@@ -276,15 +294,25 @@ async function simulate(players, seed, map, opts) {
                 if (nx !== p.x + p.vx * dt) p.vx = 0;   // 벽에 닿으면 멈춘다
                 p.x = nx;
                 // 울타리(웃는 얼굴 구간) — 풍선 원이 선분에 겹치면 법선으로 밀어낸다. 오르는 힘이 비탈을 따라 높은 쪽 끝으로 미끄러지는 움직임이 된다
-                for (const f0 of fences) {
-                    const f = W.fenceSeg(f0, t);   // 눈 꼭대기 문은 아래로 젖혀지며 움직인다 — 밑에 있던 풍선을 아래로 밀어낸다
+                for (let fi = 0; fi < fences.length; fi++) {
+                    const f0 = fences[fi], f = W.fenceSeg(f0, ft(fi));   // 눈 꼭대기 문은 아래로 젖혀지며 움직인다 — 밑에 있던 풍선을 아래로 밀어낸다
                     const fbx = balloonX(p), fby = p.y + BAL_OFF;
                     if (fby < Math.min(f.y1, f.y2) - R.balloonR || fby > Math.max(f.y1, f.y2) + R.balloonR) continue;
                     const c = W.segClosest(fbx, fby, f.x1, f.y1, f.x2, f.y2), d = Math.hypot(fbx - c[0], fby - c[1]);
                     if (d >= R.balloonR || d < 1e-6) continue;
                     const push = R.balloonR - d;
                     p.x += (fbx - c[0]) / d * push; p.y += (fby - c[1]) / d * push; p.fenceT = R.fenceHold; p.vx *= 0.85;
-                    if (f0.gate != null && W.gateSwinging(f0, t) && fby < f0.y1) { p.vy = Math.min(p.vy, -R.gateKnock); p.vx += (fbx >= c[0] ? 1 : -1) * R.gateKnock * 0.3; }   // 내려오는 문짝에 맞으면 아래로 툭 쳐진다(사용자 2026-10-18)
+                    if (f0.gate != null && W.gateSwinging(f0, ft(fi)) && fby < f0.y1) { p.vy = Math.min(p.vy, -R.gateKnock); p.vx += (fbx >= c[0] ? 1 : -1) * R.gateKnock * 0.3; }   // 내려오는 문짝에 맞으면 아래로 툭 쳐진다(사용자 2026-10-18)
+                }
+                // 몸도 울타리를 못 뚫는다 — 풍선처럼 지금 있는 쪽으로 밀어낸다(원-선분). 풍선이 끝을 돌아 나가도 몸은 울타리 밑에 걸린 채 비탈을 따라 미끄러져 끝으로 빠져나온다.
+                // 움직이는 눈 꼭대기 문짝도 몸을 밀어낸다(닫히는 문은 위 gateHold 가 기다린다)
+                for (let fi = 0; fi < fences.length; fi++) {
+                    const f = W.fenceSeg(fences[fi], ft(fi)), cx = p.x, cy = p.y + R.bodyCY;
+                    if (cy < Math.min(f.y1, f.y2) - R.fenceBodyR || cy > Math.max(f.y1, f.y2) + R.fenceBodyR) continue;
+                    const c = W.segClosest(cx, cy, f.x1, f.y1, f.x2, f.y2), d = Math.hypot(cx - c[0], cy - c[1]);
+                    if (d >= R.fenceBodyR || d < 1e-6) continue;
+                    const push = R.fenceBodyR - d;
+                    p.x += (cx - c[0]) / d * push; p.y += (cy - c[1]) / d * push; p.fenceT = R.fenceHold;
                 }
                 if (p.y >= worldH) { finish(p); break; }
                 if (p.immune && p.y + BAL_OFF > p.immune.untilY) p.immune = null;   // 그 장애물 높이를 다 지났다
@@ -471,6 +499,13 @@ async function simulate(players, seed, map, opts) {
         for (let i = 0; i < plats.length; i++) {
             const q = plats[i]; if (q.solid || q.kind) continue;
             for (const p of P) if (p.st === 'rise' && p.y < q.y - FLAP_BELOW && p.y + BAL_OFF + R.balloonR > q.y - 6 && Math.abs(p.x - q.x) < q.w / 2 + 14) { flapOpenUntil[i] = t + R.flapHold; break; }
+        }
+        for (let i = 0; i < fences.length; i++) {   // 눈 꼭대기 문 — 닫히기 시작할 때 문 높이에 몸~풍선이 걸친 동물이 있으면 비킬 때까지(최대 gateHoldMax) 열린 채 기다린다
+            const f0 = fences[i]; if (f0.gate == null) continue;
+            const g = gateHold[i], lo = Math.min(f0.x1, f0.x2) - R.bodyR, hi = Math.max(f0.x1, f0.x2) + R.bodyR;
+            const busy = P.some(p => (p.st === 'rise' || p.st === 'ainflate') && p.x > lo && p.x < hi && p.y + R.bodyCY - R.bodyR < f0.y1 && p.y + BAL_OFF + R.balloonR > f0.y1);
+            if (g.t0 < 0) { const c = W.cyc({ phase: f0.gate }, ft(i), Z.gatePeriod); if (busy && c >= Z.gateOpen - Z.gateSlide && c < Z.gateOpen) { g.t0 = t; ev('gateHold', { fence: i }); } }
+            else if (!busy || t - g.t0 >= R.gateHoldMax) { g.acc += t - g.t0; g.t0 = -1; ev('gateHoldEnd', { fence: i }); }
         }
         for (const p of P) updatePlayer(p, lead);
         // 준비가 끝난 찌르기 — 그 순간 풍선이 닿는 거리(pokeReach)면 펑, 아니면 헛찌르기

@@ -25,6 +25,7 @@ usage (/opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드�
   balloon-sheet.py props3-repack [date] [beaver=N] [cloud=N] | props3-pickup [date]   # 소품 3차(망치 비버·웃는 흰 구름)
   balloon-sheet.py props4-repack [date] [attempt] | props4-pickup [date]   # 소품 4차(? 상자·쇳덩이 추·폭탄)
   balloon-sheet.py props5-repack [date] [attempt] | props5-pickup [date]   # 소품 5차(찌르기 효과 8칸 — poke-fx)
+  balloon-sheet.py props6-repack [date] [attempt] | props6-pickup [date]   # 소품 6차(안 열리는 들보 4단계 — beam)
   balloon-sheet.py skin-kind <creature> <skin>             # recolor | remap | pixelate | dress
   balloon-sheet.py recolor|remap|pixelate <creature> <skin> [kinds…]   # GPT 없이 기본 포즈 시트에서 파생 → assets/balloon/creatures/{creature}-{skin}-{kind}.webp
   balloon-sheet.py scaffold-skin <creature> <skin> <kind> [date]       # 옷 입히기 배치(balloon-<kind>-<date>/<creature>-<skin>/) — 리팩·인수는 repack/pickup <creature>-<skin> <kind>
@@ -583,6 +584,36 @@ def props5_repack(date, pick):
     Image.fromarray(out, 'RGBA').save(fin / 'poke-fx.png'); print('poke-fx', out.shape[:2][::-1])
 
 
+# ── 소품 6차(2026-10-19 안 열리는 들보 새 그림) — 1×4 세로 한 장 → props/beam.webp(256×72 칸 × 4줄: 멀쩡 · 금 · 크게 갈라짐 · 두 동강). 줄끼리 같은 배율
+#    렌더러는 3조각(양 끝 걸쇠 BEAM_CAP + 가운데 늘림)으로 들보 길이에 맞춘다 — 멀쩡한 줄의 들보 윗선·아랫선을 재서 찍는다
+BEAM_CELL = (256, 72)
+
+
+def props6_repack(date, pick):
+    dst = OUT / f'balloon-props6-{date}'; fin = dst / 'final'
+    src = np.array(Image.open(dst / 'source' / f'beam-attempt-{pick:02d}.png').convert('RGBA'))
+    a, _ = W.remove_backdrop(src.copy()); op = a[..., 3] >= ALPHA_MIN; rows = op.any(1)
+    bands, y = [], 0   # 비어 있는 가로줄로 4줄 나누기
+    while y < len(rows):
+        if rows[y]:
+            y0 = y
+            while y < len(rows) and rows[y]: y += 1
+            if y - y0 > 8: bands.append((y0, y))
+        y += 1
+    if len(bands) != 4: sys.exit(f'bands {len(bands)} != 4')
+    fr = []
+    for y0, y1 in bands:
+        f, _ = cut_frames(src[max(0, y0 - 4):y1 + 4].copy(), 1); fr.append(f[0])
+    cw, ch = BEAM_CELL; sc = min((cw - 4) / max(f.shape[1] for f in fr), (ch - 4) / max(f.shape[0] for f in fr))
+    out = np.zeros((ch * 4, cw, 4), np.uint8)
+    for i, f in enumerate(fr):
+        r = np.array(Image.fromarray(f, 'RGBA').resize((max(1, round(f.shape[1] * sc)), max(1, round(f.shape[0] * sc))), Image.NEAREST))
+        place(out, r, (cw - r.shape[1]) // 2, i * ch + (ch - r.shape[0]) // 2)
+    Image.fromarray(out, 'RGBA').save(fin / 'beam.png')
+    c0 = out[:ch, :, 3] >= ALPHA_MIN; ys, xs = np.nonzero(c0)
+    print('beam', out.shape[1], 'x', out.shape[0], 'scale', round(sc, 3), '| intact bbox x', xs.min(), xs.max() + 1, 'y', ys.min(), ys.max() + 1)
+
+
 def props_pickup(date, batch='props'):
     fin = OUT / f'balloon-{batch}-{date}' / 'final'; (DEST / 'props').mkdir(parents=True, exist_ok=True)
     for p in sorted(fin.glob('*.png')):
@@ -728,6 +759,8 @@ if __name__ == '__main__':
     elif cmd == 'props4-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props4')
     elif cmd == 'props5-repack': props5_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
     elif cmd == 'props5-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props5')
+    elif cmd == 'props6-repack': props6_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
+    elif cmd == 'props6-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props6')
     elif cmd == 'skin-kind': print(skin_kind(args[1], args[2]))
     elif cmd in ('recolor', 'remap', 'pixelate'): {'recolor': recolor, 'remap': remap, 'pixelate': pixelate}[cmd](args[1], args[2], tuple(args[3:]) or KINDS)
     elif cmd == 'scaffold-skin': scaffold_skin(args[1], args[2], args[3], args[4] if len(args) > 4 else today)

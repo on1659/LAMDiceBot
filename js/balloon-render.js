@@ -62,6 +62,9 @@
     var START_BUILD_MS = 600;          // 카운트다운 때 아직 없는 층을 비버가 짓는 시간(보통은 대기 화면에서 이미 지어져 있다)
     var ARRIVE_POP_MS = 320, ARRIVE_CHUTE_MS = 1500, ROW_BUILD_MS = 1000;   // 들어올 때(사용자 2026-10-18) — 1층은 톡 튀어나옴 · 2층부터는 화면 위에서 낙하산으로 내려오고 그동안 비버가 그 층을 짓는다   // 출발 줄(§13-24) — 카운트다운 시작부터 비버가 계단 들보를 짓는 시간 · 위 줄로 뛰어오르는 시간(그다음 풍선 불기)
     var DISMOUNT_FLY_S = 1.6, DISMOUNT_DROP_H = 40, DISMOUNT_DROP_S = 0.35, DISMOUNT_RISE_S = 0.25;   // 도착 — 놓은 풍선이 날아가는 시간 · 구름 위로 더 떠오르는 높이 · 떨어지는 시간 · 더 떠오르는 시간          // 도착해서 놓은 풍선이 날아가 사라지는 시간(§13-3)
+    // 안 열리는 들보(사용자 2026-10-19 "절대 안 움직이는 나무 발판 느낌") — props/beam.webp 256×72 칸 × 4줄(멀쩡 · 금 · 크게 갈라짐 · 두 동강, 줄 = HP 단계).
+    // 3조각으로 늘린다: 양 끝 쇠 걸쇠 cap px 는 그대로, 가운데 나무만 늘림. 나무 윗선·아랫선 = woodTop·woodBot(칸 px), 화면 나무 두께 = worldH
+    var BEAM = { w: 256, h: 72, cap: 36, woodTop: 17, woodBot: 55, worldH: 16, shakeMs: 160, breakMs: 700 };
     var BOLT_RAIN_LEAD = 0.7, BOLT_AFTER = 0.35;   // 먹구름 3단계(사용자 2026-10-19): 하얀 구름 → 비(경고보다 BOLT_RAIN_LEAD 초 먼저 먹구름·비) → 천둥(내리친 뒤 BOLT_AFTER 초 먹구름으로 남음). 그림만 — 판정은 boltState 그대로
     var ROCK_TILE_WORLD = 110;         // 바위 벽 질감 타일 한 장의 세계 크기(§13-2)
     // 풍선 타기 전용 그림(assets/balloon/, SpriteMake 2026-10-18 — 의뢰서 docs/spritemake-request/2026-10-18-balloon-sprites.md, 도구 AutoTest/spritemake/balloon-sheet.py)
@@ -117,7 +120,7 @@
         if (cb) loadWaiters.push(cb);
         if (loadState === 1) return;
         loadState = 1;
-        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'plank', 'thorn', 'shutter', 'item-box', 'super-balloon', 'shield', 'cloud', 'cloud-happy', 'beaver-hammer', 'mystery-box', 'weight', 'bomb', 'rock', 'poke-fx'].forEach(BP);
+        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'plank', 'thorn', 'shutter', 'item-box', 'super-balloon', 'shield', 'cloud', 'cloud-happy', 'beaver-hammer', 'mystery-box', 'weight', 'bomb', 'rock', 'poke-fx', 'beam'].forEach(BP);
         SKY_BANDS.forEach(function (b) { bimage('bg/' + b[0] + '.webp'); });   // 풍선 타기 소품 — 기다리지 않는다(없으면 코드 도형)
         var list = CREATURES.map(function (c) { return 'creatures/' + c + '.webp'; }).concat(Object.keys(PIECES).map(function (k) { return PIECES[k]; }));
         var left = list.length;
@@ -277,7 +280,7 @@
             });
             for (var rr2 = 1; rr2 < tl.rowSpans.length; rr2++) tl.rowPrebuilt[rr2] = rowBuildAt[rr2] != null;
             tl.spikeFall = {}; tl.popFx = []; tl.dust = []; tl.eagles = []; tl.gusts = []; tl.decided = null; tl.grave = null;
-            tl.bridgeT = {}; tl.boxTaken = {}; tl.fx = []; tl.cloudHit = {};   // 2차: 다리 놓인 시각 · 상자 먹힌 시각들 · 짧은 연출(퉁·쏙·뿅·방패 깨짐·아이템) · 구름 착지
+            tl.bridgeT = {}; tl.boxTaken = {}; tl.fx = []; tl.cloudHit = {}; tl.gateHolds = {}; tl.beamHits = {};   // 2차: 다리 놓인 시각 · 상자 먹힌 시각들 · 짧은 연출(퉁·쏙·뿅·방패 깨짐·아이템) · 구름 착지
             var openIv = function (list, t) { var last = list[list.length - 1]; if (!(last && last.b === Infinity)) list.push({ a: t, b: Infinity }); };   // 이미 열려 있으면(겹쳐 먹기) 그대로
             var closeIv = function (list, t) { var last = list[list.length - 1]; if (last && last.b === Infinity) last.b = t; };
             var warpsOf = map.warps || [];
@@ -296,6 +299,13 @@
                             tl.toasts.push({ t: e.t, text: shortName(nameOf(e.by)) + ' → ' + shortName(p.name) + ' 콕!' });
                         } else tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + (e.cause === 'spike' ? '펑! ' : '') + (CAUSE_TEXT[e.cause] || '펑!') });
                         break;
+                    case 'beamHit':   // 들보에 부딪혀 아래로 튕김 — 들보 HP 단계·흔들림, 부딪힌 자리 별, 부서지면 토스트
+                        (tl.beamHits[e.plat] = tl.beamHits[e.plat] || []).push({ t: e.t, hp: e.hp });
+                        tl.fx.push({ t: e.t, type: 'bump', a: e.ball, b: e.ball });
+                        if (e.hp === 0) tl.toasts.push({ t: e.t, text: '쾅! 들보가 부서졌다' });
+                        break;
+                    case 'gateHold': (tl.gateHolds[e.fence] = tl.gateHolds[e.fence] || []).push({ a: e.t, b: Infinity }); break;
+                    case 'gateHoldEnd': { var gh = tl.gateHolds[e.fence]; if (gh && gh.length) gh[gh.length - 1].b = e.t; break; }
                     case 'poke': p.pokesBy.push({ t: e.t, target: e.target, kind: e.kind, hit: false }); break;
                     case 'pokeMiss': tl.toasts.push({ t: e.t, text: shortName(p.name) + ' 헛찔렀다!' }); break;
                     case 'drop': p.trans.push({ t: e.t, st: 'drop' }); break;
@@ -652,12 +662,7 @@
                 var y = sy(q.y); if (y < -40 || y > H + 20) return;
                 if (q.kind === 'cloud') { drawCloudPlat(q, i, sim, y); return; }
                 if (q.kind === 'pivot') return;   // 흔들 통나무 축 받침 — 받침 그림은 장치(drawHazards)가 그린다
-                if (q.solid) {   // 안 열리는 들보 — 데구리 출발대 나무(128×96, 칠해진 곳 3~47줄)
-                    var bx0 = sx(q.x - q.w / 2), bw = q.w * s, tw = 44 * s, th0 = tw * 44 / 128;
-                    if (ok(P('beam'))) for (var x = bx0; x < bx0 + bw - 0.5; x += tw) { var cw = Math.min(tw, bx0 + bw - x); ctx.drawImage(P('beam'), 0, 3, 128 * cw / tw, 44, x, y - 2, cw, th0); }
-                    else { ctx.fillStyle = C.platDark; ctx.fillRect(bx0, y, bw, 14 * s); }
-                    return;
-                }
+                if (q.solid) { drawBeam(q, i, sim, y); return; }   // 안 열리는 들보(HP 단계·부딪힘 흔들림·부서짐)
                 // 가운데가 갈라진 여닫이 판 두 쪽 — 양 끝 경첩, 위로만 열린다
                 var x0 = sx(q.x - q.w / 2), x1 = sx(q.x + q.w / 2), half = q.w / 2 * s - 1, a = (flaps[i] ? flaps[i].open : 0) * R.flapOpen, th = 9 * s;
                 var plank = BP('plank'), pth = 11 * s;
@@ -719,6 +724,22 @@
             }
         }
         // ── 2차 장치(§11) ──
+        // 들보 — 지금 HP 단계 줄을 3조각으로. 부딪힌 직후 살짝 흔들리고, 부서지면 두 동강 줄이 아래로 떨어지며 사라진다
+        function drawBeam(q, i, sim, y) {
+            var hits = tl && tl.beamHits && tl.beamHits[i], hp = R.beamHP, lastHit = -1e9;
+            if (hits) for (var k = 0; k < hits.length && hits[k].t <= sim; k++) { hp = hits[k].hp; lastHit = hits[k].t; }
+            var row = hp < 0 ? 0 : hp === 0 ? 3 : Math.min(2, R.beamHP - hp), dy = 0, alpha = 1;
+            if (hp === 0) { var bk = (sim - lastHit) / BEAM.breakMs; if (bk >= 1) return; dy = 0.5 * R.dropG * Math.pow(bk * BEAM.breakMs / 1000, 2) * s; alpha = 1 - bk; }   // 부서짐 — 떨어지며 사라진다
+            var shake = sim - lastHit < BEAM.shakeMs && hp !== 0 ? Math.sin((sim - lastHit) * 0.09) * 2 * s * (1 - (sim - lastHit) / BEAM.shakeMs) : 0;
+            var k2 = BEAM.worldH * s / (BEAM.woodBot - BEAM.woodTop), x0 = sx(q.x - q.w / 2) + shake, w = q.w * s, top = y - 2 - BEAM.woodTop * k2 + dy, hh = BEAM.h * k2;
+            if (!ok(BP('beam'))) { ctx.fillStyle = C.platDark; ctx.fillRect(x0, y + dy, w, 14 * s); return; }
+            var cap = Math.min(BEAM.cap * k2, w / 2), sy0 = row * BEAM.h, img = BP('beam');
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(img, 0, sy0, BEAM.cap, BEAM.h, x0, top, cap, hh);
+            ctx.drawImage(img, BEAM.w - BEAM.cap, sy0, BEAM.cap, BEAM.h, x0 + w - cap, top, cap, hh);
+            if (w > cap * 2) ctx.drawImage(img, BEAM.cap, sy0, BEAM.w - BEAM.cap * 2, BEAM.h, x0 + cap, top, w - cap * 2, hh);
+            ctx.globalAlpha = 1;
+        }
         function drawCloudPlat(q, i, sim, y) {   // 구름 쿠션 — cloud.webp 192×96 ×2(가만 · 눌림). 착지 순간 잠깐 눌린다
             var hit = tl && tl.cloudHit[i] && tl.cloudHit[i].some(function (ts) { return sim >= ts && sim - ts < CLOUD_SQUISH_MS; });
             var w = (q.w + 24) * s, h = w * 96 / 192;
@@ -806,9 +827,15 @@
                 else { ctx.fillStyle = C.tagMe; ctx.fillRect(sx(it.x) - sz / 3, y - sz / 3, sz / 1.5, sz / 1.5); }
             });
         }
+        // 문 시각 — 시뮬 gateHold/gateHoldEnd 구간 동안 멈춘다(socket/balloon-sim.js ft 와 같은 식). t 초
+        function gateTime(fi, t) {
+            var hs = tl && tl.gateHolds && tl.gateHolds[fi], ms = t * 1000, held = 0;
+            if (hs) for (var i = 0; i < hs.length && hs[i].a <= ms; i++) held += Math.min(ms, hs[i].b) - hs[i].a;
+            return t - held / 1000;
+        }
         function drawFences(t) {   // 웃는 얼굴 울타리(§12-11) — 데구리 drawWall 과 같은 그림(fence-mid 128×40 을 선분 따라 이어 깔고 양 끝에 fence-post 24×56)
-            (map.fences || []).forEach(function (f0) {
-                var f = BW.fenceSeg(f0, t);   // 눈 꼭대기 문은 경첩을 축으로 아래로 젖혀진다(시뮬과 같은 식)
+            (map.fences || []).forEach(function (f0, fi) {
+                var f = BW.fenceSeg(f0, f0.gate != null ? gateTime(fi, t) : t);   // 눈 꼭대기 문은 경첩을 축으로 아래로 젖혀진다(시뮬과 같은 식 — 지나가는 동물을 기다린 시간만큼 문 시각이 늦다)
                 var x1 = sx(f.x1), y1 = sy(f.y1), x2 = sx(f.x2), y2 = sy(f.y2);
                 if (Math.max(y1, y2) < -30 || Math.min(y1, y2) > H + 30) return;
                 var len = Math.hypot(x2 - x1, y2 - y1), ang = Math.atan2(y2 - y1, x2 - x1), fh = 15 * s, seg = fh * 128 / 40;
