@@ -29,9 +29,11 @@
         warpH: 56, warpMouthW: 48, warpBodyW: 40, warpSuck: 36, warpGapMin: 800, warpGapMax: 1600, warpHide: 0.5, warpCool: 3, warpPop: 200, warpPlatMin: 80,   // 하수구 — 발판 위 파이프 높이·입 폭, 숨는 시간, 다시 들어가기까지, 나올 때 위로 튀는 속도
         cloudP: 0.3, cloudW: 90, cloudInflMin: 0.25, cloudInflMax: 0.4,      // 구름 쿠션
         bumpKick: 70, bumpDy: 40, bumpCool: 0.5,                            // 동물끼리 튕김
+        bodyCY: 20, bodyR: 16,                                              // 풍선 ↔ 남의 몸 충돌 — 몸 원 중심(발 위 높이)·반지름(사용자 2026-10-19 "풍선이 몸을 뚫고 지나간다")
         // 남의 풍선 콕 찌르기(docs/goal/balloon-poke.md, 사용자 2026-10-19) — 모든 동물 같은 규칙. 막힘: 맞닿음 pokeStuck 초 + 아래 풍선 상승 < 제 속도·pokeBlock → 아래가 위 pokeLow · 위가 아래 pokeHigh · 나머지 맞찌르기
         // 지나가며 툭: 맞닿기 시작할 때 아래가 pokePassDv 이상 빨리 오르면 pokePassP. 준비 pokeWind 초 뒤 풍선 사이가 pokeReach 안이면 펑(아니면 헛찌르기)
-        pokeStuck: 1, pokeBlock: 0.6, pokeLow: 0.55, pokeHigh: 0.25, pokePassP: 0.1, pokePassDv: 20, pokeWind: 0.3, pokeReach: 50, pokeCool: 6, pokePairCool: 10,
+        pokeStuck: 1, pokeBlock: 0.6, pokeLow: 0.55, pokeHigh: 0.25, pokePassP: 0.1, pokePassDv: 20, pokeWind: 0.3, pokeReach: 50, pokeCool: 6, pokePairCool: 10, pokeBodyP: 0.25, pokeBodyPassP: 0.04, pokeVictimCool: 8,   // 몸 맞닿음(위 동물만 찌름) 막힘·지나가며 확률 · 찔린 동물은 이만큼 다시 안 찔린다(뒤처진 동물 연달아 찔림 방지)
+       
         fenceHold: 0.25, gateKnock: 320,                                    // gateKnock = 내려오는 눈 문짝에 맞은 풍선을 아래로 쳐내는 속도                                                    // 울타리에 닿은 뒤 제자리 찾기를 끄는 시간(§12-11)
         // 풍선만 터지는 원인 — 낙하산 없이 잠깐 떨어지다 공중에서 다시 불고 오른다(§13-12). 나머지(번개·풍차·통나무)는 몸까지 맞아 낙하산 → 착지
         airCauses: ['eagle', 'bee', 'spike', 'thorn', 'bomb', 'meteor', 'poke'], airDropDur: 0.45, airInflMin: 0.5, airInflMax: 0.8, airInflFallV: 70, airInflEase: 5,

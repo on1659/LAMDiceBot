@@ -28,11 +28,12 @@ const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
             const popEv = r.events.filter(e => e.type === 'pop');
             pops.push(popEv.length / n);
             popEv.forEach(e => { why[e.cause] = (why[e.cause] || 0) + 1; });
+            // 독수리·콕 찌르기(poke)는 자리에 묶인 장애물이 아니라 빼고 센다
             // 같은 장애물 3연속: 동물마다 터진 원인 열(원인+장애물 index)에서 같은 키가 3번 이어지면
             for (let b = 0; b < n; b++) {
                 const keys = popEv.filter(e => e.ball === b).map(e => e.cause + ':' + (e.hz ?? e.sec ?? e.spike ?? ''));
                 let run = 1, best = 1;
-                keys.forEach((k, i) => { run = i && k !== 'eagle:' && k === keys[i - 1] ? run + 1 : 1; best = Math.max(best, run); });
+                keys.forEach((k, i) => { run = i && k !== 'eagle:' && k !== 'poke:' && k === keys[i - 1] ? run + 1 : 1; best = Math.max(best, run); });
                 maxRun = Math.max(maxRun, best);
                 if (best >= 3) loops++;
             }

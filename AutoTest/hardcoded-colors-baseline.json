@@ -195,7 +195,7 @@
   "[[16, 'rgba(255,236,140,0.35)'], [7, 'rgba(255,210,60,0.95)'], [3, '#ffffff']].forEach(function (l) { ctx.lineWidth = l[0] * s; ctx.strokeStyle = l[1]; path(pts); ctx.lineWidth = l[0] * s * 0.6; path(br); });\u0000rgba(255,236,140,0.35)": 1,
   "[[16, 'rgba(255,236,140,0.35)'], [7, 'rgba(255,210,60,0.95)'], [3, '#ffffff']].forEach(function (l) { ctx.lineWidth = l[0] * s; ctx.strokeStyle = l[1]; path(pts); ctx.lineWidth = l[0] * s * 0.6; path(br); });\u0000rgba(255,210,60,0.95)": 1,
   "[[16, 'rgba(255,236,140,0.35)'], [7, 'rgba(255,210,60,0.95)'], [3, '#ffffff']].forEach(function (l) { ctx.lineWidth = l[0] * s; ctx.strokeStyle = l[1]; path(pts); ctx.lineWidth = l[0] * s * 0.6; path(br); });\u0000#ffffff": 1,
-  "ctx.strokeStyle = 'rgba(110,140,190,0.6)'; ctx.lineWidth = 1.4;\u0000rgba(110,140,190,0.6)": 1,
+  "ctx.strokeStyle = 'rgba(110,140,190,0.6)'; ctx.lineWidth = st === 1 ? 1.8 : 1.2;\u0000rgba(110,140,190,0.6)": 1,
   "ctx.strokeStyle = 'rgba(255,240,150,' + (0.25 + 0.35 * wp) + ')'; ctx.lineWidth = 1.6 + wp; ctx.beginPath(); ctx.moveTo(x, y + 12 * s);\u0000rgba(255,240,150,'+(0.25+0.35*wp)": 1,
   "gl.addColorStop(0, 'rgba(255,240,150,0.7)'); gl.addColorStop(1, 'rgba(255,240,150,0)');\u0000rgba(255,240,150,0.7)": 1,
   "gl.addColorStop(0, 'rgba(255,240,150,0.7)'); gl.addColorStop(1, 'rgba(255,240,150,0)');\u0000rgba(255,240,150,0)": 1,

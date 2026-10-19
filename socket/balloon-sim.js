@@ -66,7 +66,7 @@ async function simulate(players, seed, map, opts) {
     const bridges = map.bridges || [], items = map.items || [], warps = map.warps || [], fences = map.fences || [];
     const bridgeOn = bridges.map(() => -1), itemBack = items.map(() => 0);   // itemBack = 상자가 다시 생기는 시뮬 초
     const bumpAt = {};   // 'a,b' → 마지막 튕김 시뮬 초
-    const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b' → { t0, y0: {id: 발 높이} } · 같은 두 마리 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
+    const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b'(풍선끼리)·'ba,b'(a 풍선 ↔ b 몸) → { t0, y0: {id: 발 높이} } · 같은 두 마리('작은id,큰id') 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
     const flapOpenUntil = plats.map(() => -1);   // 여닫이 판이 열려 있는 시뮬 초(그때까지)
     // bridgeOn[i] = 다리가 놓이기 시작한 시뮬 초(-1 = 아직) — 비버가 다 놓은 뒤(bridgeBuild)부터 선다
     const dt = SIM_DT_MS / 1000;
@@ -75,7 +75,7 @@ async function simulate(players, seed, map, opts) {
     const P = players.map((pl, i) => ({
         id: pl.id, x: (i + 0.5) / n * WORLD_W, frac: (i + 0.5) / n, y: 0, vy: 0, vx: 0, kick: 0,
         st: 'rise', stT: 0, inflDur: 0, base: range(R.riseMin, R.riseMax), ph: rng() * 6.283, ww: range(R.wanderWMin, R.wanderWMax),
-        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false
+        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false, pokedUntil: 0
     }));
     // 출발 좌석(서버가 이름마다 정한 players[i].seat, 없으면 입장 순) — 계산은 층과 무관하게 모두 맨 위 층 높이에서 바로 출발한다(사용자 2026-10-18 "계산은 층 전혀 상관없게").
     // 아래층이 처져 보이다가 부스터로 따라붙는 건 그림(js/balloon-render.js boostOffset)에서만. 가로 자리만 좌석대로
@@ -416,31 +416,36 @@ async function simulate(players, seed, map, opts) {
     }
 
     // 찌르기 계기 — 맞닿기 시작(지나가며 툭) · 맞닿은 채 막힘 pokeStuck 초(막힘 찌르기). 계기·확률은 모든 동물이 같다(공정성)
-    const canPoke = (a, b) => a.st === 'rise' && b.st === 'rise' && !a.poking && t >= a.pokeUntil && b.superT <= 0 && b.safeT <= 0;
-    function startPoke(by, to, kind, key) {
-        pairPoke[key] = t + R.pokePairCool;
+    // 찌르는 쪽(풍선·몸 중 가까운 쪽) ↔ 대상 풍선 거리 — 남의 풍선 옆에 몸이 붙어서 찌르는 경우도 닿는다
+    const pokeDist = (a, b) => Math.min(Math.hypot(balloonX(b) - balloonX(a), b.y - a.y), Math.hypot(balloonX(b) - a.x, b.y + BAL_OFF - (a.y + R.bodyCY)));
+    const canPoke = (a, b) => a.st === 'rise' && b.st === 'rise' && !a.poking && t >= a.pokeUntil && t >= b.pokedUntil && b.superT <= 0 && b.safeT <= 0;
+    const pairOf = (a, b) => Math.min(a.id, b.id) + ',' + Math.max(a.id, b.id);   // 같은 두 마리 대기 — 풍선끼리든 풍선↔몸이든 하나로
+    function startPoke(by, to, kind) {
+        pairPoke[pairOf(by[0], to[0])] = t + R.pokePairCool;
         by.forEach((a, k) => { a.poking = true; a.pokeUntil = t + R.pokeWind + R.pokeCool; ev('poke', { ball: a.id, target: to[k].id, kind }); });
         pokes.push({ by, to, at: t + R.pokeWind, kind });
     }
-    function pokeCheck(a, b, key) {
+    function pokeCheck(a, b, key, onlyBy) {   // onlyBy = 찌를 수 있는 쪽이 정해진 맞닿음(풍선 ↔ 몸)
         if (phase !== 'run') return;
-        const lo = a.y <= b.y ? a : b, hi = lo === a ? b : a, k = touch[key];
+        const lo = a.y <= b.y ? a : b, hi = lo === a ? b : a, k = touch[key], other = onlyBy && (onlyBy === a ? b : a);
         if (!k) {
             touch[key] = { t0: t, y0: { [a.id]: a.y, [b.id]: b.y } };
-            if (lo.vy - hi.vy >= R.pokePassDv && !(t < pairPoke[key]) && canPoke(lo, hi) && rng() < R.pokePassP) startPoke([lo], [hi], 'pass', key);
+            if (onlyBy) { if (Math.abs(a.vy - b.vy) >= R.pokePassDv && !(t < pairPoke[pairOf(a, b)]) && canPoke(onlyBy, other) && rng() < R.pokeBodyPassP) startPoke([onlyBy], [other], 'pass'); return; }
+            if (lo.vy - hi.vy >= R.pokePassDv && !(t < pairPoke[pairOf(a, b)]) && canPoke(lo, hi) && rng() < R.pokePassP) startPoke([lo], [hi], 'pass');
             return;
         }
         if (t - k.t0 < R.pokeStuck) return;
         const blocked = (lo.y - k.y0[lo.id]) / (t - k.t0) < lo.base * R.pokeBlock;
         touch[key] = { t0: t, y0: { [a.id]: a.y, [b.id]: b.y } };   // 다음 막힘은 다시 pokeStuck 초 뒤
-        if (!blocked || t < pairPoke[key]) return;
+        if (!blocked || t < pairPoke[pairOf(a, b)]) return;
+        if (onlyBy) { if (canPoke(onlyBy, other) && rng() < R.pokeBodyP) startPoke([onlyBy], [other], 'stuck'); return; }
         const r = rng(), loOk = canPoke(lo, hi), hiOk = canPoke(hi, lo);
         let who = r < R.pokeLow ? 'lo' : r < R.pokeLow + R.pokeHigh ? 'hi' : 'both';
         if (who === 'both' && !(loOk && hiOk)) who = loOk ? 'lo' : 'hi';
         if (who === 'lo' && !loOk) who = hiOk ? 'hi' : null;
         if (who === 'hi' && !hiOk) who = loOk ? 'lo' : null;
-        if (who === 'both') startPoke([lo, hi], [hi, lo], 'mutual', key);
-        else if (who) startPoke(who === 'lo' ? [lo] : [hi], who === 'lo' ? [hi] : [lo], 'stuck', key);
+        if (who === 'both') startPoke([lo, hi], [hi, lo], 'mutual');
+        else if (who) startPoke(who === 'lo' ? [lo] : [hi], who === 'lo' ? [hi] : [lo], 'stuck');
     }
 
     function record() {
@@ -473,8 +478,8 @@ async function simulate(players, seed, map, opts) {
         // 준비가 끝난 찌르기 — 그 순간 풍선이 닿는 거리(pokeReach)면 펑, 아니면 헛찌르기. 맞찌르기는 둘 다 판정한 뒤 같이 터진다
         for (const q of pokes.filter(q => t >= q.at)) {
             pokes.splice(pokes.indexOf(q), 1);
-            const hits = q.by.map((a, k) => { a.poking = false; const b = q.to[k]; return phase === 'run' && a.st === 'rise' && b.st === 'rise' && b.superT <= 0 && b.safeT <= 0 && Math.hypot(balloonX(b) - balloonX(a), b.y - a.y) <= R.pokeReach; });
-            q.by.forEach((a, k) => { const b = q.to[k]; if (hits[k]) popBalloon(b, 'poke', balloonX(b) >= balloonX(a) ? 1 : -1, { by: a.id }); else ev('pokeMiss', { ball: a.id, target: b.id }); });
+            const hits = q.by.map((a, k) => { a.poking = false; const b = q.to[k]; return phase === 'run' && a.st === 'rise' && b.st === 'rise' && b.superT <= 0 && b.safeT <= 0 && pokeDist(a, b) <= R.pokeReach; });
+            q.by.forEach((a, k) => { const b = q.to[k]; if (hits[k]) { b.pokedUntil = t + R.pokeVictimCool; popBalloon(b, 'poke', balloonX(b) >= balloonX(a) ? 1 : -1, { by: a.id }); } else ev('pokeMiss', { ball: a.id, target: b.id }); });
         }
         // 세이브 다리 — 아직 안 도착한 동물 중 가장 낮은 동물(꼴등)의 발이 경계 + bridgeLead 를 넘으면 비버가 다리를 놓는다
         let low = Infinity;
@@ -502,6 +507,23 @@ async function simulate(players, seed, map, opts) {
             const nx = d > 1e-6 ? dx / d : 1, ny = d > 1e-6 ? dy / d : 0;
             a.x -= nx * over / 2; b.x += nx * over / 2;
             const lo = ny > 0 ? a : b, hi = lo === a ? b : a;
+            lo.y -= Math.abs(ny) * over;
+            if (lo.vy > hi.vy) lo.vy += (hi.vy - lo.vy) * Math.abs(ny);
+            for (const p of [a, b]) { const [b0, b1] = boundsAt(p.y + BAL_OFF); p.x = clamp(p.x, b0 + R.wallPad, b1 - R.wallPad); }
+        }
+        // 풍선 ↔ 남의 몸 — 아래에서 오르는 풍선이 위 동물의 몸(풍선 BAL_OFF 아래에 매달린)을 뚫지 않게 같은 식으로 밀어낸다(사용자 2026-10-19).
+        // 가로 몫은 반씩, 세로 몫은 더 낮은 동물이 물러난다. 몸 원 = (x, y + R.bodyCY) 반지름 R.bodyR
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+            const a = P[i], b = P[j], key = 'b' + i + ',' + j;   // a 의 풍선 · b 의 몸
+            if (i === j) continue;
+            if (a.st !== 'rise' || b.st !== 'rise') { delete touch[key]; continue; }
+            const dx = b.x - balloonX(a), dy = b.y + R.bodyCY - (a.y + BAL_OFF), d = Math.hypot(dx, dy), over = R.balloonR + R.bodyR - d;
+            if (over <= -3) { delete touch[key]; continue; }
+            pokeCheck(a, b, key, b);   // 남의 풍선 옆에 몸이 붙은 것도 찌르기 계기 — 손이 닿는 건 몸 쪽(b)뿐이라 b 만 a 풍선을 찌른다
+            if (over <= 0) continue;
+            const nx = d > 1e-6 ? dx / d : (i < j ? 1 : -1), ny = d > 1e-6 ? dy / d : 0;
+            a.x -= nx * over / 2; b.x += nx * over / 2;
+            const lo = a.y <= b.y ? a : b, hi = lo === a ? b : a;
             lo.y -= Math.abs(ny) * over;
             if (lo.vy > hi.vy) lo.vy += (hi.vy - lo.vy) * Math.abs(ny);
             for (const p of [a, b]) { const [b0, b1] = boundsAt(p.y + BAL_OFF); p.x = clamp(p.x, b0 + R.wallPad, b1 - R.wallPad); }

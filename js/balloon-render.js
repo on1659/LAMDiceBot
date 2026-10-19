@@ -62,6 +62,7 @@
     var START_BUILD_MS = 600;          // 카운트다운 때 아직 없는 층을 비버가 짓는 시간(보통은 대기 화면에서 이미 지어져 있다)
     var ARRIVE_POP_MS = 320, ARRIVE_CHUTE_MS = 1500, ROW_BUILD_MS = 1000;   // 들어올 때(사용자 2026-10-18) — 1층은 톡 튀어나옴 · 2층부터는 화면 위에서 낙하산으로 내려오고 그동안 비버가 그 층을 짓는다   // 출발 줄(§13-24) — 카운트다운 시작부터 비버가 계단 들보를 짓는 시간 · 위 줄로 뛰어오르는 시간(그다음 풍선 불기)
     var DISMOUNT_FLY_S = 1.6, DISMOUNT_DROP_H = 40, DISMOUNT_DROP_S = 0.35, DISMOUNT_RISE_S = 0.25;   // 도착 — 놓은 풍선이 날아가는 시간 · 구름 위로 더 떠오르는 높이 · 떨어지는 시간 · 더 떠오르는 시간          // 도착해서 놓은 풍선이 날아가 사라지는 시간(§13-3)
+    var BOLT_RAIN_LEAD = 0.7, BOLT_AFTER = 0.35;   // 먹구름 3단계(사용자 2026-10-19): 하얀 구름 → 비(경고보다 BOLT_RAIN_LEAD 초 먼저 먹구름·비) → 천둥(내리친 뒤 BOLT_AFTER 초 먹구름으로 남음). 그림만 — 판정은 boltState 그대로
     var ROCK_TILE_WORLD = 110;         // 바위 벽 질감 타일 한 장의 세계 크기(§13-2)
     // 풍선 타기 전용 그림(assets/balloon/, SpriteMake 2026-10-18 — 의뢰서 docs/spritemake-request/2026-10-18-balloon-sprites.md, 도구 AutoTest/spritemake/balloon-sheet.py)
     //  creatures/{동물}-{hang|blow|fall}.webp : 4×1, 칸 160, 오른쪽 향함. hang 은 줄 토막 꼭대기가 (HANG_ANCHOR) — 풍선 줄·낙하산 줄이 여기 붙는다
@@ -919,11 +920,14 @@
                     if (ok(P('plog'))) { var k = 2 * Z.pendR * s / 150; ctx.save(); ctx.translate(px, py); ctx.rotate(Math.atan2(x - px, -(y - py))); ctx.drawImage(P('plog'), -96 * k, -144 * k, 192 * k, 240 * k); ctx.restore(); }   // 나이테 원 중심(96,144), 쇠고리가 축을 본다
                     else spikeBall(px, py, Z.pendR * s);
                 } else if (h.type === 'bolt') {
-                    var st = BW.boltState(h, t), bw = Z.boltW * s;
-                    if (st === 1) {   // 경고(§13-13) — 네모 범위 대신 빗방울 + 구름 밑에서 자라는 희미한 전기 줄기(깜빡)
-                        var wp = clamp((BW.cyc(h, t, Z.boltPeriod) - (Z.boltPeriod - Z.boltWarn - Z.boltDur)) / Z.boltWarn, 0, 1), L = Z.boltLen * s;
-                        ctx.strokeStyle = 'rgba(110,140,190,0.6)'; ctx.lineWidth = 1.4;
-                        for (var rd = 0; rd < 9; rd++) { var rx = x + ((rd * 37) % bw) - bw / 2, ry = y + 10 * s + ((clockS * 420 + rd * 61) % (L * 0.9)); seg(rx, ry, rx - 2, ry + 9 * s); }
+                    var st = BW.boltState(h, t), bw = Z.boltW * s, L = Z.boltLen * s, bc = BW.cyc(h, t, Z.boltPeriod), restLen = Z.boltPeriod - Z.boltWarn - Z.boltDur;
+                    var raining = st === 1 || (st === 0 && bc >= restLen - BOLT_RAIN_LEAD), after = st === 0 && bc < BOLT_AFTER;   // 비 단계 · 천둥 직후
+                    if (raining) {   // 비 — 번개가 떨어질 줄기에만 내린다(위험 자리 예고). 경고(st 1)면 굵고 많아진다
+                        ctx.strokeStyle = 'rgba(110,140,190,0.6)'; ctx.lineWidth = st === 1 ? 1.8 : 1.2;
+                        for (var rd = 0; rd < (st === 1 ? 14 : 7); rd++) { var rx = x + ((rd * 37) % bw) - bw / 2, ry = y + 10 * s + ((clockS * 420 + rd * 61) % (L * 0.9)); seg(rx, ry, rx - 2, ry + 9 * s); }
+                    }
+                    if (st === 1) {   // 경고(§13-13) — 구름 밑에서 자라는 희미한 전기 줄기(깜빡)
+                        var wp = clamp((bc - restLen) / Z.boltWarn, 0, 1);
                         if (Math.floor(clockS * 14) % 3) {
                             ctx.strokeStyle = 'rgba(255,240,150,' + (0.25 + 0.35 * wp) + ')'; ctx.lineWidth = 1.6 + wp; ctx.beginPath(); ctx.moveTo(x, y + 12 * s);
                             for (var zj = 1; zj <= 6; zj++) ctx.lineTo(x + Math.sin(zj * 1.9 + Math.floor(clockS * 10)) * 9 * s, y + 12 * s + L * wp * zj / 6);
@@ -937,7 +941,7 @@
                     }
                     if (st === 2) drawLightning(x, y + 12 * s, Z.boltLen * s, Math.floor(clockS * 24) + h.phase * 100);   // 번개 — 그림(아이콘 모양)을 늘리면 도트가 깨져서 코드로 그린다(사용자 2026-10-18)
                     var flash = st === 2 || (st === 1 && Math.floor(clockS * 12) % 2), cloud = BP(flash ? 'storm-flash' : 'storm');
-                    if (st === 0 && ok(BP('cloud-happy'))) {   // 쉬는 동안은 하얀 웃는 구름(cloud-happy.webp 192×128 ×2, 숨쉬기) — 화나면(경고·내리침) 먹구름(§12-3)
+                    if (st === 0 && !raining && !after && ok(BP('cloud-happy'))) {   // 쉬는 동안은 하얀 웃는 구름(cloud-happy.webp 192×128 ×2, 숨쉬기) — 비·경고·내리침·직후는 먹구름(§12-3)
                         var hw2 = 104 * s, hh2 = hw2 * 128 / 192;
                         ctx.drawImage(BP('cloud-happy'), (Math.floor(clockS * 1.6) % 2) * 192, 0, 192, 128, x - hw2 / 2, y - hh2 * 0.55, hw2, hh2);
                     } else if (ok(cloud)) { var cw2 = 104 * s, ch2 = cw2 * 128 / 192; ctx.drawImage(cloud, x - cw2 / 2, y - ch2 * 0.55, cw2, ch2); }   // storm(-flash).webp 192×128
