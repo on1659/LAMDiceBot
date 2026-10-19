@@ -9,6 +9,8 @@
   blow : 땅에 서서 앞발로 풍선 꼭지를 입에 대고 분다(풍선은 그리지 않음 — 렌더러가 입 앞에서 키운다). 발바닥선 y=150, 윗몸 무게중심 x = 기본 시트 서기
          c0 들이쉼 · c1 볼 빵빵 · c2 들이쉼 · c3 더 빵빵
   fall : 풍선이 터진 뒤. c0 깜짝 놀람(터지는 순간) · c1~c3 허우적 낙하. 몸 bbox 가운데 = (80, FALL_CY)
+  poke : 매달린 채 남의 풍선을 찌른다(2026-10-19). 한 앞발은 끈(기준점 = hang 과 같은 줄 토막 꼭대기), 다른 쪽으로 동물마다 다른 공격(ATTACK). 오른쪽으로 찌른다
+         c0 슬쩍 옆눈 · c1 준비 · c2 콕(가장 멀리) · c3 거두며 뿌듯
 크기: 몸 넓이(불투명 픽셀 수) = 기본 시트 row 0 서기 칸 넓이의 중앙값 × AREA_K[kind] (시트당 배율 1개)
 
 usage (/opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드박스 해제):
@@ -22,6 +24,7 @@ usage (/opt/homebrew/bin/python3, 배치 폴더 쓰기·Codex 실행은 샌드�
   balloon-sheet.py scaffold-props2|props2-repack [date] [attempt]|props2-pickup [date]   # 소품 2차(아이템 상자·슈퍼 풍선·방패·구름 쿠션)
   balloon-sheet.py props3-repack [date] [beaver=N] [cloud=N] | props3-pickup [date]   # 소품 3차(망치 비버·웃는 흰 구름)
   balloon-sheet.py props4-repack [date] [attempt] | props4-pickup [date]   # 소품 4차(? 상자·쇳덩이 추·폭탄)
+  balloon-sheet.py props5-repack [date] [attempt] | props5-pickup [date]   # 소품 5차(찌르기 효과 8칸 — poke-fx)
   balloon-sheet.py skin-kind <creature> <skin>             # recolor | remap | pixelate | dress
   balloon-sheet.py recolor|remap|pixelate <creature> <skin> [kinds…]   # GPT 없이 기본 포즈 시트에서 파생 → assets/balloon/creatures/{creature}-{skin}-{kind}.webp
   balloon-sheet.py scaffold-skin <creature> <skin> <kind> [date]       # 옷 입히기 배치(balloon-<kind>-<date>/<creature>-<skin>/) — 리팩·인수는 repack/pickup <creature>-<skin> <kind>
@@ -38,12 +41,13 @@ OUT, GAME, CREATURES, CODEX = W.OUT, W.GAME, W.CREATURES, W.CODEX
 DEST = GAME / 'assets' / 'balloon'
 CELL, COLS, PLANE, ALPHA_MIN = W.CELL, W.COLS, W.PLANE, W.ALPHA_MIN
 BASES = W.BASES
-KINDS = ('hang', 'blow', 'fall')
+KINDS = ('hang', 'blow', 'fall', 'poke')
 HANG_X, HANG_TOP = 80, 4          # 줄 토막 꼭대기 — 렌더러 js/balloon-render.js HANG_ANCHOR 와 같은 값
 FALL_CY = 82
-AREA_K = {'hang': 1.0, 'blow': 1.0, 'fall': 1.0}
+POKE_W, POKE_X = 224, 112      # 찌르기 시트만 칸이 넓다(뻗는 칸이 기준점 좌우로 ~100px) — 줄 토막 꼭대기 = 칸 (112, 4). 렌더러도 같은 값
+AREA_K = {'hang': 1.0, 'blow': 1.0, 'fall': 1.0, 'poke': 1.0}
 MAX_W, MAX_H = 152, 154
-AREA_TOL = {'hang': (0.78, 1.15), 'blow': (0.85, 1.15), 'fall': (0.85, 1.15)}   # 매달림은 세로로 늘어져 칸 키(154)에 먼저 닿는다 — 서기보다 넓이가 작다
+AREA_TOL = {'hang': (0.78, 1.15), 'blow': (0.85, 1.15), 'fall': (0.85, 1.15), 'poke': (0.78, 1.25)}   # 매달림은 세로로 늘어져 칸 키(154)에 먼저 닿는다 — 서기보다 넓이가 작다
 ROPE_W_FRAC, ROPE_KEEP = 0.12, 0.3
 NO_ROPE = {'raccoon'}   # 끈 토막을 그리면 이미지 도구 안전 검사에 막혔다(2026-10-18) — 두 팔 만세 자세로 그리고 앞발 꼭대기를 기준점으로 쓴다(끈은 렌더러가 그린다)   # 매달림 줄 토막: 몸 폭의 12% 이하 행이 줄, 그 아래쪽 30% 만 남긴다           # 매달림·허우적은 몸이 늘어나 서기와 넓이가 조금 다를 수 있다
 STYLE = ("Preserve EXACTLY the reference's chibi pixel-art style, chunky dark outline, palette, lighting, face, body proportions and size. "
@@ -59,7 +63,47 @@ QUADS = {'armadillo', 'turtle', 'raccoon', 'ribbonpig', 'rabbit'}
 def arms(c): return ARMS.get(c, 'it uses its two FRONT paws as hands' + (' (it is normally on all fours, so here it reaches up with its front paws like a cartoon animal)' if c in QUADS else ''))
 
 
+ATTACK = {   # 찌르기(poke) — 동물마다 다른 공격, 규칙(사거리·확률)은 모두 같다. 이쑤시개는 공벌레만(사용자 2026-10-19)
+    'hedgehog': (None, "NO tool: it swings its body so its SPIKY BACK turns toward the right",
+                 "spikes start rising, body twisting", "spikes fully BRISTLED, sharp and sticking out toward the RIGHT like a pincushion", "spikes smoothing back down"),
+    'pufferfish': (None, "NO tool: it PUFFS UP into a spiky ball (the string stays in its mouth)",
+                   "starting to puff up, little spikes appearing", "fully PUFFED into a perfectly round ball covered in sharp spikes, leaning RIGHT", "deflating back to normal"),
+    'ribbonpig': (None, "NO tool: a sneaky SNOUT BOOP",
+                  "head pulled back, snout scrunched", "head and SNOUT thrust far to the RIGHT, snout leading, a tiny snort", "head back"),
+    'turtle': (None, "NO tool: it SQUIRTS WATER from its mouth like a little water cannon",
+               "cheeks filling up with water", "a short strong stream of light-blue WATER shooting RIGHT out of its mouth (the stream only about a quarter of the cell long)", "mouth closed, one water drip at the lips"),
+    'hamster': ("a striped SUNFLOWER SEED", "it THROWS a sunflower seed",
+                "the free arm cocked back holding the seed, eyes on the target", "the free arm flung forward to the RIGHT, the seed just leaving the paw", "follow-through, empty paw"),
+    'panda': ("a short green BAMBOO STICK", "it jabs with a bamboo stick held in the free paw",
+              "stick drawn back", "stick JABBED far to the RIGHT", "stick pulled back in"),
+    'raccoon': ("a small silver dinner FORK", "it jabs with a fork held in the free paw (prongs forward)",
+                "fork drawn back", "fork JABBED far to the RIGHT, prongs forward", "fork pulled back in"),
+    'rabbit': ("an orange CARROT (pointy tip forward, green leaves at the back)", "it jabs with a carrot held in the free paw, tip forward",
+               "carrot drawn back", "carrot JABBED far to the RIGHT, tip forward", "carrot pulled back in"),
+    'armadillo': (None, "NO tool: a quick swipe with its big curved CLAWS",
+                  "free arm raised, claws spread", "claws SWIPED far to the RIGHT, fully extended", "arm back, claws folded"),
+    'pillbug': ("a wooden TOOTHPICK held like a knight's lance", "it charges with a toothpick held like a lance in its free front legs",
+                "toothpick drawn back, aiming", "toothpick THRUST far to the RIGHT like a lance", "toothpick pulled back in"),
+}
+
+
 def frames_for(c, kind):
+    if kind == 'poke':
+        tool, how, c1, c2, c3 = ATTACK[c]
+        grip = ('the balloon string stays in its MOUTH the whole time (it has no arms)' if c == 'pufferfish'
+                else 'ONE front paw is raised straight UP above the head holding the balloon string (no string drawn above the paw: the raised paw tip is the highest point)' if c in NO_ROPE
+                else 'ONE front paw stays raised straight UP above the head holding the balloon string' + ('' if tool else ' (or both paws, if the attack needs no hands)'))
+        hold = f"The OTHER paw holds {tool}; the tool always stays BELOW the raised paw. " if tool else ''
+        rope = ('' if c in NO_ROPE else "Draw only the short lower end of the balloon STRING: a thin DARK-BROWN line (about 1/8 of the cell height, 2 pixels thick) going straight UP from the paw/mouth — "
+                "its TOP END is the HIGHEST point of the whole drawing and sits at the horizontal CENTRE of the cell. The balloon itself is NOT drawn (it is above the cell).\n")
+        return (f"The character FLOATS IN THE SKY carried by a party balloon and, while passing another balloon, SNEAKILY POPS IT: {how}. Playful and mischievous like a kids' cartoon, not violent. {arms(c).capitalize()}.\n"
+                f"In EVERY cell: {grip}. {hold}The attack is aimed to the RIGHT (in front of the face).\n{rope}"
+                "The body floats below the raised paw, same size as in the floating pose reference.\n"
+                f"c0 SLY: a sneaky side-glance to the right with a mischievous little smile, {'the tool just pulled out' if tool else 'about to act'}.\n"
+                f"c1 WIND-UP: {c1}.\n"
+                f"c2 POKE: {c2} — the furthest reach to the right of all four cells.\n"
+                f"c3 DONE: {c3}, a smug satisfied grin.\n"
+                "Nothing else in the cell: no balloon, no target, no impact stars, no motion lines.")
     if kind == 'hang':
         # "밧줄에 매달림(hang from a rope)" 은 이미지 도구 안전 검사에 걸린다(2026-10-18 너구리 3번 차단) — 풍선 끈을 쥐고 둥실 떠 있는 장면으로 쓴다
         grip = ('it holds the string in its mouth; the round body floats just below the mouth' if c == 'pufferfish'
@@ -100,12 +144,14 @@ def scaffold(c, kind, date):
     if dst.exists(): sys.exit(f'exists: {dst}')
     for d in ('ref', 'source', 'final'): (dst / d).mkdir(parents=True)
     Image.open(CREATURES / f'{c}.webp').convert('RGBA').save(dst / 'ref' / f'{c}.png')
-    title = {'hang': 'floating with a balloon', 'blow': 'blowing up a balloon', 'fall': 'shocked + falling'}[kind]
+    if kind == 'poke': Image.open(DEST / 'creatures' / f'{c}-hang.webp').convert('RGBA').save(dst / 'ref' / f'{c}-hang.png')   # 매달린 자세·크기 참조(두 번째 입력)
+    title = {'hang': 'floating with a balloon', 'blow': 'blowing up a balloon', 'fall': 'shocked + falling', 'poke': 'sneaky balloon poke while floating'}[kind]
     (dst / 'prompt.md').write_text(f"""# {c} — {title} (4x1)
 
 Use `ref/{c}.png` as the FIRST input image of the image tool. It is the existing sprite sheet of this character; row 0 (top row) shows its standing/idle poses, facing right.
 Draw a NEW sprite sheet of the SAME character: 4 frames, side view, facing RIGHT.
-{STYLE}
+{STYLE}{f'''
+SECOND INPUT IMAGE: `ref/{c}-hang.png` — this character's existing FLOATING pose (4 cells). Keep that floating body, its size and the raised-paw grip; only the attack is new.''' if kind == 'poke' else ''}
 
 Layout: exactly 4 columns x 1 row of equal cells (a wide landscape image), one pose per cell, order c0 c1 c2 c3:
 {frames_for(c, kind)}
@@ -117,9 +163,10 @@ Rules:
 BACKDROP: a transparent background is fine (preferred), or one {W.BACKDROP.get(c, 'flat mid-green #6EBE64')}. Never draw the backdrop colour on the character. No border, drawn grid, labels or watermark.
 Each frame fully inside its cell with padding, no bleed into neighbour cells. Large PNG.
 """)
-    brief(dst, f'balloon-{kind}-{date}/{c}', [(f'source/{c}-{kind}-attempt-NN.png', 'prompt.md', f'`ref/{c}.png` as the only input image')],
+    brief(dst, f'balloon-{kind}-{date}/{c}', [(f'source/{c}-{kind}-attempt-NN.png', 'prompt.md', f'`ref/{c}.png` as the first input image and `ref/{c}-hang.png` as the second' if kind == 'poke' else f'`ref/{c}.png` as the only input image')],
           'not exactly 4 cells in one row, a cell missing or holding two poses, frames bleeding across cells, the character facing LEFT, the four cells being the same pose, '
-          'the character redesigned, ' + ({'hang': 'no string above the paws / the character standing on the ground instead of floating, ', 'blow': 'a balloon drawn / the character not standing, ', 'fall': 'the character standing calmly, '}[kind]) + 'or text/labels/grid lines drawn')
+          'the character redesigned, ' + ({'hang': 'no string above the paws / the character standing on the ground instead of floating, ', 'blow': 'a balloon drawn / the character not standing, ', 'fall': 'the character standing calmly, ',
+                     'poke': 'the character standing on the ground, the attack aimed LEFT, the wrong tool, a balloon or target drawn, '}[kind]) + 'or text/labels/grid lines drawn')
     print(dst)
 
 
@@ -202,20 +249,21 @@ def trim_rope(f, keep_frac):
 def repack(c, kind, attempt, date):
     dst = batch_dir(c, kind, date); src = dst / 'source' / f'{c}-{kind}-attempt-{attempt:02d}.png'
     frames, bg = cut_frames(np.array(Image.open(src).convert('RGBA')), COLS)
-    if kind == 'hang' and c.split('-')[0] not in NO_ROPE: frames = [trim_rope(f, ROPE_KEEP) for f in frames]
+    if kind in ('hang', 'poke') and c.split('-')[0] not in NO_ROPE: frames = [trim_rope(f, ROPE_KEEP) for f in frames]
     stand_area, stand_cx = W.stand_reference(c)
     s = (stand_area * AREA_K[kind] / float(np.median([(f[..., 3] >= ALPHA_MIN).sum() for f in frames]))) ** 0.5
-    limit_h = MAX_H if kind == 'hang' else W.MAX_H
-    s = min(s, MAX_W / max(f.shape[1] for f in frames), limit_h / max(f.shape[0] for f in frames))
-    sheet = np.zeros((CELL, CELL * COLS, 4), np.uint8); info = []
+    limit_h = MAX_H if kind in ('hang', 'poke') else W.MAX_H
+    cw = POKE_W if kind == 'poke' else CELL
+    s = min(s, (cw - 8) / max(f.shape[1] for f in frames), limit_h / max(f.shape[0] for f in frames))
+    sheet = np.zeros((CELL, cw * COLS, 4), np.uint8); info = []
     for i, f in enumerate(frames):
         fw, fh = max(1, round(f.shape[1] * s)), max(1, round(f.shape[0] * s))
         r = np.array(Image.fromarray(f, 'RGBA').resize((fw, fh), Image.NEAREST))
-        if kind == 'hang': ox, oy = int(round(HANG_X - top_x(r[..., 3]))), HANG_TOP
+        if kind in ('hang', 'poke'): ox, oy = int(round((POKE_X if kind == 'poke' else HANG_X) - top_x(r[..., 3]))), HANG_TOP
         elif kind == 'blow': ox, oy = int(round(stand_cx - W.top_centroid_x(r[..., 3]))), PLANE - fh
         else: ox, oy = int(round(80 - fw / 2)), int(round(FALL_CY - fh / 2))
-        ox = max(1, min(CELL - 1 - fw, ox)); oy = max(1, min(CELL - 1 - fh, oy))
-        sheet[oy:oy + fh, i * CELL + ox:i * CELL + ox + fw] = r; info.append((fw, fh, ox, oy))
+        ox = max(1, min(cw - 1 - fw, ox)); oy = max(1, min(CELL - 1 - fh, oy))
+        sheet[oy:oy + fh, i * cw + ox:i * cw + ox + fw] = r; info.append((fw, fh, ox, oy))
     out = dst / 'final' / f'{c}-{kind}.png'; Image.fromarray(sheet, 'RGBA').save(out)
     print(f'{c} {kind} attempt {attempt}: bg {"transparent" if bg is None else tuple(int(v) for v in bg)} | scale {s:.3f} | frames {info}')
     return verify(out, c, kind)
@@ -223,28 +271,29 @@ def repack(c, kind, attempt, date):
 
 def verify(path, c, kind):
     a = np.array(Image.open(path).convert('RGBA')); ok = True; notes = []
-    if a.shape[:2] != (CELL, CELL * COLS): print('FAIL size', a.shape); return False
+    cw, hx = (POKE_W, POKE_X) if kind == 'poke' else (CELL, HANG_X)
+    if a.shape[:2] != (CELL, cw * COLS): print('FAIL size', a.shape); return False
     if ((a[..., 3] > 0) & (a[..., 3] < ALPHA_MIN)).any(): ok = False; notes.append('alpha 1-7')
     stand_area, stand_cx = W.stand_reference(c); st = []
     for i in range(COLS):
-        cell = a[:, i * CELL:(i + 1) * CELL, 3]; ys, xs = np.nonzero(cell >= ALPHA_MIN)
+        cell = a[:, i * cw:(i + 1) * cw, 3]; ys, xs = np.nonzero(cell >= ALPHA_MIN)
         if not len(xs): print(f'FAIL empty c{i}'); return False
         st.append(dict(x0=xs.min(), y0=ys.min(), x1=xs.max() + 1, y1=ys.max() + 1, n=len(xs), tx=top_x(cell)))
     area = float(np.median([s['n'] for s in st])) / stand_area
     if not AREA_TOL[kind][0] <= area <= AREA_TOL[kind][1]: ok = False; notes.append(f'area {area:.2f}x stand')
-    if kind == 'hang':
+    if kind in ('hang', 'poke'):
         if any(s['y0'] != HANG_TOP for s in st): ok = False; notes.append(f'rope tops {[int(s["y0"]) for s in st]}')
-        if any(abs(s['tx'] - HANG_X) > 2 for s in st): ok = False; notes.append(f'rope x {[round(s["tx"], 1) for s in st]}')
+        if any(abs(s['tx'] - hx) > 2 for s in st): ok = False; notes.append(f'rope x {[round(s["tx"], 1) for s in st]}')
         # 줄 토막: 꼭대기에서 아래로 4px 은 가늘어야 한다(폭 ≤ 12) — 줄 없이 머리·손이 꼭대기면 실패(너구리는 일부러 줄 없음)
         for i, s in enumerate(st if c.split('-')[0] not in NO_ROPE else []):
-            band = a[HANG_TOP:HANG_TOP + 4, i * CELL:(i + 1) * CELL, 3] >= ALPHA_MIN
+            band = a[HANG_TOP:HANG_TOP + 4, i * cw:(i + 1) * cw, 3] >= ALPHA_MIN
             wmax = max(int(r.sum()) for r in band)
             if wmax > 12:   # 스킨 옷 입히기는 GPT 가 끈 토막을 빼먹기도 한다 — 렌더러는 그림 꼭대기(앞발)에 끈을 이으니 참고만
                 if '-' not in c: ok = False
                 notes.append(f'c{i} no thin rope at the top (width {wmax})'); break
     elif kind == 'blow':
         if any(s['y1'] != PLANE for s in st): ok = False; notes.append(f'bottoms {[int(s["y1"]) for s in st]}')
-    def diff(i, j): return int((a[:, i * CELL:(i + 1) * CELL] != a[:, j * CELL:(j + 1) * CELL]).any(-1).sum())
+    def diff(i, j): return int((a[:, i * cw:(i + 1) * cw] != a[:, j * cw:(j + 1) * cw]).any(-1).sum())
     d = [diff(0, 1), diff(1, 2), diff(2, 3), diff(0, 3)]
     if min(d) < 120: ok = False; notes.append(f'cells nearly identical {d}')
     print(f'  {Path(path).name}: boxes {[(int(s["x1"] - s["x0"]), int(s["y1"] - s["y0"])) for s in st]} | area {area:.2f}x stand | diffs {d}')
@@ -515,6 +564,25 @@ def props4_repack(date, pick):
         Image.fromarray(out, 'RGBA').save(fin / f'{name}.png'); print(name, out.shape[:2][::-1], 'scale', round(sc, 3))
 
 
+# ── 소품 5차(2026-10-19 찌르기 효과) — 4×2 한 장 → props/poke-fx.webp(96 칸 × 8, 칸마다 따로 맞춤 — 렌더러가 칸별 크기로 그린다)
+#   순서: 0 해바라기씨(날아가는, 뾰족한 끝 오른쪽) · 1 물줄기(가로로 늘려 씀) · 2 물 튀김 · 3 콕 번쩍 · 4 콧김 · 5 발톱 휙 · 6 가시 번쩍 · 7 히히 반짝
+POKE_FX_CELL = 96
+
+
+def props5_repack(date, pick):
+    dst = OUT / f'balloon-props5-{date}'; fin = dst / 'final'
+    src = np.array(Image.open(dst / 'source' / f'fx-attempt-{pick:02d}.png').convert('RGBA')); h = src.shape[0]
+    rows = W.remove_backdrop(src.copy())[0][..., 3] >= ALPHA_MIN
+    lo, hi = int(h * 0.4), int(h * 0.6); cut = lo + int(np.argmin(rows[lo:hi].sum(1)))
+    fr = cut_frames(src[:cut].copy(), 4)[0] + cut_frames(src[cut:].copy(), 4)[0]
+    c = POKE_FX_CELL; out = np.zeros((c, c * len(fr), 4), np.uint8)
+    for i, f in enumerate(fr):
+        sc = min((c - 4) / f.shape[1], (c - 4) / f.shape[0])
+        r = np.array(Image.fromarray(f, 'RGBA').resize((max(1, round(f.shape[1] * sc)), max(1, round(f.shape[0] * sc))), Image.NEAREST))
+        place(out, r, i * c + (c - r.shape[1]) // 2, (c - r.shape[0]) // 2)
+    Image.fromarray(out, 'RGBA').save(fin / 'poke-fx.png'); print('poke-fx', out.shape[:2][::-1])
+
+
 def props_pickup(date, batch='props'):
     fin = OUT / f'balloon-{batch}-{date}' / 'final'; (DEST / 'props').mkdir(parents=True, exist_ok=True)
     for p in sorted(fin.glob('*.png')):
@@ -584,6 +652,15 @@ def pixelate(c, skin, kinds=KINDS):
     dark = pal.max(-1) / 255.0 < px.DARK_V; keep = weight >= px.EDGE_KEEP_WEIGHT; g = px.GRID
     for kind in kinds:
         a = np.array(Image.open(DEST / 'creatures' / f'{c}-{kind}.webp').convert('RGBA'))
+        if kind == 'poke':   # 224×160 칸 — 240 정사각(블록 5 의 배수, 기준점 112+8=120 이 블록 경계)으로 패딩해 같은 함수로 바꾼 뒤 잘라 낸다
+            S, pad = 240, (240 - POKE_W) // 2; px.CELL, px.GRID = S, S // px.BLOCK; out = np.zeros_like(a)
+            try:
+                for i in range(COLS):
+                    sq = np.zeros((S, S, 4), np.uint8); sq[:CELL, pad:pad + POKE_W] = a[:, i * POKE_W:(i + 1) * POKE_W]
+                    big = np.array(Image.fromarray(px.pixelate_cell(sq, pal, dark, weight, keep), 'RGBA').resize((S, S), Image.NEAREST))
+                    out[:, i * POKE_W:(i + 1) * POKE_W] = big[:CELL, pad:pad + POKE_W]
+            finally: px.CELL, px.GRID = CELL, g
+            save_skin(out, c, skin, kind, 'pixelate'); continue
         small = np.zeros((g, g * COLS, 4), dtype=np.uint8)
         for i in range(COLS): small[:, i * g:(i + 1) * g] = px.pixelate_cell(a[:, i * CELL:(i + 1) * CELL], pal, dark, weight, keep)
         save_skin(np.array(Image.fromarray(small, 'RGBA').resize((CELL * COLS, CELL), Image.NEAREST)), c, skin, kind, 'pixelate')
@@ -603,10 +680,11 @@ def scaffold_skin(c, skin, kind, date):
     for d in ('ref', 'source', 'final'): (dst / d).mkdir(parents=True)
     Image.open(DEST / 'creatures' / f'{c}-{kind}.webp').convert('RGBA').save(dst / 'ref' / f'{c}-{kind}.png')
     Image.open(CREATURES / f'{look}.webp').convert('RGBA').save(dst / 'ref' / f'{look}.png')
-    what = {'hang': 'floating with a balloon (paws up on the string)', 'blow': 'blowing up a balloon', 'fall': 'shocked + falling'}[kind]
+    what = {'hang': 'floating with a balloon (paws up on the string)', 'blow': 'blowing up a balloon', 'fall': 'shocked + falling', 'poke': 'sneaky balloon poke while floating'}[kind]
     keep = {'hang': 'the raised paws holding the short dark string stub at the top centre (the string stub must stay exactly where it is)',
             'blow': 'the paws holding the small pink nozzle at the mouth (keep the pink nozzle)',
-            'fall': 'the shocked face in c0 and the tumbling limbs in c1-c3'}[kind]
+            'fall': 'the shocked face in c0 and the tumbling limbs in c1-c3',
+            'poke': 'the raised paw on the string stub, the attack (and its tool, if any) and how far it reaches to the right in each cell'}[kind]
     (dst / 'prompt.md').write_text(f"""# {look} — {what} (4x1)
 
 EDIT the reference pose sheet `ref/{c}-{kind}.png` (use it as the FIRST input image of the image tool) into the shop skin `{look}`.
@@ -648,6 +726,8 @@ if __name__ == '__main__':
     elif cmd == 'props3-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props3')
     elif cmd == 'props4-repack': props4_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
     elif cmd == 'props4-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props4')
+    elif cmd == 'props5-repack': props5_repack(args[1] if len(args) > 1 else today, int(args[2]) if len(args) > 2 else 1)
+    elif cmd == 'props5-pickup': props_pickup(args[1] if len(args) > 1 else today, 'props5')
     elif cmd == 'skin-kind': print(skin_kind(args[1], args[2]))
     elif cmd in ('recolor', 'remap', 'pixelate'): {'recolor': recolor, 'remap': remap, 'pixelate': pixelate}[cmd](args[1], args[2], tuple(args[3:]) or KINDS)
     elif cmd == 'scaffold-skin': scaffold_skin(args[1], args[2], args[3], args[4] if len(args) > 4 else today)

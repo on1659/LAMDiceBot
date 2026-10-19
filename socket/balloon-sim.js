@@ -50,6 +50,7 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *              land.plat ≤ -100 = 출발 계단(-100 - 층)
  *              2차(§11): bridge{idx}(세이브 다리 놓임 — land.plat = -2 - idx) · item{ball,kind:'super'|'shield',box} · superEnd{ball} · shieldPop{ball} · shieldEnd{ball} ·
  *              warp{ball,from,to}(하수구에 쏙) · warpOut{ball,x,y} · bump{a,b}
+ *              콕 찌르기(docs/goal/balloon-poke.md): poke{ball,target,kind:stuck|pass|mutual}(준비 시작) → R.pokeWind 뒤 pop{cause:'poke',by} 또는 pokeMiss{ball,target}
  *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
  *  finishOrder = 순위 순 id 전부(도착 순 → 판정 순간 미도착은 높이 순)
  *  slow      = [{ startMs, endMs, rate, holdMs? }] 시뮬 시각 — 결승 슬로모(0.5) + 판정 순간 정지(holdMs)·0.35배속. durationMs 에 반영(BalloonWorld.realDuration)
@@ -65,6 +66,7 @@ async function simulate(players, seed, map, opts) {
     const bridges = map.bridges || [], items = map.items || [], warps = map.warps || [], fences = map.fences || [];
     const bridgeOn = bridges.map(() => -1), itemBack = items.map(() => 0);   // itemBack = 상자가 다시 생기는 시뮬 초
     const bumpAt = {};   // 'a,b' → 마지막 튕김 시뮬 초
+    const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b' → { t0, y0: {id: 발 높이} } · 같은 두 마리 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
     const flapOpenUntil = plats.map(() => -1);   // 여닫이 판이 열려 있는 시뮬 초(그때까지)
     // bridgeOn[i] = 다리가 놓이기 시작한 시뮬 초(-1 = 아직) — 비버가 다 놓은 뒤(bridgeBuild)부터 선다
     const dt = SIM_DT_MS / 1000;
@@ -73,7 +75,7 @@ async function simulate(players, seed, map, opts) {
     const P = players.map((pl, i) => ({
         id: pl.id, x: (i + 0.5) / n * WORLD_W, frac: (i + 0.5) / n, y: 0, vy: 0, vx: 0, kick: 0,
         st: 'rise', stT: 0, inflDur: 0, base: range(R.riseMin, R.riseMax), ph: rng() * 6.283, ww: range(R.wanderWMin, R.wanderWMax),
-        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null
+        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false
     }));
     // 출발 좌석(서버가 이름마다 정한 players[i].seat, 없으면 입장 순) — 계산은 층과 무관하게 모두 맨 위 층 높이에서 바로 출발한다(사용자 2026-10-18 "계산은 층 전혀 상관없게").
     // 아래층이 처져 보이다가 부스터로 따라붙는 건 그림(js/balloon-render.js boostOffset)에서만. 가로 자리만 좌석대로
@@ -413,6 +415,34 @@ async function simulate(players, seed, map, opts) {
         }
     }
 
+    // 찌르기 계기 — 맞닿기 시작(지나가며 툭) · 맞닿은 채 막힘 pokeStuck 초(막힘 찌르기). 계기·확률은 모든 동물이 같다(공정성)
+    const canPoke = (a, b) => a.st === 'rise' && b.st === 'rise' && !a.poking && t >= a.pokeUntil && b.superT <= 0 && b.safeT <= 0;
+    function startPoke(by, to, kind, key) {
+        pairPoke[key] = t + R.pokePairCool;
+        by.forEach((a, k) => { a.poking = true; a.pokeUntil = t + R.pokeWind + R.pokeCool; ev('poke', { ball: a.id, target: to[k].id, kind }); });
+        pokes.push({ by, to, at: t + R.pokeWind, kind });
+    }
+    function pokeCheck(a, b, key) {
+        if (phase !== 'run') return;
+        const lo = a.y <= b.y ? a : b, hi = lo === a ? b : a, k = touch[key];
+        if (!k) {
+            touch[key] = { t0: t, y0: { [a.id]: a.y, [b.id]: b.y } };
+            if (lo.vy - hi.vy >= R.pokePassDv && !(t < pairPoke[key]) && canPoke(lo, hi) && rng() < R.pokePassP) startPoke([lo], [hi], 'pass', key);
+            return;
+        }
+        if (t - k.t0 < R.pokeStuck) return;
+        const blocked = (lo.y - k.y0[lo.id]) / (t - k.t0) < lo.base * R.pokeBlock;
+        touch[key] = { t0: t, y0: { [a.id]: a.y, [b.id]: b.y } };   // 다음 막힘은 다시 pokeStuck 초 뒤
+        if (!blocked || t < pairPoke[key]) return;
+        const r = rng(), loOk = canPoke(lo, hi), hiOk = canPoke(hi, lo);
+        let who = r < R.pokeLow ? 'lo' : r < R.pokeLow + R.pokeHigh ? 'hi' : 'both';
+        if (who === 'both' && !(loOk && hiOk)) who = loOk ? 'lo' : 'hi';
+        if (who === 'lo' && !loOk) who = hiOk ? 'hi' : null;
+        if (who === 'hi' && !hiOk) who = loOk ? 'lo' : null;
+        if (who === 'both') startPoke([lo, hi], [hi, lo], 'mutual', key);
+        else if (who) startPoke(who === 'lo' ? [lo] : [hi], who === 'lo' ? [hi] : [lo], 'stuck', key);
+    }
+
     function record() {
         const f = new Array(n * 3 + 2);
         for (let i = 0; i < n; i++) { const p = P[i]; f[i * 3] = Math.round(p.x); f[i * 3 + 1] = Math.round(p.y); f[i * 3 + 2] = Math.round(p.wind); }
@@ -440,6 +470,12 @@ async function simulate(players, seed, map, opts) {
             for (const p of P) if (p.st === 'rise' && p.y < q.y - FLAP_BELOW && p.y + BAL_OFF + R.balloonR > q.y - 6 && Math.abs(p.x - q.x) < q.w / 2 + 14) { flapOpenUntil[i] = t + R.flapHold; break; }
         }
         for (const p of P) updatePlayer(p, lead);
+        // 준비가 끝난 찌르기 — 그 순간 풍선이 닿는 거리(pokeReach)면 펑, 아니면 헛찌르기. 맞찌르기는 둘 다 판정한 뒤 같이 터진다
+        for (const q of pokes.filter(q => t >= q.at)) {
+            pokes.splice(pokes.indexOf(q), 1);
+            const hits = q.by.map((a, k) => { a.poking = false; const b = q.to[k]; return phase === 'run' && a.st === 'rise' && b.st === 'rise' && b.superT <= 0 && b.safeT <= 0 && Math.hypot(balloonX(b) - balloonX(a), b.y - a.y) <= R.pokeReach; });
+            q.by.forEach((a, k) => { const b = q.to[k]; if (hits[k]) popBalloon(b, 'poke', balloonX(b) >= balloonX(a) ? 1 : -1, { by: a.id }); else ev('pokeMiss', { ball: a.id, target: b.id }); });
+        }
         // 세이브 다리 — 아직 안 도착한 동물 중 가장 낮은 동물(꼴등)의 발이 경계 + bridgeLead 를 넘으면 비버가 다리를 놓는다
         let low = Infinity;
         for (const p of P) if (p.st !== 'done' && p.y < low) low = p.y;
@@ -457,9 +493,11 @@ async function simulate(players, seed, map, opts) {
         // 풍선끼리 겹치지 않는다(사용자 2026-10-19) — 둘 다 오르는 중이면 겹친 만큼 밀어낸다. 가로 몫은 반씩 비키고, 세로 몫은 아래 풍선이 다 물러난다
         // (위 풍선을 밀어 올리면 들보·셔터 밑에 눌린 풍선이 뚫고 나간다). 아래 풍선은 위 풍선 속도로 늦춰지고, 둥근 면을 따라 옆으로 미끄러져 비켜 간다
         for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-            const a = P[i], b = P[j];
-            if (a.st !== 'rise' || b.st !== 'rise') continue;
+            const a = P[i], b = P[j], key = i + ',' + j;
+            if (a.st !== 'rise' || b.st !== 'rise') { delete touch[key]; continue; }
             const dx = balloonX(b) - balloonX(a), dy = b.y - a.y, d = Math.hypot(dx, dy), over = R.balloonR * 2 - d;
+            if (over <= -3) { delete touch[key]; continue; }   // 떨어졌다(3px 여유 — 맞닿아 비비는 동안은 이어진 것으로 본다)
+            pokeCheck(a, b, key);
             if (over <= 0) continue;
             const nx = d > 1e-6 ? dx / d : 1, ny = d > 1e-6 ? dy / d : 0;
             a.x -= nx * over / 2; b.x += nx * over / 2;

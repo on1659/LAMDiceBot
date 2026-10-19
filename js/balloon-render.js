@@ -75,6 +75,11 @@
     var BAL_CELL = { w: 96, h: 120, knotX: 48, knotY: 116, bodyW: 88, popCY: 60 };
     var CHUTE = { w: 160, h: 112, rimX: 80, rimY: 108, openW: 150, worldW: 60, lift: 30 };
     var POSE_FPS = { hang: 5, blow: 4, fall: 10 };
+    // 콕 찌르기(docs/goal/balloon-poke.md) — creatures/{동물}-poke.webp 224×160 ×4(줄 토막 꼭대기 = POKE.ax, ay). 칸 시각(초, 찌르기 시작부터): c0 슬쩍 · c1 준비 · c2 콕(R.pokeWind = 터지는 순간) · c3 뿌듯
+    //  props/poke-fx.webp 96 칸 ×8: 0 씨앗 · 1 물줄기 · 2 물 튀김 · 3 콕 번쩍 · 4 콧김 · 5 발톱 휙 · 6 가시 번쩍 · 7 히히 반짝. 동물마다 효과만 다르다(규칙은 같다)
+    var POKE = { w: 224, h: 160, ax: 112, ay: 4, tipX: 208, tipY: 76, swingMax: 1.0, at: [0, 0.12, R.pokeWind, R.pokeWind + 0.22], end: R.pokeWind + 0.55 };   // tip = c2 에서 도구·코·물줄기가 닿는 칸 점(대략)
+    var POKE_FX = { cell: 96, seed: 0, stream: 1, splash: 2, spark: 3, snort: 4, swoosh: 5, bristle: 6, sly: 7 };
+    var POKE_HIT_FX = { hamster: 'seed', turtle: 'stream', ribbonpig: 'snort', armadillo: 'swoosh', hedgehog: 'bristle', pufferfish: 'bristle' };   // 나머지는 콕 번쩍
     var GRAVE_WORLD_H = 58;
     var GRAVE_STONE_TOP = 53 / 128, GRAVE_TAG_H = 19;   // gravestone.webp 96×128 의 돌 윗선(그 위는 투명) · 이름표 높이 + 틈 — 이름표를 돌 바로 위에(사용자 2026-10-19)
     var GRAVE_WORDS = ['하늘이 너무 높았다', '풍선아 미안해', '다음 판엔 꼭 간다', '여기 잠들다', '바람이 나빴어', '조금만 더 갔으면…', '꼴찌의 영광', '내 풍선 돌려줘'];   // 비석 위 한마디(이름으로 하나 고름)            // 비석 키(세계 단위) — 몸(44)보다 커야 끝 장면의 주인공이 된다
@@ -105,7 +110,7 @@
         if (cb) loadWaiters.push(cb);
         if (loadState === 1) return;
         loadState = 1;
-        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'plank', 'thorn', 'shutter', 'item-box', 'super-balloon', 'shield', 'cloud', 'cloud-happy', 'beaver-hammer', 'mystery-box', 'weight', 'bomb', 'rock'].forEach(BP);
+        ['balloon', 'chute', 'chestnut', 'storm', 'storm-flash', 'gravestone', 'plank', 'thorn', 'shutter', 'item-box', 'super-balloon', 'shield', 'cloud', 'cloud-happy', 'beaver-hammer', 'mystery-box', 'weight', 'bomb', 'rock', 'poke-fx'].forEach(BP);
         SKY_BANDS.forEach(function (b) { bimage('bg/' + b[0] + '.webp'); });   // 풍선 타기 소품 — 기다리지 않는다(없으면 코드 도형)
         var list = CREATURES.map(function (c) { return 'creatures/' + c + '.webp'; }).concat(Object.keys(PIECES).map(function (k) { return PIECES[k]; }));
         var left = list.length;
@@ -248,7 +253,7 @@
             var n = data.players.length;
             people = data.players.map(function (p, i) {
                 return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i,
-                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], finishT: -1, superIv: [], shieldIv: [], slowIv: [], shieldNs: [], warps: [] };
+                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], pokesBy: [], finishT: -1, superIv: [], shieldIv: [], slowIv: [], shieldNs: [], warps: [] };
             });
             var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
             var nameOf = function (id) { return byId[id] ? byId[id].name : ''; };
@@ -269,7 +274,7 @@
             var openIv = function (list, t) { var last = list[list.length - 1]; if (!(last && last.b === Infinity)) list.push({ a: t, b: Infinity }); };   // 이미 열려 있으면(겹쳐 먹기) 그대로
             var closeIv = function (list, t) { var last = list[list.length - 1]; if (last && last.b === Infinity) last.b = t; };
             var warpsOf = map.warps || [];
-            people.forEach(function (p) { ['hang', 'blow', 'fall'].forEach(function (k) { bimage('creatures/' + p.creature + '-' + k + '.webp'); if (p.skin) bimage('creatures/' + p.creature + '-' + p.skin + '-' + k + '.webp'); }); });
+            people.forEach(function (p) { ['hang', 'blow', 'fall', 'poke'].forEach(function (k) { bimage('creatures/' + p.creature + '-' + k + '.webp'); if (p.skin) bimage('creatures/' + p.creature + '-' + p.skin + '-' + k + '.webp'); }); });
             var curEagle = null, finN = 0;
             data.events.forEach(function (e) {
                 var p = e.ball != null ? byId[e.ball] : null;
@@ -279,8 +284,13 @@
                         p.trans.push({ t: e.t, st: e.cause === 'finale' ? 'fdrop' : 'pop' }); p.pops.push(e.t);   // 피날레 펑 = 낙하산 없이 바로 떨어진다
                         tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color, row: (p.colorIdx || 0) % BALLOON.length });
                         if (e.spike != null) tl.spikeFall[e.spike] = e.t;
-                        tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + (e.cause === 'spike' ? '펑! ' : '') + (CAUSE_TEXT[e.cause] || '펑!') });
+                        if (e.cause === 'poke' && byId[e.by]) {   // 찌른 쪽의 찌르기에 '맞혔다' 표시 — 맞힌 순간 효과는 대상 풍선에서
+                            var pk = byId[e.by].pokesBy.filter(function (q) { return q.target === e.ball; }).pop(); if (pk) pk.hit = true;
+                            tl.toasts.push({ t: e.t, text: shortName(nameOf(e.by)) + ' → ' + shortName(p.name) + ' 콕!' });
+                        } else tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + (e.cause === 'spike' ? '펑! ' : '') + (CAUSE_TEXT[e.cause] || '펑!') });
                         break;
+                    case 'poke': p.pokesBy.push({ t: e.t, target: e.target, kind: e.kind, hit: false }); break;
+                    case 'pokeMiss': tl.toasts.push({ t: e.t, text: shortName(p.name) + ' 헛찔렀다!' }); break;
                     case 'drop': p.trans.push({ t: e.t, st: 'drop' }); break;
                     case 'chute': p.trans.push({ t: e.t, st: 'chute' }); break;
                     case 'land':
@@ -440,6 +450,11 @@
                 var inIv = function (list) { for (var q = 0; q < list.length; q++) if (sim >= list[q].a && sim < list[q].b) return true; return false; };
                 v.super = !counting && inIv(p.superIv); v.shield = !counting && inIv(p.shieldIv); v.slow = !counting && inIv(p.slowIv);
                 v.shieldN = 0; for (var sq = 0; sq < p.shieldNs.length && p.shieldNs[sq].t <= sim; sq++) v.shieldN = p.shieldNs[sq].n;   // 방패 개수(겹쳐 먹기)
+                if (!counting && st.st === 'rise') for (var pq = p.pokesBy.length - 1; pq >= 0; pq--) {   // 찌르는 중 — 대상 쪽을 본다
+                    var pkq = p.pokesBy[pq]; if (pkq.t > sim) continue;
+                    if (sim - pkq.t < POKE.end * 1000) { var tp = posAt(pkq.target, sim); v.poke = { since: (sim - pkq.t) / 1000, target: pkq.target, tx: tp.x + tp.lean * R.balTilt, ty: tp.y + BAL_OFF }; v.face = tp.x >= pos.x ? 1 : -1; }
+                    break;
+                }
                 return v;
             });
             var picked = tl.decided && sim >= tl.decided.t ? view[tl.decided.ball] : null;
@@ -966,6 +981,26 @@
             ctx.drawImage(img, col * SPRITE.size, row * SPRITE.size, SPRITE.size, SPRITE.size, -S / 2, -S / 2, S, S);
             ctx.restore();
         }
+        // 찌르기 칸 — 줄 토막 꼭대기(POKE.ax, ay)를 매달림 기준점(화면 ax, ay)에 맞춘다(칸이 넓어도 몸 배율은 칸 160 = S 그대로)
+        function pokeCellTo(img, col, ax, ay, S, face, ang) {
+            var k = S / SPRITE.size;
+            ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang || 0); if (face < 0) ctx.scale(-1, 1);
+            ctx.drawImage(img, col * POKE.w, 0, POKE.w, POKE.h, -POKE.ax * k, -POKE.ay * k, POKE.w * k, POKE.h * k);
+            ctx.restore();
+        }
+        // 찌르기 흔들기 — 몸은 풍선보다 한참 아래라 가로로 뻗는 그림이 남의 풍선에 안 닿는다. 풍선 매듭(kx, ky)을 축으로 몸을 대상 풍선(tx, ty) 쪽으로 들어 올려
+        // 도구 끝(POKE.tip)이 그 풍선을 향하게 한다(최대 POKE.swingMax). 화면 좌표 → { ax, ay(돌린 줄 토막 꼭대기), ang(화면 회전), hx, hy(돌린 도구 끝) }
+        function pokePose(x, feet, face, kx, ky, tx, ty, u) {
+            var S = BODY * s, a0 = cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]);
+            var k = S / SPRITE.size, tx0 = a0[0] + face * (POKE.tipX - POKE.ax) * k, ty0 = a0[1] + (POKE.tipY - POKE.ay) * k;
+            var phi0 = Math.atan2(face * (tx0 - kx), ty0 - ky), phiT = Math.atan2(face * (tx - kx), ty - ky);
+            var e = u < 0.3 ? u / 0.3 : u < 0.5 ? 1 : 1 - (u - 0.5) / (POKE.end - 0.5); e = clamp(e, 0, 1); e = e * e * (3 - 2 * e);
+            var ang = -face * clamp(phiT - phi0, 0, POKE.swingMax) * e, c = Math.cos(ang), sn = Math.sin(ang);
+            var rot = function (px, py) { var dx = px - kx, dy = py - ky; return [kx + dx * c - dy * sn, ky + dx * sn + dy * c]; };
+            var A = rot(a0[0], a0[1]), T = rot(tx0, ty0);
+            return { ax: A[0], ay: A[1], ang: ang, hx: T[0], hy: T[1] };
+        }
+        function pokeFrame(since) { var f = 0; for (var i = 1; i < POKE.at.length; i++) if (since >= POKE.at[i]) f = i; return f; }
         // 칸 안 점(cx, cy) → 화면 점
         function cellPt(x, feet, S, face, cx, cy) { return [x + face * (cx - 80) / 160 * S, feet - S + cy / 160 * S]; }
         function frameOf(kind, clockS, p, fast) { return Math.floor((clockS + p.ph) * POSE_FPS[kind] * (fast ? 1.8 : 1)) % 4; }
@@ -1048,10 +1083,17 @@
             if (hangSt || st === 'shock') {
                 var hs = st === 'shock' ? poseSheet(p, 'fall') : poseSheet(p, 'hang');
                 var anc = st === 'shock' ? cellPt(x, feet, S, face, 80, 28) : cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]);
-                stringTo(anc[0], anc[1], bx, knotY, (bx - anc[0]) * 0.2 + 3 * s); drawBalloonAt(v, bx, knotY, 1, blink * (p.dim ? 0.45 : 1));
-                ctx.save(); ctx.translate(anc[0], anc[1]); ctx.rotate(st === 'shock' ? Math.sin(clockS * 40) * 0.06 : rot); ctx.translate(-anc[0], -anc[1]);
-                if (hs) cellTo(hs, st === 'shock' ? 0 : frameOf('hang', clockS, p, Math.abs(v.vx) > 30), 0, x, feet, S, face);
-                else { codeArms(x, feet - S / 2, S, feet - S / 2 - S * 0.62, false, clockS); if (ok(main)) cellTo(main, 0, 0, x, feet, S, face); }
+                var ps = v.poke && st === 'rise' && !lift ? poseSheet(p, 'poke') : null;   // 찌르기 — 매달림 줄·기울기 대신 매듭을 축으로 휙 흔든 자리에(pokePose)
+                var pg = ps ? pokePose(x, feet, face, bx, knotY, sx(v.poke.tx), sy(v.poke.ty), v.poke.since) : null;
+                if (pg) stringTo(pg.ax, pg.ay, bx, knotY, 0); else stringTo(anc[0], anc[1], bx, knotY, (bx - anc[0]) * 0.2 + 3 * s);
+                drawBalloonAt(v, bx, knotY, 1, blink * (p.dim ? 0.45 : 1));
+                ctx.save();
+                if (pg) pokeCellTo(ps, pokeFrame(v.poke.since), pg.ax, pg.ay, S, face, pg.ang);
+                else {
+                    ctx.translate(anc[0], anc[1]); ctx.rotate(st === 'shock' ? Math.sin(clockS * 40) * 0.06 : rot); ctx.translate(-anc[0], -anc[1]);
+                    if (hs) cellTo(hs, st === 'shock' ? 0 : frameOf('hang', clockS, p, Math.abs(v.vx) > 30), 0, x, feet, S, face);
+                    else { codeArms(x, feet - S / 2, S, feet - S / 2 - S * 0.62, false, clockS); if (ok(main)) cellTo(main, 0, 0, x, feet, S, face); }
+                }
                 ctx.restore();
                 if (st === 'shock') drawExclaim(x, feet - S * 1.02, clockS);
                 if (v.slow && st === 'rise') {   // 무거운 풍선(§13-1) — 발밑에 쇳덩이 추가 매달려 흔들린다
@@ -1219,12 +1261,40 @@
                 }
                 ctx.globalAlpha = 1;
             });
+            if (ok(BP('poke-fx'))) people.forEach(function (p, i) { p.pokesBy.forEach(function (q) { drawPokeFx(p, view[i], view[q.target], q, (sim - q.t) / 1000); }); });
             if (!ok(P('dust'))) return;
             tl.dust.forEach(function (f) {
                 if (sim < f.t || sim - f.t >= DUST_FX_MS) return;
                 var k = (sim - f.t) / DUST_FX_MS, v = view[f.ball], ds = 40 * s;   // dust-puff.webp 80×80 ×4
                 ctx.globalAlpha = 1 - k * 0.6; ctx.drawImage(P('dust'), Math.min(3, Math.floor(k * 4)) * 80, 0, 80, 80, sx(v.x) - ds / 2, sy(v.y) - ds * 0.8, ds, ds); ctx.globalAlpha = 1;
             });
+        }
+        // 찌르기 효과 — u = 찌르기 시작 뒤 초. 동물마다 그림만 다르다: 씨앗은 손에서 대상 풍선까지 날아가고, 물줄기는 입에서 대상 풍선까지 늘인다
+        function pokeFx(i, x, y, w, h, alpha, flip) {
+            var c = POKE_FX.cell; ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); if (flip < 0) ctx.scale(-1, 1);
+            ctx.drawImage(BP('poke-fx'), i * c, 0, c, c, -w / 2, -h / 2, w, h); ctx.restore();
+        }
+        function drawPokeFx(p, a, b, q, u) {
+            if (u < 0 || u > POKE.end || !a || !b) return;
+            var S = BODY * s, face = b.x >= a.x ? 1 : -1, hit = u - R.pokeWind;   // hit = 터지는 순간 뒤 초(음수 = 아직)
+            var tx = sx(b.x + b.wind * R.balTilt), ty = sy(b.y + BAL_OFF);   // 대상 풍선
+            var pg = pokePose(sx(a.x), sy(a.y), face, sx(a.x + a.wind * R.balTilt), sy(a.y + BAL_OFF) + R.balloonR * 1.15 * s, tx, ty, u), hx = pg.hx, hy = pg.hy;   // 흔든 도구 끝(그림과 같은 식)
+            if (u < 0.16) pokeFx(POKE_FX.sly, sx(a.x) - face * S * 0.3, hy - S * 0.35, 18 * s, 18 * s, 1 - u / 0.16);   // 히히 — 슬쩍 보는 순간
+            var kind = POKE_HIT_FX[p.creature] || 'spark', sz = 26 * s;
+            if (kind === 'seed') {
+                if (hit >= -0.12 && hit < 0) { var k = (hit + 0.12) / 0.12; pokeFx(POKE_FX.seed, hx + (tx - hx) * k, hy + (ty - hy) * k - Math.sin(k * Math.PI) * 10 * s, 14 * s, 14 * s, 1, face); }
+            } else if (kind === 'stream') {
+                if (hit >= -0.1 && hit < 0.18) {
+                    var len = Math.hypot(tx - hx, ty - hy) * clamp((hit + 0.1) / 0.1, 0, 1);
+                    ctx.save(); ctx.translate(hx, hy); ctx.rotate(Math.atan2(ty - hy, tx - hx)); ctx.globalAlpha = hit > 0.08 ? 1 - (hit - 0.08) / 0.1 : 1;
+                    ctx.drawImage(BP('poke-fx'), POKE_FX.stream * POKE_FX.cell, 0, POKE_FX.cell, POKE_FX.cell, 0, -9 * s, len, 18 * s); ctx.restore(); ctx.globalAlpha = 1;
+                }
+                if (q.hit && hit >= 0 && hit < 0.3) pokeFx(POKE_FX.splash, tx, ty, sz * 1.3, sz * 1.3, 1 - hit / 0.3);
+                return;
+            } else if (kind === 'snort' && hit >= -0.05 && hit < 0.3) pokeFx(POKE_FX.snort, hx + face * 10 * s * (1 + hit * 3), hy + 4 * s, 22 * s, 22 * s, 1 - Math.max(0, hit) / 0.3, face);
+            else if (kind === 'swoosh' && hit >= -0.04 && hit < 0.22) pokeFx(POKE_FX.swoosh, (hx + tx) / 2, (hy + ty) / 2, 26 * s, 26 * s, 1 - Math.max(0, hit) / 0.22, face);
+            else if (kind === 'bristle' && hit >= -0.05 && hit < 0.3) pokeFx(POKE_FX.bristle, sx(a.x), sy(a.y) - S * 0.5, S * 1.3, S * 1.3, 1 - Math.max(0, hit) / 0.3);
+            if (q.hit && hit >= 0 && hit < 0.25) pokeFx(POKE_FX.spark, tx, ty, sz * (1 + hit * 2), sz * (1 + hit * 2), 1 - hit / 0.25);   // 맞힌 자리 번쩍(헛찌르기는 없음)
         }
         function drawEagle(sim, clockS) {
             var e = null;

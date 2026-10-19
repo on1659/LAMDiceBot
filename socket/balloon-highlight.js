@@ -22,9 +22,9 @@ const NECK_PX = 40;          // 당첨 쪽 두 마리의 높이 차가 이 안�
 const LATE_MS = 6000;        // '막판' — 정해지는 순간 앞 이 안의 바뀜
 const CAUSE_BEFORE_MS = 3000;   // 꼴찌로 떨어지기 이만큼 전 ~ 0.5초 뒤까지 그 동물에게 일어난 펑·하수구를 계기로 본다
 // 코드 점수 기본 가중치 — 반응(👍/👎·GIF 저장)으로 0.5~2배 배율이 곱해진다(db/balloon-highlight-feedback.js, 같은 키)
-const WEIGHTS = { turn: 8, cause: 3, swap: 3, other: 1, neck: 1.5, decided: 2, finale: 3, late: 2, eagle: 3, eagleMiss: 1, meteor: 2, bolt: 2, bomb: 2, shieldPop: 1.5, super: 1, warp: 1.5, pop: 0.5 };
+const WEIGHTS = { turn: 8, cause: 3, swap: 3, other: 1, neck: 1.5, decided: 2, finale: 3, late: 2, eagle: 3, eagleMiss: 1, meteor: 2, bolt: 2, bomb: 2, shieldPop: 1.5, super: 1, warp: 1.5, poke: 2.5, pop: 0.5 };
 const FEATURES = Object.keys(WEIGHTS);
-const COUNTED = ['pop', 'eagle', 'eagleMiss', 'meteor', 'bolt', 'bomb', 'shieldPop', 'super', 'warp', 'bump'];
+const COUNTED = ['pop', 'eagle', 'eagleMiss', 'meteor', 'bolt', 'bomb', 'poke', 'shieldPop', 'super', 'warp', 'bump'];
 
 const modeOf = tl => (tl.target === 'first' ? 'first' : 'last');
 const playTime = (tl, s) => W.realDuration(s, tl.slow);   // 경주(시뮬) 시각 → 재생 시각
@@ -98,7 +98,7 @@ function emptyFacts() {
 }
 // 이벤트 하나 → 센 칸(없으면 null)
 function countKey(e) {
-    if (e.type === 'pop') return e.cause === 'finale' ? null : ['eagle', 'meteor', 'bolt', 'bomb'].indexOf(e.cause) >= 0 ? e.cause : 'pop';
+    if (e.type === 'pop') return e.cause === 'finale' ? null : ['eagle', 'meteor', 'bolt', 'bomb', 'poke'].indexOf(e.cause) >= 0 ? e.cause : 'pop';
     if (e.type === 'item') return e.kind === 'super' && !e.blocked ? 'super' : null;
     return ['eagleMiss', 'shieldPop', 'warp', 'bump'].indexOf(e.type) >= 0 ? e.type : null;
 }
@@ -162,7 +162,7 @@ function candidates(tl, mult) {
         const centered = f.turn ? 1 - Math.min(1, Math.abs((p0 + p1) / 2 - turnPlay) / (clip / 2)) : 0;   // 계기가 장면 가운데쯤일수록
         const score = (f.turn ? w.turn * (0.5 + 0.5 * centered) : 0) + (f.cause ? w.cause : 0) + swap * w.swap * late + other * w.other + f.neckSec * w.neck * late
             + (f.decided ? w.decided : 0) + (f.finale ? w.finale : 0) + (f.lateSec != null && swap >= 2 ? w.late : 0)
-            + f.eagle * w.eagle + Math.min(f.eagleMiss, 3) * w.eagleMiss + f.meteor * w.meteor + f.bolt * w.bolt + f.bomb * w.bomb
+            + f.eagle * w.eagle + Math.min(f.eagleMiss, 3) * w.eagleMiss + f.meteor * w.meteor + f.bolt * w.bolt + f.bomb * w.bomb + f.poke * w.poke
             + Math.min(f.shieldPop, 3) * w.shieldPop + Math.min(f.super, 3) * w.super + Math.min(f.warp, 3) * w.warp + Math.min(f.pop, 6) * w.pop
             + Math.min(f.bump, 10) * 0.1 + p1 / endPlay;   // 막판일수록 조금 더
         return { start: Math.round(p0), end: Math.round(p1), toEnd: Math.round(decPlay - p1), score: Math.round(score * 100) / 100, facts: f, ids: ids.slice(0, MAX_IDS), swaps: mine, hero: f.turn ? turn.hero : null };
@@ -199,7 +199,7 @@ function payload(tl, cands) {
 }
 
 // ─── Jev 요청(socket/jev.js ask 의 build) — 사실 → 영어 문장. 숫자는 낱말로, 위치(경주 끝 등)는 말하지 않는다(데구리에서 끝 장면만 고르던 쏠림) ───
-const CAUSE_WORD = { spike: 'a chestnut burr', blade: 'a spinning blade', pend: 'a swinging pendulum', bolt: 'a lightning bolt', bee: 'a bee', thorn: 'a thorny wall', eagle: 'an eagle', meteor: 'a falling meteor', bomb: 'a surprise bomb from a mystery box', warp: 'a drain pipe that sent it back down' };
+const CAUSE_WORD = { spike: 'a chestnut burr', blade: 'a spinning blade', pend: 'a swinging pendulum', bolt: 'a lightning bolt', bee: 'a bee', thorn: 'a thorny wall', eagle: 'an eagle', meteor: 'a falling meteor', bomb: 'a surprise bomb from a mystery box', poke: 'another animal sneakily poking it', warp: 'a drain pipe that sent it back down' };
 function times(n) { return n === 1 ? 'once' : n === 2 ? 'twice' : n <= 4 ? `${['', '', '', 'three', 'four'][n]} times` : 'many times'; }
 function describe(c, race) {
     const f = c.facts, parts = [], first = race.mode === 'first';
@@ -217,6 +217,7 @@ function describe(c, race) {
     if (f.eagle) parts.push(`an eagle popped a balloon (${times(f.eagle)})`);
     if (f.eagleMiss) parts.push(`an eagle swooped and missed (${times(f.eagleMiss)})`);
     if (f.meteor) parts.push(`a meteor hit a balloon (${times(f.meteor)})`);
+    if (f.poke) parts.push(`an animal sneakily popped a neighbour's balloon (${times(f.poke)})`);
     if (f.bolt) parts.push(`lightning struck an animal (${times(f.bolt)})`);
     if (f.bomb) parts.push(`a mystery box turned out to be a bomb (${times(f.bomb)})`);
     if (f.shieldPop) parts.push(`a shield blocked a hit (${times(f.shieldPop)})`);
@@ -254,7 +255,7 @@ function reasons(tl, cand) {
     if (f.neckSec >= 2) out.push({ key: mode === 'first' ? 'firstNeck' : 'lastNeck', params: { sec: f.neckSec } });
     if (f.finale) out.push({ key: 'finale', params: {}, ball: decisionOf(tl).a, owner: true });
     const s0 = simTime(tl, cand.start), s1 = simTime(tl, cand.end);
-    for (const key of ['eagle', 'meteor', 'bolt', 'bomb', 'super', 'warp', 'shieldPop', 'eagleMiss']) {
+    for (const key of ['eagle', 'meteor', 'bolt', 'bomb', 'poke', 'super', 'warp', 'shieldPop', 'eagleMiss']) {
         if (!f[key]) continue;
         const e = tl.events.find(x => x.t > s0 && x.t <= s1 && countKey(x) === key);
         out.push({ key, params: {}, ball: e && e.ball != null ? e.ball : null, owner: true });
@@ -275,7 +276,7 @@ function featuresOf(mode, f) {
     if (f.decided) on.add('decided');
     if (f.finale) on.add('finale');
     if (f.lateSec != null && mine >= 2) on.add('late');
-    for (const k of ['eagle', 'eagleMiss', 'meteor', 'bolt', 'bomb', 'shieldPop', 'super', 'warp', 'pop']) if (f[k]) on.add(k);
+    for (const k of ['eagle', 'eagleMiss', 'meteor', 'bolt', 'bomb', 'poke', 'shieldPop', 'super', 'warp', 'pop']) if (f[k]) on.add(k);
     return on;
 }
 

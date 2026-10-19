@@ -1,4 +1,40 @@
 ========================================
+📋 Summit Log - 2026-10-19 오후 (둥둥라이더 — 남의 풍선 콕 찌르기 + 찌르기 그림 80장)
+========================================
+
+## 변경 파일
+- socket/balloon-sim.js: 찌르기 규칙 — 풍선끼리 겹침 루프에서 맞닿음(over > -3) 추적(touch), pokeCheck(지나가며 툭·막힘)·startPoke·준비 끝난 찌르기 판정(pokes), 사건 poke/pokeMiss, pop.cause 'poke'(by)
+- js/balloon-world.js: R.poke* 수치(pokeStuck 1·pokeBlock 0.6·pokeLow 0.55·pokeHigh 0.25·pokePassP 0.1·pokePassDv 20·pokeWind 0.3·pokeReach 50·pokeCool 6·pokePairCool 10), airCauses 에 'poke'
+- js/balloon-render.js: 찌르기 포즈(poke 시트 224 칸, pokeCellTo·pokeFrame·pokePose — 매듭을 축으로 몸을 대상 풍선 쪽으로 흔듦), 동물별 효과(drawPokeFx: 씨앗 비행·물줄기·물 튀김·콧김·발톱 휙·가시 번쩍·콕 번쩍·히히 반짝), 토스트 "A → B 콕!"·"헛찔렀다!", poke 시트·poke-fx 미리 받기
+- socket/balloon-highlight.js · js/balloon.js: 하이라이트 원인 poke(가중 2.5, 사실 문장, turnLastBy/turnFirstBy.poke·poke 문구)
+- balloon-multiplayer.html: balloon-world v24 · balloon-render v44 · balloon v7
+- assets/balloon/creatures/*-poke.webp 79장(기본 10 + 스킨 69) · assets/balloon/props/poke-fx.webp
+- AutoTest/spritemake/balloon-sheet.py: poke 종류(ATTACK 표·224 칸·기준점 112·2번 입력 매달림 시트), props5-repack/pickup, 도트 스킨 224 칸 처리
+- docs/goal/applied/balloon-poke.md(명세·측정값) · docs/spritemake-request/2026-10-18-balloon-sprites.md(5차)
+
+## 상세 변경 내역
+
+### 찌르기 규칙 (사용자 2026-10-19 "언제 찌르나·공정성 다 좋아")
+- 공정성: 모든 동물이 같은 계기·확률·사거리·대기 시간. 동물마다 다른 건 그림(근거리·원거리도 그림만). 결과는 서버 시드로만
+- 막힘: 맞닿은 채 1초 + 그동안 아래 풍선 상승 < 제 속도 60% → 아래가 위 55% · 위가 아래 25% · 맞찌르기 20%(둘 다 펑). 못 찌르는 쪽이면 다른 쪽으로
+- 지나가며 툭: 맞닿기 시작할 때 아래가 20 이상 빨리 오르면 10% — 올라오는 쪽이 위를
+- 0.3초 준비 뒤 풍선 사이 50 안이면 펑(풍선만 — 공중에서 다시 불기), 아니면 헛찌르기. 슈퍼 풍선·무적은 안 찔림, 방패는 하나가 막음. 찌른 쪽 6초·같은 짝 10초 쉼
+- 처음엔 '2초 막힘'만 생각했지만 측정해 보니 4인 판 0.1번/판이라 1초 + 지나가며 툭으로(사용자 승인)
+
+### 그림
+- 동물 10종 찌르기(고슴도치 가시·복어 부풀기·돼지 코·거북이 물대포·햄스터 씨앗·판다 대나무·너구리 포크·토끼 당근·아르마딜로 발톱·공벌레 이쑤시개 — 이쑤시개는 한 명만) + 효과 8칸
+- 160 칸에선 콕 칸이 칸 밖으로 밀려 기준점이 어긋남 → 224 칸·기준점 112
+- 스킨 69종 전부(도구 28 + GPT 옷 입히기 41). webp 는 pngquant(--nofs) + 무손실(-z 9) — 더 센 양자화(60-85)로도 10% 넘게 줄어드는 파일 0 → 그대로
+
+### 검증
+- 찌르기 빈도(30시드): 4인 0.73/판(펑 0.60) · 8인 2.67/판(펑 2.23) · 12인 6.2/판, 헛찌르기 약 17%
+- balloon-sweep 30시드 ALL PASS(꼴등 8인 59.6초), balloon-determinism-test ALL PASS, qa-balloon-skin-read-test ALL PASS
+- qa-balloon-flow-test: 게임 흐름·두 탭 동기·하이라이트·다시 보기 PASS. FAIL 2 = 폰 첫 화면 글자 118(≤60)·조작 17(≤6) — 방 화면 DOM 측정이고 이번 변경은 캔버스·시뮬뿐— origin/main 코드로 같은 테스트를 돌려도 같은 3건 FAIL(원래 있던 것). 하이라이트 자동 재생도 origin/main 에서 FAIL
+- 렌더러 캡처(오프스크린, 10종 × 5시점): 찌르기·흔들기·효과·맞찌르기 확인, 페이지 오류 0
+
+========================================
+
+========================================
 📋 Summit Log - 2026-10-19 (둥둥라이더 — 풍선끼리 충돌 판정)
 ========================================
 
