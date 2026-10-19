@@ -28,7 +28,9 @@
     var SAFE_BLINK_HZ = 12;
     var FACE_VX = 18;                  // 공중에서 이 가로 속도(세계/초)를 넘어야 바라보는 쪽을 바꾼다 — 그 아래는 보던 쪽 유지
     // 2차(docs/goal/balloon-climb.md §11)
-    var ZOOM_MIN = 0.6, ZOOM_MAX = 2.2, ZOOM_STEP = 1.25, WHEEL_ZOOM = 1.1;   // 확대·축소(데구리처럼, 사용자 2026-10-18) — 알약 − 100% + 한 번에 ×/÷1.25, Ctrl+휠 한 칸 ×/÷1.1
+    var VIEW_FIT = 0.6;   // 기본 배율(알약 100%) = 세계 폭을 화면 폭의 60% 로 — 예전 '60%' 시야가 새 100%(사용자 2026-10-19 "너무 확대, 60 을 100 으로 고정"). 알약 % 는 이 기준 대비
+    var CAM_AHEAD = 60 / VIEW_FIT;   // 카메라가 동물보다 위(앞)를 보는 양 — 예전 100% 에서 화면에 보이던 60 세계 단위를 새 기준 배율에서도 같은 화면 거리로
+    var ZOOM_MIN = 1, ZOOM_MAX = 2.2 / VIEW_FIT, ZOOM_STEP = 1.25, WHEEL_ZOOM = 1.1;   // 확대·축소(데구리처럼, 사용자 2026-10-18) — 알약 − 100% + 한 번에 ×/÷1.25, Ctrl+휠 한 칸 ×/÷1.1
     var MANUAL_IDLE_RETURN_MS = 3000;  // 끌어서 옮긴 카메라는 이만큼 입력이 없으면 자동으로(데구리와 같은 값). 동물 따라가기는 유지
     var CAM_EASE = 7, CAM_EASE_FAST = 16, CAM_EDGE = 0.3;   // 자동 추적 — 목표가 화면 가운데에서 CAM_EDGE×높이 넘게 벗어나면 빠르게 따라잡는다
     var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };   // 카메라 버튼 아이콘 — 데구리(js/deguri-render.js)와 같은 그림
@@ -234,7 +236,7 @@
             canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
             canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
-            baseS = W / WORLD_W; s = baseS * zoom; clampCamX();
+            baseS = W / WORLD_W * VIEW_FIT; s = baseS * zoom; clampCamX();
             cam = clamp(cam, camMin(), camMax());
             liftOverAd();
             if (!playing) redraw();
@@ -442,20 +444,20 @@
             camFocus = null;   // 순위표 카메라 표시 — 지금 카메라가 따라가는 동물
             if (camMode !== 'free') {
                 var target, mine = followMe && me ? view.filter(function (v) { return v.p.name === me && v.st !== 'done'; })[0] : null;   // 내가 도착하면 시스템 카메라(꼴등 쪽)로 넘긴다(사용자 2026-10-19)
-                if (camMode !== 'auto') { var fv = view.filter(function (v) { return v.p === camMode; })[0]; target = fv ? fv.y + 60 : cam; camFocus = fv ? fv.p : null; }
+                if (camMode !== 'auto') { var fv = view.filter(function (v) { return v.p === camMode; })[0]; target = fv ? fv.y + CAM_AHEAD : cam; camFocus = fv ? fv.p : null; }
                 else if (frameIds && frameIds.length) {   // 하이라이트 장면 — 앞에 놓인 동물부터, 도착한 동물은 건너뛴다(다 도착했으면 첫 동물)
                     var fl = frameIds.map(function (id) { return view.filter(function (v) { return v.p.id === id; })[0]; }).filter(Boolean);
                     var hv = fl.filter(function (v) { return v.st !== 'done'; })[0] || fl[0];
-                    if (hv) { target = hv.y + 60; camFocus = hv.p; } else target = cam;
+                    if (hv) { target = hv.y + CAM_AHEAD; camFocus = hv.p; } else target = cam;
                 }
-                else if (picked) { target = picked.y + 40; camFocus = picked.p; }
-                else if (mine) { target = mine.y + 60; camFocus = mine.p; }   // 내 동물 따라가기 스위치(§12-10)
+                else if (picked) { target = picked.y + CAM_AHEAD * 2 / 3; camFocus = picked.p; }
+                else if (mine) { target = mine.y + CAM_AHEAD; camFocus = mine.p; }   // 내 동물 따라가기 스위치(§12-10)
                 else {
                     var lv = view.filter(function (v) { return v.st !== 'done'; }); if (!lv.length) lv = view.slice();
                     lv.sort(function (a, b) { return a.y - b.y; });
                     var span = H / s * 0.55;   // 꼴등 룰: 아래 두 마리가 한 화면에 들어오면 둘의 중간, 멀면 꼴등만(중간을 비추면 아무도 안 보인다)
-                    if (rule === 'first') { target = lv[lv.length - 1].y + 120; camFocus = lv[lv.length - 1].p; }
-                    else { target = (lv.length > 1 && lv[1].y - lv[0].y < span ? (lv[0].y + lv[1].y) / 2 : lv[0].y) + 60; camFocus = lv[0].p; }
+                    if (rule === 'first') { target = lv[lv.length - 1].y + CAM_AHEAD * 2; camFocus = lv[lv.length - 1].p; }
+                    else { target = (lv.length > 1 && lv[1].y - lv[0].y < span ? (lv[0].y + lv[1].y) / 2 : lv[0].y) + CAM_AHEAD; camFocus = lv[0].p; }
                 }
                 target = clamp(target, camMin(), camMax());
                 var ease = Math.abs(target - cam) * s > H * CAM_EDGE ? CAM_EASE_FAST : CAM_EASE;   // 화면 끝 쪽으로 벗어나면 빨리 따라잡는다(슈퍼 풍선·하수구)
