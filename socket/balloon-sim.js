@@ -50,7 +50,7 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *              land.plat ≤ -100 = 출발 계단(-100 - 층)
  *              2차(§11): bridge{idx}(세이브 다리 놓임 — land.plat = -2 - idx) · item{ball,kind:'super'|'shield',box} · superEnd{ball} · shieldPop{ball} · shieldEnd{ball} ·
  *              warp{ball,from,to}(하수구에 쏙) · warpOut{ball,x,y} · bump{a,b}
- *              beamHit{plat,ball,hp} — 들보에 부딪혀 아래로 튕김(hp 남은 HP, -1 = 안 부서짐, 0 = 부서짐)
+ *              bonk{ball,kind:wall|fence|shutter,x,y,nx,ny} — 풍선이 지형에 새로 닿음(그림 전용) · beamHit{plat,ball,hp} — 들보에 부딪혀 아래로 튕김(hp 남은 HP, -1 = 안 부서짐, 0 = 부서짐)
  *              gateHold{fence} · gateHoldEnd{fence} — 눈 꼭대기 문이 지나가는 동물을 기다린 구간(그동안 문 시각이 멈춘다, 렌더러도 같은 식)
  *              콕 찌르기(docs/goal/balloon-poke.md): poke{ball,target,kind:stuck|pass}(준비 시작) → R.pokeWind 뒤 pop{cause:'poke',by} 또는 pokeMiss{ball,target}
  *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
@@ -84,7 +84,7 @@ async function simulate(players, seed, map, opts) {
     const P = players.map((pl, i) => ({
         id: pl.id, x: (i + 0.5) / n * WORLD_W, frac: (i + 0.5) / n, y: 0, vy: 0, vx: 0, kick: 0,
         st: 'rise', stT: 0, inflDur: 0, base: range(R.riseMin, R.riseMax), ph: rng() * 6.283, ww: range(R.wanderWMin, R.wanderWMax),
-        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false, pokedUntil: 0
+        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false, pokedUntil: 0, bonkUntil: 0, atWall: false, atFence: false
     }));
     // 출발 좌석(서버가 이름마다 정한 players[i].seat, 없으면 입장 순) — 계산은 층과 무관하게 모두 맨 위 층 높이에서 바로 출발한다(사용자 2026-10-18 "계산은 층 전혀 상관없게").
     // 아래층이 처져 보이다가 부스터로 따라붙는 건 그림(js/balloon-render.js boostOffset)에서만. 가로 자리만 좌석대로
@@ -103,6 +103,12 @@ async function simulate(players, seed, map, opts) {
     const boundsAt = y => W.boundsAt(map, y);
     const balloonX = p => p.x + p.wind * R.balTilt;
 
+    // 지형 부딪힘 알림(그림 전용 사건 — 움직임·결과와 무관, 사용자 2026-10-20 "지형물도 부딪치면 뭔가 알려줘") — 풍선이 벽·울타리·셔터에 새로 닿는 순간. (nx, ny) = 지형에서 풍선 쪽 방향
+    function bonk(p, kind, x, y, nx, ny) {
+        if (t < p.bonkUntil) return;
+        p.bonkUntil = t + R.bonkCool;
+        ev('bonk', { ball: p.id, kind, x: Math.round(x), y: Math.round(y), nx: Math.round(nx * 100) / 100, ny: Math.round(ny * 100) / 100 });
+    }
     function popBalloon(p, cause, dir, extra) {
         if (p.shieldN > 0) {   // 방패 하나가 막는다(겹쳐 먹었으면 하나씩 깨진다) — 잠깐 무적 + 옆으로 살짝 튕김
             p.shieldN--; if (!p.shieldN) p.shieldT = 0;
@@ -266,7 +272,7 @@ async function simulate(players, seed, map, opts) {
                     const gap = h.y - prevTop, open = W.shutOpen(h, t);
                     if (gap > -2 && gap < Z.shutReach) { tx = open > 0 ? WORLD_W * 0.75 : WORLD_W * 0.25; k = Z.shutSteer; }   // 열린 쪽으로 몰린다
                     const bx = balloonX(p);
-                    if (prevTop <= h.y && p.y + BAL_OFF + R.balloonR > h.y && (open > 0 ? bx < WORLD_W / 2 + R.balloonR : bx > WORLD_W / 2 - R.balloonR)) { p.y = h.y - BAL_OFF - R.balloonR; p.vy = 0; }   // 닫힌 쪽 밑에서 기다린다
+                    if (prevTop <= h.y && p.y + BAL_OFF + R.balloonR > h.y && (open > 0 ? bx < WORLD_W / 2 + R.balloonR : bx > WORLD_W / 2 - R.balloonR)) { if (p.vy > R.bonkV) bonk(p, 'shutter', bx, h.y, 0, -1); p.y = h.y - BAL_OFF - R.balloonR; p.vy = 0; }   // 닫힌 쪽 밑에서 기다린다
                 }
                 for (let i = 0; i < plats.length; i++) {   // 안 열리는 들보: 밑에 오면 가까운 끝으로 비켜 가고, 못 비키면 들보에 부딪혀 아래로 튕긴다(그때마다 HP -1)
                     const q = plats[i]; if (!beamUp(i)) continue;
@@ -291,10 +297,12 @@ async function simulate(players, seed, map, opts) {
                 // 옆 이동도 관성 — 바라는 가로 속도로 서서히(레일 위를 미끄러지듯 바로 움직이지 않게)
                 const vxT = Math.cos(t * p.ww + p.ph) * R.wanderAmp * p.ww + p.wind + p.kick + (tx - p.x) * k;
                 p.vx += (vxT - p.vx) * Math.min(1, dt * R.sideAccel);
-                const nx = clamp(p.x + p.vx * dt, b0 + R.wallPad, b1 - R.wallPad);
-                if (nx !== p.x + p.vx * dt) p.vx = 0;   // 벽에 닿으면 멈춘다
+                const want = p.x + p.vx * dt, nx = clamp(want, b0 + R.wallPad, b1 - R.wallPad), atWall = nx !== want;
+                if (atWall) { if (!p.atWall && Math.abs(p.vx) > R.bonkV) bonk(p, 'wall', want < nx ? b0 : b1, p.y + BAL_OFF, want < nx ? 1 : -1, 0); p.vx = 0; }   // 벽에 닿으면 멈춘다
+                p.atWall = atWall;
                 p.x = nx;
                 // 울타리(웃는 얼굴 구간) — 풍선 원이 선분에 겹치면 법선으로 밀어낸다. 오르는 힘이 비탈을 따라 높은 쪽 끝으로 미끄러지는 움직임이 된다
+                let fenceHit = null;
                 for (let fi = 0; fi < fences.length; fi++) {
                     const f0 = fences[fi], f = W.fenceSeg(f0, ft(fi));   // 눈 꼭대기 문은 아래로 젖혀지며 움직인다 — 밑에 있던 풍선을 아래로 밀어낸다
                     const fbx = balloonX(p), fby = p.y + BAL_OFF;
@@ -302,9 +310,12 @@ async function simulate(players, seed, map, opts) {
                     const c = W.segClosest(fbx, fby, f.x1, f.y1, f.x2, f.y2), d = Math.hypot(fbx - c[0], fby - c[1]);
                     if (d >= R.balloonR || d < 1e-6) continue;
                     const push = R.balloonR - d;
+                    if (!fenceHit) fenceHit = [c[0], c[1], (fbx - c[0]) / d, (fby - c[1]) / d];
                     p.x += (fbx - c[0]) / d * push; p.y += (fby - c[1]) / d * push; p.fenceT = R.fenceHold; p.vx *= 0.85;
                     if (f0.gate != null && W.gateSwinging(f0, ft(fi)) && fby < f0.y1) { p.vy = Math.min(p.vy, -R.gateKnock); p.vx += (fbx >= c[0] ? 1 : -1) * R.gateKnock * 0.3; }   // 내려오는 문짝에 맞으면 아래로 툭 쳐진다(사용자 2026-10-18)
                 }
+                if (fenceHit && !p.atFence) bonk(p, 'fence', fenceHit[0], fenceHit[1], fenceHit[2], fenceHit[3]);
+                p.atFence = !!fenceHit;
                 // 몸도 울타리를 못 뚫는다 — 풍선처럼 지금 있는 쪽으로 밀어낸다(원-선분). 풍선이 끝을 돌아 나가도 몸은 울타리 밑에 걸린 채 비탈을 따라 미끄러져 끝으로 빠져나온다.
                 // 움직이는 눈 꼭대기 문짝도 몸을 밀어낸다(닫히는 문은 위 gateHold 가 기다린다)
                 for (let fi = 0; fi < fences.length; fi++) {

@@ -36,7 +36,8 @@
     var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };   // 카메라 버튼 아이콘 — 데구리(js/deguri-render.js)와 같은 그림
     var MM_TOP = 46, MM_W = 10, MM_H_RATIO = 0.4, MM_H_MIN = 120, MM_H_MAX = 240;   // 높이 막대 — 위끝(깃발 아래)·캡슐 폭·캔버스 높이 대비 길이(최소·최대 px)
     var RANK_ROW = 20, RANK_NAME_MAX = 5, RANK_MAX_H = 0.55, RANK_COLLAPSED = 3;   // 순위표 한 줄 높이·이름 글자 수·최대 높이(캔버스 비율)·접혔을 때 줄 수
-    var BEAM_FX_MS = 550, BEAM_BREAK_FX_MS = 900;   // 들보 부딪힘 · 부서짐 연기·나무 부스러기(사용자 2026-10-20 "연기 나는 것 같은 이펙트로 실감나게")
+    var BEAM_FX_MS = 550, BEAM_BREAK_FX_MS = 900, BONK_FX_MS = 420;   // BONK = 풍선이 벽·울타리·셔터에 새로 닿음(지형 쪽 먼지·조각)
+    var BONK_COLOR = { wall: ['rock', 'rockDark'], fence: ['plat', 'platDark'], shutter: ['door', 'doorDark'] };   // 조각 색(C 키) — 바위·나무·쇠   // 들보 부딪힘 · 부서짐 연기·나무 부스러기(사용자 2026-10-20 "연기 나는 것 같은 이펙트로 실감나게")
     var BUMP_FX_MS = 350, WARP_FX_MS = 600, ITEM_FX_MS = 600, SHIELD_FX_MS = 450, FINISH_FX_MS = 1400, CLOUD_SQUISH_MS = 350;
     var BEAVER = { cell: 96, worldH: 32 };   // balloon/props/beaver-hammer.webp 96×96 ×4(걷기 2 · 망치 들기 · 내려치기) — 없으면 데구리 beaver-v2.webp(통나무 밀기)
     var PIPE = { rimTop: 8, bodyW: 101, rimW: 135 };   // 데구리 warp-pipe.webp 192×224 — 몸통 폭(px)을 R.warpBodyW 로 맞춘다
@@ -306,6 +307,7 @@
                         tl.fx.push({ t: e.t, type: 'beam', x: bfr[e.ball * 3] + bfr[e.ball * 3 + 2] * R.balTilt, y: bq.y - BEAM.worldH, q: bq, broke: e.hp === 0, seed: e.plat * 7 + e.ball });   // 연기는 부딪힌 자리 들보 밑면에서
                         if (e.hp === 0) tl.toasts.push({ t: e.t, text: '쾅! 들보가 부서졌다' });
                         break;
+                    case 'bonk': tl.fx.push({ t: e.t, type: 'bonk', kind: e.kind, x: e.x, y: e.y, nx: e.nx, ny: e.ny, seed: e.ball * 131 + e.x }); break;
                     case 'gateHold': (tl.gateHolds[e.fence] = tl.gateHolds[e.fence] || []).push({ a: e.t, b: Infinity }); break;
                     case 'gateHoldEnd': { var gh = tl.gateHolds[e.fence]; if (gh && gh.length) gh[gh.length - 1].b = e.t; break; }
                     case 'poke': p.pokesBy.push({ t: e.t, target: e.target, kind: e.kind, hit: false }); break;
@@ -1285,12 +1287,13 @@
                 ctx.globalAlpha = 1;   // 떠오르는 '펑!' 글자는 뺐다 — 터짐 그림·토스트가 이미 있어 헷갈렸다(사용자 2026-10-18)
             });
             tl.fx.forEach(function (f) {   // 2차 짧은 연출
-                var dur = f.type === 'beam' ? (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) : f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : f.type === 'finish' ? FINISH_FX_MS : WARP_FX_MS;
+                var dur = f.type === 'beam' ? (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) : f.type === 'bonk' ? BONK_FX_MS : f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : f.type === 'finish' ? FINISH_FX_MS : WARP_FX_MS;
                 if (sim < f.t || sim - f.t >= dur) return;
                 var k = (sim - f.t) / dur, x, y;
                 ctx.globalAlpha = 1 - k;
                 ctx.font = '900 14px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = C.countInk; ctx.fillStyle = C.popInk;
                 if (f.type === 'beam') { drawBeamFx(f, k); ctx.globalAlpha = 1; return; }
+                if (f.type === 'bonk') { drawBonkFx(f, k); ctx.globalAlpha = 1; return; }
                 if (f.type === 'bump') {
                     var a = view[f.a], b = view[f.b]; if (!a || !b) return;
                     x = sx((a.x + b.x) / 2); y = sy((a.y + b.y) / 2 + BAL_OFF) - 6 * k * s;
@@ -1380,22 +1383,41 @@
         // 들보 부딪힘 — 밑면에서 먼지 연기(데구리 dust-puff 80×80 ×4)가 양옆으로 퍼지고 나무 부스러기가 튀어 떨어진다. 부서지면 들보 길이 전체에서 크게
         function drawBeamFx(f, k) {
             var tS = k * (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) / 1000, rnd = mulberry32(f.seed + Math.round(f.t));   // 부스러기 방향은 사건마다 같은 값(되감기·두 탭 같음)
-            // 연기 덩어리 [세계 x, 퍼지는 방향, 크기 배율, 늦게 나오는 비율] — 부딪힘은 풍선 양 어깨에서 두 덩어리, 부서짐은 들보 길이를 따라 크기·시점이 제각각
+            // 연기 덩어리 [세계 x, 퍼지는 방향, 크기 배율, 늦게 나오는 비율] — 들보 나무에서 난다(사용자 "먼지가 나무 기준으로"): 부딪힌 자리 양옆 나무 몸통에서 들보를 따라 퍼지며
+            // 살짝 아래로 흩날린다. 부서지면 들보 길이 따라 크기·시점이 제각각
+            var bxL = f.q.x - f.q.w / 2 + 6, bxR = f.q.x + f.q.w / 2 - 6, midY = f.y + BEAM.worldH * 0.5, hx = clamp(f.x, bxL, bxR);
             var puffs = f.broke ? [0, 1, 2, 3, 4, 5].map(function (i) { var u = -0.45 + i * 0.18 + (rnd() - 0.5) * 0.08; return [f.q.x + u * f.q.w, u >= 0 ? 1 : -1, 0.8 + rnd() * 0.6, rnd() * 0.25]; })
-                : [[f.x - R.balloonR * 0.9, -1, 1, 0], [f.x + R.balloonR * 0.9, 1, 1, 0.05]];
+                : [[clamp(hx - 9, bxL, bxR), -1, 1, 0], [clamp(hx + 9, bxL, bxR), 1, 0.9, 0.06], [hx, rnd() < 0.5 ? -1 : 1, 0.7, 0.12]];
             if (ok(P('dust'))) puffs.forEach(function (pf) {
                 var kk = clamp((k - pf[3]) / (1 - pf[3]), 0, 1); if (k < pf[3]) return;
-                var spread = (f.broke ? 16 : 20) * kk * pf[1], rise = (f.broke ? 12 : 6) * kk;
-                var ds = (f.broke ? 44 : 28) * pf[2] * s * (0.8 + 0.6 * kk), fr = Math.min(3, Math.floor(kk * 4));
+                var spread = (f.broke ? 16 : 18) * kk * pf[1], fall = (f.broke ? 4 : 8) * kk;
+                var ds = (f.broke ? 44 : 26) * pf[2] * s * (0.8 + 0.6 * kk), fr = Math.min(3, Math.floor(kk * 4));
                 ctx.globalAlpha = (1 - kk) * 0.95;
-                ctx.drawImage(P('dust'), fr * 80, 0, 80, 80, sx(pf[0] + spread) - ds / 2, sy(f.y - rise) - ds * 0.55, ds, ds);
+                ctx.drawImage(P('dust'), fr * 80, 0, 80, 80, sx(clamp(pf[0] + spread, bxL - 10, bxR + 10)) - ds / 2, sy(midY - fall) - ds * 0.5, ds, ds);
             });
             var n = f.broke ? 14 : 5;
             for (var c = 0; c < n; c++) {   // 나무 부스러기 — 작은 조각이 튀었다가 떨어지며 돈다
-                var vx = (rnd() - 0.5) * (f.broke ? 220 : 130), vy = -(rnd() * 60 + 20), x0 = f.broke ? f.q.x + (rnd() - 0.5) * f.q.w : f.x + (rnd() - 0.5) * 16;
-                var cx = sx(x0 + vx * tS), cy = sy(f.y + vy * tS - 0.5 * R.dropG * 0.6 * tS * tS), sz = (2 + rnd() * 2.5) * s, rot = tS * (rnd() * 14 - 7);
+                var vx = (rnd() - 0.5) * (f.broke ? 220 : 130), vy = -(rnd() * 60 + 20), x0 = f.broke ? f.q.x + (rnd() - 0.5) * f.q.w : hx + (rnd() - 0.5) * 30;   // 부스러기도 들보 나무에서
+                var cx = sx(x0 + vx * tS), cy = sy(midY + vy * tS - 0.5 * R.dropG * 0.6 * tS * tS), sz = (2 + rnd() * 2.5) * s, rot = tS * (rnd() * 14 - 7);
                 ctx.globalAlpha = 1 - k * k; ctx.fillStyle = c % 3 ? C.plat : C.platDark;
                 ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.fillRect(-sz, -sz * 0.45, sz * 2, sz * 0.9); ctx.restore();
+            }
+            ctx.globalAlpha = 1;
+        }
+        // 지형 부딪힘 — 닿은 지형 표면에서 작은 먼지가 표면을 따라 양쪽으로 퍼지고, 그 재질 색 조각 몇 개가 풍선 쪽으로 튀었다 떨어진다
+        function drawBonkFx(f, k) {
+            var tS = k * BONK_FX_MS / 1000, rnd = mulberry32(f.seed + Math.round(f.t)), tx = -f.ny, ty = f.nx;   // (tx, ty) = 표면 방향
+            if (ok(P('dust'))) [-1, 1].forEach(function (d) {
+                var ds = 18 * s * (0.8 + 0.7 * k), fr = Math.min(3, Math.floor(k * 4));
+                ctx.globalAlpha = (1 - k) * 0.9;
+                ctx.drawImage(P('dust'), fr * 80, 0, 80, 80, sx(f.x + (tx * d * 10 + f.nx * 3) * k) - ds / 2, sy(f.y + (ty * d * 10 + f.ny * 3) * k) - ds / 2, ds, ds);
+            });
+            var col = BONK_COLOR[f.kind] || BONK_COLOR.wall;
+            for (var c = 0; c < 4; c++) {
+                var sp = 50 + rnd() * 60, side = (rnd() - 0.5) * 1.6, vx = (f.nx + tx * side) * sp, vy = (f.ny + ty * side) * sp + 20;
+                var cx = sx(f.x + vx * tS), cy = sy(f.y + vy * tS - 0.5 * R.dropG * 0.5 * tS * tS), sz = (1.6 + rnd() * 1.6) * s;
+                ctx.globalAlpha = 1 - k * k; ctx.fillStyle = C[col[c % 2]];
+                ctx.save(); ctx.translate(cx, cy); ctx.rotate(tS * (rnd() * 12 - 6)); ctx.fillRect(-sz, -sz * 0.6, sz * 2, sz * 1.2); ctx.restore();
             }
             ctx.globalAlpha = 1;
         }
