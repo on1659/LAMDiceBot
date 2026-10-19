@@ -50,7 +50,7 @@ const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, 
  *              land.plat ≤ -100 = 출발 계단(-100 - 층)
  *              2차(§11): bridge{idx}(세이브 다리 놓임 — land.plat = -2 - idx) · item{ball,kind:'super'|'shield',box} · superEnd{ball} · shieldPop{ball} · shieldEnd{ball} ·
  *              warp{ball,from,to}(하수구에 쏙) · warpOut{ball,x,y} · bump{a,b}
- *              콕 찌르기(docs/goal/balloon-poke.md): poke{ball,target,kind:stuck|pass|mutual}(준비 시작) → R.pokeWind 뒤 pop{cause:'poke',by} 또는 pokeMiss{ball,target}
+ *              콕 찌르기(docs/goal/balloon-poke.md): poke{ball,target,kind:stuck|pass}(준비 시작) → R.pokeWind 뒤 pop{cause:'poke',by} 또는 pokeMiss{ball,target}
  *              꼴등 룰 피날레: decided 직후 shock(놀람) → pop(cause finale) → 낙하(fdrop, 낙하산 없음) → grave(착지 = 비석 자리) → graveHold 뒤 끝
  *  finishOrder = 순위 순 id 전부(도착 순 → 판정 순간 미도착은 높이 순)
  *  slow      = [{ startMs, endMs, rate, holdMs? }] 시뮬 시각 — 결승 슬로모(0.5) + 판정 순간 정지(holdMs)·0.35배속. durationMs 에 반영(BalloonWorld.realDuration)
@@ -439,13 +439,11 @@ async function simulate(players, seed, map, opts) {
         touch[key] = { t0: t, y0: { [a.id]: a.y, [b.id]: b.y } };   // 다음 막힘은 다시 pokeStuck 초 뒤
         if (!blocked || t < pairPoke[pairOf(a, b)]) return;
         if (onlyBy) { if (canPoke(onlyBy, other) && rng() < R.pokeBodyP) startPoke([onlyBy], [other], 'stuck'); return; }
-        const r = rng(), loOk = canPoke(lo, hi), hiOk = canPoke(hi, lo);
-        let who = r < R.pokeLow ? 'lo' : r < R.pokeLow + R.pokeHigh ? 'hi' : 'both';
-        if (who === 'both' && !(loOk && hiOk)) who = loOk ? 'lo' : 'hi';
+        const r = rng(), loOk = canPoke(lo, hi), hiOk = canPoke(hi, lo);   // 맞찌르기(둘 다 펑)는 뺐다(사용자 2026-10-19 "둘 다 터지는 게 이상하다")
+        let who = r < R.pokeLow ? 'lo' : 'hi';
         if (who === 'lo' && !loOk) who = hiOk ? 'hi' : null;
         if (who === 'hi' && !hiOk) who = loOk ? 'lo' : null;
-        if (who === 'both') startPoke([lo, hi], [hi, lo], 'mutual');
-        else if (who) startPoke(who === 'lo' ? [lo] : [hi], who === 'lo' ? [hi] : [lo], 'stuck');
+        if (who) startPoke(who === 'lo' ? [lo] : [hi], who === 'lo' ? [hi] : [lo], 'stuck');
     }
 
     function record() {
@@ -475,7 +473,7 @@ async function simulate(players, seed, map, opts) {
             for (const p of P) if (p.st === 'rise' && p.y < q.y - FLAP_BELOW && p.y + BAL_OFF + R.balloonR > q.y - 6 && Math.abs(p.x - q.x) < q.w / 2 + 14) { flapOpenUntil[i] = t + R.flapHold; break; }
         }
         for (const p of P) updatePlayer(p, lead);
-        // 준비가 끝난 찌르기 — 그 순간 풍선이 닿는 거리(pokeReach)면 펑, 아니면 헛찌르기. 맞찌르기는 둘 다 판정한 뒤 같이 터진다
+        // 준비가 끝난 찌르기 — 그 순간 풍선이 닿는 거리(pokeReach)면 펑, 아니면 헛찌르기
         for (const q of pokes.filter(q => t >= q.at)) {
             pokes.splice(pokes.indexOf(q), 1);
             const hits = q.by.map((a, k) => { a.poking = false; const b = q.to[k]; return phase === 'run' && a.st === 'rise' && b.st === 'rise' && b.superT <= 0 && b.safeT <= 0 && pokeDist(a, b) <= R.pokeReach; });
