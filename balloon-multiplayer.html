@@ -336,16 +336,7 @@
                     <div id="notPickedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
             </section>
-            <!-- 당첨 순위 투표 — 경마 N등 투표와 같은 방식(득표 비례 룰렛), 선택지는 1등/꼴등 둘. 준비한 사람에게만 보인다. 스타일은 horse-race.css .rank-vote-* 재사용 -->
-            <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
-                <div class="rank-vote-title"><i class="mi mi-target"></i> 당첨 순위 투표</div>
-                <div class="rank-vote-hint">안 던지면 꼴등 찾기</div>
-                <div id="rankVoteBoxes" class="rank-vote-boxes">
-                    <div class="rank-vote-box" data-target="first" onclick="voteRank('first')"><div class="rank-vote-rank"><i class="mi mi-medal"></i> 1등</div><div class="rank-vote-bars"></div></div>
-                    <div class="rank-vote-box" data-target="last" onclick="voteRank('last')"><div class="rank-vote-rank"><i class="mi mi-snail"></i> 꼴등</div><div class="rank-vote-bars"></div></div>
-                </div>
-            </div>
-            <!-- 타깃 순위 배너 (룰렛 결과 ~ 경주 끝) + 결정 사유 (룰렛 결과 또는 투표 없음 안내) -->
+            <!-- 타깃 순위 배너 ('꼴등을 찾아라!' — 경주 시작 전 안내 ~ 경주 끝) -->
             <div id="targetRankBanner" class="target-rank-banner" style="display: none;">
                 <span class="trb-icon"><i class="mi mi-target"></i></span>
                 <span class="trb-text">꼴등을 찾아라!</span>
@@ -522,7 +513,7 @@
     <script src="/js/shared/tutorial-shared.js?v=5"></script>
     <script src="/js/shared/auth-token-shared.js"></script>
     <script src="/js/balloon-world.js?v=23"></script>
-    <script src="/js/balloon-render.js?v=42"></script>
+    <script src="/js/balloon-render.js?v=43"></script>
     <script src="/js/deguri-replay-gif.js?v=3"></script>
     <!-- 꾸미기 상점·옷장·뽑기 — 데구리 페이지와 같은 파일. deguri-render.js 는 옷장 무대가 시트 주소(DeguriRender.sheetUrl)·동물 이름만 쓴다(렌더러는 안 만든다) -->
     <script src="/js/shared/shop-shared.js?v=15"></script>
@@ -531,7 +522,7 @@
     <script src="/js/deguri-gacha.js?v=51"></script>
     <script src="/js/deguri-render.js?v=pip-4"></script>
     <script src="/js/deguri-highlight.js?v=7"></script>
-    <script src="/js/balloon.js?v=5"></script>
+    <script src="/js/balloon.js?v=6"></script>
 
     <script>
         // ============================================

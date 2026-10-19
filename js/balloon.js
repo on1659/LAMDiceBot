@@ -6,7 +6,6 @@
 // ─── 공유 상수 (socket/balloon.js 상단과 반드시 동일 값) ───
 var BALLOON_MIN_PLAYERS = 2;          // 서버가 stateUpdated.minPlayers 로 덮는다(로컬 개발 서버는 1)
 var BALLOON_COUNTDOWN_MS = 4000;      // 3-2-1 카운트다운 (BalloonRender.COUNTDOWN_MS 와 동일)
-var ROULETTE_ANIM_MS = 5500;          // 당첨 순위 룰렛 애니메이션 길이 — 서버가 payload 로 보내주며 이 값은 폴백
 var TARGET_LABEL = { first: '1등', last: '꼴등' };
 var FS_SETTLE_MS = 400;
 var RESIZE_DEBOUNCE_MS = 120;
@@ -62,7 +61,6 @@ var balloonState = {
     minPlayers: null,
     reveal: null,            // 마지막 reveal 페이로드
     preview: null,           // 대기 화면 { map, players } (서버 stateUpdated.preview)
-    votes: {},
     target: 'last',
     targetReason: ''
 };
@@ -581,36 +579,9 @@ function setGameStatus(text, cls, icon) {
 }
 
 // ============================================
-// 당첨 순위 투표 + 룰렛 (js/deguri.js 와 같은 방식 — 서버가 정한 결과를 막대 하이라이트로 보여줄 뿐)
+// 타깃 배너 — 늘 꼴등 찾기(투표 없음)
 // ============================================
-function voteRank(target) {
-    if (!TARGET_LABEL[target]) return;
-    if (readyUsers.indexOf(currentUser) < 0) { showCustomAlert('먼저 준비를 해주세요!', 'warning'); return; }
-    if (balloonState.phase === 'playing' || isBalloonActive) return;
-    socket.emit('balloon:voteRank', { target: target });
-}
-window.voteRank = voteRank;
 var voteUiPinned = false;
-function renderVoteSection(opts) {
-    var forceShow = !!(opts && opts.forceShow);
-    var section = document.getElementById('rankVoteSection');
-    if (!section) return;
-    if (!forceShow && voteUiPinned) return;
-    var locked = balloonState.phase === 'playing' || isBalloonActive;
-    if (!forceShow && (locked || readyUsers.indexOf(currentUser) < 0)) { section.style.display = 'none'; return; }
-    section.style.display = '';
-    var votes = balloonState.votes || {};
-    var tally = { first: 0, last: 0 };
-    Object.keys(votes).forEach(function (name) { if (tally[votes[name]] !== undefined) tally[votes[name]]++; });
-    var mine = votes[currentUser];
-    section.querySelectorAll('.rank-vote-box').forEach(function (box) {
-        var t = box.getAttribute('data-target');
-        box.classList.toggle('selected', mine === t);
-        var bars = '';
-        for (var i = 0; i < tally[t]; i++) bars += '<div class="rank-vote-bar"></div>';
-        box.querySelector('.rank-vote-bars').innerHTML = bars;
-    });
-}
 function updateTargetBanner(target, show, reason) {
     var banner = document.getElementById('targetRankBanner');
     var reasonEl = document.getElementById('targetRankReason');
@@ -622,50 +593,6 @@ function updateTargetBanner(target, show, reason) {
         if (typeof reason === 'string' && reason) { reasonEl.textContent = reason; reasonEl.style.display = 'block'; }
         else reasonEl.style.display = 'none';
     }
-}
-var rouletteTimer = null;
-function clearRouletteTick() { if (rouletteTimer) { clearTimeout(rouletteTimer); rouletteTimer = null; } }
-function playRouletteAnimation(data) {
-    var winning = data.winning;
-    var animMs = (typeof data.animDurationMs === 'number') ? data.animDurationMs : ROULETTE_ANIM_MS;
-    renderVoteSection({ forceShow: true });
-    var section = document.getElementById('rankVoteSection');
-    if (!section) return;
-    var cells = [];
-    section.querySelectorAll('.rank-vote-box').forEach(function (box) {
-        var bars = box.querySelectorAll('.rank-vote-bar');
-        if (bars.length) bars.forEach(function (b) { cells.push({ el: b, cls: 'active' }); });
-        else cells.push({ el: box, cls: 'spin-active' });
-    });
-    var targetBox = section.querySelector('.rank-vote-box[data-target="' + winning + '"]');
-    var targetBar = targetBox ? targetBox.querySelector('.rank-vote-bar') : null;
-    var targetIdx = -1;
-    cells.forEach(function (c, i) { if (c.el === targetBar) targetIdx = i; });
-    cells.forEach(function (c) { c.el.classList.remove(c.cls, 'winner'); });
-    clearRouletteTick();
-    if (!targetBar || targetIdx < 0 || data.skipAnim) {
-        if (targetBar) targetBar.classList.add('winner');
-        updateTargetBanner(winning, true, balloonState.targetReason);
-        return;
-    }
-    // 가중치 ease-out + 꼬리 부스트 + 마지막 스텝 30% 캡 (경마·데구리와 같은 곡선)
-    var REPEAT = 4, totalSteps = REPEAT * cells.length + targetIdx + 1, weights = [];
-    for (var i = 0; i < totalSteps; i++) { var p = totalSteps > 1 ? (i / (totalSteps - 1)) : 1; weights.push(1 + (1 - Math.pow(1 - p, 3.0)) * 40); }
-    var tailBoost = [1.6, 2.0, 2.5, 3.0, 4.0];
-    for (var k = 0; k < tailBoost.length && (totalSteps - 1 - k) >= 0; k++) weights[totalSteps - 1 - k] *= tailBoost[k];
-    var capRatio = 0.30, sumAll = weights.reduce(function (a, b) { return a + b; }, 0);
-    var maxLast = (sumAll - weights[totalSteps - 1]) * capRatio / (1 - capRatio);
-    if (weights[totalSteps - 1] > maxLast) weights[totalSteps - 1] = maxLast;
-    var total = weights.reduce(function (a, b) { return a + b; }, 0);
-    var stepMs = weights.map(function (w) { return Math.max(20, w * animMs / total); });
-    var step = 0, prev = null;
-    (function tick() {
-        if (prev) prev.el.classList.remove(prev.cls);
-        if (step >= totalSteps) { targetBar.classList.add('winner'); updateTargetBanner(winning, true, balloonState.targetReason); rouletteTimer = null; return; }
-        var cell = cells[step % cells.length];
-        cell.el.classList.add(cell.cls); prev = cell;
-        rouletteTimer = setTimeout(tick, stepMs[step]); step++;
-    })();
 }
 // 경주 화면이 다 보이게 스크롤(js/deguri.js revealStage)
 function revealStage() {
@@ -697,7 +624,7 @@ function moveVoteUiToCanvas() {
     var overlay = document.getElementById('canvasBarsOverlay');
     if (!overlay) { overlay = document.createElement('div'); overlay.id = 'canvasBarsOverlay'; overlay.className = 'canvas-bars-overlay'; box.appendChild(overlay); }
     overlay.classList.remove('fading-out');
-    ['targetRankBanner', 'rankVoteSection', 'targetRankReason'].forEach(function (id) {
+    ['targetRankBanner', 'targetRankReason'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
         if (!el._canvasPlaceholder) { var ph = document.createComment(id + '-placeholder'); el.parentNode.insertBefore(ph, el); el._canvasPlaceholder = ph; }
@@ -707,7 +634,7 @@ function moveVoteUiToCanvas() {
 }
 function restoreVoteUiFromCanvas() {
     var overlay = document.getElementById('canvasBarsOverlay');
-    ['targetRankBanner', 'rankVoteSection', 'targetRankReason'].forEach(function (id) {
+    ['targetRankBanner', 'targetRankReason'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el._canvasPlaceholder) return;
         var ph = el._canvasPlaceholder;
@@ -719,13 +646,10 @@ function restoreVoteUiFromCanvas() {
 }
 var voteUiFadeTimer = null;
 function hideVoteSection() {
-    clearRouletteTick();
     voteUiPinned = false;
     var finish = function () {
         voteUiFadeTimer = null;
         restoreVoteUiFromCanvas();
-        var section = document.getElementById('rankVoteSection');
-        if (section) section.style.display = 'none';
         updateTargetBanner(null, false);
     };
     if (voteUiFadeTimer) { clearTimeout(voteUiFadeTimer); voteUiFadeTimer = null; }
@@ -1302,7 +1226,7 @@ socket.on('roomError', function (message) {
 });
 socket.on('readyUsersUpdated', function (rUsers) {
     readyUsers = rUsers || [];
-    updateStartButton(); renderPickStatus(); renderVoteSection();
+    updateStartButton(); renderPickStatus();
     if (balloonState.phase !== 'playing' && !isBalloonActive) socket.emit('balloon:requestState');   // 출발 자리 프리뷰는 준비 인원으로 그린다
 });
 
@@ -1317,7 +1241,6 @@ socket.on('balloon:stateUpdated', function (data) {
     if (!data) return;
     balloonState.picks = data.picks || {};
     if (typeof data.minPlayers === 'number') balloonState.minPlayers = data.minPlayers;
-    if (data.votes) balloonState.votes = data.votes;
     if (data.myEquip !== undefined && window.DeguriShop) DeguriShop.syncRoomEquip(data.myEquip);   // 나에게만 실린다 — 내 장착값 { slot: id }(새로고침 재입장·계정 적재 동기화)
     var previewChanged = data.preview !== undefined;
     if (previewChanged) balloonState.preview = data.preview;
@@ -1326,27 +1249,14 @@ socket.on('balloon:stateUpdated', function (data) {
         setGameStatus('경주가 진행 중이에요 — 다음 판부터 함께 볼 수 있어요', 'active');
     }
     renderPickStatus();
-    renderVoteSection();
     updateStartButton();
     if (!previewChanged && balloonState.phase !== 'playing') socket.emit('balloon:requestState');   // 나간 사람 정리 브로드캐스트(picks 만) — 프리뷰를 다시 받는다
     if (previewChanged && showsIdleCanvas() && renderer && assetsLoaded) renderer.drawIdle(balloonState.preview, currentUser);
-});
-socket.on('balloon:rankVotesUpdated', function (data) { balloonState.votes = (data && data.votes) || {}; renderVoteSection(); });
-socket.on('balloon:rouletteStart', function (data) {
-    if (!data) return;
-    if (data.votes) balloonState.votes = data.votes;
-    balloonState.target = data.winning;
-    balloonState.targetReason = data.reason || '';
-    enterRoulettePhase();
-    setGameStatus('');
-    playRouletteAnimation(data);
 });
 socket.on('balloon:reasonHold', function (data) {
     balloonState.target = (data && data.target) || 'last';
     balloonState.targetReason = (data && data.reason) || '';
     enterRoulettePhase();
-    var section = document.getElementById('rankVoteSection');
-    if (section) section.style.display = 'none';
     setGameStatus('');
     updateTargetBanner(balloonState.target, true, balloonState.targetReason);
 });
@@ -1384,7 +1294,6 @@ socket.on('balloon:gameEnd', function (data) {
     balloonState.phase = 'finished';
     isBalloonActive = false;
     keepAwake(false);
-    balloonState.votes = {};
     localHistory.push({ round: data.round, selected: data.selected, target: data.target });
     renderHistory(localHistory);
     setGameStatus('');
@@ -1395,7 +1304,6 @@ socket.on('balloon:gameEnd', function (data) {
     hideVoteSection();
     updateTargetBanner(null, false);
     renderPickStatus();
-    renderVoteSection();
     updateStartButton();
 });
 socket.on('balloon:gameAborted', function (data) {
@@ -1410,7 +1318,6 @@ socket.on('balloon:gameAborted', function (data) {
     updateTargetBanner(null, false);
     setGameStatus((data && data.reason) || '게임이 중단되었습니다.', 'waiting');
     renderPickStatus();
-    renderVoteSection();
     updateStartButton();
     socket.emit('balloon:requestState');
 });
@@ -1420,7 +1327,6 @@ socket.on('balloon:roundReset', function () {
     balloonState.phase = 'idle';
     balloonState.reveal = null;
     if (window.DeguriHighlight) DeguriHighlight.cancel();
-    balloonState.votes = {};
     isBalloonActive = false;
     readyUsers = [];
     if (renderer) renderer.stop();
@@ -1432,7 +1338,6 @@ socket.on('balloon:roundReset', function () {
     closeResultOverlay();
     setGameStatus('');
     renderPickStatus();
-    renderVoteSection();
     updateStartButton();
     socket.emit('balloon:requestState');
 });

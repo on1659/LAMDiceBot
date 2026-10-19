@@ -36,7 +36,7 @@
     var CAM_ICONS = { auto: '/assets/ui/camera-auto.png?v=1', manual: '/assets/ui/camera-manual.png?v=1' };   // 카메라 버튼 아이콘 — 데구리(js/deguri-render.js)와 같은 그림
     var MM_TOP = 46, MM_W = 10, MM_H_RATIO = 0.4, MM_H_MIN = 120, MM_H_MAX = 240;   // 높이 막대 — 위끝(깃발 아래)·캡슐 폭·캔버스 높이 대비 길이(최소·최대 px)
     var RANK_ROW = 20, RANK_NAME_MAX = 5, RANK_MAX_H = 0.55, RANK_COLLAPSED = 3;   // 순위표 한 줄 높이·이름 글자 수·최대 높이(캔버스 비율)·접혔을 때 줄 수
-    var BUMP_FX_MS = 350, WARP_FX_MS = 600, ITEM_FX_MS = 600, SHIELD_FX_MS = 450, CLOUD_SQUISH_MS = 350;
+    var BUMP_FX_MS = 350, WARP_FX_MS = 600, ITEM_FX_MS = 600, SHIELD_FX_MS = 450, FINISH_FX_MS = 1400, CLOUD_SQUISH_MS = 350;
     var BEAVER = { cell: 96, worldH: 32 };   // balloon/props/beaver-hammer.webp 96×96 ×4(걷기 2 · 망치 들기 · 내려치기) — 없으면 데구리 beaver-v2.webp(통나무 밀기)
     var PIPE = { rimTop: 8, bodyW: 101, rimW: 135 };   // 데구리 warp-pipe.webp 192×224 — 몸통 폭(px)을 R.warpBodyW 로 맞춘다
     var SKY_BANDS = [   // 높이(cam/worldH)에 따라 겹쳐 그리는 먼 배경 — [이름, 보이기 시작, 다 보임, 사라지기 시작, 다 사라짐]
@@ -270,7 +270,7 @@
             var closeIv = function (list, t) { var last = list[list.length - 1]; if (last && last.b === Infinity) last.b = t; };
             var warpsOf = map.warps || [];
             people.forEach(function (p) { ['hang', 'blow', 'fall'].forEach(function (k) { bimage('creatures/' + p.creature + '-' + k + '.webp'); if (p.skin) bimage('creatures/' + p.creature + '-' + p.skin + '-' + k + '.webp'); }); });
-            var curEagle = null;
+            var curEagle = null, finN = 0;
             data.events.forEach(function (e) {
                 var p = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
@@ -316,7 +316,11 @@
                     case 'spikeKnock': tl.spikeFall[e.spike] = e.t; break;   // 무적 풍선에 닿은 밤송이 — 떨어져 사라진다
                     case 'inflate': p.trans.push({ t: e.t, st: 'inflate', dur: e.dur }); break;
                     case 'rise': p.trans.push({ t: e.t, st: 'rise', safe: true }); break;
-                    case 'finish': p.trans.push({ t: e.t, st: 'done' }); p.finishT = e.t; break;
+                    case 'finish':
+                        p.trans.push({ t: e.t, st: 'done' }); p.finishT = e.t;
+                        finN++; tl.fx.push({ t: e.t, type: 'finish', ball: e.ball, n: finN });   // 도착하는 순간 바로 몇 등인지 띄운다 — 도착한 동물은 그 순간 꼴등 후보에서 빠진다
+                        tl.toasts.push({ t: e.t, text: shortName(p.name) + ' ' + finN + '등 도착!' });
+                        break;
                     case 'shock': p.trans.push({ t: e.t, st: 'shock' }); break;
                     case 'grave': p.trans.push({ t: e.t, st: 'grave' }); tl.grave = { t: e.t, ball: e.ball, x: e.x, y: e.y }; break;
                     case 'gust': tl.gusts.push({ t: e.t, dur: e.dur, dir: e.dir }); tl.toasts.push({ t: e.t, text: e.dir > 0 ? '돌풍 →' : '← 돌풍' }); break;
@@ -684,7 +688,12 @@
                     ctx.drawImage(P('flag'), fr * 32, 0, 32, 64, 10, fy - fs * 2 + 6, fs, fs * 2);
                     ctx.save(); ctx.translate(W - 10, 0); ctx.scale(-1, 1); ctx.drawImage(P('flag'), fr * 32, 0, 32, 64, 0, fy - fs * 2 + 6, fs, fs * 2); ctx.restore();
                 }
-                ctx.fillStyle = C.finish; ctx.font = '800 13px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('도착', W / 2, fy - 4);
+                var flw = Math.max(5, 6 * s);   // 도착선 — 발이 이 높이에 닿으면 도착(서버 p.y >= worldH). 글자 없이 굵은 흰·빨강 줄무늬 띠(거의 동시에 도착해도 어느 쪽이 먼저인지 보이게, 사용자 2026-10-19)
+                ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, fy - flw * 1.8, W, flw * 3.6);
+                ctx.lineWidth = flw; ctx.setLineDash([flw * 2, flw * 2]);
+                ctx.strokeStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke();
+                ctx.lineDashOffset = flw * 2; ctx.strokeStyle = C.finish; ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke();
+                ctx.setLineDash([]); ctx.lineDashOffset = 0;
             }
         }
         // ── 2차 장치(§11) ──
@@ -1171,7 +1180,7 @@
                 ctx.globalAlpha = 1;   // 떠오르는 '펑!' 글자는 뺐다 — 터짐 그림·토스트가 이미 있어 헷갈렸다(사용자 2026-10-18)
             });
             tl.fx.forEach(function (f) {   // 2차 짧은 연출
-                var dur = f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : WARP_FX_MS;
+                var dur = f.type === 'bump' ? BUMP_FX_MS : f.type === 'item' ? ITEM_FX_MS : f.type === 'shield' ? SHIELD_FX_MS : f.type === 'finish' ? FINISH_FX_MS : WARP_FX_MS;
                 if (sim < f.t || sim - f.t >= dur) return;
                 var k = (sim - f.t) / dur, x, y;
                 ctx.globalAlpha = 1 - k;
@@ -1191,6 +1200,15 @@
                     x = sx(v.x); y = sy(v.y + BAL_OFF) - 20 - 20 * k;
                     var label = ITEM_FX_TEXT[f.kind] || '';
                     ctx.strokeText(label, x, y); ctx.fillText(label, x, y);
+                } else if (f.type === 'finish') {   // 도착 순서 알약 — 도착선 위에 'N등'. 거의 동시에 들어와도 알약이 겹치지 않게 높이를 번갈아
+                    var fv = view[f.ball]; if (!fv) return;
+                    ctx.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+                    var lab = f.n + '등', lx = clamp(sx(fv.x), 26, W - 26), ly = sy(worldH()) - (58 + ((f.n - 1) % 3) * 20 + 8 * k) * s;
+                    ctx.font = '900 14px Pretendard, sans-serif';
+                    var lw2 = ctx.measureText(lab).width + 16;
+                    ctx.fillStyle = C.tagMe; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.roundRect(lx - lw2 / 2, ly - 11, lw2, 22, 11); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = C.tagInk; ctx.fillText(lab, lx, ly + 0.5);
                 } else if (f.type === 'shield') {
                     var w = view[f.ball]; if (!w) return;
                     var r = R.balloonR * 2.1 * s * (1 + k * 0.4), bcy = sy(w.y + BAL_OFF);   // 풍선 자리에서 깨진다

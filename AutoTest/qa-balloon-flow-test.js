@@ -4,7 +4,7 @@
 //  2) 데스크톱 탭 B + 소켓 봇 입장 → 투표 없이 시작(기본 꼴등) → 두 탭 reveal durationMs·결과 동일, 결과 카드 당첨자 동일, 펑 N번 표시
 //  3) 진행 중 getCurrentRoom(C-25) 응답에 timeline·seed·result·trackSeed·looks 없음, B 새로고침 재입장 → "진행 중" 안내
 //  4) 결과 뒤 다시 보기 → 재생·이동 막대·멈춤
-//  5) 다음 판: 전원 1등 투표 → 1등 룰 한 판(당첨 = 첫 도착)
+//  5) 다음 판도 투표 없이 꼴등 찾기(투표 UI 없음 · 도착 N-1명)
 const { chromium } = require('playwright');
 const io = require('socket.io-client');
 const URL = 'http://localhost:' + (parseInt(process.argv[2], 10) || 5174);
@@ -153,22 +153,21 @@ function measureInPage() {
     check(sk.paused && Math.abs(sk.t - 20000) < 50, '멈춤 + 이동', JSON.stringify(sk));
     await pa.evaluate(() => stopReplay(true));
 
-    // ── 5) 1등 룰 한 판 ──
+    // ── 5) 다음 판도 늘 꼴등 찾기(투표 없음 — 2026-10-19) ──
     await pa.evaluate(() => socket.emit('balloon:reset'));
     await pa.waitForFunction(() => balloonState.phase === 'idle', null, { timeout: 5000 });
     await pa.evaluate(() => toggleReady()); await pb.evaluate(() => toggleReady()); bot.emit('toggleReady');   // gameEnd 가 준비를 비웠다
     await wait(800);
-    await pa.evaluate(() => voteRank('first')); await pb.evaluate(() => voteRank('first')); bot.emit('balloon:voteRank', { target: 'first' });
-    await wait(600);
-    const roulette = once(bot, 'balloon:rouletteStart', 8000), reveal2 = once(bot, 'balloon:reveal', 20000);
+    check(await pa.evaluate(() => !document.getElementById('rankVoteSection') && typeof voteRank === 'undefined'), '투표 UI·함수 없음');
+    const hold = once(bot, 'balloon:reasonHold', 8000), reveal2 = once(bot, 'balloon:reveal', 20000);
     await pa.evaluate(() => startBalloon());
-    const ro = await roulette;
-    check(ro.winning === 'first' && ro.skipAnim, '전원 1등 투표 → 1등 확정(스핀 생략)', JSON.stringify(ro.segments));
+    const ho = await hold;
+    check(ho.target === 'last' && !ho.reason, '시작 → 꼴등 찾기 안내만(사유 문구 없음)', JSON.stringify(ho));
     const rv2 = await reveal2;
-    const firstFinish = rv2.events.find(e => e.type === 'finish');
-    check(rv2.target === 'first' && firstFinish && rv2.result.selected === rv2.players[firstFinish.ball].owner, '1등 룰 당첨 = 첫 도착', rv2.result.selected);
+    check(rv2.target === 'last', '두 번째 판도 꼴등 찾기', rv2.target);
+    const finishes = rv2.events.filter(e => e.type === 'finish').length;
     const end2 = await once(bot, 'balloon:gameEnd', 4000 + rv2.durationMs + 6000);
-    check(end2.selected === rv2.result.selected && end2.target === 'first', '1등 룰 gameEnd', end2.selected);
+    check(end2.selected === rv2.result.selected && end2.target === 'last' && finishes === rv2.players.length - 1, '꼴등 룰 gameEnd · 도착 N-1명', end2.selected + ' / ' + finishes);
 
     const realErrors = errors.filter(e => !/adsbygoogle|TagError/.test(e));
     check(realErrors.length === 0, '페이지 오류 없음', realErrors.join(' | '));

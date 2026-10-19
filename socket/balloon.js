@@ -16,14 +16,10 @@ const { CREATURES } = deguri;                    // 동물 목록은 데구리�
 // ─── 공유 상수 (js/balloon.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운(데구리와 같음) — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산. 풍선은 마지막 3초 동안 분다
 const RESULT_HOLD_MS = 500;       // 재생 끝(durationMs = 판정 뒤 정지·슬로모 1.6초 포함) 뒤 결과 카드 전 여유
-const ROULETTE_ANIM_MS = 5500;    // 당첨 순위 투표 룰렛 애니메이션 길이 (데구리·경마와 동일)
-const ROULETTE_HOLD_MS = 3000;
-const FALLBACK_HOLD_MS = 3000;    // 투표 없음 — 사유 카드만 보여주는 시간
+const REASON_HOLD_MS = 3000;      // '꼴등을 찾아라!' 안내 카드를 보여주는 시간 — 투표는 없다(2026-10-19 사용자): 늘 꼴등 찾기
 const BALLOON_MIN_PLAYERS = IS_LOCAL_DEV ? 1 : 2;   // 로컬 개발 서버에선 혼자서도 출발(데구리와 같은 규칙)
 const HISTORY_MAX = 100;
 const BALLOON_COLORS = 8;         // 색 풍선 수(클라 BALLOON 팔레트) — colorIdx = 입장 순 % 8
-const VOTE_TARGETS = ['first', 'last'];
-const TARGET_LABEL = { first: '1등', last: '꼴등' };
 const HIGHLIGHT_CODE_SHARE = 0.2;   // Jev 하이라이트: 5판에 1판은 Jev 에 묻지 않고 코드 점수로(반응 비교용 — 데구리와 같은 값, 'Jev' 표시 없음)
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
@@ -31,28 +27,6 @@ function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 function clearTimers(mb) {
     if (mb.revealTimeout) { clearTimeout(mb.revealTimeout); mb.revealTimeout = null; }
     if (mb.endTimeout) { clearTimeout(mb.endTimeout); mb.endTimeout = null; }
-}
-
-// 당첨 순위 투표 → 룰렛 (데구리 decideTarget 과 같은 규칙: 득표 비례 서버 RNG, 표 없으면 꼴등, 몰표면 스핀 생략)
-function decideTarget(mb, participants) {
-    const votes = {};
-    participants.forEach(name => { if (VOTE_TARGETS.includes(mb.rankVotes[name])) votes[name] = mb.rankVotes[name]; });
-    const voters = Object.keys(votes);
-    if (voters.length === 0) return { target: 'last', votes, roulette: null, reason: '아무도 투표하지 않아 기본 꼴등 찾기로 진행됩니다' };
-    const tally = {};
-    voters.forEach(name => { tally[votes[name]] = (tally[votes[name]] || 0) + 1; });
-    const segments = VOTE_TARGETS.filter(t => tally[t]).map(t => ({ target: t, count: tally[t] }));
-    let pick = Math.floor(Math.random() * voters.length);   // 서버 RNG 허용(결과 결정)
-    let winning = segments[segments.length - 1].target;
-    for (const seg of segments) {
-        if (pick < seg.count) { winning = seg.target; break; }
-        pick -= seg.count;
-    }
-    const skipAnim = segments.length === 1;
-    const reason = !skipAnim ? `룰렛 추첨 결과 ${TARGET_LABEL[winning]} 당첨`
-        : voters.length === 1 ? `한 표뿐이라 ${TARGET_LABEL[winning]} 확정`
-        : `투표가 ${TARGET_LABEL[winning]}에만 몰려 ${TARGET_LABEL[winning]} 확정`;
-    return { target: winning, votes, roulette: { segments, winning, animDurationMs: ROULETTE_ANIM_MS, skipAnim }, reason };
 }
 
 function readyNames(gameState) {
@@ -150,17 +124,10 @@ async function startBalloon(room, gameState, io, ctx) {
     mb.participants = participants.slice();
     mb.seed = seed;
 
-    const decision = decideTarget(mb, participants);
-    mb.target = decision.target;
+    mb.target = 'last';
     const holdStartedAt = Date.now();
-    let holdMs;
-    if (decision.roulette) {
-        holdMs = decision.roulette.skipAnim ? FALLBACK_HOLD_MS : ROULETTE_ANIM_MS + ROULETTE_HOLD_MS;
-        io.to(room.roomId).emit('balloon:rouletteStart', { ...decision.roulette, votes: decision.votes, reason: decision.reason });
-    } else {
-        holdMs = FALLBACK_HOLD_MS;
-        io.to(room.roomId).emit('balloon:reasonHold', { target: 'last', reason: decision.reason, durationMs: FALLBACK_HOLD_MS });
-    }
+    const holdMs = REASON_HOLD_MS;
+    io.to(room.roomId).emit('balloon:reasonHold', { target: 'last', reason: '', durationMs: REASON_HOLD_MS });
 
     // 동물 = 고른 것, 안 골랐으면 입장 순 자동 배정. id = 참가자 순번(입장 순) — 동시 도착은 id 순(§10 Q7)
     const seats = ensureSeats(mb, participants, false);   // 대기 화면에서 서 있던 그 좌석에서 출발
@@ -294,7 +261,7 @@ module.exports = (socket, io, ctx) => {
     // 상태 동기화 (server-only 정보 미포함). preview = 대기 화면 출발 자리 + 다음 판 맵(결과와 무관한 배치라 공정성 문제 없음)
     function publicState(gameState) {
         const mb = gameState.balloon;
-        return { phase: mb.phase, picks: { ...mb.picks }, minPlayers: BALLOON_MIN_PLAYERS, votes: { ...mb.rankVotes }, preview: idlePreview(gameState) };
+        return { phase: mb.phase, picks: { ...mb.picks }, minPlayers: BALLOON_MIN_PLAYERS, preview: idlePreview(gameState) };
     }
     // 출발 자리에 서는 사람 = 준비했거나 동물을 고른 사람. 준비 안 한 사람은 dim
     function idlePreview(gameState) {
@@ -336,19 +303,6 @@ module.exports = (socket, io, ctx) => {
         emitState(c.room, c.gameState);
     });
 
-    // 당첨 순위 투표 (준비한 사람, 경주 전) — 같은 칸을 다시 누르면 취소
-    socket.on('balloon:voteRank', (data) => {
-        if (!ctx.checkRateLimit()) return;
-        const c = context();
-        if (!c || !c.user) return;
-        const target = data && data.target;
-        if (!VOTE_TARGETS.includes(target)) { socket.emit('balloon:error', '유효하지 않은 순위입니다!'); return; }
-        if (!(c.gameState.readyUsers || []).includes(c.user.name)) { socket.emit('balloon:error', '먼저 준비를 해주세요!'); return; }
-        if (c.mb.phase === 'playing') { socket.emit('balloon:error', '경주 진행 중에는 투표할 수 없습니다!'); return; }
-        if (c.mb.rankVotes[c.user.name] === target) delete c.mb.rankVotes[c.user.name];
-        else c.mb.rankVotes[c.user.name] = target;
-        io.to(c.room.roomId).emit('balloon:rankVotesUpdated', { votes: { ...c.mb.rankVotes } });
-    });
 
     // 다음 판 준비 (호스트, finished) — 마지막 화면을 걷고 출발 자리로
     socket.on('balloon:reset', () => {
