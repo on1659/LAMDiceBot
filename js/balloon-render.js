@@ -81,16 +81,19 @@
     var BAL_CELL = { w: 96, h: 120, knotX: 48, knotY: 116, bodyW: 88, popCY: 60 };
     var CHUTE = { w: 160, h: 112, rimX: 80, rimY: 108, openW: 150, worldW: 60, lift: 30 };
     var POSE_FPS = { hang: 5, blow: 4, fall: 10 };
-    // 콕 찌르기(docs/goal/balloon-poke.md) — creatures/{동물}-poke.webp 224×160 ×4(줄 토막 꼭대기 = POKE.ax, ay). 칸 시각(초, 찌르기 시작부터): c0 슬쩍 · c1 준비 · c2 콕(R.pokeWind = 터지는 순간) · c3 뿌듯
+    // 콕 찌르기(docs/goal/balloon-poke.md) — creatures/{동물}-poke.webp 224×160 ×4(줄 토막 꼭대기 = POKE.ax, ay). 칸 시각(초, 찌르기 사건부터): c0 슬쩍(사건 POKE_PRE 초 전부터 — 타임라인을 미리 읽는 예고, 결과엔 무관) · c1 준비 · c2 콕(R.pokeWind = 터지는 순간) · c3 뿌듯(end 까지)
     //  props/poke-fx.webp 96 칸 ×8: 0 씨앗 · 1 물줄기 · 2 물 튀김 · 3 콕 번쩍 · 4 콧김 · 5 발톱 휙 · 6 가시 번쩍 · 7 히히 반짝. 동물마다 효과만 다르다(규칙은 같다)
-    var POKE = { w: 224, h: 160, ax: 112, ay: 4, tipX: 208, tipY: 76, swingMax: 1.0, aimK: 0.4, at: [0, 0.12, R.pokeWind, R.pokeWind + 0.22], end: R.pokeWind + 0.55 };   // tip = c2 에서 도구·코·물줄기가 닿는 칸 점(대략)
+    var POKE_PRE = 0.5;   // 예고(초) — 사건 전부터 대상을 노려보고 히히 반짝·대상 풍선 위 ! (사용자 2026-10-20 "순식간이라 눈으로 파악이 안 된다")
+    var POKE = { w: 224, h: 160, ax: 112, ay: 4, tipX: 208, tipY: 76, cx: 112, cy: 85, swingMax: 1.0, at: [-POKE_PRE, 0, R.pokeWind, R.pokeWind + 0.22], end: R.pokeWind + 1.0, missReach: 0.45 };   // tip = c2 에서 도구 끝이 닿는 칸 점(기본, 동물별은 POKE_TIP) · cx, cy = 몸 가운데 칸 점 · end = 뿌듯 1초(0.55 는 눈에 안 들어왔다) · missReach = 헛찌르기는 이만큼만 다가간다(안 닿았으니 안 터지는 게 보이게)
+    var POKE_TIP = { hamster: [177, 80], turtle: [212, 75], pufferfish: [205, 85], hedgehog: [10, 95] };   // 닿는 칸 점이 도구 끝이 아닌 동물 — 햄스터 내민 씨앗 · 거북이 물줄기 끝 · 복어 앞 가시 · 고슴도치 등 바깥(돋아난 가시 끝)
     var POKE_FX = { cell: 96, seed: 0, stream: 1, splash: 2, spark: 3, snort: 4, swoosh: 5, bristle: 6, sly: 7 };
-    // 공격 방식(그림만, 사용자 2026-10-19) — 근접(기본): 터지는 순간 도구 끝이 풍선에 닿게 몸째 당긴다 · burst 가시가 몸 둘레 360도로 퍼져 나가 대상 쪽 가시가 꽂힌다(고슴도치·복어,
-    // 사용자 "가시 하나 발사 말고 360도로 나간다") · throw 씨앗 · squirt 물대포 · roll 몸을 공처럼 말아 굴러가 들이받기(돼지, 데구리 시트 curl·ball·uncurl 줄)
-    var POKE_STYLE = { hedgehog: 'burst', pufferfish: 'burst', hamster: 'throw', turtle: 'squirt', ribbonpig: 'roll' };
-    var POKE_BURST = { n: 12, fly: 0.14, after: 0.16, backN: 7, backSpread: 1.3 };   // 가시 수 · 대상 풍선까지 날아가는 시간(초, 터지는 순간 도착) · 그 뒤 나머지 가시가 더 날아가며 사라지는 시간 · 등 부채꼴 가시 수·반각(rad)
-    var POKE_BACK = { hedgehog: 1 };   // 뒤돌아 가시 난 등을 대상 쪽으로(사용자 "고슴도치는 뒤돌아서 발사") — 가시는 등 쪽 부채꼴
-    var POKE_ROLL = { curl: 0.12, go: 0.2, back: 0.6, end: 0.8, ballR: 56 / 160 };   // 돼지 굴리기 시각(초, 찌르기 시작부터 — 부딪힘 = R.pokeWind) · 공 반지름(칸 비율, manifest ball 112/160)
+    // 공격 방식(그림만, 사용자 2026-10-19 · 10-20 "내가 움직여서 널 터뜨리는 느낌") — 모두 매듭 축으로 몸을 흔들어 터지는 순간 닿는 점(POKE_TIP)이 풍선 가장자리에 닿게 몸째 당긴다(원거리였던 햄스터·거북이·복어도).
+    // 근접(기본, 햄스터는 씨앗을 내밀어) · burst 복어 — 들이받으며 가시가 360도로 퍼진다("가시 하나 말고 360도로") · squirt 거북이 — 머리를 들이밀며 물줄기 · spine 고슴도치 — 등을 돌려 돋아난 등 가시로 · roll 돼지 — 공처럼 말아 굴러가 부딪혀 찌그러진다(데구리 시트 curl·ball·uncurl 줄)
+    var POKE_STYLE = { hedgehog: 'spine', pufferfish: 'burst', turtle: 'squirt', ribbonpig: 'roll' };
+    var POKE_BURST = { n: 12, fly: 0.14, after: 0.16 };   // 복어 — 가시 수 · 대상 풍선까지 날아가는 시간(초, 터지는 순간 도착) · 그 뒤 나머지 가시가 더 날아가며 사라지는 시간
+    var POKE_BACK = { hedgehog: 1 };   // 뒤돌아 가시 난 등을 대상 쪽으로(사용자 "고슴도치는 뒤돌아서")
+    var POKE_SPINE = { n: 7, spread: 1.0, len0: 0.1, len1: 0.34 };   // 고슴도치 — 가시를 날리지 않고 등을 돌린 채 몸을 흔들어 등 가시로 부딪힌다. 돋아나는 가시 수·반각(rad)·길이(몸 S 비율, 흔들기 0 → 1)
+    var POKE_ROLL = { curl: -0.15, go: 0, hold: 0.08, squash: 0.14, back: R.pokeWind + 0.3, end: R.pokeWind + 0.5, ballR: 56 / 160 };   // 돼지 굴리기 시각(초, 찌르기 사건부터) — 예고 끝에 말아(curl) 사건부터 R.pokeWind 까지 굴러가 부딪힌 채 hold 초 머물며 squash 초 동안 납작해졌다 0.3 초 돌아와 0.2 초 펴기 · 공 반지름(칸 비율, manifest ball 112/160)
     var SHEET_ROW = { curl: 1, ball: 2, uncurl: 3 };   // 데구리 동물 시트 줄(deguri.manifest.json animations)
     var GRAVE_WORLD_H = 58;
     var GRAVE_STONE_TOP = 53 / 128, GRAVE_TAG_H = 19;   // gravestone.webp 96×128 의 돌 윗선(그 위는 투명) · 이름표 높이 + 틈 — 이름표를 돌 바로 위에(사용자 2026-10-19)
@@ -471,13 +474,14 @@
                 var inIv = function (list) { for (var q = 0; q < list.length; q++) if (sim >= list[q].a && sim < list[q].b) return true; return false; };
                 v.super = !counting && inIv(p.superIv); v.shield = !counting && inIv(p.shieldIv); v.slow = !counting && inIv(p.slowIv);
                 v.shieldN = 0; for (var sq = 0; sq < p.shieldNs.length && p.shieldNs[sq].t <= sim; sq++) v.shieldN = p.shieldNs[sq].n;   // 방패 개수(겹쳐 먹기)
-                if (!counting && st.st === 'rise') for (var pq = p.pokesBy.length - 1; pq >= 0; pq--) {   // 찌르는 중 — 대상 쪽을 본다
-                    var pkq = p.pokesBy[pq]; if (pkq.t > sim) continue;
-                    if (sim - pkq.t < POKE.end * 1000) { var tp = posAt(pkq.target, sim); v.poke = { since: (sim - pkq.t) / 1000, target: pkq.target, tx: tp.x + tp.lean * R.balTilt, ty: tp.y + BAL_OFF }; v.face = (tp.x >= pos.x ? 1 : -1) * (POKE_BACK[p.creature] ? -1 : 1); }
+                if (!counting && st.st === 'rise') for (var pq = p.pokesBy.length - 1; pq >= 0; pq--) {   // 찌르는 중(예고 POKE_PRE 초 전부터) — 대상 쪽을 본다
+                    var pkq = p.pokesBy[pq]; if (pkq.t - POKE_PRE * 1000 > sim) continue;
+                    if (sim - pkq.t < POKE.end * 1000) { var tp = posAt(pkq.target, sim); v.poke = { since: (sim - pkq.t) / 1000, target: pkq.target, tx: tp.x + tp.lean * R.balTilt, ty: tp.y + BAL_OFF, hit: pkq.hit }; v.face = (tp.x >= pos.x ? 1 : -1) * (POKE_BACK[p.creature] ? -1 : 1); }
                     break;
                 }
                 return v;
             });
+            view.forEach(function (v) { if (v.poke && view[v.poke.target]) view[v.poke.target].poked = true; });   // 찔리는 동물 — 그리기 순서에서 찌르는 쪽 바로 뒤
             var picked = tl.decided && sim >= tl.decided.t ? view[tl.decided.ball] : null;
             // 카메라 — 끌어서 옮긴 수동 카메라는 입력 없이 3초 지나면 자동으로(데구리 MANUAL_IDLE_RETURN_MS)
             if (camMode === 'free' && playing && !paused && !drag && now() - lastInput > MANUAL_IDLE_RETURN_MS) setCam('auto');
@@ -524,7 +528,7 @@
             drawBackground();
             drawWorld(sim, t, clockS, view);
             drawBleachers(tl.rowSpans, function (r) { return tl.rowPrebuilt[r] || !counting ? 1 : csMs / START_BUILD_MS; }, clockS);
-            view.slice().sort(function (a, b) { return ((a.p.name === me) - (b.p.name === me)) || ((a.p === camFocus) - (b.p === camFocus)) || a.y - b.y; }).forEach(function (v) { drawPlayer(v, clockS, picked); });   // 내 동물은 맨 앞, 그다음 카메라가 보는 동물
+            view.slice().sort(function (a, b) { return ((!!a.poke) - (!!b.poke)) || ((a.p.name === me) - (b.p.name === me)) || ((a.p === camFocus) - (b.p === camFocus)) || ((!!a.poked) - (!!b.poked)) || a.y - b.y; }).forEach(function (v) { drawPlayer(v, clockS, picked); });   // 찌르는 동물이 맨 앞(y 순이면 아래에서 찌르는 70% 가 대상 뒤에 깔렸다, 사용자 2026-10-20) → 내 동물 → 카메라가 보는 동물 → 찔리는 동물
             if (!counting && sim < (R.boostJitter + R.boostDur) * 1000) view.forEach(function (v) { drawBoost(v, sim, clockS); });   // 출발 부스터 불꽃 — 동물마다 제각각 터진다(솟는 속도만큼) · 동물·이름표 앞에
             if (picked && rule !== 'first') drawSpotlight(picked, sim);
             drawFx(sim, view);
@@ -1031,36 +1035,35 @@
         }
         // 찌르기 흔들기 — 몸은 풍선보다 한참 아래라 가로로 뻗는 그림이 남의 풍선에 안 닿는다. 풍선 매듭(kx, ky)을 축으로 몸을 대상 풍선(tx, ty) 쪽으로 들어 올려
         // 도구 끝(POKE.tip)이 그 풍선을 향하게 한다(최대 POKE.swingMax). 근접은 그래도 모자라는 만큼 몸째 당겨 터지는 순간 도구 끝이 풍선 가장자리에 닿고(사용자 2026-10-19 "닿는 순간 터지게"),
-        // 원거리(가시·씨앗·물)는 살짝만 겨눈다(aimK). 화면 좌표 → { ax, ay(줄 토막 꼭대기), ang(화면 회전), hx, hy(도구 끝·입) }
-        function pokePose(x, feet, face, kx, ky, tx, ty, u, style) {
-            var S = BODY * s, a0 = cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]);
-            var k = S / SPRITE.size, tx0 = a0[0] + face * (POKE.tipX - POKE.ax) * k, ty0 = a0[1] + (POKE.tipY - POKE.ay) * k;
-            var phi0 = Math.atan2(face * (tx0 - kx), ty0 - ky), phiT = Math.atan2(face * (tx - kx), ty - ky);
-            var e = u < 0.3 ? u / 0.3 : u < 0.5 ? 1 : 1 - (u - 0.5) / (POKE.end - 0.5); e = clamp(e, 0, 1); e = e * e * (3 - 2 * e);
-            var melee = !POKE_STYLE_RANGED[style];
-            var ang = -face * clamp(phiT - phi0, 0, POKE.swingMax) * e * (melee ? 1 : POKE.aimK), c = Math.cos(ang), sn = Math.sin(ang);
+        // 화면 좌표 → { ax, ay(줄 토막 꼭대기), ang(화면 회전), hx, hy(닿는 점), cx, cy(몸 가운데), e(흔들기 진행) }
+        function pokePose(x, feet, face, kx, ky, tx, ty, u, p, miss) {
+            var S = BODY * s, a0 = cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]), spine = POKE_STYLE[p.creature] === 'spine', tip = POKE_TIP[p.creature] || [POKE.tipX, POKE.tipY];
+            var k = S / SPRITE.size, side = spine ? -face : face;   // 고슴도치 등 가시 끝은 얼굴 반대쪽 — 흔드는 방향도 반대
+            var tx0 = a0[0] + face * (tip[0] - POKE.ax) * k, ty0 = a0[1] + (tip[1] - POKE.ay) * k, cx0 = a0[0] + face * (POKE.cx - POKE.ax) * k, cy0 = a0[1] + (POKE.cy - POKE.ay) * k;
+            var phi0 = Math.atan2(side * (tx0 - kx), ty0 - ky), phiT = Math.atan2(side * (tx - kx), ty - ky);
+            var wd = R.pokeWind, hd = wd + 0.2, e = u < wd ? u / wd : u < hd ? 1 : 1 - (u - hd) / (POKE.end - hd); e = clamp(e, 0, 1); e = e * e * (3 - 2 * e);   // 사건 전(예고, u < 0)은 0 = 매달린 자리 그대로
+            var ang = -side * clamp(phiT - phi0, 0, POKE.swingMax) * e, c = Math.cos(ang), sn = Math.sin(ang);
             var rot = function (px, py) { var dx = px - kx, dy = py - ky; return [kx + dx * c - dy * sn, ky + dx * sn + dy * c]; };
-            var A = rot(a0[0], a0[1]), T = rot(tx0, ty0);
-            if (melee) {   // 모자라는 만큼 몸째 당긴다 — e = 1(터지는 순간)에 도구 끝이 풍선 가장자리
-                var gx = tx - T[0], gy = ty - T[1], gd = Math.hypot(gx, gy), rr = R.balloonR * s * 0.7;
-                if (gd > rr) { var m = (1 - rr / gd) * e; A = [A[0] + gx * m, A[1] + gy * m]; T = [T[0] + gx * m, T[1] + gy * m]; }
-            }
-            return { ax: A[0], ay: A[1], ang: ang, hx: T[0], hy: T[1] };
+            var A = rot(a0[0], a0[1]), T = rot(tx0, ty0), B = rot(cx0, cy0);
+            var gx = tx - T[0], gy = ty - T[1], gd = Math.hypot(gx, gy), rr = R.balloonR * s * 0.7;   // 모자라는 만큼 몸째 당긴다 — e = 1(터지는 순간)에 닿는 점이 풍선 가장자리
+            if (gd > rr) { var m = (1 - rr / gd) * e * (miss ? POKE.missReach : 1); A = [A[0] + gx * m, A[1] + gy * m]; T = [T[0] + gx * m, T[1] + gy * m]; B = [B[0] + gx * m, B[1] + gy * m]; }
+            return { ax: A[0], ay: A[1], ang: ang, hx: T[0], hy: T[1], cx: B[0], cy: B[1], e: e };
         }
-        var POKE_STYLE_RANGED = { burst: 1, throw: 1, squirt: 1 };
-        // 돼지 굴리기 — 몸을 말아(curl) 공이 되어 대상 풍선까지 굴러가 R.pokeWind 순간 부딪히고 돌아와 편다(uncurl). → { x, y(공 가운데), spin, row, col, top(줄 잇는 공 꼭대기 y) } | null
-        function pokeRoll(x, feet, face, tx, ty, u) {
+        // 돼지 굴리기 — 몸을 말아(curl) 공이 되어 대상 풍선까지 굴러가 R.pokeWind 순간 부딪혀 진행 방향으로 납작해졌다(sq) 돌아와 편다(uncurl). → { x, y(공 가운데), spin, row, col, top(줄 잇는 공 꼭대기 y), dir(진행 방향), sq(납작 배율) } | null
+        function pokeRoll(x, feet, face, tx, ty, u, miss) {
             if (u < POKE_ROLL.curl || u >= POKE_ROLL.end) return null;
             var S = BODY * s, br = POKE_ROLL.ballR * S, hx0 = x, hy0 = feet - S * 0.42;   // 매달린 몸 가운데
-            var dx = tx - hx0, dy = ty - hy0, d = Math.hypot(dx, dy) || 1, reach = Math.max(0, d - br - R.balloonR * s * 0.8);
-            var hitX = hx0 + dx / d * reach, hitY = hy0 + dy / d * reach, k = 0, row = SHEET_ROW.ball, col;
+            var dx = tx - hx0, dy = ty - hy0, d = Math.hypot(dx, dy) || 1, reach = Math.max(0, d - br - R.balloonR * s * 0.8) * (miss ? POKE.missReach : 1);
+            var hitX = hx0 + dx / d * reach, hitY = hy0 + dy / d * reach, k = 0, row = SHEET_ROW.ball, col, hit = u - R.pokeWind, sq = 1;
             if (u < POKE_ROLL.go) { row = SHEET_ROW.curl; col = Math.min(3, Math.floor((u - POKE_ROLL.curl) / (POKE_ROLL.go - POKE_ROLL.curl) * 4)); }
             else if (u < R.pokeWind) k = (u - POKE_ROLL.go) / (R.pokeWind - POKE_ROLL.go);
-            else if (u < POKE_ROLL.back) { var b = (u - R.pokeWind) / (POKE_ROLL.back - R.pokeWind); k = 1 - b * b; }
+            else if (hit < POKE_ROLL.hold) k = 1;   // 부딪힌 채 잠깐
+            else if (u < POKE_ROLL.back) { var b = (hit - POKE_ROLL.hold) / (POKE_ROLL.back - R.pokeWind - POKE_ROLL.hold); k = 1 - b * b; }
             else { row = SHEET_ROW.uncurl; col = Math.min(3, Math.floor((u - POKE_ROLL.back) / (POKE_ROLL.end - POKE_ROLL.back) * 4)); }
             if (col == null) col = Math.floor(u * 24) % 4;
             var px = hx0 + (hitX - hx0) * k, py = hy0 + (hitY - hy0) * k;
-            return { x: px, y: py, spin: row === SHEET_ROW.ball ? face * (u - POKE_ROLL.go) * 22 : 0, row: row, col: col, top: py - br };
+            if (!miss && hit >= 0 && hit < POKE_ROLL.squash) sq = 1 - 0.3 * (1 - hit / POKE_ROLL.squash);   // 부딪히는 순간 진행 방향으로 납작(헛찌르기는 안 닿았으니 그대로)
+            return { x: px, y: py, spin: row === SHEET_ROW.ball ? face * (u - POKE_ROLL.go) * 22 : 0, row: row, col: col, top: py - br, dir: Math.atan2(dy, dx), sq: sq };
         }
         function pokeFrame(since) { var f = 0; for (var i = 1; i < POKE.at.length; i++) if (since >= POKE.at[i]) f = i; return f; }
         // 칸 안 점(cx, cy) → 화면 점
@@ -1109,17 +1112,17 @@
                 ctx.beginPath(); ctx.lineWidth = 3.5; ctx.strokeStyle = C.hand; ctx.moveTo(shx, shy); ctx.lineTo(x + hd[0], cy + hd[1]); ctx.stroke();
             });
         }
-        // 내 동물 = 금색 실선 테두리(데구리처럼 또렷하게, 사용자 2026-10-18 "너무 안 보임") · 카메라가 보는 다른 동물 = 노란 빛 테두리
+        // 내 동물 = 금색 실선 테두리(데구리처럼 또렷하게, 사용자 2026-10-18 "너무 안 보임") · 카메라가 보는 다른 동물 = 노란 빛 테두리 · 찌르는 동물 = 빨간 빛(사용자 2026-10-20 "공격이 안 보인다")
         var OUTLINE_PX = 2.5, MINE_OUTLINE = '#ffc928';
         var canFilter = typeof ctx.filter === 'string';
         function drawPlayer(v, clockS, picked) {
-            var mine = me && v.p.name === me, glow = !mine && mode === 'play' && camFocus && v.p === camFocus;
-            if (!mine && !glow) { drawPlayerBody(v, clockS, picked); return; }
+            var mine = me && v.p.name === me, poke = !mine && mode === 'play' && !!v.poke, glow = !mine && !poke && mode === 'play' && camFocus && v.p === camFocus;
+            if (!mine && !glow && !poke) { drawPlayerBody(v, clockS, picked); return; }
             ctx.save();
             if (mine && canFilter) {   // 그림 둘레를 네 방향으로 밀어 찍은 그림자 = 실선 테두리
                 var o = OUTLINE_PX + 'px', c = MINE_OUTLINE;
                 ctx.filter = 'drop-shadow(' + o + ' 0 0 ' + c + ') drop-shadow(-' + o + ' 0 0 ' + c + ') drop-shadow(0 ' + o + ' 0 ' + c + ') drop-shadow(0 -' + o + ' 0 ' + c + ')';
-            } else { ctx.shadowColor = mine ? MINE_OUTLINE : 'rgba(255,240,150,1)'; ctx.shadowBlur = mine ? 6 : 12; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; }   // 필터를 못 쓰는 브라우저는 진한 빛으로
+            } else { ctx.shadowColor = poke ? C.warn : mine ? MINE_OUTLINE : 'rgba(255,240,150,1)'; ctx.shadowBlur = poke ? 16 : mine ? 6 : 12; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; }   // 필터를 못 쓰는 브라우저는 진한 빛으로
             drawPlayerBody(v, clockS, picked);
             ctx.restore();
         }
@@ -1146,13 +1149,13 @@
                 var hs = st === 'shock' ? poseSheet(p, 'fall') : poseSheet(p, 'hang');
                 var anc = st === 'shock' ? cellPt(x, feet, S, face, 80, 28) : cellPt(x, feet, S, face, HANG_ANCHOR[0], HANG_ANCHOR[1]);
                 var pstyle = v.poke && st === 'rise' && !lift ? POKE_STYLE[p.creature] || 'melee' : null;
-                var roll = pstyle === 'roll' && ok(main) ? pokeRoll(x, feet, face, sx(v.poke.tx), sy(v.poke.ty), v.poke.since) : null;   // 돼지 — 공이 되어 굴러간다
+                var roll = pstyle === 'roll' && ok(main) ? pokeRoll(x, feet, face, sx(v.poke.tx), sy(v.poke.ty), v.poke.since, !v.poke.hit) : null;   // 돼지 — 공이 되어 굴러간다
                 var ps = pstyle && !roll ? poseSheet(p, 'poke') : null;   // 찌르기 — 매달림 줄·기울기 대신 매듭을 축으로 휙 흔든 자리에(pokePose)
-                var pg = ps ? pokePose(x, feet, face, bx, knotY, sx(v.poke.tx), sy(v.poke.ty), v.poke.since, pstyle) : null;
+                var pg = ps ? pokePose(x, feet, face, bx, knotY, sx(v.poke.tx), sy(v.poke.ty), v.poke.since, p, !v.poke.hit) : null;
                 if (roll) stringTo(roll.x, roll.top, bx, knotY, 0); else if (pg) stringTo(pg.ax, pg.ay, bx, knotY, 0); else stringTo(anc[0], anc[1], bx, knotY, (bx - anc[0]) * 0.2 + 3 * s);
                 drawBalloonAt(v, bx, knotY, 1, blink * (p.dim ? 0.45 : 1));
                 ctx.save();
-                if (roll) { ctx.translate(roll.x, roll.y); ctx.rotate(roll.spin); ctx.translate(-roll.x, -roll.y); cellTo(main, roll.col, roll.row, roll.x, roll.y + S / 2, S, face); }   // 공 가운데 = 칸 (80, 80)
+                if (roll) { ctx.translate(roll.x, roll.y); ctx.rotate(roll.dir); ctx.scale(roll.sq, 1 / roll.sq); ctx.rotate(roll.spin - roll.dir); ctx.translate(-roll.x, -roll.y); cellTo(main, roll.col, roll.row, roll.x, roll.y + S / 2, S, face); }   // 공 가운데 = 칸 (80, 80) · 부딪히면 진행 방향으로 납작
                 else if (pg) pokeCellTo(ps, pokeFrame(v.poke.since), pg.ax, pg.ay, S, face, pg.ang);
                 else {
                     ctx.translate(anc[0], anc[1]); ctx.rotate(st === 'shock' ? Math.sin(clockS * 40) * 0.06 : rot); ctx.translate(-anc[0], -anc[1]);
@@ -1235,11 +1238,11 @@
             ctx.beginPath(); ctx.roundRect(x - tw / 2, ty - 8, tw, 16, 8); ctx.fill(); ctx.stroke();
             ctx.fillStyle = C.tagInk; ctx.fillText(label, x, ty + 0.5);
         }
-        function drawExclaim(x, y, clockS) {   // 놀람 "!" — 머리 위에서 톡 튄다
+        function drawExclaim(x, y, clockS, fill, ink) {   // 놀람 "!" — 머리 위에서 톡 튄다. 색을 주면 그 색(찌르기 예고는 노란 '오! 기회다')
             var pop = 1 + 0.25 * Math.abs(Math.sin(clockS * 18));
             ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop);
-            ctx.fillStyle = C.warn; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = C.warnInk; ctx.font = '900 15px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 1);
+            ctx.fillStyle = fill || C.warn; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = ink || C.warnInk; ctx.font = '900 15px Pretendard, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 1);
             ctx.restore();
         }
         // 비석 — 착지 자리에 위에서 떨어져 박히고(graveDrop), 동물은 그 앞에 어질어질 앉는다(기본 시트 row 4 c3)
@@ -1348,37 +1351,43 @@
             ctx.restore();
         }
         function drawPokeFx(p, a, b, q, u) {
-            if (u < 0 || u > POKE.end || !a || !b) return;
+            if (u < -POKE_PRE || u > POKE.end || !a || !b) return;
             var S = BODY * s, face = (b.x >= a.x ? 1 : -1) * (POKE_BACK[p.creature] ? -1 : 1), hit = u - R.pokeWind;   // hit = 터지는 순간 뒤 초(음수 = 아직) · face = 그림이 보는 쪽(고슴도치는 등을 돌린다)
             var tx = sx(b.x + b.wind * R.balTilt), ty = sy(b.y + BAL_OFF);   // 대상 풍선
             var style = POKE_STYLE[p.creature] || 'melee', sz = 26 * s;
-            var pg = pokePose(sx(a.x), sy(a.y), face, sx(a.x + a.wind * R.balTilt), sy(a.y + BAL_OFF) + R.balloonR * 1.15 * s, tx, ty, u, style), hx = pg.hx, hy = pg.hy;   // 흔든 도구 끝(그림과 같은 식)
-            if (u < 0.16) pokeFx(POKE_FX.sly, sx(a.x) - face * S * 0.3, sy(a.y) - S * 1.05, 18 * s, 18 * s, 1 - u / 0.16);   // 히히 — 슬쩍 보는 순간
-            if (style === 'burst') {   // 가시가 몸 둘레로 한꺼번에 퍼져 나간다 — 대상 쪽 가시가 터지는 순간 풍선에 닿고, 나머지는 같은 빠르기로 더 날아가며 사라진다
-                var bcx = sx(a.x), bcy = sy(a.y) - S * 0.5, dist = Math.hypot(tx - bcx, ty - bcy), a0 = Math.atan2(ty - bcy, tx - bcx);
+            var pg = pokePose(sx(a.x), sy(a.y), face, sx(a.x + a.wind * R.balTilt), sy(a.y + BAL_OFF) + R.balloonR * 1.15 * s, tx, ty, u, p, !q.hit), hx = pg.hx, hy = pg.hy;   // 흔든 도구 끝(그림과 같은 식)
+            if (u < 0.1) pokeFx(POKE_FX.sly, sx(a.x) - face * S * 0.3, sy(a.y) - S * 1.05, 26 * s, 26 * s, u < 0 ? 1 : 1 - u / 0.1);   // 히히 — 예고 내내 슬쩍 보다가 준비에 들어가며 사라진다
+            if (hit < 0 && !(style === 'roll' && u >= POKE_ROLL.go)) drawExclaim(pg.ax + face * S * 0.45, pg.ay - 6 * s, u, C.tagMe, C.tagInk);   // 찌르는 쪽 머리 앞 노란 ! '오! 기회다'(사용자 2026-10-20 "받는 쪽이 아니라 쏘는 쪽에") — 예고부터 터지는 순간까지, 흔든 자리(pg)를 따라간다. 톡톡 박자는 시뮬 시각이라 되감기·GIF 도 같다
+            if (style === 'burst') {   // 복어 — 들이받는 몸(pg.cx, cy)에서 가시가 둘레로 한꺼번에 퍼져 나간다 — 대상 쪽 가시가 터지는 순간 풍선에 닿고, 나머지는 같은 빠르기로 더 날아가며 사라진다
+                var bcx = pg.cx, bcy = pg.cy, dist = Math.hypot(tx - bcx, ty - bcy), a0 = Math.atan2(ty - bcy, tx - bcx);
                 var fk = (hit + POKE_BURST.fly) / POKE_BURST.fly;   // 0 = 쏘는 순간, 1 = 닿는 순간
                 if (fk >= -0.3 && fk < 0.6) pokeFx(POKE_FX.bristle, bcx, bcy, S * 1.3, S * 1.3, 1 - Math.max(0, fk) / 0.6);
                 if (fk >= 0 && hit < POKE_BURST.after) {
-                    var al = hit > 0 ? 1 - hit / POKE_BURST.after : 1;
-                    var back = POKE_BACK[p.creature], nn = back ? POKE_BURST.backN : POKE_BURST.n;
-                    for (var ni = 0; ni < nn; ni++) {   // 0번 = 대상 쪽. 등 부채꼴은 대상 방향 ±backSpread
-                        var na = a0 + (back ? (ni % 2 ? 1 : -1) * Math.ceil(ni / 2) * POKE_BURST.backSpread / Math.floor(nn / 2) : ni * Math.PI * 2 / nn), nd = S * 0.35 + (dist - S * 0.35) * fk;
+                    var al = hit > 0 ? 1 - hit / POKE_BURST.after : 1, nn = POKE_BURST.n;
+                    for (var ni = 0; ni < nn; ni++) {   // 0번 = 대상 쪽
+                        var na = a0 + ni * Math.PI * 2 / nn, nd = S * 0.35 + (dist - S * 0.35) * fk;
                         if (ni === 0 && hit > 0) continue;   // 꽂힌 가시는 풍선과 함께 사라진다
                         ctx.globalAlpha = al; drawNeedle(bcx + Math.cos(na) * nd, bcy + Math.sin(na) * nd, na, 11 * s); ctx.globalAlpha = 1;
                     }
                 }
-            } else if (style === 'throw') {
-                if (hit >= -0.12 && hit < 0) { var k = (hit + 0.12) / 0.12; pokeFx(POKE_FX.seed, hx + (tx - hx) * k, hy + (ty - hy) * k - Math.sin(k * Math.PI) * 10 * s, 14 * s, 14 * s, 1, face); }
-            } else if (style === 'squirt') {
-                if (hit >= -0.1 && hit < 0.18) {
-                    var len = Math.hypot(tx - hx, ty - hy) * clamp((hit + 0.1) / 0.1, 0, 1);
-                    ctx.save(); ctx.translate(hx, hy); ctx.rotate(Math.atan2(ty - hy, tx - hx)); ctx.globalAlpha = hit > 0.08 ? 1 - (hit - 0.08) / 0.1 : 1;
-                    ctx.drawImage(BP('poke-fx'), POKE_FX.stream * POKE_FX.cell, 0, POKE_FX.cell, POKE_FX.cell, 0, -9 * s, len, 18 * s); ctx.restore(); ctx.globalAlpha = 1;
+            } else if (style === 'spine') {   // 고슴도치 — 흔들수록(pg.e) 등에서 가시가 길게 돋아나 터지는 순간 가장 길고, 돌아오며 들어간다. 몸 가운데(cx, cy)에서 등 가시 끝(hx, hy) 쪽 부채꼴
+                if (pg.e > 0.03) {
+                    var dir = Math.atan2(pg.hy - pg.cy, pg.hx - pg.cx), rad = Math.hypot(pg.hx - pg.cx, pg.hy - pg.cy) * 0.55, L = S * (POKE_SPINE.len0 + (POKE_SPINE.len1 - POKE_SPINE.len0) * pg.e);
+                    for (var si = 0; si < POKE_SPINE.n; si++) {
+                        var sa = dir + (si - (POKE_SPINE.n - 1) / 2) * POKE_SPINE.spread * 2 / (POKE_SPINE.n - 1), bx0 = pg.cx + Math.cos(sa) * rad, by0 = pg.cy + Math.sin(sa) * rad;
+                        drawNeedle(bx0 + Math.cos(sa) * L / 2, by0 + Math.sin(sa) * L / 2, sa, L);
+                    }
+                }
+            } else if (style === 'squirt') {   // 거북이 — 머리를 들이밀며 입(닿는 점과 몸 가운데 사이)에서 굵은 물줄기가 hit -0.12 ~ +0.2 초 대상 풍선까지
+                if (hit >= -0.12 && hit < 0.2) {
+                    var mx = hx + (pg.cx - hx) * 0.45, my = hy + (pg.cy - hy) * 0.45, len = Math.hypot(tx - mx, ty - my) * clamp((hit + 0.12) / 0.08, 0, 1);
+                    ctx.save(); ctx.translate(mx, my); ctx.rotate(Math.atan2(ty - my, tx - mx)); ctx.globalAlpha = hit > 0.1 ? 1 - (hit - 0.1) / 0.1 : 1;
+                    ctx.drawImage(BP('poke-fx'), POKE_FX.stream * POKE_FX.cell, 0, POKE_FX.cell, POKE_FX.cell, 0, -11 * s, len, 22 * s); ctx.restore(); ctx.globalAlpha = 1;
                 }
                 if (q.hit && hit >= 0 && hit < 0.3) pokeFx(POKE_FX.splash, tx, ty, sz * 1.3, sz * 1.3, 1 - hit / 0.3);
                 return;
             } else if (p.creature === 'armadillo' && hit >= -0.04 && hit < 0.22) pokeFx(POKE_FX.swoosh, tx - face * 6 * s, ty, 26 * s, 26 * s, 1 - Math.max(0, hit) / 0.22, face);   // 발톱 휙
-            if (q.hit && hit >= 0 && hit < 0.25) pokeFx(POKE_FX.spark, tx, ty, sz * (1 + hit * 2), sz * (1 + hit * 2), 1 - hit / 0.25);   // 맞힌 자리 번쩍(헛찌르기는 없음)
+            if (q.hit && hit >= 0 && hit < 0.35) pokeFx(POKE_FX.spark, tx, ty, sz * (1.3 + hit * 2), sz * (1.3 + hit * 2), 1 - hit / 0.35);   // 맞힌 자리 번쩍(헛찌르기는 없음) — 조금 크고 길게
         }
         // 들보 부딪힘 — 밑면에서 먼지 연기(데구리 dust-puff 80×80 ×4)가 양옆으로 퍼지고 나무 부스러기가 튀어 떨어진다. 부서지면 들보 길이 전체에서 크게
         function drawBeamFx(f, k) {

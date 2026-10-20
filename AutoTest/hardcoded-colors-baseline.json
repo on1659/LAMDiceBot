@@ -200,7 +200,7 @@
   "gl.addColorStop(0, 'rgba(255,240,150,0.7)'); gl.addColorStop(1, 'rgba(255,240,150,0)');\u0000rgba(255,240,150,0.7)": 1,
   "gl.addColorStop(0, 'rgba(255,240,150,0.7)'); gl.addColorStop(1, 'rgba(255,240,150,0)');\u0000rgba(255,240,150,0)": 1,
   "var OUTLINE_PX = 2.5, MINE_OUTLINE = '#ffc928';\u0000#ffc928": 1,
-  "} else { ctx.shadowColor = mine ? MINE_OUTLINE : 'rgba(255,240,150,1)'; ctx.shadowBlur = mine ? 6 : 12; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; }\u0000rgba(255,240,150,1)": 1,
+  "} else { ctx.shadowColor = poke ? C.warn : mine ? MINE_OUTLINE : 'rgba(255,240,150,1)'; ctx.shadowBlur = poke ? 16 : mine ? 6 : 12; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; }\u0000rgba(255,240,150,1)": 1,
   "else { ctx.strokeStyle = 'rgba(120,200,255,0.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, cy, r * 0.9, 0, Math.PI * 2); ctx.stroke(); }\u0000rgba(120,200,255,0.9)": 1,
   "ctx.fillStyle = '#3db4f2'; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(lx - lw / 2, ly - 8, lw, 16, 8); ctx.fill(); ctx.stroke();\u0000#3db4f2": 1,
   "ctx.fillStyle = '#ffffff'; ctx.fillText(lab, lx, ly + 0.5);\u0000#ffffff": 1,
