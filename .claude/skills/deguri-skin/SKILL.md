@@ -16,7 +16,8 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 | 항목 | 값 |
 |---|---|
 | 동물 id | hedgehog armadillo pillbug turtle panda hamster pufferfish raccoon rabbit **ribbonpig(=돼지)** |
-| 시트 이름 | `{creature}-{skin}` (+ `-sleep`, `-scuffle`) → `assets/deguri/creatures/*.webp` |
+| 시트 이름 | `{creature}-{skin}` (+ `-sleep`, `-scuffle`, `-walk`) → `assets/deguri/creatures/*.webp` |
+| 스킨 하나 = 그림 8장 | 데구리 4장(기본·잠·몸싸움·걷기 — 1-A/1-B, 1-C) + 둥둥라이더 자세 4장 `assets/balloon/creatures/{creature}-{skin}-{hang,blow,fall,poke}.webp`(1-D). 자세가 없으면 둥둥라이더에서 매달려 올라가는 동안 스킨이 벗겨져 기본 동물로 보인다(사용자 2026-10-18) |
 | 카탈로그 id | `deguri_skin_{creature}_{skin}` (`config/deguri/cosmetics.json` 의 `deguri_skin` 배열 끝에) |
 | 등급·가격 | common 30 · rare 50 · epic 100 · legend 150 (카탈로그 `rarity` 는 `common`/`rare`/`epic`/`legend`). 매기는 법은 아래 **등급 기준** |
 | 방식 | 색만 바뀌면 **리컬러**(토큰 0) — 단, 색만 바꾼 건 밋밋하다는 피드백(2026-09-30 레드 돼지)이라 레어도 리컬러 + 작은 특징(`--ref` 덧그리기)을 먼저 제안. 의상·변신이면 **GPT 생성** |
@@ -112,6 +113,36 @@ SpriteMake 배치 폴더 쓰기·Codex 실행은 **샌드박스 해제**가 필�
 - 깡충 뛰는 동물(토끼 — `GAIT_HOP`)은 4칸이 한 번 뜀(웅크림 · 박차기 · 공중 · 착지)이고 몸이 늘 낮고 수평이어야 한다. "두 번 뛰되 다른 자세로"라고 의뢰하면 엎드린 자세와 선 자세가 섞인다. 렌더러 쪽 목록은 `js/deguri-render.js` `HOP_GAIT`.
 - 새 **기본 동물**이면 `walk-sheet.py` 의 `BASES`·`FRAMES`(걸음 설명: 두 발 / 네 발 / 그 동물만의 이동)에 먼저 추가한다.
 
+## 1-D. 둥둥라이더 자세 4장 (2026-10-18~19 부터 필수)
+
+둥둥라이더(`js/balloon-render.js` `poseSheet`)는 `assets/balloon/creatures/{creature}-{skin}-{kind}.webp` 를 먼저 찾고 없으면 기본 동물 자세를 쓴다. 파일 이름으로만 찾으니 **코드·`ASSET_VER` 수정 없음**(새 파일). 도구는 `AutoTest/spritemake/balloon-sheet.py`, 규격·채택 기록은 `docs/spritemake-request/2026-10-18-balloon-sprites.md`.
+
+| kind | 칸 | 그림 | 기준 |
+|---|---|---|---|
+| hang | 160×160 × 4 | 두 앞발로 풍선 끈 끝을 쥐고 둥실 — c0 가만 · c1 다리 앞 · c2 가만 · c3 다리 뒤 | 끈 토막 꼭대기 = (80, 4). 낙하산도 이 그림 |
+| blow | 160×160 × 4 | 땅에 서서 분홍 꼭지를 입에 대고 분다(풍선은 안 그림) — c0 들이쉼 · c1 볼 빵빵 · c2 들이쉼 · c3 더 빵빵 | 발바닥선 150, 윗몸 중심 x = 서기 |
+| fall | 160×160 × 4 | c0 깜짝 놀람 · c1~c3 허우적 낙하 | 몸 bbox 가운데 (80, 82) |
+| poke | **224**×160 × 4 | 매달린 채 동물마다 다른 공격(`ATTACK` — 돼지는 코로 툭) — c0 옆눈 · c1 준비 · c2 콕 · c3 뿌듯 | 끈 토막 꼭대기 = (112, 4) |
+
+```bash
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py skin-kind <creature> <skin>      # recolor | remap | pixelate | dress
+# recolor·remap·pixelate: GPT 없이 4장 바로 → assets/balloon/creatures/
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py <recolor|remap|pixelate> <creature> <skin>
+# dress(옷·소품이 있는 스킨): kind 마다 배치 → Codex(샌드박스 해제·백그라운드, 4개 병렬 ~50분) → 리팩 → 판정 → 인수
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py scaffold-skin <creature> <skin> <kind> [date]   # SpriteMake/output/balloon-<kind>-<date>/<creature>-<skin>/
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py repack <creature>-<skin> <kind> <attempt> [date]   # → final/<look>-<kind>.png + verify
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py pickup <creature>-<skin> <kind> [date] [--allow-fail]
+/opt/homebrew/bin/python3 AutoTest/spritemake/balloon-sheet.py strip-skins <scratch>/poses.png <creature>-<skin>   # 스킨 서기 4칸 | hang | blow | fall 한 줄
+```
+
+- 1번 입력 = 기본 동물 자세 시트, 2번 입력 = 스킨 main 시트. 자세는 그대로 두고 옷만 같은 디자인으로 입힌다 → **main 시트를 인수한 뒤에** 돌린다.
+- 리컬러 프리셋이 있어도 서기 시트에 덧그린 장식이 있으면(레드 돼지 머리 위 불꽃) `skin-kind` 가 recolor 라고 해도 **dress** 로 돌린다 — 색만 바꾸면 장식이 빠진다.
+- 판정: `strip-skins` 그림 + poke 시트를 확대해 칸마다 옷·장식이 다 있는지, 기본 동물 색·무늬가 남지 않았는지(부캉복 fall 1번은 노란 기본 복어 그대로), 오른쪽을 보는지 본다.
+- 자주 나온 불량: 끈 쥔 앞발이 빠짐(poke·hang) · 꼭지가 칸 경계를 넘음(blow) · 돼지 poke 가 앞발을 안 들고 누운 자세(리본돼지 스킨 7종 중 7종 1번 불합격 — 2번 채택) → 다음 attempt 로.
+- `끈 토막이 얇지 않음`(폭 13~32) 경고는 앞발이 꼭대기 4px 안에 닿은 것 — 그림이 정상이면 `--allow-fail`. GPT 가 끈 토막을 빼먹은 칸은 그림 꼭대기(앞발)가 기준점이 되므로 그대로 받는다.
+- 너구리는 끈 문구가 이미지 도구 안전 검사에 막힌다 → `NO_ROPE`(끈 없이 두 팔 만세 / 한 팔 만세 · 포크로 콕). 너구리 스킨 프롬프트의 "string stub" 문구도 같은 표현으로 바꿔 돌린다.
+- 투명 대신 체크무늬 바탕을 그리면 `remove_checker()` 가 먼저 지운다(판다 꿀곰 blow).
+
 ## 2. 인수 뒤 최종 검증 (게임 파일 기준)
 
 ```bash
@@ -134,11 +165,12 @@ for k in "" -sleep -scuffle; do dwebp -quiet assets/deguri/creatures/<sheet>$k.w
 
 ## 4. 동작 확인
 
-1. 카탈로그 → 시트 존재: `node -e` 로 `deguri_skin` 의 creature/skin 마다 webp 4장(기본·`-sleep`·`-scuffle`·`-walk`) 존재 확인.
+1. 카탈로그 → 시트 존재: `node -e` 로 `deguri_skin` 의 creature/skin 마다 webp 8장 — `assets/deguri/creatures/` 4장(기본·`-sleep`·`-scuffle`·`-walk`) + `assets/balloon/creatures/` 4장(`-hang`·`-blow`·`-fall`·`-poke`) — 존재 확인.
 2. **서버 재시작 필요**(카탈로그는 `socket/deguri.js` 가 시작 때 require) — preview_start `dev-5174` 로 새로 띄우고
    `node AutoTest/qa-deguri-skin-shop-test.js 5174` → `✅ ALL PASS`.
 3. 렌더러: `http://localhost:5174/game-lab/deguri-preview.html` 에서 `data.balls` 의 creature/skin 을 바꿔 `R.setTimeline` → `R.render` 여러 번(카메라 안정) → 구르는 공 주변을 잘라 확대해 **링 안이 차는지**, network 에서 새 시트 `200` 확인.
-4. 쇼케이스(시트 3장 + 28px 공) 한 장을 만들어 SendUserFile 로 사용자에게 보인다.
+4. 둥둥라이더: `http://localhost:5174/game-lab/balloon-preview.html` 에서 그 스킨으로 매달림·찌르기·떨어짐 장면을 보고, network 에서 `balloon/creatures/<sheet>-*.webp` 가 `200` 인지(404 면 기본 동물로 그려진다).
+5. 쇼케이스(시트 3장 + 걷기 + 둥둥라이더 자세 4장 + 28px 공) 한 장을 만들어 SendUserFile 로 사용자에게 보인다.
 
 ## 5. 커밋·배포
 

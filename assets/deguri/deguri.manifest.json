@@ -6986,5 +6986,500 @@
       }
     },
     "importedFrom": "단독판 deguri 저장소 1884967(assets/marble/creatures) → LAMDice assets/deguri/creatures 그대로 복사, 2026-10-15 사용자 \"deguri 프로젝트에서 옷장 가져와봐\""
+  },
+  "skinRibbonpigBrewmaster": {
+    "batch": "deguri-skin-ribbonpig-brewmaster-2026-10-20",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-20-deguri-skin-wow-fan.md",
+    "note": "main a01·sleep a01·scuffle a02. 서기 r0c3 폭 135(삿갓) — 기본 돼지 r3c2 136 과 같은 수준이라 허용",
+    "assets": {
+      "ribbonpig-brewmaster": {
+        "image": "creatures/ribbonpig-brewmaster.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-brewmaster.webp",
+        "md5": "0b967c84df5c596736f142f4a92f080b",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-brewmaster-sleep": {
+        "image": "creatures/ribbonpig-brewmaster-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-brewmaster-sleep.webp",
+        "md5": "59857377f8047f2be011e7a44057022d",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-brewmaster-scuffle": {
+        "image": "creatures/ribbonpig-brewmaster-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-brewmaster-scuffle.webp",
+        "md5": "29875bfa0fbbeeceb246e0f11db63676",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigFrostknight": {
+    "batch": "deguri-skin-ribbonpig-frostknight-2026-10-20",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-20-deguri-skin-wow-fan.md",
+    "note": "main·sleep·scuffle 전부 a01, 보정 없음",
+    "assets": {
+      "ribbonpig-frostknight": {
+        "image": "creatures/ribbonpig-frostknight.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-frostknight.webp",
+        "md5": "c9fa965d2d83caec599df8bef62021f5",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-frostknight-sleep": {
+        "image": "creatures/ribbonpig-frostknight-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-frostknight-sleep.webp",
+        "md5": "ae01bca5b4c2bfbef5feb2bcd1eb8501",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-frostknight-scuffle": {
+        "image": "creatures/ribbonpig-frostknight-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-frostknight-scuffle.webp",
+        "md5": "4e1397b63ecd251a8c21e8c8996b7ffe",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigOrc": {
+    "batch": "deguri-skin-ribbonpig-orc-2026-10-20",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-20-deguri-skin-wow-fan.md",
+    "note": "전부 a01. 공이 상투 때문에 NOT ROUND(최소 반지름 37) → ball-round.py fix --recenter(몸통 지름 112·중심 80,80, 상투는 링 밖) — ballGeometry 는 의도된 예외",
+    "assets": {
+      "ribbonpig-orc": {
+        "image": "creatures/ribbonpig-orc.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-orc.webp",
+        "md5": "5d91246a7cd89a03b28286d05cb19ef0",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-orc-sleep": {
+        "image": "creatures/ribbonpig-orc-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-orc-sleep.webp",
+        "md5": "020f4b3d83f9d08db1fdcc8cda6d9670",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-orc-scuffle": {
+        "image": "creatures/ribbonpig-orc-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-orc-scuffle.webp",
+        "md5": "73768ffe60f581ac0e0b58d7791cfc87",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinTurtleBeer": {
+    "batch": "deguri-skin-turtle-beer-2026-10-20",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-20-deguri-skin-wow-fan.md",
+    "note": "main a02·sleep a01·scuffle a01. green rim 은 거북 피부색(기본 거북 74.8%)",
+    "assets": {
+      "turtle-beer": {
+        "image": "creatures/turtle-beer.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/turtle-beer.webp",
+        "md5": "8f8c222c7cd065b31d3b386fbe67f430",
+        "qaStatus": "PASS"
+      },
+      "turtle-beer-sleep": {
+        "image": "creatures/turtle-beer-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/turtle-beer-sleep.webp",
+        "md5": "dc91893420b1f824c5f6d7c508884c3a",
+        "qaStatus": "PASS"
+      },
+      "turtle-beer-scuffle": {
+        "image": "creatures/turtle-beer-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/turtle-beer-scuffle.webp",
+        "md5": "a62e483118fed5425de8149e0ffcd317",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaGourd": {
+    "batch": "deguri-skin-panda-gourd-2026-10-20",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-20-deguri-skin-wow-fan.md",
+    "note": "main a02·sleep a01·scuffle a02. 서기 r0c2 높이 136('!' 표시) — 기본 판다 138 과 같아 허용",
+    "assets": {
+      "panda-gourd": {
+        "image": "creatures/panda-gourd.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/panda-gourd.webp",
+        "md5": "bb3e14d6b8848de1bd1527d01549e641",
+        "qaStatus": "PASS"
+      },
+      "panda-gourd-sleep": {
+        "image": "creatures/panda-gourd-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-gourd-sleep.webp",
+        "md5": "3c81e800029b935ab858e8accc635899",
+        "qaStatus": "PASS"
+      },
+      "panda-gourd-scuffle": {
+        "image": "creatures/panda-gourd-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-gourd-scuffle.webp",
+        "md5": "52c7ec36f1344fcd0628d20a6a76a9bb",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

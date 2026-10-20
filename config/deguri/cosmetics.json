@@ -81,7 +81,12 @@
     {"id": "deguri_skin_hedgehog_meringue", "name": "머랭도치", "displayName": "머랭도치", "rarity": "rare", "emoji": "🍓", "price": 50, "creature": "hedgehog", "skin": "meringue", "desc": "2026-10-18 오늘의 스킨 머랭도치. 고슴도치를 고르면 적용돼요."},
     {"id": "deguri_skin_armadillo_mummy", "name": "미라딜로", "displayName": "미라딜로", "rarity": "epic", "emoji": "🩹", "price": 100, "creature": "armadillo", "skin": "mummy", "desc": "2026-10-19 오늘의 스킨 미라딜로. 아르마딜로를 고르면 적용돼요."},
     {"id": "deguri_skin_rabbit_butter", "name": "버터토끼", "displayName": "버터토끼", "rarity": "rare", "emoji": "🧈", "price": 50, "creature": "rabbit", "skin": "butter", "desc": "2026-10-19 오늘의 스킨 버터토끼. 토끼를 고르면 적용돼요."},
-    {"id": "deguri_skin_pufferfish_bungeo", "name": "붕어빵복", "displayName": "붕어빵복", "rarity": "rare", "emoji": "🐟", "price": 50, "creature": "pufferfish", "skin": "bungeo", "desc": "갓 구운 붕어빵처럼 노릇한 비늘 무늬에 배에서 팥이 살짝 비치는 복어. 복어를 고르면 적용돼요."}
+    {"id": "deguri_skin_pufferfish_bungeo", "name": "붕어빵복", "displayName": "붕어빵복", "rarity": "rare", "emoji": "🐟", "price": 50, "creature": "pufferfish", "skin": "bungeo", "desc": "갓 구운 붕어빵처럼 노릇한 비늘 무늬에 배에서 팥이 살짝 비치는 복어. 복어를 고르면 적용돼요."},
+    {"id": "deguri_skin_ribbonpig_brewmaster", "name": "양조사 돼지", "displayName": "양조사 돼지", "rarity": "epic", "emoji": "🍺", "price": 100, "creature": "ribbonpig", "skin": "brewmaster", "desc": "삿갓을 쓰고 주황 조끼에 나무 술통을 멘 떠돌이 양조사 돼지. 반쯤 감은 눈에 볼이 발그레해요. 돼지를 고르면 적용돼요."},
+    {"id": "deguri_skin_ribbonpig_frostknight", "name": "서리기사 돼지", "displayName": "서리기사 돼지", "rarity": "legend", "emoji": "❄️", "price": 150, "creature": "ribbonpig", "skin": "frostknight", "desc": "얼음 가시가 돋은 강청색 갑옷에 뿔 투구, 해진 남색 망토를 두르고 등에 검을 꽂은 서리 기사 돼지. 공이 되면 얼음 갑옷 공! 돼지를 고르면 적용돼요."},
+    {"id": "deguri_skin_ribbonpig_orc", "name": "오크 전사 돼지", "displayName": "오크 전사 돼지", "rarity": "epic", "emoji": "🪓", "price": 100, "creature": "ribbonpig", "skin": "orc", "desc": "올리브색 피부에 엄니와 검은 상투, 붉은 전투 무늬. 털 어깨 갑옷을 걸치고 등에 양날 도끼를 멘 오크 전사 돼지. 돼지를 고르면 적용돼요."},
+    {"id": "deguri_skin_turtle_beer", "name": "생맥부기", "displayName": "생맥부기", "rarity": "rare", "emoji": "🍻", "price": 50, "creature": "turtle", "skin": "beer", "desc": "등딱지가 갓 따른 생맥주처럼 노란 호박색이고, 위에는 하얀 거품이 몽글몽글. 공이 되면 맥주 거품 공! 거북이를 고르면 적용돼요."},
+    {"id": "deguri_skin_panda_gourd", "name": "취권판다", "displayName": "취권판다", "rarity": "rare", "emoji": "🍶", "price": 50, "creature": "panda", "skin": "gourd", "desc": "빨간 머리띠를 질끈 묶고 허리에 호리병을 찬 판다. 볼은 발그레하고 눈은 반쯤 감겼어요. 판다를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
