@@ -68,12 +68,16 @@ async function simulate(players, seed, map, opts) {
     const bridges = map.bridges || [], items = map.items || [], warps = map.warps || [], fences = map.fences || [];
     const bridgeOn = bridges.map(() => -1), itemBack = items.map(() => 0);   // itemBack = 상자가 다시 생기는 시뮬 초
     const bumpAt = {};   // 'a,b' → 마지막 튕김 시뮬 초
-    // 눈 꼭대기 문 기다림(사용자 2026-10-19 "스마일 구간에서 뚫고 올라간다") — 문마다 기다린 누적 초(acc)·기다리기 시작한 시뮬 초(t0, -1 = 아님). 문 시각 = t - 기다린 시간
-    const gateHold = fences.map(() => ({ acc: 0, t0: -1 }));
+    // 눈 꼭대기 문 기다림(사용자 2026-10-19 "스마일 구간에서 뚫고 올라간다") — 문마다 기다린 누적 초(acc)·기다리기 시작한 시뮬 초(t0, -1 = 아님)·마지막으로 기다린 문 주기(cyc). 문 시각 = t - 기다린 시간
+    const gateHold = fences.map(() => ({ acc: 0, t0: -1, cyc: -1 }));
     // 안 열리는 들보 HP(사용자 2026-10-19 "풍선으로 칠 때마다 밑으로 내려보내고 hp 깎기") — 남은 HP · -1 = 안 부서짐(하수구 파이프 발판·통나무 받침). 0 = 부서져 사라짐
     const beamHP = plats.map(q => q.solid && !q.kind && !warps.some(w => w.x === q.x && w.y === q.y) ? R.beamHP : -1), beamHitAt = {};   // 'plat,id' → 다시 칠 수 있는 시뮬 초
     const beamUp = i => plats[i].solid && beamHP[i] !== 0;
     const beamBot = q => q.kind ? q.y : q.y - R.beamThick;   // 풍선이 막히는 높이 = 들보 밑면(그림 두께만큼 아래 — 풍선이 들보에 박혀 보이지 않게). 위에 앉는 건 윗면 q.y
+    const beamSide = (q, b0, b1, x) => {   // 들보 밑에서 비켜 갈 끝 — 벽에 안 막힌 가까운 쪽
+        const L = q.x - q.w / 2 - 24, Rt = q.x + q.w / 2 + 24, okL = L > b0 + R.wallPad, okR = Rt < b1 - R.wallPad;
+        return okL && (!okR || x - L < Rt - x) ? L : Rt;
+    };
     const ft = i => t - gateHold[i].acc - (gateHold[i].t0 >= 0 ? t - gateHold[i].t0 : 0);
     const touch = {}, pairPoke = {}, pokes = [];   // 맞닿음 'a,b'(풍선끼리)·'ba,b'(a 풍선 ↔ b 몸) → { t0, y0: {id: 발 높이} } · 같은 두 마리('작은id,큰id') 다시 찌를 수 있는 시뮬 초 · 준비 중인 찌르기 [{ by[], to[], at, kind }]
     const flapOpenUntil = plats.map(() => -1);   // 여닫이 판이 열려 있는 시뮬 초(그때까지)
@@ -84,7 +88,7 @@ async function simulate(players, seed, map, opts) {
     const P = players.map((pl, i) => ({
         id: pl.id, x: (i + 0.5) / n * WORLD_W, frac: (i + 0.5) / n, y: 0, vy: 0, vx: 0, kick: 0,
         st: 'rise', stT: 0, inflDur: 0, base: range(R.riseMin, R.riseMax), ph: rng() * 6.283, ww: range(R.wanderWMin, R.wanderWMax),
-        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false, pokedUntil: 0, bonkUntil: 0, atWall: false, atFence: false
+        wind: 0, chuteT: 0, safeT: 0, pops: 0, superT: 0, shieldT: 0, shieldN: 0, landCloud: false, warpT: 0, warpOut: null, warpCool: 0, fenceT: 0, slowT: 0, airRefill: false, immune: null, popX: null, pokeUntil: 0, poking: false, pokedUntil: 0, bonkUntil: 0, atWall: false, atFence: false, dodge: null
     }));
     // 출발 좌석(서버가 이름마다 정한 players[i].seat, 없으면 입장 순) — 계산은 층과 무관하게 모두 맨 위 층 높이에서 바로 출발한다(사용자 2026-10-18 "계산은 층 전혀 상관없게").
     // 아래층이 처져 보이다가 부스터로 따라붙는 건 그림(js/balloon-render.js boostOffset)에서만. 가로 자리만 좌석대로
@@ -279,8 +283,7 @@ async function simulate(players, seed, map, opts) {
                     if (Math.abs(balloonX(p) - q.x) > q.w / 2 + R.balloonR * 0.7) continue;
                     const qb = beamBot(q), gap = qb - prevTop;
                     if (gap > -2 && gap < R.solidReach) {
-                        const L = q.x - q.w / 2 - 24, Rt = q.x + q.w / 2 + 24, okL = L > b0 + R.wallPad, okR = Rt < b1 - R.wallPad;
-                        tx = okL && (!okR || p.x - L < Rt - p.x) ? L : Rt; k = Z.shutSteer;
+                        tx = beamSide(q, b0, b1, p.x); k = Z.shutSteer;
                     }
                     if (prevTop <= qb && p.y + BAL_OFF + R.balloonR > qb) {
                         p.y = qb - BAL_OFF - R.balloonR; p.vy = 0;
@@ -288,9 +291,15 @@ async function simulate(players, seed, map, opts) {
                         if (!(t < beamHitAt[hk])) {
                             beamHitAt[hk] = t + R.beamHitCool; p.vy = -R.beamKnock;
                             if (beamHP[i] > 0) beamHP[i]--;
+                            else if (beamHP[i] < 0 && !(p.dodge && p.dodge.i === i)) p.dodge = { i, tx: beamSide(q, b0, b1, p.x) };   // 안 부서지는 들보 — 튕긴 뒤에도 비켜 갈 끝을 기억한다(아래)
                             ev('beamHit', { plat: i, ball: p.id, hp: beamHP[i] });   // hp -1 = 안 부서지는 들보 · 0 = 이번에 부서짐
                         }
                     }
+                }
+                if (p.dodge) {   // 안 부서지는 들보에 부딪힌 동물 — 튕겨 내려가 비켜 가기 범위를 벗어나도 들보를 다 지날 때까지 기억한 끝으로 간다(2026-10-20 같은 들보 밑에서 8~15초 반복 부딪힘)
+                    const q = plats[p.dodge.i];
+                    if (p.y + BAL_OFF - R.balloonR > q.y || beamBot(q) - prevTop > R.solidReach) p.dodge = null;   // 다 지났다 · 멀리 떨어졌다
+                    else { tx = p.dodge.tx; k = Z.shutSteer; }
                 }
                 p.kick *= Math.exp(-dt * R.kickDecay);
                 if (p.fenceT > 0) { p.fenceT -= dt; k = 0; }   // 울타리에 닿아 있으면 제자리 찾기를 끈다 — 비탈을 따라 미끄러지게
@@ -512,11 +521,15 @@ async function simulate(players, seed, map, opts) {
             const q = plats[i]; if (q.solid || q.kind) continue;
             for (const p of P) if (p.st === 'rise' && p.y < q.y - FLAP_BELOW && p.y + BAL_OFF + R.balloonR > q.y - 6 && Math.abs(p.x - q.x) < q.w / 2 + 14) { flapOpenUntil[i] = t + R.flapHold; break; }
         }
-        for (let i = 0; i < fences.length; i++) {   // 눈 꼭대기 문 — 닫히기 시작할 때 문 높이에 몸~풍선이 걸친 동물이 있으면 비킬 때까지(최대 gateHoldMax) 열린 채 기다린다
+        for (let i = 0; i < fences.length; i++) {   // 눈 꼭대기 문 — 닫히기 직전(아직 다 열린 자세)에 문 높이에 몸~풍선이 걸친 동물이 있으면 비킬 때까지(최대 gateHoldMax) 열린 채 기다린다
+            // 다 열린 자세에서만 멈춘다 — 닫히는 중에 멈추면 반쯤 올라온 문짝과 비탈이 V 자로 몸을 가둔다(2026-10-20 끼임 제보). 한 주기에 한 번만 — 끝나자마자 다시 기다리면 gateHoldMax 가 무한이 된다
             const f0 = fences[i]; if (f0.gate == null) continue;
             const g = gateHold[i], lo = Math.min(f0.x1, f0.x2) - R.bodyR, hi = Math.max(f0.x1, f0.x2) + R.bodyR;
             const busy = P.some(p => (p.st === 'rise' || p.st === 'ainflate') && p.x > lo && p.x < hi && p.y + R.bodyCY - R.bodyR < f0.y1 && p.y + BAL_OFF + R.balloonR > f0.y1);
-            if (g.t0 < 0) { const c = W.cyc({ phase: f0.gate }, ft(i), Z.gatePeriod); if (busy && c >= Z.gateOpen - Z.gateSlide && c < Z.gateOpen) { g.t0 = t; ev('gateHold', { fence: i }); } }
+            if (g.t0 < 0) {
+                const fti = ft(i), c = W.cyc({ phase: f0.gate }, fti, Z.gatePeriod), k = Math.floor((fti + f0.gate) / Z.gatePeriod), shut = Z.gateOpen - Z.gateSlide;
+                if (busy && k !== g.cyc && c >= shut - 2 * dt && c < shut) { g.t0 = t; g.cyc = k; ev('gateHold', { fence: i }); }
+            }
             else if (!busy || t - g.t0 >= R.gateHoldMax) { g.acc += t - g.t0; g.t0 = -1; ev('gateHoldEnd', { fence: i }); }
         }
         for (const p of P) updatePlayer(p, lead);
