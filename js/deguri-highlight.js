@@ -17,7 +17,8 @@
     var RENDER_GAP_MS = 40;     // 프레임 하나 그리고 쉬는 틈(최소) — 그리는 데 걸린 시간의 두 배는 쉰다. 화면의 경주 재생이 끊기지 않게
     var AUTO_DELAY_MS = 3000;   // 결과 카드가 열리고 이만큼 뒤에 하이라이트를 한 번 저절로 보여 준다
     var AUTO_WAIT_MS = 10000;   // 그때까지 GIF 가 덜 됐으면 카드가 열린 뒤 이만큼까지만 기다린다 — 한참 뒤에 갑자기 바뀌지 않게
-    var END_GRACE_MS = 250;     // GIF 가 마지막 칸에 닿은 뒤 겹침 판(👍/👎·[다시 재생]·[닫기])을 띄우기까지 여유
+    var END_GRACE_MS = 250;
+    var PIP_BACKUP_MS = 1000;   // 작은 창 타이머로 그릴 때 이 창에도 이만큼 늦게 하나 더 걸어 둔다 — 작은 창이 닫혀 그 타이머가 사라져도 이어 그리게(later)     // GIF 가 마지막 칸에 닿은 뒤 겹침 판(👍/👎·[다시 재생]·[닫기])을 띄우기까지 여유
     var ASK_TEXT = '이 장면 어땠어요?', THANKS_TEXT = '고마워요';
     var FILE_NAME = 'deguri-highlight.gif';
     var SHARE_TITLE = '데구리 하이라이트';
@@ -99,13 +100,22 @@
         if (!ready() || !h || !h.clips || !h.clips.length || !opts.reveal()) return;
         if (cur && cur.rid === h.rid) return;
         cancel();
-        cur = { rid: h.rid, source: h.source, arm: h.arm, clips: h.clips, facts: h.facts, reasons: h.reasons || [], status: 'rendering', blob: null, url: null, size: null, totalMs: 0, timer: null, enc: null, vote: null, saved: false, autoPlayed: false };
+        cur = { rid: h.rid, source: h.source, arm: h.arm, clips: h.clips, facts: h.facts, reasons: h.reasons || [], status: 'rendering', blob: null, url: null, size: null, totalMs: 0, timer: null, enc: null, vote: null, saved: false, autoPlayed: false, tick: 0 };
         render(cur);
         sync();
     }
 
     // 같은 경주를 화면 밖 캔버스에 장면들만 시간순으로 다시 그려 찍는다 — 화면 카메라·손으로 옮긴 자리·탭 가림과 상관없이 장면 동물을 따라간다(R.frameBalls).
     // 장면마다 PREROLL 만큼 먼저 그려 카메라를 자리 잡게 하고(R.seek 로 바로 그 자리), 장면 사이에는 짧은 컷(DIP_FRAMES)
+    // 다음 칸 예약 — 결과 카드가 PiP 작은 창(js/deguri.js·js/balloon.js toggleDeguriPip)에 가 있으면 그 창 타이머로 건다. 작은 창으로 보면서 다른 탭을 보면
+    // 원래 탭 타이머는 1초에 한 번으로 늦춰져 GIF 가 결과 뒤 AUTO_WAIT_MS 안에 안 끝나고 저절로 보여 주기를 놓친다(2026-10-20 둥둥라이더 실측 119초+).
+    // 작은 창이 그 사이 닫히면 그 창 타이머는 사라지니 이 창에도 PIP_BACKUP_MS 늦게 하나 더 걸고, 먼저 온 쪽만 돈다
+    function later(st, fn, ms) {
+        var w = (els && els.overlay && els.overlay.ownerDocument.defaultView) || window, n = ++st.tick;
+        var run = function () { if (st.tick !== n) return; st.tick += 1; clearTimeout(st.timer); fn(); };
+        st.timer = setTimeout(run, w === window ? ms : ms + PIP_BACKUP_MS);
+        if (w !== window) w.setTimeout(run, ms);
+    }
     function render(st) {
         var tl = opts.reveal();
         var canvas = document.createElement('canvas');
@@ -140,12 +150,12 @@
                 push();
             }
             t += FRAME_MS;
-            if (t <= sc.end) { st.timer = setTimeout(step, Math.max(RENDER_GAP_MS, (performance.now() - began) * 2)); return; }
+            if (t <= sc.end) { later(st, step, Math.max(RENDER_GAP_MS, (performance.now() - began) * 2)); return; }
             si += 1;
             if (si < st.clips.length) {   // 다음 장면 — 마지막 칸을 어둡게 덮은 컷 두 장 뒤에
                 if (ink) for (var di = 0; di < DIP_FRAMES; di++) { g.globalAlpha = DIP_ALPHA[di] || DIP_ALPHA[DIP_ALPHA.length - 1]; g.fillStyle = ink; g.fillRect(0, 0, out.width, out.height); push(); }
                 enter();
-                st.timer = setTimeout(step, RENDER_GAP_MS);
+                later(st, step, RENDER_GAP_MS);
                 return;
             }
             st.timer = null;
