@@ -6,6 +6,14 @@
 
 ## 누적
 
+## 2026-10-21 — 데구리 공유 모듈을 다른 게임에 붙이면 그 모듈이 읽는 `window.*` 전역도 내놓아야 한다 — 없으면 오류 없이 기능만 사라진다
+
+**상황:** 둥둥라이더(`js/balloon.js`)가 데구리 하이라이트 모듈 `js/deguri-highlight.js` 를 같이 쓴다. 이 모듈은 결과 카드 안 요소를 `window.deguriEl` 로 찾는다(없으면 `document.getElementById`). 데구리는 `js/deguri.js` 에서 이걸 내놓지만 둥둥라이더는 안 내놨다.
+**함정/실수:** 원래 탭에 결과 카드가 있을 땐 `document.getElementById` 로도 찾아져서 아무 문제가 없다. PiP 작은 창을 열어 카드가 그 창 문서로 가면 `bind()` 가 요소를 못 찾고 하이라이트 전체를 조용히 건너뛴다. 콘솔 오류도 없다.
+**증상:** 둥둥라이더를 작은 창으로 볼 때만 결과 카드 3초 뒤 자동 재생 GIF 와 👍/👎 투표가 안 뜬다.
+**해결/예방:** `js/balloon.js` 에 `window.deguriEl = balloonEl;`(원래 문서 → 없으면 작은 창 문서 순으로 찾기). 데구리 모듈(`js/deguri-*.js`)을 새 게임에 붙일 땐 그 모듈 안의 `window.` 를 grep 해서 기대하는 전역을 전부 내놓는지 먼저 본다. 작은 창 검증은 작은 창을 **먼저 연 뒤** 경주를 끝까지 돌린다. 같은 작업에서 하나 더: 작은 창을 보며 원래 탭을 가리면 원래 탭 타이머가 늦춰져 GIF 가 제때 안 끝난다 → GIF 그리기 다음 칸은 결과 카드가 있는 창의 타이머로 건다(`later()`, 원래 탭에도 `PIP_BACKUP_MS` 늦게 예비 타이머).
+**관련:** `js/deguri-highlight.js` $·bind·later, `js/balloon.js` balloonEl·BALLOON_PIP_MOVE_IDS, `js/deguri.js` deguriEl
+
 ## 2026-10-14 — Document PiP 로 옮긴 버튼의 인라인 `onclick` 은 처음 눌린 창의 전역으로 굳는다
 
 **상황:** PiP 작은 창에 결과 카드·[경주 다시 보기]·[다음 판 준비]를 캔버스와 함께 옮겼다. 버튼은 `onclick="replayRace()"` 같은 인라인 핸들러였고, PiP 창 전역에도 같은 함수를 걸어 줬다(`pipWin.replayRace = replayRace`).
