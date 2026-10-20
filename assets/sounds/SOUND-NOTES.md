@@ -105,6 +105,49 @@
 
 ---
 
+## 데구리 (deguri) · 둥둥라이더 (balloon)
+
+> 2026-10-19 ElevenLabs 효과음 API(`/v1/sound-generation`)로 생성. 무료 요금제라 음악 API는 못 써서
+> 배경음은 효과음 API의 `loop: true` 22초 루프. 짧은 효과음은 최대 -1 dB, 배경음은 -3 dB 로 맞춤.
+> `*_start` 는 직접 합성한 레이싱 출발 신호음 "뜨·뜨·뜨·뜬!"(오락실 펄스파, 라 440Hz 0.16초 ×3 → 한 옥타브 위 880Hz 0.75초) — 1·2·3초 + 4초 출발, 화면 숫자(0~1초 준비, 3·2·1, 4초 출발)와 같은 시각. 효과음·음성(TTS) 후보는 어색하다고 해서 뺌(2026-10-20 사용자 선택). 두 게임 같은 파일.
+> 배경음은 3-2-1 시작부터 결승 순간(`renderer.onFinale`)까지, 볼륨 `DEGURI_BGM_VOL`/`BALLOON_BGM_VOL`(0.35).
+
+| 키 | 파일 경로 | 재생 시점 | 코드 위치 | 상태 |
+|----|-----------|-----------|-----------|------|
+| `deguri_start` | `assets/sounds/deguri/start.mp3` | 3-2-1 카운트다운 | js/deguri.js reveal begin | ✅ 실제 파일 |
+| `deguri_bump` | `assets/sounds/deguri/bump.mp3` | 동물 고를 때 | js/deguri.js pickCreature | ✅ 실제 파일 |
+| `deguri_lose` | `assets/sounds/deguri/lose.mp3` | 결승 순간 | js/deguri.js onFinale | ✅ 실제 파일 |
+| `deguri_bgm` | `assets/sounds/deguri/bgm.mp3` | 경주 중 (루프) | js/deguri.js setDeguriBgm | ✅ 실제 파일 (22초) |
+| `deguri_goal` / `deguri_burst` | common 파일 공유 | — | 미연결 | 🔇 미연결 |
+| `balloon_start` | `assets/sounds/balloon/start.mp3` | 3-2-1 (풍선 불기) | js/balloon.js reveal begin | ✅ 실제 파일 |
+| `balloon_pop` | `assets/sounds/balloon/pop.mp3` | 풍선 터짐 (남은 0.4배) | js/balloon.js onTimelineEvent | ✅ 실제 파일 |
+| `balloon_land` | `assets/sounds/balloon/land.mp3` | 내 동물 착지 | js/balloon.js onTimelineEvent | ✅ 실제 파일 |
+| `balloon_goal` | `assets/sounds/balloon/goal.mp3` | 내 동물 도착 | js/balloon.js onTimelineEvent | ✅ 실제 파일 |
+| `balloon_lose` | `assets/sounds/balloon/lose.mp3` | 결승 순간 | js/balloon.js onFinale | ✅ 실제 파일 |
+| `balloon_bgm` | `assets/sounds/balloon/bgm.mp3` | 경주 중 (루프) | js/balloon.js setBalloonBgm | ✅ 실제 파일 (22초) |
+
+
+### 경주 중 사건·뽑기 소리 (2026-10-20 추가)
+
+사건 소리는 렌더러가 재생 중 지나가는 사건을 알려 줄 때 낸다 — 데구리 `DeguriRender R.onEvent`(이번에 추가) · 둥둥라이더 `BalloonRender onEvent`.
+이동·늦은 입장·가려진 탭처럼 시간이 250ms 넘게 뛰면 지나간 사건은 울리지 않는다. 내 동물은 기본 볼륨, 남의 동물 0.3,
+모두의 사건(독수리·댐·지진·벌떼·돌풍) 0.7, 같은 소리는 150ms 안에 한 번만(내 동물은 예외). 표는 `js/deguri.js DEGURI_EVENT_SOUNDS` · `js/balloon.js BALLOON_EVENT_SOUNDS`.
+
+| 키 | 사건 |
+|----|------|
+| `deguri_goal` | finish 골인 |
+| `deguri_boing` | tramp·spring 트램펄린·스프링 |
+| `deguri_mole` / `deguri_mud` / `deguri_warp` / `deguri_chute` | 두더지 / 진흙 / 워프 / 낙하산 |
+| `deguri_eagle` / `deguri_burst` / `deguri_quake` / `deguri_bees` | 독수리 / 댐 터짐 / 지진 / 벌떼 (모두의 사건) |
+| `balloon_inflate` / `_poke` / `_spike` / `_shock` / `_bonk` | 다시 불기 / 콕 찌르기 / 가시 / 번개 / 쿵(들보·부딪힘) |
+| `balloon_crack` / `_item` / `_shield` | 들보 부서짐 / 아이템 / 방패 깨짐 |
+| `balloon_eagle` / `_warp` / `_chute` | 데구리 파일 공유 (eagle·warp·chute) |
+| `balloon_gust` | 돌풍 (모두의 사건) |
+
+뽑기(`js/deguri-gacha.js playCues`) — 타임라인 단계를 지날 때 한 번씩, 건너뛰기는 소리 없이 끝으로:
+`deguri_gacha_coin`(코인 투입) → `_crank`(손잡이, 반복) → `_pick`(공 빨려 듦) → `_roll`(캡슐 굴러 나옴) → `_rise`(떠오름) → `_shake`(두근두근, 반복) → `_open` / `_open_epic` / `_open_legend`(열림, 등급별).
+---
+
 ## 공통 (common)
 
 | 키 | 파일 경로 | 재생 시점 | 코드 위치 | 상태 |

@@ -15,6 +15,10 @@ var REVEAL_SCROLL_RETRY_MS = 500;
 var RESULT_SCROLL_RECHECK_MS = 60;
 var RESULT_NAME_MAX = 6;
 var POP_SOUND_VOL = 0.4;              // 남이 터질 때 소리(내 동물은 기본 볼륨)
+var BALLOON_BGM_VOL = 0.35;           // 경주 배경음 볼륨(효과음보다 낮게)
+var OTHER_SOUND_VOL = 0.3;            // 남의 동물 사건 소리(내 동물은 기본 볼륨)
+var WORLD_SOUND_VOL = 0.7;            // 모두에게 일어나는 큰 사건(독수리 경고·돌풍) 소리
+var EVENT_SOUND_GAP_MS = 150;         // 같은 소리는 이 간격 안에 한 번만 — 몰림 방지(내 동물은 예외)
 var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
 var ACTIVE_ROOM_KEY = 'balloonActiveRoom';
 
@@ -139,6 +143,12 @@ function getBalloonSoundEnabled() { return localStorage.getItem('balloonSoundEna
 function getBalloonVolume() { var v = parseFloat(localStorage.getItem('balloonSoundVolume')); return isNaN(v) ? 1.0 : v; }
 function playBalloonSound(key, vol) {
     if (typeof SoundManager !== 'undefined' && SoundManager.playSound) SoundManager.playSound(key, getBalloonSoundEnabled(), (vol != null ? vol : 1) * getBalloonVolume());
+}
+// 경주 배경음 — 3-2-1 부터 결승(당첨 확정)까지
+function setBalloonBgm(on) {
+    if (typeof SoundManager === 'undefined' || !SoundManager.playLoop) return;
+    if (on) SoundManager.playLoop('balloon_bgm', getBalloonSoundEnabled(), BALLOON_BGM_VOL);
+    else SoundManager.stopLoop('balloon_bgm');
 }
 
 // ============================================
@@ -284,12 +294,26 @@ window.addEventListener('DOMContentLoaded', function () {
 });
 
 // 경주 중 사건 소리 — 터짐(내 동물은 크게)·도착
+// 그 밖의 사건: [소리 키, 모두의 사건]. 모두의 사건은 WORLD_SOUND_VOL, 그 밖엔 내 동물 크게·남의 동물 작게
+var BALLOON_EVENT_SOUNDS = {
+    inflate: ['balloon_inflate'], poke: ['balloon_poke'], spikeKnock: ['balloon_spike'], shock: ['balloon_shock'], bonk: ['balloon_bonk'], beamHit: ['balloon_bonk'],
+    item: ['balloon_item'], shieldPop: ['balloon_shield'], warp: ['balloon_warp'], chute: ['balloon_chute'],
+    eagleWarn: ['balloon_eagle', true], gust: ['balloon_gust', true]
+};
+var lastEventSoundAt = {};
 function onTimelineEvent(e) {
     if (!balloonState.reveal) return;
     var p = e.ball != null ? balloonState.reveal.players[e.ball] : null;
     if (e.type === 'pop') playBalloonSound('balloon_pop', p && p.owner === currentUser ? 1 : POP_SOUND_VOL);
     else if (e.type === 'land' && p && p.owner === currentUser) playBalloonSound('balloon_land', POP_SOUND_VOL);
     else if (e.type === 'finish' && p && p.owner === currentUser) playBalloonSound('balloon_goal');
+    else if (e.type === 'beamHit' && e.hp === 0) { playBalloonSound('balloon_crack', WORLD_SOUND_VOL); return; }   // 들보가 부서짐(안 부서지면 아래 표의 쿵)
+    var s = BALLOON_EVENT_SOUNDS[e.type];
+    if (!s) return;
+    var mine = !s[1] && p && p.owner === currentUser, now = performance.now();
+    if (!mine && now - (lastEventSoundAt[s[0]] || 0) < EVENT_SOUND_GAP_MS) return;
+    lastEventSoundAt[s[0]] = now;
+    playBalloonSound(s[0], s[1] ? WORLD_SOUND_VOL : mine ? 1 : OTHER_SOUND_VOL);
 }
 
 // 비밀번호 모달
@@ -1283,14 +1307,16 @@ socket.on('balloon:reveal', function (data) {
     setGameStatus('');
     var begin = function () {
         renderer.setTimeline(data, currentUser);
-        renderer.onFinale(function () { playBalloonSound('balloon_lose'); });
+        renderer.onFinale(function () { setBalloonBgm(false); playBalloonSound('balloon_lose'); });
         renderer.play(BALLOON_COUNTDOWN_MS);
         playBalloonSound('balloon_start');
+        setBalloonBgm(true);
         revealStage();
     };
     if (assetsLoaded) begin(); else BalloonRender.loadAssets(begin);
 });
 socket.on('balloon:gameEnd', function (data) {
+    setBalloonBgm(false);
     balloonState.phase = 'finished';
     isBalloonActive = false;
     keepAwake(false);
@@ -1307,6 +1333,7 @@ socket.on('balloon:gameEnd', function (data) {
     updateStartButton();
 });
 socket.on('balloon:gameAborted', function (data) {
+    setBalloonBgm(false);
     isBalloonActive = false;
     keepAwake(false);
     balloonState.phase = 'idle';
@@ -1322,6 +1349,7 @@ socket.on('balloon:gameAborted', function (data) {
     socket.emit('balloon:requestState');
 });
 socket.on('balloon:roundReset', function () {
+    setBalloonBgm(false);
     stopReplay(false);
     keepAwake(false);
     balloonState.phase = 'idle';

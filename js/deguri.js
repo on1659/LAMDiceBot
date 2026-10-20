@@ -6,6 +6,10 @@
 // ─── 공유 상수 (socket/deguri.js 상단과 반드시 동일 값) ───
 var DEGURI_MIN_PLAYERS = 2;          // 서버가 stateUpdated.minPlayers 로 덮는다(로컬 개발 서버는 1 — 혼자 출발)
 var DEGURI_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (DeguriRender.COUNTDOWN_MS 와 동일)
+var DEGURI_BGM_VOL = 0.35;         // 경주 배경음 볼륨(효과음보다 낮게)
+var OTHER_SOUND_VOL = 0.3;         // 남의 동물 사건 소리(내 동물은 기본 볼륨)
+var WORLD_SOUND_VOL = 0.7;         // 모두에게 일어나는 큰 사건(독수리·댐·지진·벌떼) 소리
+var EVENT_SOUND_GAP_MS = 150;      // 같은 소리는 이 간격 안에 한 번만 — 마리가 많을 때 몰림 방지(내 동물은 예외)
 var ROULETTE_ANIM_MS = 5500;       // 당첨 순위 룰렛 애니메이션 길이 — 서버가 payload 로 보내주며 이 값은 폴백
 var TARGET_LABEL = { first: '1등', last: '꼴등' };   // 당첨 순위 표기 (socket/deguri.js TARGET_LABEL 과 동일)
 var FS_SETTLE_MS = 400;
@@ -152,6 +156,26 @@ function playDeguriSound(key, vol) {
         SoundManager.playSound(key, getDeguriSoundEnabled(), vol != null ? vol : getDeguriVolume());
     }
 }
+// 경주 중 사건 소리 — [소리 키, 모두의 사건]. 모두의 사건은 WORLD_SOUND_VOL, 그 밖엔 내 동물 크게·남의 동물 작게
+var DEGURI_EVENT_SOUNDS = {
+    finish: ['deguri_goal'], tramp: ['deguri_boing'], spring: ['deguri_boing'], mole: ['deguri_mole'], mud: ['deguri_mud'], warp: ['deguri_warp'], chute: ['deguri_chute'],
+    eagleGrab: ['deguri_eagle', true], eagleMiss: ['deguri_eagle', true], damBurst: ['deguri_burst', true], quake: ['deguri_quake', true], bees: ['deguri_bees', true]
+};
+var lastEventSoundAt = {};
+function onDeguriEvent(e, b) {
+    var s = DEGURI_EVENT_SOUNDS[e.type];
+    if (!s) return;
+    var mine = !s[1] && b && b.owner === currentUser, now = performance.now();
+    if (!mine && now - (lastEventSoundAt[s[0]] || 0) < EVENT_SOUND_GAP_MS) return;
+    lastEventSoundAt[s[0]] = now;
+    playDeguriSound(s[0], s[1] ? WORLD_SOUND_VOL : mine ? null : OTHER_SOUND_VOL);
+}
+// 경주 배경음 — 3-2-1 부터 결승(마지막 한 마리 확정)까지
+function setDeguriBgm(on) {
+    if (typeof SoundManager === 'undefined' || !SoundManager.playLoop) return;
+    if (on) SoundManager.playLoop('deguri_bgm', getDeguriSoundEnabled(), DEGURI_BGM_VOL);
+    else SoundManager.stopLoop('deguri_bgm');
+}
 
 // ============================================
 // 진입 (pirate 패턴)
@@ -279,6 +303,7 @@ window.addEventListener('DOMContentLoaded', function () {
         window.deguriRendererForShop = renderer;   // js/deguri-shop.js 미리보기(drawCreatureIcon)용
         renderer.setHighlight(getMyHighlight());
         renderer.onIdleMove(moveMyStart);   // 대기 화면에서 출발대를 누르면 내 동물이 그 자리로
+        renderer.onEvent(onDeguriEvent);
         updateHighlightButton();
         if ('documentPictureInPicture' in window) {   // PiP 를 지원하는 데스크톱 브라우저만 [작은 창] 버튼
             var pipBtn = document.getElementById('deguriPipBtn');
@@ -2016,15 +2041,17 @@ socket.on('deguri:reveal', function (data) {
 
     var begin = function () {
         renderer.setTimeline(data, currentUser);
-        renderer.onFinale(function () { playDeguriSound('deguri_lose'); });
+        renderer.onFinale(function () { setDeguriBgm(false); playDeguriSound('deguri_lose'); });
         renderer.play(DEGURI_COUNTDOWN_MS);
         playDeguriSound('deguri_start');
+        setDeguriBgm(true);
         revealStage();
     };
     if (assetsLoaded) begin(); else DeguriRender.loadAssets(begin);
 });
 
 socket.on('deguri:gameEnd', function (data) {
+    setDeguriBgm(false);
     deguriState.phase = 'finished';
     isDeguriActive = false;
     keepAwake(false);
@@ -2044,6 +2071,7 @@ socket.on('deguri:gameEnd', function (data) {
 });
 
 socket.on('deguri:gameAborted', function (data) {
+    setDeguriBgm(false);
     isDeguriActive = false;
     keepAwake(false);
     if (window.DeguriHighlight) DeguriHighlight.cancel();
@@ -2061,6 +2089,7 @@ socket.on('deguri:gameAborted', function (data) {
 });
 
 socket.on('deguri:roundReset', function () {
+    setDeguriBgm(false);
     stopReplay(false);
     keepAwake(false);
     if (window.DeguriHighlight) DeguriHighlight.cancel();

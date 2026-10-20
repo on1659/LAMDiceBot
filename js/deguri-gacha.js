@@ -68,6 +68,8 @@
     function fx(tier) { return TIER_FX[tier] || TIER_FX.rare; }
     var TIER_GLOW = { common: '#9be59a', rare: '#8fd3ff', epic: '#c99bff', legend: '#ffd45a' };
     var T_FLASH = 220, T_KICK = 260, FLASH2_DELAY = 320, BURST_MS = 1100;
+    var SOUND_LIVE_GAP_MS = 250;   // 지난 장면과 이보다 멀면(건너뛰기) 지나간 단계 소리는 안 낸다
+    var LOOP_SOUND_VOL = 0.6;      // 손잡이·두근두근 반복 소리
     var OPEN_SUM = OPEN_MS.reduce(function (a, b) { return a + b; }, 0);
     var OPEN_POP = OPEN_MS[0] + OPEN_MS[1] + OPEN_MS[2] + OPEN_MS[3];   // 열기 4칸(뚜껑 튐) 시작
     // 등급별 타임라인(절대 ms) — 손잡이·흔들기 길이가 등급별로 다르다. end 는 스킵 목표(최종 화면)
@@ -679,11 +681,29 @@
         var t = now - _anim.t0, TL = timeline(_anim.res.tier);
         if (!_anim.tierReady && t > TL.pick && t < TL.end) { _anim.t0 = now - TL.pick; t = TL.pick; }   // 등급 그림을 아직 못 받았으면 공이 캡슐로 바뀌기 직전에 멈춰 기다린다(건너뛰기는 안 멈춘다 — 결과 화면은 ready 가드가 받는 대로 그린다)
         drawAt(t);
+        playCues(_anim.soundT, t, TL, _anim.res.tier); _anim.soundT = t;
         if (t >= TL.crank0) payShown();   // 코인이 투입구에 들어갔다 → 잔고가 줄어든다
         if (t >= TL.end && !_anim.done) { _anim.done = true; showResult(); }
         _raf = requestAnimationFrame(loop);   // 결과 화면에서도 빛살이 돈다 — 모달을 닫으면 멈춘다
     }
     function stopLoop() { if (_raf) cancelAnimationFrame(_raf); _raf = 0; }
+    // 소리 — 단계 시각을 지날 때 한 번씩(sound-config.json deguri_gacha_*). 손잡이·두근두근은 반복 소리라 구간이 끝나면 끈다
+    function sound(key) { if (window.SoundManager) SoundManager.playSound(key); }
+    function soundLoop(key, on) { if (!window.SoundManager) return; if (on) SoundManager.playLoop(key, true, LOOP_SOUND_VOL); else SoundManager.stopLoop(key); }
+    function stopSoundLoops() { soundLoop('deguri_gacha_crank', false); soundLoop('deguri_gacha_shake', false); }
+    function playCues(prev, t, TL, tier) {
+        var live = t >= prev && t - prev < SOUND_LIVE_GAP_MS;
+        function past(mark) { return prev < mark && t >= mark; }
+        if (live && past(COIN_FLY1)) sound('deguri_gacha_coin');
+        if (live && past(TL.crank0)) soundLoop('deguri_gacha_crank', true);
+        if (past(TL.crank1)) soundLoop('deguri_gacha_crank', false);
+        if (live && past(TL.pick)) sound('deguri_gacha_pick');
+        if (live && past(TL.roll0)) sound('deguri_gacha_roll');
+        if (live && past(TL.rise0)) sound('deguri_gacha_rise');
+        if (live && past(TL.shake0)) soundLoop('deguri_gacha_shake', true);
+        if (past(TL.open0)) soundLoop('deguri_gacha_shake', false);
+        if (live && past(TL.pop)) sound(tier === 'legend' ? 'deguri_gacha_open_legend' : tier === 'epic' ? 'deguri_gacha_open_epic' : 'deguri_gacha_open');
+    }
     // 뽑기 값(서버 응답 balance)을 화면에 반영 — 코인이 들어간 순간(loop) 또는 스킵·닫기(showResult)에 한 번
     function payShown() { if (_anim && !_anim.paid) { _anim.paid = true; setBalance(_anim.res.balance); } }
     function skip() {
@@ -899,7 +919,7 @@
             try { if (_anchors && _anchors.machine.globeBalls && _anchors.machine.globeBalls.boundary) globe = simulateGlobe(currentPile(), seed ^ Math.floor(res.balance * 7919), TIER_BALL[res.tier] !== undefined ? TIER_BALL[res.tier] : 2, fx(res.tier).crank); } catch (e) { globe = null; }
             if (globe) _globePile = globe.final;   // 새 더미 = 다음 뽑기의 출발점
             _el.dupe.hidden = true; _el.gain.hidden = true;   // 지난 중복 도장·+30 은 걷는다
-            var anim = _anim = { res: res, item: item, t0: performance.now(), done: false, globe: globe, paid: false, tierReady: false, refunded: false };
+            var anim = _anim = { res: res, item: item, t0: performance.now(), done: false, globe: globe, paid: false, tierReady: false, refunded: false, soundT: -1 };
             loadTier(res.tier).then(function () { anim.tierReady = true; });   // 나온 등급의 캡슐·빛살 6장만 그때 받는다
             stopLoop(); _raf = requestAnimationFrame(loop);
         });
@@ -936,6 +956,7 @@
         // 연출 중에 닫아도 결과는 이미 서버에 반영됨 — 다음에 열면 결과 화면부터
         if (_anim && !_anim.done) { _anim.done = true; showResult(); }
         stopLoop();
+        stopSoundLoops();
         _el.ov.hidden = true;
         document.body.classList.remove('mgacha-open');
     }

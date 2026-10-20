@@ -12,6 +12,7 @@ var DeguriRender = (function () {
     var BALL_R = 14;
     var NAP_R = 17;
     var COUNTDOWN_MS = 4000;         // js/deguri.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
+    var EVENT_LIVE_GAP_MS = 250;     // 지난 장면과 이보다 멀면(이동·늦은 입장·가려진 탭) 지나간 사건은 onEvent 로 알리지 않는다(소리 몰림 방지)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
     // 대기 화면 애니: 출발대 위 동물들이 제자리에서 표정을 짓다가 자리가 바뀌면 걸어가고, 주기마다 붙어 선 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
@@ -421,6 +422,7 @@ var DeguriRender = (function () {
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
+        var onEventCb = null;     // R.onEvent — 재생 중 사건(e, 공) 알림. js/deguri.js 가 소리에 쓴다
         var idleClock = 0, idleStart = 0;   // 대기 애니 시계(ms)
         var onIdleMoveCb = null;            // 대기 화면에서 출발대를 눌렀을 때 (월드 x) — js/deguri.js 가 내 동물 자리 옮기기에 쓴다
 
@@ -500,6 +502,7 @@ var DeguriRender = (function () {
         var clipIds = null;       // 장면 카메라(Jev 하이라이트 GIF — 데구리 단독판 R.frameBalls 역반영): 이 동물들을 한 화면에 담는다. 화면 렌더러는 쓰지 않는다
         R.frameBalls = function (ids) { clipIds = ids && ids.length ? ids.slice() : null; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
+        R.onEvent = function (cb) { onEventCb = cb; };
 
         // ─── 재생 ───
         R.play = function (countdownMs) {
@@ -754,10 +757,11 @@ var DeguriRender = (function () {
         function applyEventsUpTo(t) {
             if (!data) return;
             if (t < lastT) { evCursor = 0; fxList = []; leftMats = []; toasts = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; b.deep = false; b.deepKind = ''; b.matAt = 0; b.onLane = false; }); resetPieceFx(); }
-            var ev = data.events;
+            var ev = data.events, live = onEventCb && pausedAt == null && t >= lastT && t - lastT < EVENT_LIVE_GAP_MS;   // 뒤로 이동하면 처음부터 다시 쌓는다 — 그때도 안 알린다
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
                 var b = e.ball != null ? byId[e.ball] : null;
+                if (live) onEventCb(e, b);
                 switch (e.type) {
                     case 'nap': b.state = 'nap'; b.napAt = e.t; if (e.deep) { b.deep = true; b.deepKind = 'sleep'; b.matAt = e.t; pushToast(b, e.t); } break;   // deep(1등 룰) = 안 깸 → 돗자리 + 자막
                     case 'pitStuck': b.deep = true; b.deepKind = 'pit'; pushToast(b, e.t); break;   // 1등 룰: 분출 때 온천에 남음(상태는 pit 그대로) → Zz + 자막
