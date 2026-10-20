@@ -33,7 +33,8 @@
         bodyCY: 20, bodyR: 16, fenceBodyR: 12,                              // 풍선 ↔ 남의 몸 충돌 — 몸 원 중심(발 위 높이)·반지름(사용자 2026-10-19 "풍선이 몸을 뚫고 지나간다") · fenceBodyR = 울타리에 쓰는 몸 반지름(조금 작게 — 걸린 몸이 비탈 끝으로 빨리 빠져나온다)
         // 남의 풍선 콕 찌르기(docs/goal/balloon-poke.md, 사용자 2026-10-19) — 모든 동물 같은 규칙. 막힘: 맞닿음 pokeStuck 초 + 아래 풍선 상승 < 제 속도·pokeBlock → 아래가 위 pokeLow · 나머지는 위가 아래(맞찌르기는 없앰)
         // 지나가며 툭: 맞닿기 시작할 때 아래가 pokePassDv 이상 빨리 오르면 pokePassP. 준비 pokeWind 초 뒤 풍선 사이가 pokeReach 안이면 펑(아니면 헛찌르기)
-        pokeStuck: 1, pokeBlock: 0.6, pokeLow: 0.7, pokePassP: 0.1, pokePassDv: 20, pokeWind: 0.3, pokeReach: 50, pokeCool: 6, pokePairCool: 10, pokeBodyP: 0.25, pokeBodyPassP: 0.04, pokeVictimCool: 8,   // 몸 맞닿음(위 동물만 찌름) 막힘·지나가며 확률 · 찔린 동물은 이만큼 다시 안 찔린다(뒤처진 동물 연달아 찔림 방지)
+        // pokeWind 0.3→0.5·pokeReach 50→60(2026-10-20 사용자 "공격이 순식간") — 준비하는 동안 둘이 bumpKick 에 밀려 떨어져 0.8 은 명중이 절반(헛 43%), 0.5+60 은 명중 그대로(8인 판당 펑 3.3)·헛 15%
+        pokeStuck: 1, pokeBlock: 0.6, pokeLow: 0.7, pokePassP: 0.1, pokePassDv: 20, pokeWind: 0.5, pokeReach: 60, pokeCool: 6, pokePairCool: 10, pokeBodyP: 0.25, pokeBodyPassP: 0.04, pokeVictimCool: 8,   // 몸 맞닿음(위 동물만 찌름) 막힘·지나가며 확률 · 찔린 동물은 이만큼 다시 안 찔린다(뒤처진 동물 연달아 찔림 방지)
        
         fenceHold: 0.25, gateKnock: 320, gateHoldMax: 3,   // gateKnock = 내려오는 눈 문짝에 맞은 풍선을 아래로 쳐내는 속도                                                    // 울타리에 닿은 뒤 제자리 찾기를 끄는 시간(§12-11) · gateHoldMax = 눈 꼭대기 문이 지나가는 동물을 기다리는 최대 초
         // 풍선만 터지는 원인 — 낙하산 없이 잠깐 떨어지다 공중에서 다시 불고 오른다(§13-12). 나머지(번개·풍차·통나무)는 몸까지 맞아 낙하산 → 착지
