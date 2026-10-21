@@ -86,7 +86,8 @@
     {"id": "deguri_skin_ribbonpig_frostknight", "name": "서리기사 돼지", "displayName": "서리기사 돼지", "rarity": "legend", "emoji": "❄️", "price": 150, "creature": "ribbonpig", "skin": "frostknight", "desc": "얼음 가시가 돋은 강청색 갑옷에 뿔 투구, 해진 남색 망토를 두르고 등에 검을 꽂은 서리 기사 돼지. 공이 되면 얼음 갑옷 공! 돼지를 고르면 적용돼요."},
     {"id": "deguri_skin_ribbonpig_orc", "name": "오크 전사 돼지", "displayName": "오크 전사 돼지", "rarity": "epic", "emoji": "🪓", "price": 100, "creature": "ribbonpig", "skin": "orc", "desc": "올리브색 피부에 엄니와 검은 상투, 붉은 전투 무늬. 털 어깨 갑옷을 걸치고 등에 양날 도끼를 멘 오크 전사 돼지. 돼지를 고르면 적용돼요."},
     {"id": "deguri_skin_turtle_beer", "name": "생맥부기", "displayName": "생맥부기", "rarity": "rare", "emoji": "🍻", "price": 50, "creature": "turtle", "skin": "beer", "desc": "등딱지가 갓 따른 생맥주처럼 노란 호박색이고, 위에는 하얀 거품이 몽글몽글. 공이 되면 맥주 거품 공! 거북이를 고르면 적용돼요."},
-    {"id": "deguri_skin_panda_gourd", "name": "취권판다", "displayName": "취권판다", "rarity": "rare", "emoji": "🍶", "price": 50, "creature": "panda", "skin": "gourd", "desc": "빨간 머리띠를 질끈 묶고 허리에 호리병을 찬 판다. 볼은 발그레하고 눈은 반쯤 감겼어요. 판다를 고르면 적용돼요."}
+    {"id": "deguri_skin_panda_gourd", "name": "취권판다", "displayName": "취권판다", "rarity": "rare", "emoji": "🍶", "price": 50, "creature": "panda", "skin": "gourd", "desc": "빨간 머리띠를 질끈 묶고 허리에 호리병을 찬 판다. 볼은 발그레하고 눈은 반쯤 감겼어요. 판다를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_bamsong", "name": "밤송이도치", "displayName": "밤송이도치", "rarity": "rare", "emoji": "🌰", "price": 50, "creature": "hedgehog", "skin": "bamsong", "desc": "가시가 초록 밤송이가 되고 등 위로 반질한 밤 한 알이 고개를 내민 고슴도치. 고슴도치를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
@@ -98,6 +99,8 @@
     {"id": "deguri_balloon_burger", "name": "햄버거 야식", "displayName": "햄버거 야식", "rarity": "rare", "emoji": "🍔", "price": 50, "sprite": "balloon-burger", "desc": "참깨빵 위에 순 쇠고기 패티. 동물을 안 가려요."},
     {"id": "deguri_balloon_tangsuyuk", "name": "탕수육 야식", "displayName": "탕수육 야식", "rarity": "rare", "emoji": "🍯", "price": 50, "sprite": "balloon-tangsuyuk", "desc": "소스 흐르는 탕수육 한 덩이. 부먹이에요. 동물을 안 가려요."},
     {"id": "deguri_balloon_gpu", "name": "5090 그래픽카드", "displayName": "5090 그래픽카드", "rarity": "rare", "emoji": "🖥️", "price": 50, "sprite": "balloon-gpu", "desc": "다들 갖고 싶어 하는 그 그래픽카드가 머리 위에 둥실. 여기선 50코인이에요. 동물을 안 가려요."},
-    {"id": "deguri_balloon_hotteok", "name": "호떡 야식", "displayName": "호떡 야식", "rarity": "rare", "emoji": "🥞", "price": 50, "sprite": "balloon-hotteok", "desc": "종이컵에 담겨 꿀 시럽이 흘러나오는 호떡 하나. 동물을 안 가려요."}
+    {"id": "deguri_balloon_hotteok", "name": "호떡 야식", "displayName": "호떡 야식", "rarity": "rare", "emoji": "🥞", "price": 50, "sprite": "balloon-hotteok", "desc": "종이컵에 담겨 꿀 시럽이 흘러나오는 호떡 하나. 동물을 안 가려요."},
+    {"id": "deguri_balloon_eomuk", "name": "어묵 야식", "displayName": "어묵 야식", "rarity": "rare", "emoji": "🍢", "price": 50, "sprite": "balloon-eomuk", "desc": "꼬치에 구불구불 꿰어 김이 모락모락 나는 어묵 한 꼬치. 동물을 안 가려요."},
+    {"id": "deguri_balloon_hodu", "name": "호두과자 야식", "displayName": "호두과자 야식", "rarity": "rare", "emoji": "🌰", "price": 50, "sprite": "balloon-hodu", "desc": "종이봉투에 담긴 동글동글 호두 모양 호두과자 세 알. 동물을 안 가려요."}
   ]
 }
