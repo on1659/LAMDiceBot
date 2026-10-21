@@ -1000,17 +1000,16 @@
                     if (ok(P('hive'))) { ctx.save(); ctx.translate(x, y); if (h.s < 0) ctx.scale(-1, 1); ctx.rotate(nearHive ? Math.sin(clockS * 30) * 0.06 : 0); ctx.drawImage(P('hive'), nearHive ? 96 : 0, 0, 96, 128, -hw / 2, -hw * 0.45, hw, hw * 4 / 3); ctx.restore(); }
                     if (sw && ok(P('swarm'))) { var sb = 2 * Z.beeR * s * 1.5; ctx.drawImage(P('swarm'), Math.floor(clockS * 10) % 4 * 128, 0, 128, 96, sx(sw[0]) - sb / 2, sy(sw[1]) - sb * 0.375, sb, sb * 0.75); }
                 } else if (h.type === 'shutter') {
-                    var open = BW.shutOpen(h, t), c = BW.cyc(h, t, Z.shutPeriod), pr = Math.min(1, c / Z.shutSlide), e = pr * pr * (3 - 2 * pr), halfW = WORLD_W / 2 * s, L0 = sx(0), dth = 10 * s;   // 문은 세계 폭 기준(확대·축소)
-                    var lOff = open < 0 ? e : 1 - e, rOff = open > 0 ? e : 1 - e;   // 열리는 쪽은 벽 속으로, 닫히는 쪽은 나온다
+                    var ed = BW.shutEdges(h, t), halfW = WORLD_W / 2 * s, L0 = sx(0), xl = sx(ed[0]), xr = sx(ed[1]), dth = 10 * s;   // 문은 세계 폭 기준(확대·축소) — 판정과 같은 자리(shutEdges)
                     ctx.fillStyle = C.doorDark; ctx.fillRect(L0, y - 2, halfW * 2, 4);
                     if (ok(BP('shutter'))) {   // shutter.webp 192×32 — 경고 줄무늬가 가운데(맞닿는 쪽)에 오게 왼쪽 문은 뒤집는다
                         var sh = 13 * s;
-                        ctx.save(); ctx.translate(L0 - lOff * halfW + halfW, y - sh / 2); ctx.scale(-1, 1); ctx.drawImage(BP('shutter'), 0, 0, halfW, sh); ctx.restore();
-                        ctx.drawImage(BP('shutter'), L0 + halfW + rOff * halfW, y - sh / 2, halfW, sh);
+                        ctx.save(); ctx.translate(xl, y - sh / 2); ctx.scale(-1, 1); ctx.drawImage(BP('shutter'), 0, 0, halfW, sh); ctx.restore();
+                        ctx.drawImage(BP('shutter'), xr, y - sh / 2, halfW, sh);
                     } else {
                         ctx.fillStyle = C.door; ctx.strokeStyle = C.doorDark; ctx.lineWidth = 2;
-                        ctx.beginPath(); ctx.rect(L0 - lOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
-                        ctx.beginPath(); ctx.rect(L0 + halfW + rOff * halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
+                        ctx.beginPath(); ctx.rect(xl - halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
+                        ctx.beginPath(); ctx.rect(xr, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
                     }
                 } else if (h.type === 'up') {
                     var uw = h.w * s, top = sy(h.y + h.h);

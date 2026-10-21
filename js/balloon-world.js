@@ -273,6 +273,12 @@
         return { x1: f.x1, y1: f.y1, x2: f.x1 + Math.cos(a) * L, y2: f.y1 + Math.sin(a) * L, gate: f.gate };
     }
     const shutOpen = (h, t) => (Math.floor((t + h.phase) / Z.shutPeriod) % 2 ? -h.s : h.s);   // 1 = 오른쪽 반이 열림, -1 = 왼쪽 반
+    // 셔터 두 문짝의 안쪽 끝 [왼 문 오른끝, 오른 문 왼끝] — 열리는 문은 shutSlide 초에 걸쳐 벽 속으로, 닫히는 문은 벽에서 나온다.
+    // 막힘·착지·그림이 다 이 자리를 쓴다(사용자 2026-10-21 "지나가야 될 것 같은데 미리 박는다" — 판정만 주기 경계에서 한 번에 바뀌던 것)
+    function shutEdges(h, t) {
+        const open = shutOpen(h, t), pr = Math.min(1, cyc(h, t, Z.shutPeriod) / Z.shutSlide), e = pr * pr * (3 - 2 * pr);
+        return [WORLD_W / 2 * (1 - (open < 0 ? e : 1 - e)), WORLD_W / 2 * (1 + (open > 0 ? e : 1 - e))];
+    }
 
     // ── 재생 시각: 실제 경과(ms) → 시뮬 시각(ms). slow = [{ startMs, endMs, rate, holdMs? }] 시뮬 시각 순, 겹치지 않음.
     //    holdMs = 그 순간 멈춘 채로 보내는 실제 시간(판정 순간 정지). 서버 durationMs·클라 재생이 같은 식을 쓴다 → 2탭 동기
@@ -302,6 +308,6 @@
     return {
         WORLD_W, BODY, BAL_OFF, R, Z, SECTIONS, SECTION_NAMES, SECTION_H, GIMMICK_NAMES, GIMMICK_MIN, FINALE_SECTION,
         clamp, segClosest, segDist, drawOrder, buildMap, sectionAt, sectionBounds, boundsAt,
-        bladeAng, pendBall, boltState, fanOn, swarmAt, shutOpen, seatPos, gateOpen, gateSwinging, fenceSeg, meteorAt, meteorFadeAt, cyc, simTimeAt, realDuration
+        bladeAng, pendBall, boltState, fanOn, swarmAt, shutOpen, shutEdges, seatPos, gateOpen, gateSwinging, fenceSeg, meteorAt, meteorFadeAt, cyc, simTimeAt, realDuration
     };
 });
