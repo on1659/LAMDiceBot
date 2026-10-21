@@ -30,7 +30,7 @@ const GAME_LABELS = {
     'spin-arena': '회전 칼날',
     pirate:       '해적 룰렛',
     deguri:       '데구리',
-    balloon:      '둥둥라이더'
+    dodong:       '둥둥라이더'
 };
 
 // 링크 미리보기 문구 — 요청마다 하나를 무작위로 고른다 (도발·설득 섞어서).

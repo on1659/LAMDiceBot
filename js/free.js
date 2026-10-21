@@ -36,7 +36,7 @@
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
         deguri:   '데구리',
-        balloon:  '둥둥라이더'
+        dodong:   '둥둥라이더'
     };
 
     // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})
@@ -48,7 +48,7 @@
         ladder:   'ladder',
         'spin-arena': 'swords',
         deguri:   'paw',
-        balloon:  'balloon'
+        dodong:   'balloon'
     };
 
     // 게임별 로딩 화면 바탕 — css/theme.css 의 --free-loading-* (라이트 = 게임 그라데이션, 다크 = 그 게임 페이지 바닥)
@@ -60,7 +60,7 @@
         ladder:   'var(--free-loading-ladder)',
         'spin-arena': 'var(--free-loading-spin-arena)',
         deguri:   'var(--free-loading-deguri)',
-        balloon:  'var(--free-loading-balloon)'
+        dodong:   'var(--free-loading-balloon)'
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -72,7 +72,7 @@
         'ladder':     '/ladder',
         'spin-arena': '/spin-arena',
         'deguri':     '/deguri',   // gameType 은 deguri, 공개 경로는 /deguri(2026-09-29)
-        'balloon':    '/balloon'
+        'balloon':    '/dodong'    // gameType 은 balloon, 공개 경로는 /dodong(2026-10-21)
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
@@ -168,7 +168,7 @@
         'ladder': 'ladder',
         'spin-arena': 'spin-arena',
         'deguri': 'deguri',
-        'balloon': 'balloon'
+        'dodong': 'dodong'
     };
     var gameFromPath      = null;
     var shortcodeFromPath = null;
