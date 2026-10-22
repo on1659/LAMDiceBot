@@ -8174,5 +8174,797 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinCatDragonfruit": {
+    "batch": "deguri-skin-cat-dragonfruit-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "main/sleep/scuffle attempt-01, ref/design.png=2차 시안 1번; verify multi-run 은 귀 끝·진흙 조각(의도)",
+    "assets": {
+      "cat-dragonfruit": {
+        "image": "creatures/cat-dragonfruit.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-dragonfruit.webp",
+        "md5": "a589ead2b6dc4857433578c26fcc943e",
+        "qaStatus": "PASS"
+      },
+      "cat-dragonfruit-sleep": {
+        "image": "creatures/cat-dragonfruit-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-dragonfruit-sleep.webp",
+        "md5": "a56613da55b1ef63ccf057abb52dd18c",
+        "qaStatus": "PASS"
+      },
+      "cat-dragonfruit-scuffle": {
+        "image": "creatures/cat-dragonfruit-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-dragonfruit-scuffle.webp",
+        "md5": "be1964fbc57e193d183a26ace3f11259",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinCatEmber": {
+    "batch": "deguri-skin-cat-ember-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "main/sleep/scuffle attempt-01, design=1차 시안 2번",
+    "assets": {
+      "cat-ember": {
+        "image": "creatures/cat-ember.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-ember.webp",
+        "md5": "e920c83a6879b4ac47ceac461bdbb59e",
+        "qaStatus": "PASS"
+      },
+      "cat-ember-sleep": {
+        "image": "creatures/cat-ember-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-ember-sleep.webp",
+        "md5": "5c0d740b654b0c21cfe007bf7eaf81f3",
+        "qaStatus": "PASS"
+      },
+      "cat-ember-scuffle": {
+        "image": "creatures/cat-ember-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-ember-scuffle.webp",
+        "md5": "80406cfaeef3d6e9445e3e8c5cda374a",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRaccoonEmber": {
+    "batch": "deguri-skin-raccoon-ember-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "attempt-01 전부, design=2차 시안 4번; multi-run 은 진흙·별·불씨 조각(의도)",
+    "assets": {
+      "raccoon-ember": {
+        "image": "creatures/raccoon-ember.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/raccoon-ember.webp",
+        "md5": "661f5fa9c29be9bcd842ad820b347380",
+        "qaStatus": "PASS"
+      },
+      "raccoon-ember-sleep": {
+        "image": "creatures/raccoon-ember-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/raccoon-ember-sleep.webp",
+        "md5": "58e8f14c1a1867f536c1582fff5231f9",
+        "qaStatus": "PASS"
+      },
+      "raccoon-ember-scuffle": {
+        "image": "creatures/raccoon-ember-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/raccoon-ember-scuffle.webp",
+        "md5": "60a018fbbdeb7301bb0a2aacaada32d0",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinHedgehogIcicle": {
+    "batch": "deguri-skin-hedgehog-icicle-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "main attempt-01, sleep attempt-01, scuffle attempt-02, design=2차 시안 13번",
+    "assets": {
+      "hedgehog-icicle": {
+        "image": "creatures/hedgehog-icicle.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/hedgehog-icicle.webp",
+        "md5": "e555e36a0f2b2f39cb08616dbfe2299b",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-icicle-sleep": {
+        "image": "creatures/hedgehog-icicle-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hedgehog-icicle-sleep.webp",
+        "md5": "ae8c7f6c7ace79dd62969a8213e25624",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-icicle-scuffle": {
+        "image": "creatures/hedgehog-icicle-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hedgehog-icicle-scuffle.webp",
+        "md5": "373fb658cc075c0b358d5989f4432841",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRibbonpigEmber": {
+    "batch": "deguri-skin-ribbonpig-ember-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "attempt-01 전부, design=3차 시안 6번; 불꽃 꼬리 때문에 공이 납작 → ball-round fix --recenter(ballGeometry 의도된 예외)",
+    "assets": {
+      "ribbonpig-ember": {
+        "image": "creatures/ribbonpig-ember.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-ember.webp",
+        "md5": "72f0f6893a33df3c06fda679d058918b",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-ember-sleep": {
+        "image": "creatures/ribbonpig-ember-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-ember-sleep.webp",
+        "md5": "1033f423fa1c4c5f8a5438d2f0073a8b",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-ember-scuffle": {
+        "image": "creatures/ribbonpig-ember-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-ember-scuffle.webp",
+        "md5": "98c0953af6013606698685318502a31c",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPufferfishLava": {
+    "batch": "deguri-skin-pufferfish-lava-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "attempt-01 전부, design=3차 시안 11번; ball-round fix(가시 공 원형), r3c0 standing-size 는 붕어빵복과 같은 퍼프볼 칸",
+    "assets": {
+      "pufferfish-lava": {
+        "image": "creatures/pufferfish-lava.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/pufferfish-lava.webp",
+        "md5": "2d065f7a951387e8ad5b992d3cd12c1c",
+        "qaStatus": "PASS"
+      },
+      "pufferfish-lava-sleep": {
+        "image": "creatures/pufferfish-lava-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/pufferfish-lava-sleep.webp",
+        "md5": "6ac94d1da109d22ab175d712061061c1",
+        "qaStatus": "PASS"
+      },
+      "pufferfish-lava-scuffle": {
+        "image": "creatures/pufferfish-lava-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/pufferfish-lava-scuffle.webp",
+        "md5": "5a672e24f27ee21d9a41157a0e26cc69",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinCatLava": {
+    "batch": "deguri-skin-cat-lava-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "attempt-01 전부, design=3차 시안 12번; multi-run 은 불씨 조각(의도)",
+    "assets": {
+      "cat-lava": {
+        "image": "creatures/cat-lava.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-lava.webp",
+        "md5": "8ea5be3c304ef097ed153fe193b0cabe",
+        "qaStatus": "PASS"
+      },
+      "cat-lava-sleep": {
+        "image": "creatures/cat-lava-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-lava-sleep.webp",
+        "md5": "fcbc29fab239dd4858be4f5f52deeab7",
+        "qaStatus": "PASS"
+      },
+      "cat-lava-scuffle": {
+        "image": "creatures/cat-lava-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-lava-scuffle.webp",
+        "md5": "42a80ebce2ff369d43bf888082325c5b",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinCatIcicle": {
+    "batch": "deguri-skin-cat-icicle-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-fusion.md",
+    "note": "attempt-01 전부, design=3차 시안 15번",
+    "assets": {
+      "cat-icicle": {
+        "image": "creatures/cat-icicle.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-icicle.webp",
+        "md5": "057591c2eb26aba12f886978348f9220",
+        "qaStatus": "PASS"
+      },
+      "cat-icicle-sleep": {
+        "image": "creatures/cat-icicle-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-icicle-sleep.webp",
+        "md5": "ccdbf66b8574d7f3161284c3b7f6dfdc",
+        "qaStatus": "PASS"
+      },
+      "cat-icicle-scuffle": {
+        "image": "creatures/cat-icicle-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-icicle-scuffle.webp",
+        "md5": "eba86ef7de32423686007ba904c9648d",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
