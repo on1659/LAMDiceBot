@@ -9263,5 +9263,1094 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinCatYarn": {
+    "batch": "deguri-skin-cat-yarn-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-calico.md",
+    "note": "털실 삼색냥 — main·sleep·scuffle attempt-02 채택",
+    "assets": {
+      "cat-yarn": {
+        "image": "creatures/cat-yarn.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-yarn.webp",
+        "md5": "cba9a11898a71d7569a77d1681e87e6b",
+        "qaStatus": "PASS"
+      },
+      "cat-yarn-sleep": {
+        "image": "creatures/cat-yarn-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-yarn-sleep.webp",
+        "md5": "94f09d7cbdb64e2cb68b0a5c7c5d42b0",
+        "qaStatus": "PASS"
+      },
+      "cat-yarn-scuffle": {
+        "image": "creatures/cat-yarn-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-yarn-scuffle.webp",
+        "md5": "f226afcfa05f9fe9264376e57dd468fc",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinCatManeki": {
+    "batch": "deguri-skin-cat-maneki-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-calico.md",
+    "note": "복 부르는 삼색냥 — attempt-01 채택, r3c2 standing-size 131(손짓 자세, 의도)",
+    "assets": {
+      "cat-maneki": {
+        "image": "creatures/cat-maneki.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-maneki.webp",
+        "md5": "f88abd0b3bf1f14660a87b052b26fe46",
+        "qaStatus": "PASS"
+      },
+      "cat-maneki-sleep": {
+        "image": "creatures/cat-maneki-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-maneki-sleep.webp",
+        "md5": "d9931dacf860444636de6360b7ef072c",
+        "qaStatus": "PASS"
+      },
+      "cat-maneki-scuffle": {
+        "image": "creatures/cat-maneki-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-maneki-scuffle.webp",
+        "md5": "53204194f5356c646d550d306c7077ec",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinCatCalico": {
+    "batch": "deguri-skin-cat-calico-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-calico.md",
+    "note": "삼색냥 — attempt-01 채택, multi-run 은 공 위 귀 끝(의도)",
+    "assets": {
+      "cat-calico": {
+        "image": "creatures/cat-calico.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat-calico.webp",
+        "md5": "e0cec6b0acbec782df721ca17ef0cfe9",
+        "qaStatus": "PASS"
+      },
+      "cat-calico-sleep": {
+        "image": "creatures/cat-calico-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-calico-sleep.webp",
+        "md5": "c3ea7f6a00d03918e96d82affb19fd94",
+        "qaStatus": "PASS"
+      },
+      "cat-calico-scuffle": {
+        "image": "creatures/cat-calico-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-calico-scuffle.webp",
+        "md5": "987c6ff268dfede813978d8b1ee9d736",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinGentleman": {
+    "batch": "deguri-skin-penguin-gentleman-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "신사 펭귄 — attempt-01, 공 fix --recenter(모자)",
+    "assets": {
+      "penguin-gentleman": {
+        "image": "creatures/penguin-gentleman.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-gentleman.webp",
+        "md5": "2d8b6b7b22e424ffa2f630ff2f5d66d0",
+        "qaStatus": "PASS"
+      },
+      "penguin-gentleman-sleep": {
+        "image": "creatures/penguin-gentleman-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-gentleman-sleep.webp",
+        "md5": "ece76bbcb7f5bba2ae2bebf61f55c706",
+        "qaStatus": "PASS"
+      },
+      "penguin-gentleman-scuffle": {
+        "image": "creatures/penguin-gentleman-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-gentleman-scuffle.webp",
+        "md5": "8f894fd92627c22da950ca78e0dcaf57",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinSwimmer": {
+    "batch": "deguri-skin-penguin-swimmer-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "물놀이 펭귄 — attempt-01",
+    "assets": {
+      "penguin-swimmer": {
+        "image": "creatures/penguin-swimmer.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-swimmer.webp",
+        "md5": "4b5fa212dfebef5d48826a56e0ba4a4d",
+        "qaStatus": "PASS"
+      },
+      "penguin-swimmer-sleep": {
+        "image": "creatures/penguin-swimmer-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-swimmer-sleep.webp",
+        "md5": "6f61303ad2049e5b7e40b7440b7f921f",
+        "qaStatus": "PASS"
+      },
+      "penguin-swimmer-scuffle": {
+        "image": "creatures/penguin-swimmer-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-swimmer-scuffle.webp",
+        "md5": "116664156374cb610989308985a9a0d6",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinHockey": {
+    "batch": "deguri-skin-penguin-hockey-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "하키 펭귄 — main·scuffle attempt-02, sleep attempt-01",
+    "assets": {
+      "penguin-hockey": {
+        "image": "creatures/penguin-hockey.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-hockey.webp",
+        "md5": "e51945ce89ab99c12dcc25c3f3ed12b7",
+        "qaStatus": "PASS"
+      },
+      "penguin-hockey-sleep": {
+        "image": "creatures/penguin-hockey-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-hockey-sleep.webp",
+        "md5": "df9c4911bb0a28575851253831888d50",
+        "qaStatus": "PASS"
+      },
+      "penguin-hockey-scuffle": {
+        "image": "creatures/penguin-hockey-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-hockey-scuffle.webp",
+        "md5": "c5c3b17e5f5cdab44969c30196eda4c6",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinChef": {
+    "batch": "deguri-skin-penguin-chef-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "요리사 펭귄 — main·scuffle attempt-02, 공 fix --recenter(모자)",
+    "assets": {
+      "penguin-chef": {
+        "image": "creatures/penguin-chef.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-chef.webp",
+        "md5": "0680ec65b7733a0f18ffea917d3d73c3",
+        "qaStatus": "PASS"
+      },
+      "penguin-chef-sleep": {
+        "image": "creatures/penguin-chef-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-chef-sleep.webp",
+        "md5": "a2be3f9f9d0322812333722fb9a9db32",
+        "qaStatus": "PASS"
+      },
+      "penguin-chef-scuffle": {
+        "image": "creatures/penguin-chef-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-chef-scuffle.webp",
+        "md5": "6cd6d5751de13e114a627a1f1af65bf4",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinMail": {
+    "batch": "deguri-skin-penguin-mail-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "우체부 펭귄 — attempt-01, 공 fix --recenter + 공 칸 왼쪽 4px",
+    "assets": {
+      "penguin-mail": {
+        "image": "creatures/penguin-mail.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-mail.webp",
+        "md5": "fd350b4fcc6f9c304073ebc3be594de5",
+        "qaStatus": "PASS"
+      },
+      "penguin-mail-sleep": {
+        "image": "creatures/penguin-mail-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-mail-sleep.webp",
+        "md5": "b60dbeda428ac9c07c131c26e78b4ab9",
+        "qaStatus": "PASS"
+      },
+      "penguin-mail-scuffle": {
+        "image": "creatures/penguin-mail-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-mail-scuffle.webp",
+        "md5": "63da29f60bfb3593e24f05ccd7ae4abe",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinIcequeen": {
+    "batch": "deguri-skin-penguin-icequeen-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "얼음 황제 펭귄 — main attempt-01, sleep·scuffle attempt-02, 공 fix --recenter",
+    "assets": {
+      "penguin-icequeen": {
+        "image": "creatures/penguin-icequeen.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-icequeen.webp",
+        "md5": "a267a270f39aba27fe5afad152b9825d",
+        "qaStatus": "PASS"
+      },
+      "penguin-icequeen-sleep": {
+        "image": "creatures/penguin-icequeen-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-icequeen-sleep.webp",
+        "md5": "ff992fa7aa32f5fb10cb8b4e1b64e91f",
+        "qaStatus": "PASS"
+      },
+      "penguin-icequeen-scuffle": {
+        "image": "creatures/penguin-icequeen-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-icequeen-scuffle.webp",
+        "md5": "bba8d04c43b4aa5222488ca4a29942f0",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinJetpack": {
+    "batch": "deguri-skin-penguin-jetpack-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "로켓 펭귄 — main·sleep attempt-01, scuffle attempt-02",
+    "assets": {
+      "penguin-jetpack": {
+        "image": "creatures/penguin-jetpack.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-jetpack.webp",
+        "md5": "61edb8d4900d134ad2c3effc204ea292",
+        "qaStatus": "PASS"
+      },
+      "penguin-jetpack-sleep": {
+        "image": "creatures/penguin-jetpack-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-jetpack-sleep.webp",
+        "md5": "9f9426754690cbb6e71b38c25a33cc9e",
+        "qaStatus": "PASS"
+      },
+      "penguin-jetpack-scuffle": {
+        "image": "creatures/penguin-jetpack-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-jetpack-scuffle.webp",
+        "md5": "5ff5e67f56d5dda37f34332084d73da6",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinWizard": {
+    "batch": "deguri-skin-penguin-wizard-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-23-deguri-skin-penguin.md",
+    "note": "마법사 펭귄 — main·scuffle attempt-02, 공 fix --recenter, r3c2 손짓 칸 폭 137(의도)",
+    "assets": {
+      "penguin-wizard": {
+        "image": "creatures/penguin-wizard.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-wizard.webp",
+        "md5": "6d4c98fe70bbe8bd485acbf8a681a55e",
+        "qaStatus": "PASS"
+      },
+      "penguin-wizard-sleep": {
+        "image": "creatures/penguin-wizard-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-wizard-sleep.webp",
+        "md5": "72812c019936d8b01bff7f49592b77bc",
+        "qaStatus": "PASS"
+      },
+      "penguin-wizard-scuffle": {
+        "image": "creatures/penguin-wizard-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-wizard-scuffle.webp",
+        "md5": "0f38583e043873972cd7446dd9f6c300",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

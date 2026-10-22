@@ -103,7 +103,18 @@
     {"id": "deguri_skin_cat_lava", "name": "용암냥", "displayName": "용암냥", "rarity": "epic", "emoji": "🌋", "price": 100, "creature": "cat", "skin": "lava", "desc": "빨간 털에 꼬리와 등이 갈라진 용암 바위가 되고, 하얀 중절모를 쓴 고양이. 불티가 톡톡 튀어요. 고양이를 고르면 적용돼요."},
     {"id": "deguri_skin_cat_icicle", "name": "고드름냥", "displayName": "고드름냥", "rarity": "epic", "emoji": "🧊", "price": 100, "creature": "cat", "skin": "icicle", "desc": "얼음빛 털에 귀는 얼음 결정, 꼬리는 얼음 구슬이 줄줄이 이어진 고양이. 배 밑에 고드름이 달렸어요. 고양이를 고르면 적용돼요."},
     {"id": "deguri_skin_penguin_fluffy", "name": "솜털 펭귄", "displayName": "솜털 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "fluffy", "desc": "검은 몸이 보송보송 털로 덮인 폭신한 펭귄. 펭귄을 고르면 적용돼요."},
-    {"id": "deguri_skin_penguin_downy", "name": "솜뭉치 펭귄", "displayName": "솜뭉치 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "downy", "desc": "회청색 솜털이 구름처럼 몽실몽실한 펭귄. 펭귄을 고르면 적용돼요."}
+    {"id": "deguri_skin_penguin_downy", "name": "솜뭉치 펭귄", "displayName": "솜뭉치 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "downy", "desc": "회청색 솜털이 구름처럼 몽실몽실한 펭귄. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_yarn", "name": "털실 삼색냥", "displayName": "털실 삼색냥", "rarity": "epic", "emoji": "🧶", "price": 100, "creature": "cat", "skin": "yarn", "desc": "분홍 방울 모자에 민트 목도리를 두른 삼색 고양이. 파란 털실 뭉치를 데리고 다녀요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_maneki", "name": "복 부르는 삼색냥", "displayName": "복 부르는 삼색냥", "rarity": "legend", "emoji": "🔔", "price": 150, "creature": "cat", "skin": "maneki", "desc": "반들반들한 도자기가 된 삼색 고양이. 앞발을 들어 복을 부르고 금화를 꼭 안고 있어요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_calico", "name": "삼색냥", "displayName": "삼색냥", "rarity": "rare", "emoji": "🐈", "price": 50, "creature": "cat", "skin": "calico", "desc": "하양·주황·까만 줄무늬가 섞인 삼색 고양이. 빨간 목걸이에 금방울을 달았어요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_gentleman", "name": "신사 펭귄", "displayName": "신사 펭귄", "rarity": "rare", "emoji": "🎩", "price": 50, "creature": "penguin", "skin": "gentleman", "desc": "작은 실크햇을 비스듬히 쓰고 빨간 나비넥타이를 맨 신사 펭귄. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_swimmer", "name": "물놀이 펭귄", "displayName": "물놀이 펭귄", "rarity": "rare", "emoji": "🤿", "price": 50, "creature": "penguin", "skin": "swimmer", "desc": "파란 꼬마 펭귄이 물안경을 이마에 올리고 스노클을 챙겼어요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_hockey", "name": "하키 펭귄", "displayName": "하키 펭귄", "rarity": "epic", "emoji": "🏒", "price": 100, "creature": "penguin", "skin": "hockey", "desc": "흰 헬멧을 쓰고 빨간 줄무늬 하키 유니폼을 입은 펭귄. 서 있을 땐 스틱을 들어요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_chef", "name": "요리사 펭귄", "displayName": "요리사 펭귄", "rarity": "epic", "emoji": "🍳", "price": 100, "creature": "penguin", "skin": "chef", "desc": "높은 요리사 모자에 빨간 스카프와 앞치마를 두른 펭귄. 달걀 프라이 담긴 프라이팬을 들고 있어요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_mail", "name": "우체부 펭귄", "displayName": "우체부 펭귄", "rarity": "epic", "emoji": "💌", "price": 100, "creature": "penguin", "skin": "mail", "desc": "빨간 우체부 모자를 쓰고 큰 가방을 멘 펭귄. 하트 편지를 들고 다녀요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_icequeen", "name": "얼음 황제 펭귄", "displayName": "얼음 황제 펭귄", "rarity": "legend", "emoji": "👑", "price": 150, "creature": "penguin", "skin": "icequeen", "desc": "얼음 왕관과 눈꽃 망토를 두르고 얼음 홀을 든 황제 펭귄. 가슴을 쭉 펴고 서 있어요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_jetpack", "name": "로켓 펭귄", "displayName": "로켓 펭귄", "rarity": "legend", "emoji": "🚀", "price": 150, "creature": "penguin", "skin": "jetpack", "desc": "등에 로켓을 메고 빨간 목도리를 휘날리는 펭귄. 서 있으면 로켓에서 불꽃이 뿜어져요. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_wizard", "name": "마법사 펭귄", "displayName": "마법사 펭귄", "rarity": "legend", "emoji": "🪄", "price": 150, "creature": "penguin", "skin": "wizard", "desc": "별무늬 남색 로브와 고깔모자를 쓰고 지팡이 끝에서 별빛을 뿌리는 마법사 펭귄. 펭귄을 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
