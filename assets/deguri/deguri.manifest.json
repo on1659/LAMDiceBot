@@ -7481,5 +7481,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "creaturesM": {
+    "batch": "marble-run-creatures-m-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "",
+    "note": "기본 동물 고양이(치즈냥이) 3장 — 2026-10-22",
+    "assets": {
+      "cat": {
+        "image": "creatures/cat.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/cat.webp",
+        "md5": "3f3085b520b89fc1ce61dda289c1c6c1",
+        "qaStatus": "PASS"
+      },
+      "cat-sleep": {
+        "image": "creatures/cat-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-sleep.webp",
+        "md5": "68244b16cd7ea8ba5e6fabbe599dff14",
+        "qaStatus": "PASS"
+      },
+      "cat-scuffle": {
+        "image": "creatures/cat-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/cat-scuffle.webp",
+        "md5": "6402d1362050d30c1dfbd74ef082f83c",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

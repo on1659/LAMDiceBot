@@ -75,9 +75,9 @@
     //  props/chute.webp : 칸 160×112, c0 접힘 → c3 펼침, 캐노피 아랫단 가운데 = CHUTE_RIM
     //  props/{chestnut,storm,storm-flash,gravestone,bolt,plank,thorn,shutter}.webp
     //  스킨은 creatures/{동물}-{스킨}-{kind}.webp(데구리 deguri_skin 전부) — 없으면 기본 동물 포즈로 그린다(서기·착지는 스킨 시트 그대로)
-    var BA = '/assets/balloon/', BVER = '?v=1';
+    var BA = '/assets/balloon/', BVER = '?v=2';
     var HANG_ANCHOR = [80, 4];
-    var MOUTH = { hedgehog: [141, 91], armadillo: [145, 95], pillbug: [139, 102], turtle: [146, 100], panda: [141, 84], hamster: [141, 92], pufferfish: [145, 100], raccoon: [142, 89], rabbit: [133, 89], ribbonpig: [131, 78] };   // blow 칸 분홍 꼭지 끝(입) — balloon-sheet.py mouth 로 잰 값
+    var MOUTH = { hedgehog: [141, 91], armadillo: [145, 95], pillbug: [139, 102], turtle: [146, 100], panda: [141, 84], hamster: [141, 92], pufferfish: [145, 100], raccoon: [142, 89], rabbit: [133, 89], ribbonpig: [131, 78], cat: [135, 75] };   // blow 칸 분홍 꼭지 끝(입) — balloon-sheet.py mouth 로 잰 값
     var BAL_CELL = { w: 96, h: 120, knotX: 48, knotY: 116, bodyW: 88, popCY: 60 };
     var CHUTE = { w: 160, h: 112, rimX: 80, rimY: 108, openW: 150, worldW: 60, lift: 30 };
     var POSE_FPS = { hang: 5, blow: 4, fall: 10 };
@@ -99,8 +99,8 @@
     var GRAVE_STONE_TOP = 53 / 128, GRAVE_TAG_H = 19;   // gravestone.webp 96×128 의 돌 윗선(그 위는 투명) · 이름표 높이 + 틈 — 이름표를 돌 바로 위에(사용자 2026-10-19)
     var GRAVE_WORDS = ['하늘이 너무 높았다', '풍선아 미안해', '다음 판엔 꼭 간다', '여기 잠들다', '바람이 나빴어', '조금만 더 갔으면…', '꼴찌의 영광', '내 풍선 돌려줘'];   // 비석 위 한마디(이름으로 하나 고름)            // 비석 키(세계 단위) — 몸(44)보다 커야 끝 장면의 주인공이 된다
 
-    var A = '/assets/deguri/', VER = '?v=6';   // 데구리 에셋 그대로(js/deguri-render.js ASSET_VER 와 같은 캐시 키)
-    var CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
+    var A = '/assets/deguri/', VER = '?v=7';   // 데구리 에셋 그대로(js/deguri-render.js ASSET_VER 와 같은 캐시 키)
+    var CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
     var PIECES = { eagle: 'pieces/eagle.webp', beam: 'pieces/start-platform-mid.webp', fan: 'pieces/fan.webp', hive: 'pieces/beehive.webp', plog: 'pieces/pendulum-log.webp',
         pivot: 'pieces/pendulum-pivot.webp', flag: 'pieces/flag.webp', star: 'fx/impact-star.webp', swarm: 'fx/bee-swarm.webp', wind: 'fx/wind.webp', dust: 'fx/dust-puff.webp',
         beaver: 'pieces/beaver-v2.webp', fence: 'pieces/fence-mid.webp', post: 'pieces/fence-post.webp', pipe: 'pieces/warp-pipe.webp', skyFar: 'stage/sky-far.webp',

@@ -15,7 +15,7 @@ var REVEAL_SCROLL_RETRY_MS = 500;
 var RESULT_SCROLL_RECHECK_MS = 60;
 var RESULT_NAME_MAX = 6;
 var POP_SOUND_VOL = 0.4;              // 남이 터질 때 소리(내 동물은 기본 볼륨)
-var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
+var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
 var ACTIVE_ROOM_KEY = 'balloonActiveRoom';
 
 var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
