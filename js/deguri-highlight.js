@@ -22,7 +22,7 @@
     var ASK_TEXT = '이 장면 어땠어요?', THANKS_TEXT = '고마워요';
     var FILE_NAME = 'deguri-highlight.gif';
     var SHARE_TITLE = '데구리 하이라이트';
-    var CREATURE_NAME = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지', cat: '고양이' };
+    var CREATURE_NAME = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지', cat: '고양이', penguin: '펭귄' };
     // 이유 한 줄 — 서버 reason.key → 문장. {name} 은 그 공의 주인(참가자 이름, 화면에서만) 또는 동물 이름. 단독판 jev.reason.* 그대로
     var REASON = {
         turnLast: '{name} 여기서 꼴찌로', 'turnLastBy.eagleGrab': '{name} 독수리에 잡혀 꼴찌로', 'turnLastBy.pitFall': '{name} 구덩이에 빠져 꼴찌로', 'turnLastBy.mud': '{name} 진흙에 빠져 꼴찌로',

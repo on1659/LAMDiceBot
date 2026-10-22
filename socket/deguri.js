@@ -22,7 +22,9 @@ const FALLBACK_HOLD_MS = 3000;    // 투표 없음 — 사유 카드만 보여�
 const DEGURI_MIN_PLAYERS = IS_LOCAL_DEV ? 1 : 2;   // 로컬 개발 서버(DATABASE_URL 없음/localhost)에선 혼자서도 출발 — 테스트 서버·실서버는 2명(사용자 2026-09-25)
 const HISTORY_MAX = 100;
 const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat', 'penguin'];   // 7차(2026-09-21) 햄스터·복어·너구리 — 시트는 같은 파일 규칙, 클라는 시트가 없으면 선택 버튼을 숨긴다 / 8차(2026-09-21) 토끼 / 9차 리본돼지
+const HIDDEN_CREATURES = ['armadillo', 'pillbug'];   // 잠시 숨김(2026-10-22 사용자 — 나중에 삭제): 고르기·자동 배정에서만 뺀다. 스킨 해석·옛 기록 재생은 CREATURES 그대로
+const PICKABLE_CREATURES = CREATURES.filter(c => !HIDDEN_CREATURES.includes(c));
 const VOTE_TARGETS = ['first', 'last'];   // 당첨 순위 투표 선택지 (1등 / 꼴등)
 const HIGHLIGHT_CODE_SHARE = 0.2;         // Jev 하이라이트: 5판에 1판은 Jev 에 묻지 않고 코드 점수로 고른다(반응 비교용 — 단독판과 같은 값, 'Jev' 표시 없음)
 const TARGET_LABEL = { first: '1등', last: '꼴등' };
@@ -63,7 +65,7 @@ const WALLET_MAX_LIVE = 300;
 const WALLET_MAX = DEV_GAMES_ENABLED ? Infinity : WALLET_MAX_LIVE;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
+function assignCreature(idx) { return PICKABLE_CREATURES[idx % PICKABLE_CREATURES.length]; }
 
 // ─── 꾸미기 슬롯 (상점 deguri_skin / deguri_balloon, docs/goal/deguri-skins-all-creatures.md + deguri-balloon-accessory.md) ───
 // mb.equip[name] = { deguri_skin: {...}|null, deguri_balloon: {...}|null } — 이 방 안에서만 산다. 상점 [장착] → 클라가
@@ -344,7 +346,7 @@ function decideTarget(mb, participants) {
 function unpickedNames(gameState) {
     const mb = gameState.deguri;
     const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
-    return ready.filter(name => !CREATURES.includes(mb.picks[name]));
+    return ready.filter(name => !PICKABLE_CREATURES.includes(mb.picks[name]));
 }
 
 // 시작 검문 — 소켓 없이 판정한다(예약 스위퍼 socket/scheduled-start.js 가 그대로 호출).
@@ -482,7 +484,7 @@ async function startDeguri(room, gameState, io, ctx) {
     gameState.orderAutoTriggered = false;
 
     const picks = {};
-    participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
+    participants.forEach((name, i) => { picks[name] = PICKABLE_CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
     const ballsPerPlayer = sim.crowdBallsPerPlayer(mb.crowd, participants.length);
     const seed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
 
@@ -664,9 +666,9 @@ module.exports = (socket, io, ctx) => {
     function idlePreview(gameState) {
         const mb = gameState.deguri;
         const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
-        const participants = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name);
+        const participants = gameState.users.filter(u => ready.includes(u.name) || PICKABLE_CREATURES.includes(mb.picks[u.name])).map(u => u.name);
         const picks = {};
-        participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
+        participants.forEach((name, i) => { picks[name] = PICKABLE_CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         const chosen = mb.startX || {};   // 고른 자리(deguri:moveTo) — 대기 중엔 겹침을 펴지 않는다(시작할 때 편다)
         balls.forEach(b => { if (chosen[b.owner] != null) b.x = chosen[b.owner]; });
@@ -727,7 +729,7 @@ module.exports = (socket, io, ctx) => {
         if (!gameState || !room || room.gameType !== 'deguri') return;
         const mb = gameState.deguri;
         if (mb.phase === 'playing') { socket.emit('deguri:error', '경주 중에는 동물을 고를 수 없습니다.'); return; }
-        if (!CREATURES.includes(data.creatureId)) { socket.emit('deguri:error', '없는 동물입니다.'); return; }
+        if (!PICKABLE_CREATURES.includes(data.creatureId)) { socket.emit('deguri:error', '없는 동물입니다.'); return; }
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
         mb.picks[user.name] = data.creatureId;
@@ -746,7 +748,7 @@ module.exports = (socket, io, ctx) => {
         if (mb.phase !== 'idle') return;
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
-        if (!(gameState.readyUsers || []).includes(user.name) && !CREATURES.includes(mb.picks[user.name])) return;
+        if (!(gameState.readyUsers || []).includes(user.name) && !PICKABLE_CREATURES.includes(mb.picks[user.name])) return;
         const x = sim.clampStartX(data.x);
         mb.startX = mb.startX || {};   // 이 기능 전에 만든 방에는 없다
         mb.startX[user.name] = x;
@@ -1102,6 +1104,7 @@ module.exports = (socket, io, ctx) => {
 };
 
 module.exports.CREATURES = CREATURES;
+module.exports.PICKABLE_CREATURES = PICKABLE_CREATURES;
 // 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
 module.exports.canStart = canStartDeguri;
 module.exports.start = startDeguri;

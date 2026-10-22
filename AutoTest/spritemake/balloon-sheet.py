@@ -81,6 +81,8 @@ ATTACK = {   # 찌르기(poke) — 동물마다 다른 공격, 규칙(사거리�
                 "fork drawn back", "fork JABBED far to the RIGHT, prongs forward", "fork pulled back in"),
     'rabbit': ("an orange CARROT (pointy tip forward, green leaves at the back)", "it jabs with a carrot held in the free paw, tip forward",
                "carrot drawn back", "carrot JABBED far to the RIGHT, tip forward", "carrot pulled back in"),
+    'penguin': (None, "NO tool: a quick FLIPPER SLAP — the free flipper chops sideways",
+                "free flipper raised high", "flipper SLAPPED far to the RIGHT, stretched out flat", "flipper back at its side"),
     'cat': (None, "NO tool: a quick paw SWIPE with its claws out",
             "free paw raised, claws spread", "paw SWIPED far to the RIGHT, claws fully extended", "paw back, claws in"),
     'armadillo': (None, "NO tool: a quick swipe with its big curved CLAWS",

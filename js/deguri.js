@@ -20,7 +20,7 @@ var REVEAL_SCROLL_RETRY_MS = 500;  // 경주 화면으로 부드러운 스크롤
 var RESULT_SCROLL_RECHECK_MS = 60; // 결과 카드 당첨 줄 스크롤을 한 번 더 맞추는 지연
 var RESULT_NAME_MAX = 6;           // 결과 카드 이름 글자 수 — 스탠드 이름표와 같은 규칙, 넘으면 … (전체 이름은 title)
 var DEGURI_CROWDS = ['solo', 'normal', 'many'];   // 마릿수 3단계(솔로=인당 1) — 인당 수 환산은 서버(socket/deguri-sim.js crowdBallsPerPlayer)
-var DEGURI_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
+var DEGURI_CREATURES = ['hedgehog', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat', 'penguin'];
 var MY_HIGHLIGHT_KEY = 'deguriMyHighlight';   // sessionStorage — 내 동물 따라가기(보는 사람 설정). 들어올 때마다 켜져 있고, 끄면 이 탭에서만 유지(사용자 2026-09-21)
 
 // localhost 체크
@@ -314,6 +314,7 @@ window.addEventListener('DOMContentLoaded', function () {
             assetsLoaded = true;
             document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
                 var cid = btn.getAttribute('data-creature');
+                if (DEGURI_CREATURES.indexOf(cid) < 0) { btn.style.display = 'none'; return; }   // 잠시 숨긴 동물(아르마딜로·공벌레)
                 if (btn.getAttribute('data-optional') && !renderer.hasCreatureSprite(cid)) { btn.style.display = 'none'; return; }   // 7차 동물: 시트가 아직 없으면 버튼 숨김(서버는 id 를 받아 주므로 파일만 오면 켜진다)
                 var ic = btn.querySelector('.deguri-creature-icon');
                 if (ic) renderer.drawCreatureIcon(ic, cid);

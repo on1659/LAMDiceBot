@@ -19,7 +19,7 @@ var BALLOON_BGM_VOL = 0.35;           // 경주 배경음 볼륨(효과음보다
 var OTHER_SOUND_VOL = 0.3;            // 남의 동물 사건 소리(내 동물은 기본 볼륨)
 var WORLD_SOUND_VOL = 0.7;            // 모두에게 일어나는 큰 사건(독수리 경고·돌풍) 소리
 var EVENT_SOUND_GAP_MS = 150;         // 같은 소리는 이 간격 안에 한 번만 — 몰림 방지(내 동물은 예외)
-var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
+var BALLOON_CREATURES = ['hedgehog', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat', 'penguin'];
 var ACTIVE_ROOM_KEY = 'balloonActiveRoom';
 
 var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
@@ -275,6 +275,7 @@ window.addEventListener('DOMContentLoaded', function () {
             assetsLoaded = true;
             document.querySelectorAll('.deguri-creature-btn').forEach(function (btn) {
                 var cid = btn.getAttribute('data-creature');
+                if (BALLOON_CREATURES.indexOf(cid) < 0) { btn.style.display = 'none'; return; }   // 잠시 숨긴 동물(아르마딜로·공벌레)
                 if (btn.getAttribute('data-optional') && !renderer.hasCreatureSprite(cid)) { btn.style.display = 'none'; return; }
                 var ic = btn.querySelector('.deguri-creature-icon');
                 if (ic) renderer.drawCreatureIcon(ic, cid, 0, myLookSkin(cid));

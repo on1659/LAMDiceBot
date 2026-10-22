@@ -10,7 +10,7 @@ const config = require('../config');
 const MODEL = 'jev-latest';
 const TIMEOUT_MS = 3500;        // 카운트다운(4초) 안에 답이 와야 경주 중에 GIF 를 만들어 둘 수 있다
 const MAX_PER_MINUTE = 60;      // 전체 상한 — 방이 아무리 많아도 분당 이만큼만(넘으면 코드 점수)
-const CREATURE_WORD = { hedgehog: 'hedgehog', armadillo: 'armadillo', pillbug: 'pill bug', turtle: 'turtle', panda: 'panda', hamster: 'hamster', pufferfish: 'pufferfish', raccoon: 'raccoon', rabbit: 'rabbit', ribbonpig: 'pig', cat: 'cat' };
+const CREATURE_WORD = { hedgehog: 'hedgehog', armadillo: 'armadillo', pillbug: 'pill bug', turtle: 'turtle', panda: 'panda', hamster: 'hamster', pufferfish: 'pufferfish', raccoon: 'raccoon', rabbit: 'rabbit', ribbonpig: 'pig', cat: 'cat', penguin: 'penguin' };
 
 let calls = [];   // 최근 1분 호출 시각
 function allow(now) {

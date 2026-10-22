@@ -11,7 +11,7 @@ const deguri = require('./deguri');
 const highlight = require('./balloon-highlight');                        // Jev 하이라이트 — 끝난 타임라인에서 장면 후보(순수 함수)
 const jev = require('./jev');                                            // TypeSafe Jev 호출(키 없으면 코드 점수)
 const highlightFeedback = require('../db/balloon-highlight-feedback');   // 👍/👎·GIF 저장 → 코드 점수 가중치 배율
-const { CREATURES } = deguri;                    // 동물 목록은 데구리와 한 벌(시트가 같다)
+const { PICKABLE_CREATURES: CREATURES } = deguri;   // 고를 수 있는 동물 목록은 데구리와 한 벌(시트가 같다 — 숨긴 동물 제외)
 
 // ─── 공유 상수 (js/balloon.js 상단과 반드시 동일 값) ───
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1 카운트다운(데구리와 같음) — 클라가 이만큼 늦게 재생을 시작하므로 종료 타이머에 가산. 풍선은 마지막 3초 동안 분다
