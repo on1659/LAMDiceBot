@@ -180,7 +180,8 @@
 
     // ── 목록 ──
     function listItems(api) {
-        var skins = api.items(SKIN).filter(function (it) { return it.id !== SKIN_NONE; });
+        var shown = creatures();
+        var skins = api.items(SKIN).filter(function (it) { return it.id !== SKIN_NONE && (!shown.length || !it.creature || shown.indexOf(it.creature) >= 0); });   // 숨긴 동물(아르마딜로·공벌레) 스킨은 옷장에도 안 보인다
         // 기본 모습 칸은 무대 동물(동물 칩 또는 내 동물) 하나만 — 동물마다 하나씩 열 칸이면 전부 '입는 중'이라 시끄럽다
         var bases = [baseItem(stageCreature(api))];
         var all = bases.map(function (it) { return { slot: SKIN, item: it }; })

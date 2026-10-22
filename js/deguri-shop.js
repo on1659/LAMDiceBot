@@ -180,6 +180,7 @@
                 if (ctx.slot !== SKIN_SLOT) return items;
                 var picks = (window.deguriState && deguriState.picks) || {}, mine = picks[window.currentUser];
                 var order = (typeof window.DEGURI_CREATURES !== 'undefined' && window.DEGURI_CREATURES) || [];
+                if (order.length) items = items.filter(function (it) { return !it.creature || order.indexOf(it.creature) >= 0; });   // 숨긴 동물(아르마딜로·공벌레)의 스킨은 상점·옷장 어느 탭에도 안 보인다
                 function rank(it) { var i = order.indexOf(it.creature); return (it.creature === mine ? -1 : (i < 0 ? order.length : i)) * 10 + RARITY_RANK[it.rarity]; }
                 var base = items.filter(function (it) { return !it.creature; });
                 var skins = items.filter(function (it) { return it.creature; }).map(function (it, i) { return { it: it, i: i, r: rank(it) }; });

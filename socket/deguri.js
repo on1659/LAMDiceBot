@@ -250,6 +250,7 @@ function gachaPool() {
         if (!entry || entry.slot !== slot) return;
         const item = entry.item;
         if (item.defaultOwned || !Number.isInteger(item.price) || !equipFromItem(slot, item)) return;
+        if (HIDDEN_CREATURES.includes(item.creature)) return;   // 숨긴 동물 스킨은 뽑기에서도 안 나온다
         const tier = slot === 'deguri_balloon' ? 'rare' : item.rarity;
         if (pool[tier]) pool[tier].push({ id: item.id, slot, tier });
     }));
