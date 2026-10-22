@@ -36,6 +36,8 @@ TEMPLATE = {
     'hamster': ('marble-run-skin-hamster-cookie-2026-09-22', 'hamster-cookie', 'creatures_cookie_png.js'),
     'rabbit': ('marble-run-skin-rabbit-tophat-2026-09-22', 'rabbit-tophat', 'creatures_tophat_png.js'),
     'hedgehog': ('marble-run-skin-hedgehog-knight-2026-09-22', 'hedgehog-knight', 'creatures_knight_png.js'),
+    'pufferfish': ('deguri-skin-pufferfish-bungeo-2026-10-20', 'pufferfish-bungeo', 'creatures_skin_png.js'),   # 안전 축소가 이미 들어간 도구
+    'cat': ('marble-run-creatures-m-2026-10-22', 'cat', 'creatures_m_png.js'),   # 기본 동물 배치(r3c0 도 공)
     'penguin': ('marble-run-creatures-n-2026-10-22', 'penguin', 'creatures_n_png.js'),   # 기본 동물 배치(r3c0 도 공)
 }
 ROWS = {
@@ -138,6 +140,28 @@ ROWS = {
                     "row1: c0 startled airborne, eyes wide, feet lifted; c1 falling curled/crouched with feet spread, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
                     "Copy the base hedgehog-scuffle poses; right-facing side profile."),
     },
+    'pufferfish': {
+        'main': ("row0 idle: four right-facing fish poses hovering just above the ground line (fin flutter, tail flick, blink, settle).\n"
+                 "row1 curl: c0 normal fish; c1 fish starting to puff up; c2 half-inflated puffed fish, spikes out; c3 FULLY INFLATED round spiky puff-BALL identical to r2c0.\n"
+                 "row2 ball: c0 round inflated puff-ball; c1 landing squash, a flattened wide puff with squeezed >< eyes; c2 round puff-ball with brown mud splotches; c3 round dizzy puff-ball with a spiral eye. All four are genuine round puff-BALLS, costume visible on each.\n"
+                 "row3 uncurl: c0 round inflated puff-ball; c1 deflating; c2 almost back to a normal fish; c3 normal fish.\n"
+                 "row4 faceplant: c0 squashed against an invisible wall at RIGHT, eyes ><, with motion marks; c1 bouncing back with motion lines; c2 flattened on the ground, eyes ><, with small impact ticks; c3 flattened and dazed with a half-closed eye."),
+        'sleep': "c0 lying flattened on the ground asleep, eyes shut; c1 same pose breathing; c2 same pose with the eye open; c3 woken up, hovering as a normal right-facing fish. Copy the base pufferfish-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward pushing; c1 pushing harder; c2 strongest shove with the tail raised; c3 recoil with eyes ><.\n"
+                    "row1: c0 startled, eye wide, slightly airborne; c1 tumbling and falling, tilted, NOT a ball; c2 sitting dizzy A with a spiral eye; c3 sitting dizzy B with a spiral eye.\n"
+                    "Copy the base pufferfish-scuffle poses; right-facing side profile. It has NO legs."),
+    },
+    'cat': {
+        'main': ("row0 idle: c0 ear flick; c1 front paw lifted (tap); c2 nose sniff + brief blink; c3 tail swish settled.\n"
+                 "row1 curl: c0 standing; c1 crouching; c2 body rounding, head tucked; c3 COMPLETE compact ball identical to r2c0.\n"
+                 "row2 ball: c0 plain round ball; c1 landing squash, distinctly wider than tall; c2 round ball with brown mud patches; c3 round dizzy ball with swirl eyes. All four are compact ROUND balls (tail wrapped around as a band, two small ear bumps), costume visible on each.\n"
+                 "row3 uncurl: c0 complete ball; c1 half-open body; c2 standing wave A (one paw raised); c3 standing wave B.\n"
+                 "row4 faceplant: c0 right-facing wall-hit, face squashed flat; c1 airborne rebound; c2 belly-down spread-eagle faceplant (top-down accepted), tail flopped; c3 stunned recovery with orbiting stars and dizzy eyes."),
+        'sleep': "c0 lying curled on its side asleep, eyes closed; c1 same pose breathing; c2 waking, eyes open, ears up; c3 sitting upright, alert. No Z letters or text. Copy the base cat-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward pushing; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil.\n"
+                    "row1: c0 startled jump, eyes wide, slightly airborne; c1 falling with distinct body and legs, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base cat-scuffle poses; right-facing side profile."),
+    },
     'penguin': {
         'main': ("row0 idle: c0 open-eyed default idle; c1 one flipper lifted slightly; c2 happy closed eyes looking up; c3 settled idle.\n"
                  "row1 curl: c0 standing; c1 crouching, tucking flippers; c2 body rounding, head tucked into the body; c3 COMPLETE compact ball identical to r2c0.\n"
@@ -199,8 +223,10 @@ def main():
         (dst / 'contracts' / rename(c.name)).write_text(rename(c.read_text()))
     # 안전 축소: 배율 기준 칸이 아닌 칸(꽈당 줄·몸싸움 공중 칸)은 소품(쇠스랑·충격선)이 넓으면 칸을 넘쳐 "body would clip" 으로 멈춘다 → 156×148 에 맞게만 줄인다(2026-09-30 저팔계·스노클 판다)
     js = rename((src / 'tools' / tjs).read_text())
-    assert js.count('const appliedScale=s;') == 1, 'template tool changed — safety-shrink anchor missing'
-    js = js.replace('const appliedScale=s;', "const appliedScale=reference.includes(r+','+c)?s:Math.min(s,156/extent.width,148/extent.height);")
+    shrink = "const appliedScale=reference.includes(r+','+c)?s:Math.min(s,156/extent.width,148/extent.height);"
+    if shrink not in js:   # 템플릿이 스캐폴드로 만든 스킨 배치면 이미 들어 있다
+        assert js.count('const appliedScale=s;') == 1, 'template tool changed — safety-shrink anchor missing'
+        js = js.replace('const appliedScale=s;', shrink)
     (dst / 'tools' / 'creatures_skin_png.js').write_text(js)
     for kind in ('main', 'sleep', 'scuffle'):
         (dst / 'prompts' / f'{sheet}-{kind}.md').write_text(prompt(sheet, creature, base, kind, costume, ballnote))

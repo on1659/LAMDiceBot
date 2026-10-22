@@ -266,7 +266,7 @@ async function simulate(players, seed, map, opts) {
                     const g = h.y - prevTop;
                     if (g > -2 && shutClosedAt(h, bxNow, R.balloonR)) block = Math.min(block, g);
                 }
-                plats.forEach((q, i) => { if (beamUp(i) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = beamBot(q) - prevTop; if (g > -2) block = Math.min(block, g); } });
+                plats.forEach((q, i) => { if (beamUp(i) && !(p.superT > 0 && beamHP[i] > 0) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = beamBot(q) - prevTop; if (g > -2) block = Math.min(block, g); } });
                 const vT = v * clamp(block / R.blockSlow, 0, 1);
                 p.vy += (vT - p.vy) * Math.min(1, dt * R.riseAccel);   // 상승 속도는 목표로 서서히 — 출발할 때 0 에서 가속, 바뀔 때도 부드럽게
                 p.y += p.vy * dt;
@@ -282,6 +282,10 @@ async function simulate(players, seed, map, opts) {
                     const q = plats[i]; if (!beamUp(i)) continue;
                     if (Math.abs(balloonX(p) - q.x) > q.w / 2 + R.balloonR * 0.7) continue;
                     const qb = beamBot(q), gap = qb - prevTop;
+                    if (p.superT > 0 && beamHP[i] > 0) {   // 슈퍼 풍선(사용자 2026-10-22): 부서지는 들보는 한 방에 뚫고 간다 — 튕기지도 비켜 가지도 않는다. 안 부서지는 들보(hp -1)는 그대로
+                        if (prevTop <= qb && p.y + BAL_OFF + R.balloonR > qb) { beamHP[i] = 0; ev('beamHit', { plat: i, ball: p.id, hp: 0 }); }
+                        continue;
+                    }
                     if (gap > -2 && gap < R.solidReach) {
                         tx = beamSide(q, b0, b1, p.x); k = Z.shutSteer;
                     }

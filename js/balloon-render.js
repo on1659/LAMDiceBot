@@ -1349,6 +1349,29 @@
             ctx.strokeStyle = C.spike; ctx.lineWidth = 1.6 * s; seg(-len / 2, 0, len / 2 - 2 * s, 0);
             ctx.restore();
         }
+        // 휘두르는 효과(사용자 2026-10-22 "할퀴기가 더 잘 보이게, 다른 동물도 일괄로") — 근접 공격(그림만 다른 모든 동물의 기본)은 닿는 점(hx, hy)에서 대상 쪽으로 흰 휙 호가 쓸고 지나간다.
+        //  닿는 점이 거의 안 움직여도(풍선이 맞닿은 채 찌를 때) 보이게 몸 크기 기준 호. 고양이는 거기에 맞은 풍선에 발톱 자국 세 줄이 번쩍
+        function drawSwipeFx(p, q, hx, hy, tx, ty, u) {
+            var hit = u - R.pokeWind, S = BODY * s;
+            if (hit > -0.16 && hit < 0.24) {   // 호 — 예고 끝(-0.16)부터 터지는 순간(0)까지 쓸어 나가고 이어 사라진다
+                var sw = clamp((hit + 0.16) / 0.16, 0, 1), al = hit < 0 ? 1 : 1 - hit / 0.24, dir = Math.atan2(ty - hy, tx - hx), r = S * 0.55, span = 1.0;
+                var cx = hx - Math.cos(dir) * r * 0.55, cy = hy - Math.sin(dir) * r * 0.55, a0 = dir - span, a1 = dir - span + 2 * span * sw;
+                ctx.save(); ctx.lineCap = 'round'; ctx.globalAlpha = al;
+                ctx.strokeStyle = C.tagInk; ctx.lineWidth = 11 * s; ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6.5 * s; ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+                ctx.restore();
+            }
+            if (p.creature === 'cat' && hit > -0.04 && hit < 0.32) {   // 발톱 자국 — 맞힌 풍선(헛찌르기는 닿는 점) 위에 비스듬한 세 줄이 위에서 아래로 그어진다
+                var k = clamp((hit + 0.04) / 0.12, 0, 1), al2 = hit < 0.12 ? 1 : 1 - (hit - 0.12) / 0.2, ox = q.hit ? tx : hx, oy = q.hit ? ty : hy, L = S * 0.6 * k;
+                ctx.save(); ctx.lineCap = 'round'; ctx.globalAlpha = al2;
+                for (var ci = -1; ci <= 1; ci++) {
+                    var bx = ox + ci * 8 * s - L * 0.3, by = oy - L * 0.5, ex = bx + L * 0.6, ey = by + L;
+                    ctx.strokeStyle = C.tagInk; ctx.lineWidth = 6 * s; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+                    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
         function drawPokeFx(p, a, b, q, u) {
             if (u < -POKE_PRE || u > POKE.end || !a || !b) return;
             var S = BODY * s, face = (b.x >= a.x ? 1 : -1) * (POKE_BACK[p.creature] ? -1 : 1), hit = u - R.pokeWind;   // hit = 터지는 순간 뒤 초(음수 = 아직) · face = 그림이 보는 쪽(고슴도치는 등을 돌린다)
@@ -1357,6 +1380,7 @@
             var pg = pokePose(sx(a.x), sy(a.y), face, sx(a.x + a.wind * R.balTilt), sy(a.y + BAL_OFF) + R.balloonR * 1.15 * s, tx, ty, u, p, !q.hit), hx = pg.hx, hy = pg.hy;   // 흔든 도구 끝(그림과 같은 식)
             if (u < 0.1) pokeFx(POKE_FX.sly, sx(a.x) - face * S * 0.3, sy(a.y) - S * 1.05, 26 * s, 26 * s, u < 0 ? 1 : 1 - u / 0.1);   // 히히 — 예고 내내 슬쩍 보다가 준비에 들어가며 사라진다
             if (hit < 0 && !(style === 'roll' && u >= POKE_ROLL.go)) drawExclaim(pg.ax + face * S * 0.45, pg.ay - 6 * s, u, C.tagMe, C.tagInk);   // 찌르는 쪽 머리 앞 노란 ! '오! 기회다'(사용자 2026-10-20 "받는 쪽이 아니라 쏘는 쪽에") — 예고부터 터지는 순간까지, 흔든 자리(pg)를 따라간다. 톡톡 박자는 시뮬 시각이라 되감기·GIF 도 같다
+            if (style === 'melee') drawSwipeFx(p, q, hx, hy, tx, ty, u);
             if (style === 'burst') {   // 복어 — 들이받는 몸(pg.cx, cy)에서 가시가 둘레로 한꺼번에 퍼져 나간다 — 대상 쪽 가시가 터지는 순간 풍선에 닿고, 나머지는 같은 빠르기로 더 날아가며 사라진다
                 var bcx = pg.cx, bcy = pg.cy, dist = Math.hypot(tx - bcx, ty - bcy), a0 = Math.atan2(ty - bcy, tx - bcx);
                 var fk = (hit + POKE_BURST.fly) / POKE_BURST.fly;   // 0 = 쏘는 순간, 1 = 닿는 순간
