@@ -12,6 +12,7 @@ var DeguriRender = (function () {
     var BALL_R = 14;
     var NAP_R = 17;
     var COUNTDOWN_MS = 4000;         // js/deguri.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
+    var EVENT_LIVE_GAP_MS = 250;     // 지난 장면과 이보다 멀면(이동·늦은 입장·가려진 탭) 지나간 사건은 onEvent 로 알리지 않는다(소리 몰림 방지)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
     // 대기 화면 애니: 출발대 위 동물들이 제자리에서 표정을 짓다가 자리가 바뀌면 걸어가고, 주기마다 붙어 선 옆 놈과 으르렁 몸싸움(6차 scuffle 시트) — 전부 시계(idleClock)에서 파생(Math.random 0)
@@ -175,15 +176,15 @@ var DeguriRender = (function () {
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
         '#4053d6', '#d63be2', '#b07033', '#aab6c4', '#3bc9a7', '#e6dfc8', '#5a6472', '#343344',
         '#ff7a1a', '#f2c014', '#8a8d2f', '#0e9488', '#5b3fd6', '#ff6f61', '#7d3a6a', '#46708f'];
-    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지' };
+    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지', cat: '고양이' };
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/deguri/';
     // 에셋 URL 버전 — 서버(routes/api.js)가 assets/deguri/** 를 7일 캐시하므로, 같은 이름으로 파일을 교체하면 여기를 올려야 모두가 새 그림을 받는다(2026-09-22)
-    var ASSET_VER = '?v=6';   // v2(2026-09-26): N차 — trampoline 같은 이름 교체. v3(2026-09-29): 너구리 5시트 공 칸 원형화. v4(2026-09-30): 강철·레드 돼지 시트 교체. v5: 앵그리 아이언 얼굴 드러난 판으로 교체. v6(2026-10-01): 5090 에디션 공벌레(LED)·아르마딜로(화이트) 색 교체
+    var ASSET_VER = '?v=7';   // v7(2026-10-22): 고양이 추가 — 새 이름이라 교체는 아니지만 시트 없을 때 받은 404 캐시를 털어낸다. v2(2026-09-26): N차 — trampoline 같은 이름 교체. v3(2026-09-29): 너구리 5시트 공 칸 원형화. v4(2026-09-30): 강철·레드 돼지 시트 교체. v5: 앵그리 아이언 얼굴 드러난 판으로 교체. v6(2026-10-01): 5090 에디션 공벌레(LED)·아르마딜로(화이트) 색 교체
     function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/deguri.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
+        creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp', cat: A + 'creatures/cat.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/deguri.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
         // sleep(4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡)·scuffle(6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B, 오른쪽 향함) 시트는 진입 때 받지 않는다 —
         // setTimeline 이 방에 나온 동물 것만 미리 받는다(10종 전부 = 약 0.8MB, 2026-09-24). 선택 버튼 아이콘이 쓰는 기본 시트만 여기서 로드
         pieces: {
@@ -421,6 +422,7 @@ var DeguriRender = (function () {
         var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
+        var onEventCb = null;     // R.onEvent — 재생 중 사건(e, 공) 알림. js/deguri.js 가 소리에 쓴다
         var idleClock = 0, idleStart = 0;   // 대기 애니 시계(ms)
         var onIdleMoveCb = null;            // 대기 화면에서 출발대를 눌렀을 때 (월드 x) — js/deguri.js 가 내 동물 자리 옮기기에 쓴다
 
@@ -500,6 +502,7 @@ var DeguriRender = (function () {
         var clipIds = null;       // 장면 카메라(Jev 하이라이트 GIF — 데구리 단독판 R.frameBalls 역반영): 이 동물들을 한 화면에 담는다. 화면 렌더러는 쓰지 않는다
         R.frameBalls = function (ids) { clipIds = ids && ids.length ? ids.slice() : null; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
+        R.onEvent = function (cb) { onEventCb = cb; };
 
         // ─── 재생 ───
         R.play = function (countdownMs) {
@@ -754,10 +757,11 @@ var DeguriRender = (function () {
         function applyEventsUpTo(t) {
             if (!data) return;
             if (t < lastT) { evCursor = 0; fxList = []; leftMats = []; toasts = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; b.deep = false; b.deepKind = ''; b.matAt = 0; b.onLane = false; }); resetPieceFx(); }
-            var ev = data.events;
+            var ev = data.events, live = onEventCb && pausedAt == null && t >= lastT && t - lastT < EVENT_LIVE_GAP_MS;   // 뒤로 이동하면 처음부터 다시 쌓는다 — 그때도 안 알린다
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
                 var b = e.ball != null ? byId[e.ball] : null;
+                if (live) onEventCb(e, b);
                 switch (e.type) {
                     case 'nap': b.state = 'nap'; b.napAt = e.t; if (e.deep) { b.deep = true; b.deepKind = 'sleep'; b.matAt = e.t; pushToast(b, e.t); } break;   // deep(1등 룰) = 안 깸 → 돗자리 + 자막
                     case 'pitStuck': b.deep = true; b.deepKind = 'pit'; pushToast(b, e.t); break;   // 1등 룰: 분출 때 온천에 남음(상태는 pit 그대로) → Zz + 자막

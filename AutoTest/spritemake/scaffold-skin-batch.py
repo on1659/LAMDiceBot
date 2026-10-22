@@ -35,6 +35,7 @@ TEMPLATE = {
     'armadillo': ('marble-run-skin-pillbug-rainbow-2026-09-22', 'pillbug-rainbow', 'creatures_rainbow_png.js'),
     'hamster': ('marble-run-skin-hamster-cookie-2026-09-22', 'hamster-cookie', 'creatures_cookie_png.js'),
     'rabbit': ('marble-run-skin-rabbit-tophat-2026-09-22', 'rabbit-tophat', 'creatures_tophat_png.js'),
+    'hedgehog': ('marble-run-skin-hedgehog-knight-2026-09-22', 'hedgehog-knight', 'creatures_knight_png.js'),
 }
 ROWS = {
     'raccoon': {
@@ -124,6 +125,17 @@ ROWS = {
         'scuffle': ("row0 push: c0 leaning forward pushing with front paws; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil.\n"
                     "row1: c0 startled jump, slightly airborne; c1 falling with legs spread, NOT a ball; c2 seated dizzy A with swirl eyes, ears flopped; c3 seated dizzy B with swirl eyes, no stars.\n"
                     "Copy the base rabbit-scuffle poses; right-facing side profile."),
+    },
+    'hedgehog': {
+        'main': ("row0 idle: c0 neutral standing; c1 front foot step; c2 sniff/blink alert; c3 settle smiling.\n"
+                 "row1 curl: c0 standing crouch; c1 tucked crouch; c2 almost fully rounded; c3 full spiny ball, identical to r2c0.\n"
+                 "row2 ball: c0 full spiny ball; c1 horizontally squashed landing ball; c2 ball with brown mud splotches; c3 dizzy ball with spiral eyes. All four are genuine BALLS, costume visible on each.\n"
+                 "row3 uncurl: c0 ball; c1 half open; c2 standing wave A; c3 standing wave B.\n"
+                 "row4 faceplant: c0 impact nose pressed RIGHT in SIDE PROFILE; c1 airborne rebound facing RIGHT; c2 splayed overhead faceplant allowed; c3 dazed faceplant RIGHT SIDE PROFILE with orbiting stars."),
+        'sleep': "c0 lying sideways asleep, closed eyes, right-facing head; c1 same pose, subtle belly breathing; c2 waking with open eyes, spines rising, no text; c3 suddenly sitting upright awake. Copy the base hedgehog-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward ready to push; c1 steps forward pushing; c2 strongest push with scrunched effort; c3 recoils from being pushed.\n"
+                    "row1: c0 startled airborne, eyes wide, feet lifted; c1 falling curled/crouched with feet spread, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base hedgehog-scuffle poses; right-facing side profile."),
     },
 }
 GRID = {'main': (4, 5), 'sleep': (4, 1), 'scuffle': (4, 2)}
