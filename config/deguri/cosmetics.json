@@ -93,7 +93,9 @@
     {"id": "deguri_skin_hedgehog_rgb", "name": "RGB 고슴도치", "displayName": "RGB 고슴도치", "rarity": "legend", "emoji": "🌈", "price": 150, "creature": "hedgehog", "skin": "rgb", "desc": "무지개빛으로 반짝이는 가시에 게이밍 조끼를 입고 휴대용 게임기를 든 고슴도치예요. 고슴도치를 고르면 적용돼요."},
     {"id": "deguri_skin_panda_esports", "name": "e스포츠 판다", "displayName": "e스포츠 판다", "rarity": "legend", "emoji": "🕹️", "price": 150, "creature": "panda", "skin": "esports", "desc": "빨강·검정 유니폼에 헤드셋을 쓰고 조이스틱을 쥔 e스포츠 선수 판다예요. 판다를 고르면 적용돼요."},
     {"id": "deguri_skin_ribbonpig_samgyeop", "name": "삼겹살 쌈", "displayName": "삼겹살 쌈 돼지", "rarity": "epic", "emoji": "🥬", "price": 100, "creature": "ribbonpig", "skin": "samgyeop", "desc": "불판 자국이 난 노릇한 살결에 쌈장을 바르고 파란 머릿수건을 두른 삼겹살 가게 사장님 돼지. 뒷몸통은 상추에 폭 싸였어요. 돼지를 고르면 적용돼요."},
-    {"id": "deguri_skin_hedgehog_bamsong", "name": "밤송이도치", "displayName": "밤송이도치", "rarity": "rare", "emoji": "🌰", "price": 50, "creature": "hedgehog", "skin": "bamsong", "desc": "가시가 초록 밤송이가 되고 등 위로 반질한 밤 한 알이 고개를 내민 고슴도치. 고슴도치를 고르면 적용돼요."}
+    {"id": "deguri_skin_hedgehog_bamsong", "name": "밤송이도치", "displayName": "밤송이도치", "rarity": "rare", "emoji": "🌰", "price": 50, "creature": "hedgehog", "skin": "bamsong", "desc": "가시가 초록 밤송이가 되고 등 위로 반질한 밤 한 알이 고개를 내민 고슴도치. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_fluffy", "name": "솜털 펭귄", "displayName": "솜털 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "fluffy", "desc": "검은 몸이 보송보송 털로 덮인 폭신한 펭귄. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_downy", "name": "솜뭉치 펭귄", "displayName": "솜뭉치 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "downy", "desc": "회청색 솜털이 구름처럼 몽실몽실한 펭귄. 펭귄을 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
