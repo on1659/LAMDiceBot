@@ -77,7 +77,7 @@
     //  스킨은 creatures/{동물}-{스킨}-{kind}.webp(데구리 deguri_skin 전부) — 없으면 기본 동물 포즈로 그린다(서기·착지는 스킨 시트 그대로)
     var BA = '/assets/balloon/', BVER = '?v=3';
     var HANG_ANCHOR = [80, 4];
-    var MOUTH = { hedgehog: [141, 91], armadillo: [145, 95], pillbug: [139, 102], turtle: [146, 100], panda: [141, 84], hamster: [141, 92], pufferfish: [145, 100], raccoon: [142, 89], rabbit: [133, 89], ribbonpig: [131, 78], cat: [135, 75], penguin: [133, 79] };   // blow 칸 분홍 꼭지 끝(입) — balloon-sheet.py mouth 로 잰 값
+    var MOUTH = { hedgehog: [141, 91], armadillo: [145, 95], pillbug: [139, 102], turtle: [146, 100], panda: [141, 84], hamster: [141, 92], pufferfish: [145, 100], raccoon: [142, 89], rabbit: [133, 89], ribbonpig: [131, 78], cat: [135, 75], penguin: [136, 81] };   // blow 칸 분홍 꼭지 끝(입) — balloon-sheet.py mouth 로 잰 값
     var BAL_CELL = { w: 96, h: 120, knotX: 48, knotY: 116, bodyW: 88, popCY: 60 };
     var CHUTE = { w: 160, h: 112, rimX: 80, rimY: 108, openW: 150, worldW: 60, lift: 30 };
     var POSE_FPS = { hang: 5, blow: 4, fall: 10 };

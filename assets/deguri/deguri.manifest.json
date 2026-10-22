@@ -8971,7 +8971,7 @@
     "batch": "marble-run-creatures-n-2026-10-22",
     "status": "all-3-picked-up",
     "request": "",
-    "note": "기본 동물 펭귄(검은 머리·흰 얼굴·분홍 볼터치) 3장 — 2026-10-22 참고 이미지로 재제작",
+    "note": "기본 동물 펭귄(통통·폭신 체형, 검은 머리·흰 얼굴·분홍 볼터치) 3장 — 2026-10-22",
     "assets": {
       "penguin": {
         "image": "creatures/penguin.png",
@@ -8999,7 +8999,7 @@
         "ballDiameter": 112,
         "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
         "targetGamePath": "assets/deguri/creatures/penguin.webp",
-        "md5": "b5a303c9eac7b42005a82eaa487b91cc",
+        "md5": "819ab909a350415e3a87dec9712e6daa",
         "qaStatus": "PASS"
       },
       "penguin-sleep": {
@@ -9028,7 +9028,7 @@
           "sit-up"
         ],
         "targetGamePath": "assets/deguri/creatures/penguin-sleep.webp",
-        "md5": "dbbbeb9bb64e7d328a0bd1a5911ebdf2",
+        "md5": "6a907913b3a92fdb44e13aa71b07762a",
         "qaStatus": "PASS"
       },
       "penguin-scuffle": {
@@ -9061,7 +9061,7 @@
           "dizzy-sit-b"
         ],
         "targetGamePath": "assets/deguri/creatures/penguin-scuffle.webp",
-        "md5": "88a96eb5c4fdd930eb237d559028dd23",
+        "md5": "191ad5e57c47c2249b9264e4fed5f8eb",
         "qaStatus": "PASS"
       }
     }
