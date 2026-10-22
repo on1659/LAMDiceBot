@@ -171,6 +171,13 @@ for k in "" -sleep -scuffle; do dwebp -quiet assets/deguri/creatures/<sheet>$k.w
 3. 렌더러: `http://localhost:5174/game-lab/deguri-preview.html` 에서 `data.balls` 의 creature/skin 을 바꿔 `R.setTimeline` → `R.render` 여러 번(카메라 안정) → 구르는 공 주변을 잘라 확대해 **링 안이 차는지**, network 에서 새 시트 `200` 확인.
 4. 둥둥라이더: `http://localhost:5174/game-lab/balloon-preview.html` 에서 그 스킨으로 매달림·찌르기·떨어짐 장면을 보고, network 에서 `balloon/creatures/<sheet>-*.webp` 가 `200` 인지(404 면 기본 동물로 그려진다).
 5. 쇼케이스(시트 3장 + 걷기 + 둥둥라이더 자세 4장 + 28px 공) 한 장을 만들어 SendUserFile 로 사용자에게 보인다.
+6. **텔레그램에도 항상 보낸다(2026-10-22 사용자)** — 시안 후보 비교 이미지·쇼케이스 등 사용자에게 SendUserFile 로 보이는 그림은 전부 같이 보낸다. ThreadsBot DB 의 설정을 쓴다(토큰은 출력·기록 금지):
+   ```bash
+   cd /Users/radar/Work/ThreadsBot && DB=data/threadsbot.db
+   BT=$(sqlite3 $DB "select value from settings where key='telegram_bot_token'"); CH=$(sqlite3 $DB "select value from settings where key='telegram_chat_id'")
+   curl -s -X POST "https://api.telegram.org/bot$BT/sendPhoto" -F chat_id=$CH -F photo=@<이미지> -F caption="<한국어 설명>"   # "ok":true 확인
+   ```
+7. **시안(후보 N개 중 고르기) 설명 글의 번호는 이미지의 왼쪽→오른쪽 순서와 똑같이 매긴다**(2026-10-22 사고: 글은 A 정통·B 쌈·C 불판인데 그림 순서는 정통·불판·쌈이라 사용자 "2번"이 모호했다). 파일 이름 정렬 순서에 의존하지 말고 이미지를 붙일 때 순서를 직접 정한다.
 
 ## 5. 커밋·배포
 

@@ -7976,5 +7976,104 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRibbonpigSamgyeop": {
+    "batch": "/Users/radar/Work/SpriteMake/output/deguri-skin-ribbonpig-samgyeop-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-samgyeop.md",
+    "note": "삼겹살 쌈 돼지 — 불판 사장님 시안 채택, attempt 01 그대로(repack·qa PASS, ball ROUND_OK)",
+    "assets": {
+      "ribbonpig-samgyeop": {
+        "image": "creatures/ribbonpig-samgyeop.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-samgyeop.webp",
+        "md5": "605b632f9a63a5020c5a4880c89a6b7a",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-samgyeop-sleep": {
+        "image": "creatures/ribbonpig-samgyeop-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-samgyeop-sleep.webp",
+        "md5": "bf3385d9e6891aff82911c446b02dad3",
+        "qaStatus": "PASS"
+      },
+      "ribbonpig-samgyeop-scuffle": {
+        "image": "creatures/ribbonpig-samgyeop-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/ribbonpig-samgyeop-scuffle.webp",
+        "md5": "c4eedd63914225b04f6a2b90f4010f3e",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
