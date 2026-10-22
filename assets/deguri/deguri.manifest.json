@@ -7481,5 +7481,500 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinRaccoonAnchor": {
+    "batch": "deguri-skin-raccoon-anchor-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-host-gamer.md",
+    "note": "채택 attempt 01 전부, 예외 없음",
+    "assets": {
+      "raccoon-anchor": {
+        "image": "creatures/raccoon-anchor.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/raccoon-anchor.webp",
+        "md5": "8371384794f53975108dca1ebae78fff",
+        "qaStatus": "PASS"
+      },
+      "raccoon-anchor-sleep": {
+        "image": "creatures/raccoon-anchor-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/raccoon-anchor-sleep.webp",
+        "md5": "306967bc2059796034e5557f9519b03f",
+        "qaStatus": "PASS"
+      },
+      "raccoon-anchor-scuffle": {
+        "image": "creatures/raccoon-anchor-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/raccoon-anchor-scuffle.webp",
+        "md5": "0f1668d6225f8ad2a28e0d43e2178a49",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinRabbitReporter": {
+    "batch": "deguri-skin-rabbit-reporter-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-host-gamer.md",
+    "note": "채택 attempt 01 전부, 예외 없음",
+    "assets": {
+      "rabbit-reporter": {
+        "image": "creatures/rabbit-reporter.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/rabbit-reporter.webp",
+        "md5": "da3431518c1e35c0ea0b83918fa9d32d",
+        "qaStatus": "PASS"
+      },
+      "rabbit-reporter-sleep": {
+        "image": "creatures/rabbit-reporter-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-reporter-sleep.webp",
+        "md5": "e0872b79940cf1af52abf108d4826a40",
+        "qaStatus": "PASS"
+      },
+      "rabbit-reporter-scuffle": {
+        "image": "creatures/rabbit-reporter-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/rabbit-reporter-scuffle.webp",
+        "md5": "911d139c63a24b0b09e538c3447fd7bf",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinHamsterProgamer": {
+    "batch": "deguri-skin-hamster-progamer-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-host-gamer.md",
+    "note": "attempt 01 전부. RIM 불합격은 보라 후디 가장자리 오탐(초록 번짐 0)",
+    "assets": {
+      "hamster-progamer": {
+        "image": "creatures/hamster-progamer.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/hamster-progamer.webp",
+        "md5": "18e248da8d43efd3d4838eeedd7f8d97",
+        "qaStatus": "PASS"
+      },
+      "hamster-progamer-sleep": {
+        "image": "creatures/hamster-progamer-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-progamer-sleep.webp",
+        "md5": "ad9d61e9b041032de9000e94bca825e4",
+        "qaStatus": "PASS"
+      },
+      "hamster-progamer-scuffle": {
+        "image": "creatures/hamster-progamer-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hamster-progamer-scuffle.webp",
+        "md5": "1fd72f8ba380ca30669e96fcd433406b",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinHedgehogRgb": {
+    "batch": "deguri-skin-hedgehog-rgb-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-host-gamer.md",
+    "note": "main·sleep attempt 01, scuffle attempt 02(01 은 마지막 칸 왼쪽 향함). RIM 불합격은 무지개 가시의 보라 오탐(초록 0)",
+    "assets": {
+      "hedgehog-rgb": {
+        "image": "creatures/hedgehog-rgb.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/hedgehog-rgb.webp",
+        "md5": "0f530c94586c071839c6774a00018c24",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-rgb-sleep": {
+        "image": "creatures/hedgehog-rgb-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hedgehog-rgb-sleep.webp",
+        "md5": "25de8cafd55b647c5b1e0f8a6adcea0d",
+        "qaStatus": "PASS"
+      },
+      "hedgehog-rgb-scuffle": {
+        "image": "creatures/hedgehog-rgb-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/hedgehog-rgb-scuffle.webp",
+        "md5": "6b834b00b007d560e452c7d25f3e5f0a",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPandaEsports": {
+    "batch": "deguri-skin-panda-esports-2026-10-22",
+    "status": "all-3-picked-up",
+    "request": "docs/spritemake-request/applied/2026-10-22-deguri-skin-host-gamer.md",
+    "note": "attempt 01 전부(sleep 은 attempt 02 채택은 SOURCES 기준). 공 최소 반지름 45 → ball-round fix(120x120)·귀 끝 1px 틈 메움, 배치 QA ballGeometry 의도된 예외",
+    "assets": {
+      "panda-esports": {
+        "image": "creatures/panda-esports.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/panda-esports.webp",
+        "md5": "83b4ca2c9f83c7b101112e0079e53887",
+        "qaStatus": "PASS"
+      },
+      "panda-esports-sleep": {
+        "image": "creatures/panda-esports-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-esports-sleep.webp",
+        "md5": "79a4883de5e69e3524b59a29ee93009e",
+        "qaStatus": "PASS"
+      },
+      "panda-esports-scuffle": {
+        "image": "creatures/panda-esports-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/panda-esports-scuffle.webp",
+        "md5": "c824ffeab94160835de60ab014c8aa46",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }
