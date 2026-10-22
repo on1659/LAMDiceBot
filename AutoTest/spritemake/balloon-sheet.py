@@ -58,7 +58,7 @@ ARMS = {   # 무엇으로 줄·꼭지를 잡나
     'pufferfish': 'it has NO arms or legs (never draw any): it holds things in its MOUTH and moves only its fins',
     'pillbug': 'it uses its two FRONT legs as arms',
 }
-QUADS = {'armadillo', 'turtle', 'raccoon', 'ribbonpig', 'rabbit'}
+QUADS = {'armadillo', 'turtle', 'raccoon', 'ribbonpig', 'rabbit', 'cat'}
 
 
 def arms(c): return ARMS.get(c, 'it uses its two FRONT paws as hands' + (' (it is normally on all fours, so here it reaches up with its front paws like a cartoon animal)' if c in QUADS else ''))
@@ -81,6 +81,8 @@ ATTACK = {   # 찌르기(poke) — 동물마다 다른 공격, 규칙(사거리�
                 "fork drawn back", "fork JABBED far to the RIGHT, prongs forward", "fork pulled back in"),
     'rabbit': ("an orange CARROT (pointy tip forward, green leaves at the back)", "it jabs with a carrot held in the free paw, tip forward",
                "carrot drawn back", "carrot JABBED far to the RIGHT, tip forward", "carrot pulled back in"),
+    'cat': (None, "NO tool: a quick paw SWIPE with its claws out",
+            "free paw raised, claws spread", "paw SWIPED far to the RIGHT, claws fully extended", "paw back, claws in"),
     'armadillo': (None, "NO tool: a quick swipe with its big curved CLAWS",
                   "free arm raised, claws spread", "claws SWIPED far to the RIGHT, fully extended", "arm back, claws folded"),
     'pillbug': ("a wooden TOOTHPICK held like a knight's lance", "it charges with a toothpick held like a lance in its free front legs",

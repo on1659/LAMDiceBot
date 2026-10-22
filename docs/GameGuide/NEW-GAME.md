@@ -50,9 +50,26 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 | 파일 | 할 일 |
 |------|-------|
 | `css/theme.css` | `--[game]-500/-600/-accent/-rgb` light + dark 양쪽, `--game-type-[game]` |
-| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 free 비트. **값은 코드에서 직접 확인** (현재: lobby1/dice2/roulette4/horse8/bridge32/ladder64/spin-arena128/pirate256 사용 → 다음 = 512). **16은 재사용 금지** — 삭제된 인형뽑기가 쓰던 비트라 `users.flags`에 과거 값이 남아 있고, 재사용하면 해당 유저에게 튜토리얼이 이미 본 것으로 처리된다 |
+| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 free 비트. **값은 코드에서 직접 확인** (2026-10-21 현재: lobby1/dice2/roulette4/horse8/bridge32/ladder64/spin-arena128/pirate256/deguri512/balloon1024 사용 → 다음 = 2048). **16은 재사용 금지** — 삭제된 인형뽑기가 쓰던 비트라 `users.flags`에 과거 값이 남아 있고, 재사용하면 해당 유저에게 튜토리얼이 이미 본 것으로 처리된다 |
 | `js/shared/server-select-shared.js` | `localStorage.setItem('[game]UserName', name)` 동기화 |
 | `assets/sounds/sound-config.json` | `[game]_*` 사운드 키 placeholder |
+
+### 16곳 밖에서 실제로 더 손댄 곳 (둥둥라이더 2026-10-18~19 기준)
+위 표만 채우면 빠지는 것들. 둥둥라이더(`balloon`) 때 커밋을 모아 보니 아래도 다 손댔다. 새 게임도 `grep -rn "balloon"` 으로 같은 자리를 찾아 한 줄씩 넣으면 된다.
+
+| 파일 | 할 일 |
+|------|-------|
+| `config/index.js` | 개발 중엔 `DEV_GATED_GAMES` 에 넣어 실서버 방 생성을 막는다(테스트 서버는 `DEV_GAMES=1`). 공개할 때 빼고 로비 배지 "베타" |
+| `utils/og-meta.js` | `GAME_LABELS` 공유 미리보기 이름 |
+| `js/free.js` | GAME_LABELS·GAME_ICON·GAME_GRADIENT·GAME_PATH_TO_SLUG·pending 키·ActiveRoom 키 (6곳) — 자유플레이 링크 |
+| `js/shared/free-invite.js` | 경로↔슬러그 두 맵 |
+| `js/shared/ranking-shared.js` | 랭킹 달력 라벨(아이콘·이름·`--rank-game-[game]`) — 없으면 "기타 게임" |
+| `js/mobile-game.js` | `ROOM_KEYS` 에 `[game]ActiveRoom`, 폰 화면 제목 |
+| `socket/scheduled-start.js` | 예약 시작 핸들러 맵 — 없으면 예약 시작이 안 걸린다 |
+| `socket/shared.js` | 나간 사람 투표·선택 정리(게임에 그런 상태가 있으면) |
+| `css/theme.css` (추가) | `--free-loading-[game]`(자유플레이 로딩 바탕)·`--rank-game-[game]` |
+| `css/ui-icons.css` + `assets/ui/icons.png` | 게임 아이콘 칸(`.ui-[game]`) — 로비 라디오·랭킹에 쓴다 |
+| `db/stats.js` · `db/init.js` | 통계 기본값, 게임 전용 표(예: 하이라이트 반응 표) |
 
 ## 3. HTML 필수 구성
 
@@ -303,6 +320,8 @@ if (room.serverId) {
 - [ ] `css/theme.css` 색상 변수 light + dark
 - [ ] `js/shared/tutorial-shared.js` FLAG_BITS 비트 (다음 free 비트 — 코드 확인)
 - [ ] `js/shared/server-select-shared.js` localStorage 동기화
+- [ ] §2 "16곳 밖" 표 (개발 잠금·og·자유 링크·랭킹 라벨·폰 화면·예약 시작·아이콘)
+- [ ] 데구리 모듈을 빌렸다면 §10 전역·서버 계약
 
 ### Phase D (DB / 사운드 / 통계 / 랭킹)
 - [ ] `db/stats.js` DEFAULT_GAME_STATS
@@ -329,3 +348,31 @@ if (room.serverId) {
 - 사운드 추가: `docs/GameGuide/02-shared-systems/SOUND-SYSTEM.md`
 - 꾸미기 상점 추가 (선택): `docs/GameGuide/02-shared-systems/shared-modules.md` §ShopModule.init — `config/{game}/cosmetics.json` + 어댑터 + hook (셸 복사 불필요)
 - bridge-cross v2 작업 산출물 (실제 적용 예시): commit `17ff30c` (`feat/bridge-cross-v2`)
+
+## 10. 데구리 모듈 빌려 쓰기 (상점·뽑기·옷장·하이라이트·다시 보기 GIF)
+
+둥둥라이더가 데구리 파일을 그대로 불러 쓴다(`balloon-multiplayer.html` 스크립트 목록). 이 모듈들은 데구리 페이지를 가정하고 짜여 있어서, **게임 쪽이 아래 전역을 내놓지 않으면 오류 없이 기능만 사라진다**(2026-10-21 PiP 하이라이트 사고 — `lessons/deguri.md`). 붙이기 전에 쓸 모듈 안의 `window.` 를 grep 해서 이 표와 맞는지 다시 본다.
+
+### 게임 JS 가 내놓아야 하는 전역 (`js/balloon.js` 가 하는 그대로)
+| 전역 | 쓰는 모듈 | 내용 |
+|------|-----------|------|
+| `window.deguriState` | shop·closet | 게임 상태 객체(`balloonState`) |
+| `window.DEGURI_CREATURES` | shop·closet | 고를 수 있는 동물 목록 |
+| `window.onDeguriSkinChanged` | shop | 장착 직후 선택 버튼 갱신 함수 |
+| `window.deguriRendererForShop` | shop·closet | 카드 미리보기용 렌더러(`drawCreatureIcon`·`drawBalloonIcon`) — 렌더러 만든 뒤 대입 |
+| `window.deguriEl` | highlight | id 로 요소 찾기 — 원래 문서 → 없으면 PiP 작은 창 문서. **PiP 를 안 써도 넣는다** |
+| `currentUser` (최상위 `var`) | shop·closet·highlight | 내 이름. `let`/`const` 로 쓰면 `window.currentUser` 가 안 생긴다 |
+
+### 연결 호출
+- `DeguriShop.connect(socket)`, `DeguriGacha.connect(socket)` — 소켓 만든 뒤 한 번
+- `DeguriHighlight.connect(socket, { prefix: '[game]', reveal, me, shortName, createRenderer, reasons, creatureName, fileName, shareTitle })` — `prefix` 로 소켓 이벤트 이름이 `[game]:highlight`·`[game]:highlight:feedback` 가 된다. 결과 카드 열고 닫을 때 `onResultOpen`/`onResultClose`, 새 경주 때 `onReveal`, 경주 끝(`gameEnd`) 때 `onGameEnd` — 경주 중 하이라이트를 못 받았으면 이걸로 만든다
+
+### 서버 쪽
+- 지갑(코인·스킨·뽑기): `socket/deguri.js` `WALLET_GAMES` 에 `'[game]'` 추가. `stateUpdated` 를 요청 소켓에 보낼 땐 `myEquip`(`deguri.equippedIds`)을 같이 싣는다 — 없으면 새로고침 뒤 상점 장착 표시가 틀린다
+- 하이라이트: `socket/[game]-highlight.js`(장면 고르기·Jev 요청), 반응 표 `db/[game]-highlight-feedback.js`(`db/deguri-highlight-feedback.js` 의 `create` 재사용) + `db/init.js` 표
+- 지갑은 서버(scope)마다 따로 — `lessons/deguri.md` 2026-10-15
+
+### PiP 작은 창을 넣는다면
+- 옮길 요소 id 목록에 결과 카드뿐 아니라 **캔버스 위에 뜨는 배지·배너**(예약 시간·다시 보기·꼴등 배너)도 넣는다(`BALLOON_PIP_MOVE_IDS`)
+- 옮겨 다니는 버튼은 인라인 `onclick` 금지, 스타일은 `cloneNode` 말고 `cssRules` 복사 — `lessons/deguri.md` 2026-10-14 두 건
+- 검증: 작은 창을 **먼저 열고**, 원래 탭을 다른 탭으로 가린 채 경주를 끝까지 돌려 하이라이트 자동 재생·👍/👎 가 작은 창에 뜨는지 본다

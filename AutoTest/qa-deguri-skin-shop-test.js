@@ -119,7 +119,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
 
         // 다른 동물을 고르면 스킨 무시(장착은 유지)
         const last = SKINS[1];
-        const other = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'].find(c => c !== SKINS[0].creature && c !== last.creature);
+        const other = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'].find(c => c !== SKINS[0].creature && c !== last.creature);
         sockA.emit('deguri:pick', { creatureId: other });
         const st2 = await waitState(sockA, d => { const b = myBall(d, host); return b && b.creature === other; });
         check(myBall(st2, host).skin === undefined && myBall(st2, host).skinName === undefined, other + ' 선택 → skin/skinName 없음 (스킨은 ' + SKINS[0].creature + '·' + last.creature + '에만)');
@@ -169,7 +169,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         check(bEq && bEq.ok && bEq.equipped.deguri_balloon === balloon.id && (bEq.equipped.deguri_skin || []).indexOf(SKINS[3].id) !== -1,
             '야식 장착 → 스킨 슬롯은 그대로(두 슬롯 독립)', JSON.stringify(bEq));
         // 스킨의 동물이 아닌 걸 골라도 풍선은 붙어 있다 (스킨은 빠진다)
-        const notSkin = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'].find(c => c !== SKINS[3].creature);
+        const notSkin = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'].find(c => c !== SKINS[3].creature);
         sockB.emit('deguri:pick', { creatureId: notSkin });
         const stBal = await waitState(sockB, d => { const b = myBall(d, guest); return b && b.creature === notSkin; }).catch(() => null);
         const bb = stBal && myBall(stBal, guest);

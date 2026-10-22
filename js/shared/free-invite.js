@@ -25,7 +25,7 @@
         '/ladder': 'ladder',
         '/spin-arena': 'spin-arena',
         '/deguri': 'deguri',
-        '/balloon': 'balloon'
+        '/dodong': 'dodong'
     };
 
     // 슬러그 → 게임 페이지 경로 (서버 방 다이렉트 링크용)
@@ -37,7 +37,7 @@
         'ladder': '/ladder',
         'spin-arena': '/spin-arena',
         'deguri': '/deguri',
-        'balloon': '/balloon'
+        'dodong': '/dodong'
     };
 
     let initialized = false;

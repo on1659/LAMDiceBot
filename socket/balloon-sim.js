@@ -192,7 +192,7 @@ async function simulate(players, seed, map, opts) {
         }
         return best;
     }
-    function shutClosedAt(h, x) { return W.shutOpen(h, t) > 0 ? x < WORLD_W / 2 : x > WORLD_W / 2; }   // 셔터는 한쪽 반이 열려 있다
+    function shutClosedAt(h, x, r) { const e = W.shutEdges(h, t); return x - (r || 0) < e[0] || x + (r || 0) > e[1]; }   // 문짝이 지금 있는 자리(r = 풍선 반지름만큼 겹쳐도 막힘)
     // 서 있던 구조물이 사라졌나(눈 꼭대기 문이 열림 · 셔터 그쪽이 열림) → 다시 떨어진다(풍선 없이 — 공중에서 다시 분다)
     function floorGone(p) {
         const r = p.floorRef; if (!r) return false;
@@ -263,8 +263,8 @@ async function simulate(players, seed, map, opts) {
                 // 막힘 감속(관성, 사용자 2026-10-18) — 닫힌 셔터 쪽·안 열리는 들보 밑으로 다가가면 미리 느려진다(툭 멈추지 않게)
                 let block = Infinity;
                 for (const h of hazards) if (h.type === 'shutter') {
-                    const open = W.shutOpen(h, t), g = h.y - prevTop;
-                    if (g > -2 && (open > 0 ? bxNow < WORLD_W / 2 + R.balloonR : bxNow > WORLD_W / 2 - R.balloonR)) block = Math.min(block, g);
+                    const g = h.y - prevTop;
+                    if (g > -2 && shutClosedAt(h, bxNow, R.balloonR)) block = Math.min(block, g);
                 }
                 plats.forEach((q, i) => { if (beamUp(i) && Math.abs(bxNow - q.x) <= q.w / 2 + R.balloonR * 0.7) { const g = beamBot(q) - prevTop; if (g > -2) block = Math.min(block, g); } });
                 const vT = v * clamp(block / R.blockSlow, 0, 1);
@@ -276,7 +276,7 @@ async function simulate(players, seed, map, opts) {
                     const gap = h.y - prevTop, open = W.shutOpen(h, t);
                     if (gap > -2 && gap < Z.shutReach) { tx = open > 0 ? WORLD_W * 0.75 : WORLD_W * 0.25; k = Z.shutSteer; }   // 열린 쪽으로 몰린다
                     const bx = balloonX(p);
-                    if (prevTop <= h.y && p.y + BAL_OFF + R.balloonR > h.y && (open > 0 ? bx < WORLD_W / 2 + R.balloonR : bx > WORLD_W / 2 - R.balloonR)) { if (p.vy > R.bonkV) bonk(p, 'shutter', bx, h.y, 0, -1); p.y = h.y - BAL_OFF - R.balloonR; p.vy = 0; }   // 닫힌 쪽 밑에서 기다린다
+                    if (prevTop <= h.y && p.y + BAL_OFF + R.balloonR > h.y && shutClosedAt(h, bx, R.balloonR)) { if (p.vy > R.bonkV) bonk(p, 'shutter', bx, h.y, 0, -1); p.y = h.y - BAL_OFF - R.balloonR; p.vy = 0; }   // 닫힌 쪽 밑에서 기다린다
                 }
                 for (let i = 0; i < plats.length; i++) {   // 안 열리는 들보: 밑에 오면 가까운 끝으로 비켜 가고, 못 비키면 들보에 부딪혀 아래로 튕긴다(그때마다 HP -1)
                     const q = plats[i]; if (!beamUp(i)) continue;

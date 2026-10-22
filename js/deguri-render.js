@@ -176,15 +176,15 @@ var DeguriRender = (function () {
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
         '#4053d6', '#d63be2', '#b07033', '#aab6c4', '#3bc9a7', '#e6dfc8', '#5a6472', '#343344',
         '#ff7a1a', '#f2c014', '#8a8d2f', '#0e9488', '#5b3fd6', '#ff6f61', '#7d3a6a', '#46708f'];
-    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지' };
+    var CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다', hamster: '햄스터', pufferfish: '복어', raccoon: '너구리', rabbit: '토끼', ribbonpig: '돼지', cat: '고양이' };
 
     // ─── 에셋 맵 (null = 2차 미도착 → 플레이스홀더) ───
     var A = '/assets/deguri/';
     // 에셋 URL 버전 — 서버(routes/api.js)가 assets/deguri/** 를 7일 캐시하므로, 같은 이름으로 파일을 교체하면 여기를 올려야 모두가 새 그림을 받는다(2026-09-22)
-    var ASSET_VER = '?v=6';   // v2(2026-09-26): N차 — trampoline 같은 이름 교체. v3(2026-09-29): 너구리 5시트 공 칸 원형화. v4(2026-09-30): 강철·레드 돼지 시트 교체. v5: 앵그리 아이언 얼굴 드러난 판으로 교체. v6(2026-10-01): 5090 에디션 공벌레(LED)·아르마딜로(화이트) 색 교체
+    var ASSET_VER = '?v=7';   // v7(2026-10-22): 고양이 추가 — 새 이름이라 교체는 아니지만 시트 없을 때 받은 404 캐시를 털어낸다. v2(2026-09-26): N차 — trampoline 같은 이름 교체. v3(2026-09-29): 너구리 5시트 공 칸 원형화. v4(2026-09-30): 강철·레드 돼지 시트 교체. v5: 앵그리 아이언 얼굴 드러난 판으로 교체. v6(2026-10-01): 5090 에디션 공벌레(LED)·아르마딜로(화이트) 색 교체
     function withVer(src) { return src.indexOf(A) === 0 ? src + ASSET_VER : src; }   // ui 아틀라스(UI_ICON_ATLAS_URL, 자체 ?v=)는 제외
     var ASSETS = {
-        creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/deguri.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
+        creatures: { hedgehog: A + 'creatures/hedgehog.webp', armadillo: A + 'creatures/armadillo.webp', pillbug: A + 'creatures/pillbug.webp', turtle: A + 'creatures/turtle.webp', panda: A + 'creatures/panda.webp', hamster: A + 'creatures/hamster.webp', pufferfish: A + 'creatures/pufferfish.webp', raccoon: A + 'creatures/raccoon.webp', rabbit: A + 'creatures/rabbit.webp', ribbonpig: A + 'creatures/ribbonpig.webp', cat: A + 'creatures/cat.webp' },   // 7차 3종은 도착 전 — 없으면 선택 버튼 숨김(js/deguri.js). 스킨 시트('{creature}-{skin}')는 ensureSkin 이 처음 필요할 때 로드
         // sleep(4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡)·scuffle(6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B, 오른쪽 향함) 시트는 진입 때 받지 않는다 —
         // setTimeline 이 방에 나온 동물 것만 미리 받는다(10종 전부 = 약 0.8MB, 2026-09-24). 선택 버튼 아이콘이 쓰는 기본 시트만 여기서 로드
         pieces: {

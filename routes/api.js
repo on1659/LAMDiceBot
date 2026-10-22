@@ -26,7 +26,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri', 'balloon'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType deguri)의 링크 슬러그
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'ladder', 'spin-arena', 'deguri', 'dodong'];   // bridge·pirate 는 미사용 게임(CLAUDE.md) — 링크도 안 받는다. deguri = 데구리(gameType deguri)의 링크 슬러그, dodong = 둥둥라이더(gameType balloon)의 링크 슬러그
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -135,8 +135,8 @@ function setupRoutes(app) {
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'deguri-multiplayer.html'));
     });
-    // 둥둥라이더(docs/goal/balloon-climb.md) — 2026-10-19 실서버 베타 공개
-    app.get('/balloon', (req, res) => {
+    // 둥둥라이더(docs/goal/balloon-climb.md) — 2026-10-19 실서버 베타 공개. gameType 은 balloon 그대로, 공개 경로·링크 슬러그만 dodong(사용자 2026-10-21)
+    app.get('/dodong', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
@@ -145,6 +145,9 @@ function setupRoutes(app) {
     // 옛 데구리 링크(/marble, /marble/:code, /free/marble/:code) → deguri 로 301. /free/:game 일반 라우트보다 먼저 걸어야 슬러그 검사에 안 걸린다
     app.get(['/marble', '/marble/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/marble/, '/deguri')));
     app.get('/free/marble/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/marble\//, '/free/deguri/')));
+    // 옛 둥둥라이더 링크(/balloon, /balloon/:code, /free/balloon/:code) → dodong 으로 301. 같은 이유로 /free/:game 보다 먼저
+    app.get(['/balloon', '/balloon/:shortcode([A-Z0-9]{4,6})'], (req, res) => res.redirect(301, req.originalUrl.replace(/^\/balloon/, '/dodong')));
+    app.get('/free/balloon/:shortcode([A-Z0-9]{4,6})', (req, res) => res.redirect(301, req.originalUrl.replace(/^\/free\/balloon\//, '/free/dodong/')));
 
     // 디자인 목업 (외부 리뷰용, 유저 동선과 무관) — /main 허브, /1 /2 … 각 목업. 파일은 mockups/ 정적 폴더.
     // 테스트 서버(DEV_GAMES)·로컬에서만 연다 — 실서버에서는 없는 URL 과 같은 404
@@ -215,7 +218,7 @@ function setupRoutes(app) {
         '/ladder':       'ladder',
         '/spin-arena':   'spin-arena',
         '/deguri':       'deguri',
-        '/balloon':      'balloon'
+        '/dodong':       'dodong'
     };
     Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
@@ -358,7 +361,7 @@ function setupRoutes(app) {
 
     app.get('/balloon-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(301, `/balloon${query}`);
+        return res.redirect(301, `/dodong${query}`);
     });
 
     app.get('/marble-multiplayer.html', (req, res) => {

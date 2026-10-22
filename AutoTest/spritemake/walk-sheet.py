@@ -34,7 +34,7 @@ BODY_MIN_SHARE = 0.03    # 가장 큰 덩어리의 이 비율 이상이면 몸(�
 SAT_KEEP_PAD = 0.04      # 몸 bbox 를 이만큼(가로·세로 비율) 넓힌 안에 있는 위성만 남긴다(끊어진 귀 끝 등) — 먼지·그림자·동작선은 버린다
 TOP_SHARE = 0.6          # 가로 정렬에 쓰는 윗몸 비율
 MAX_W, MAX_H = 152, 140  # 칸 안전 한계(넘으면 배율을 줄인다)
-BASES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig']
+BASES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat']
 
 LEGS = ("The character has a NEAR leg (closest to the viewer, drawn in the normal colour) and a FAR leg (on the other side of the body, drawn slightly DARKER and partly hidden behind the near one). "
         "Both must be visible in every cell, and the cells must show them trading places — never the same leg leading twice.\n")
@@ -55,7 +55,7 @@ QUAD = (LEGS.replace('a NEAR leg', 'NEAR-side legs').replace('a FAR leg', 'FAR-s
 FRAMES = {
     'hedgehog': BIPED, 'panda': BIPED, 'hamster': BIPED,
     'armadillo': QUAD + " The tail tip sways slightly.", 'turtle': QUAD + " The head bobs slightly forward in the contact cells.",
-    'raccoon': QUAD + " The striped tail sways slightly up and down.", 'ribbonpig': QUAD + " The curly tail bounces slightly.",
+    'raccoon': QUAD + " The striped tail sways slightly up and down.", 'ribbonpig': QUAD + " The curly tail bounces slightly.", 'cat': QUAD + " The long striped tail sways up and down.",
     'pillbug': ("It crawls on its row of short legs (count the visible legs from the head: 1, 2, 3, 4). Draw the legs a little longer than in the reference so their movement reads clearly.\n"
                 "c0: legs 1 and 3 swing clearly FORWARD (angled toward the head), legs 2 and 4 are pushed clearly BACK (angled toward the rear); body at its lowest; antennae tipped forward.\n"
                 "c1: legs 1 and 3 stand straight down on the ground; legs 2 and 4 are lifted clearly OFF the ground and swinging forward; body raised 2-3 pixels; antennae upright.\n"

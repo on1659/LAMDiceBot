@@ -19,7 +19,7 @@ var BALLOON_BGM_VOL = 0.35;           // 경주 배경음 볼륨(효과음보다
 var OTHER_SOUND_VOL = 0.3;            // 남의 동물 사건 소리(내 동물은 기본 볼륨)
 var WORLD_SOUND_VOL = 0.7;            // 모두에게 일어나는 큰 사건(독수리 경고·돌풍) 소리
 var EVENT_SOUND_GAP_MS = 150;         // 같은 소리는 이 간격 안에 한 번만 — 몰림 방지(내 동물은 예외)
-var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
+var BALLOON_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
 var ACTIVE_ROOM_KEY = 'balloonActiveRoom';
 
 var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
@@ -452,10 +452,11 @@ function syncResultOverlayHost() {
 // 결과 카드·경주 뒤 버튼 줄도 같이 옮긴다 — 그 안 요소는 balloonEl 로 찾고, 버튼은 인라인 onclick 없이 addEventListener 로 단다(처음 눌린 창의 전역으로 굳는 문제, 데구리 2026-10-14 실측).
 // 원래 자리엔 안내 문구가 남고, 창을 닫으면 전부 돌아온다
 var BALLOON_PIP_W = 360, BALLOON_PIP_H = 640;
-var BALLOON_PIP_MOVE_IDS = ['resultOverlay', 'deguriAfterRace'];
+var BALLOON_PIP_MOVE_IDS = ['resultOverlay', 'deguriAfterRace', 'scheduledStartBadge', 'deguriReplayBadge'];   // 캔버스 위 예약·다시 보기 배지도 작은 창에서 보이게
 var balloonPipWin = null, balloonPipOpening = false;
 function balloonPipOpen() { return !!(balloonPipWin && !balloonPipWin.closed); }
 function balloonEl(id) { return document.getElementById(id) || (balloonPipOpen() ? balloonPipWin.document.getElementById(id) : null); }
+window.deguriEl = balloonEl;   // js/deguri-highlight.js 가 결과 카드 안 요소를 이걸로 찾는다 — 없으면 작은 창으로 간 카드를 못 찾아 하이라이트가 안 뜬다
 function toggleDeguriPip() {
     if (balloonPipOpen()) { balloonPipWin.close(); return; }
     if (!('documentPictureInPicture' in window) || balloonPipOpening) return;
@@ -492,6 +493,8 @@ function toggleDeguriPip() {
             pdoc.body.appendChild(el);
             return { el: el, ph: ph };
         });
+        var bars = document.getElementById('canvasBarsOverlay');   // 경주 중 캔버스 위 "꼴등을 찾아라" — 나중에 생기면 moveVoteUiToCanvas 가 창에 바로 만든다
+        if (bars) pdoc.body.appendChild(bars);
         renderer.rehost();
         var fitPip = function () { renderer.resize(); if (showsIdleCanvas() && assetsLoaded) renderer.drawIdle(balloonState.preview, currentUser); };
         fitPip();
@@ -500,6 +503,8 @@ function toggleDeguriPip() {
             box.insertBefore(canvas, note);
             note.remove();
             homes.forEach(function (h) { if (!h) return; h.ph.parentNode.insertBefore(h.el, h.ph); h.ph.remove(); });
+            var pBars = pdoc.getElementById('canvasBarsOverlay');
+            if (pBars) box.appendChild(pBars);
             box.classList.remove('is-pip');
             balloonPipWin = null;
             renderer.rehost();
@@ -607,8 +612,8 @@ function setGameStatus(text, cls, icon) {
 // ============================================
 var voteUiPinned = false;
 function updateTargetBanner(target, show, reason) {
-    var banner = document.getElementById('targetRankBanner');
-    var reasonEl = document.getElementById('targetRankReason');
+    var banner = balloonEl('targetRankBanner');
+    var reasonEl = balloonEl('targetRankReason');
     if (!banner) return;
     if (!show) { banner.style.display = 'none'; if (reasonEl) reasonEl.style.display = 'none'; return; }
     banner.querySelector('.trb-text').textContent = (TARGET_LABEL[target] || TARGET_LABEL.last) + '을 찾아라!';
@@ -645,11 +650,11 @@ var VOTE_UI_FADE_MS = 500;
 function moveVoteUiToCanvas() {
     var box = document.getElementById('deguriCanvasBox');
     if (!box) return;
-    var overlay = document.getElementById('canvasBarsOverlay');
-    if (!overlay) { overlay = document.createElement('div'); overlay.id = 'canvasBarsOverlay'; overlay.className = 'canvas-bars-overlay'; box.appendChild(overlay); }
+    var overlay = balloonEl('canvasBarsOverlay');
+    if (!overlay) { overlay = document.createElement('div'); overlay.id = 'canvasBarsOverlay'; overlay.className = 'canvas-bars-overlay'; (balloonPipOpen() ? balloonPipWin.document.body : box).appendChild(overlay); }   // 작은 창이면 캔버스 옆(창)에
     overlay.classList.remove('fading-out');
     ['targetRankBanner', 'targetRankReason'].forEach(function (id) {
-        var el = document.getElementById(id);
+        var el = balloonEl(id);
         if (!el) return;
         if (!el._canvasPlaceholder) { var ph = document.createComment(id + '-placeholder'); el.parentNode.insertBefore(ph, el); el._canvasPlaceholder = ph; }
         el.classList.add('on-canvas');
@@ -657,9 +662,9 @@ function moveVoteUiToCanvas() {
     });
 }
 function restoreVoteUiFromCanvas() {
-    var overlay = document.getElementById('canvasBarsOverlay');
+    var overlay = balloonEl('canvasBarsOverlay');
     ['targetRankBanner', 'targetRankReason'].forEach(function (id) {
-        var el = document.getElementById(id);
+        var el = balloonEl(id);
         if (!el || !el._canvasPlaceholder) return;
         var ph = el._canvasPlaceholder;
         el.classList.remove('on-canvas');
@@ -677,7 +682,7 @@ function hideVoteSection() {
         updateTargetBanner(null, false);
     };
     if (voteUiFadeTimer) { clearTimeout(voteUiFadeTimer); voteUiFadeTimer = null; }
-    var overlay = document.getElementById('canvasBarsOverlay');
+    var overlay = balloonEl('canvasBarsOverlay');
     if (overlay) { overlay.classList.add('fading-out'); voteUiFadeTimer = setTimeout(finish, VOTE_UI_FADE_MS); } else finish();
 }
 // 캔버스는 대기 중에도 보인다(다음 판 맵 미리보기). 경주 중엔 동물 피커만 숨긴다
@@ -721,7 +726,7 @@ function syncReplayBar() {
 function setReplayUi(on) {
     var btn = balloonEl('deguriReplayButton');
     if (btn) btn.innerHTML = on ? '<i class="mi mi-stop"></i> 그만 보기' : '<i class="mi mi-play"></i> 경주 다시 보기';
-    var badge = document.getElementById('deguriReplayBadge');
+    var badge = balloonEl('deguriReplayBadge');
     if (badge) badge.style.display = on ? '' : 'none';
     if (!replayBarEl) return;
     replayBarEl.hidden = !on;
@@ -971,7 +976,7 @@ function formatScheduleRemain(ms) {
     return min > 0 ? (min + '분 ' + sec + '초 후 시작') : (sec + '초 후 시작');
 }
 function renderScheduleBadge() {
-    var el = document.getElementById('scheduledStartBadge');
+    var el = balloonEl('scheduledStartBadge');
     if (!el || scheduleNoticeTimer) return;
     if (!scheduledStartAt) { el.style.display = 'none'; el.textContent = ''; return; }
     el.textContent = formatScheduleRemain(scheduledStartAt - Date.now()) + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : '');
@@ -991,7 +996,7 @@ function applyScheduledStart(at, label) {
     if (!wasArmed && scheduledStartAt) closeScheduleModal();
 }
 function showScheduleNotice(message) {
-    var el = document.getElementById('scheduledStartBadge');
+    var el = balloonEl('scheduledStartBadge');
     if (!el) return;
     if (scheduleNoticeTimer) clearTimeout(scheduleNoticeTimer);
     el.textContent = message; el.style.display = 'block';

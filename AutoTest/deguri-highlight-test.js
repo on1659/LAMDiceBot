@@ -12,7 +12,7 @@ const hl = require('../socket/deguri-highlight');
 const jev = require('../socket/jev');
 const feedback = require('../db/deguri-highlight-feedback');
 
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig'];
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
 const REASON_KEYS = ['turnLast', 'turnFirst', 'lastLate', 'lastSwaps', 'lastSwap', 'leadLate', 'leadSwaps', 'leadSwap', 'lastClose', 'firstClose', 'lastNeck', 'firstNeck',
     'eagleGrab', 'eagleDrop', 'eagleMiss', 'scuffle', 'trip', 'pit', 'lastDecided', 'firstDecided'];
 const reasonOk = key => REASON_KEYS.includes(key) || /^turn(Last|First)By\.(eagleGrab|pitFall|mud|trip|nap|scuffle)$/.test(key);

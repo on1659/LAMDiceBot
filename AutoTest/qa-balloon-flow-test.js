@@ -59,7 +59,7 @@ function measureInPage() {
     const pa = await newPage('A', true);
     await pa.goto(URL + '/');
     await pa.evaluate(n => localStorage.setItem('pendingBalloonRoom', JSON.stringify({ userName: n, roomName: 'qa풍선' + n, isPrivate: false, password: '', expiryHours: 1, blockIPPerUser: false })), A);
-    await pa.goto(URL + '/balloon?createRoom=true');
+    await pa.goto(URL + '/dodong?createRoom=true');
     await ready(pa);
     await wait(1500);
     const m = await pa.evaluate(measureInPage);
@@ -75,7 +75,7 @@ function measureInPage() {
     const pb = await newPage('B', false);
     await pb.goto(URL + '/');
     await pb.evaluate(([r, n]) => sessionStorage.setItem('balloonActiveRoom', JSON.stringify({ roomId: r, userName: n })), [roomId, B]);
-    await pb.goto(URL + '/balloon');
+    await pb.goto(URL + '/dodong');
     await ready(pb);
     const bot = io(URL, { transports: ['websocket'] }); await once(bot, 'connect');
     bot.emit('joinRoom', { roomId, userName: BOT, isHost: false, password: '', deviceId: 'qa-' + BOT, tabId: 'qa-t' + BOT });

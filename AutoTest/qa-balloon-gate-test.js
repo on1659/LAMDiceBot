@@ -24,7 +24,7 @@ const check = (c, label, extra) => { console.log((c ? 'PASS' : 'FAIL') + ': ' + 
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < BOOT_TIMEOUT_MS) {
-        try { const r = await fetch(URL + '/balloon'); if (r.ok) { up = true; break; } } catch (e) { /* 아직 */ }
+        try { const r = await fetch(URL + '/dodong'); if (r.ok) { up = true; break; } } catch (e) { /* 아직 */ }
         await wait(500);
     }
     if (!up) { console.log('FAIL: 서버 부팅 안 됨\n' + log.slice(-2000)); srv.kill(); process.exit(1); }
