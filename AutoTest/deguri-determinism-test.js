@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const sim = require('../socket/deguri-sim');
 
-const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat'];
+const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda', 'hamster', 'pufferfish', 'raccoon', 'rabbit', 'ribbonpig', 'cat', 'penguin'];
 function setup(players, nReq, seed) {
     const participants = Array.from({ length: players }, (_, i) => `p${i + 1}`);
     const picks = {};
