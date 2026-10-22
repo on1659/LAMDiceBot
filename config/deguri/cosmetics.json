@@ -93,7 +93,15 @@
     {"id": "deguri_skin_hedgehog_rgb", "name": "RGB 고슴도치", "displayName": "RGB 고슴도치", "rarity": "legend", "emoji": "🌈", "price": 150, "creature": "hedgehog", "skin": "rgb", "desc": "무지개빛으로 반짝이는 가시에 게이밍 조끼를 입고 휴대용 게임기를 든 고슴도치예요. 고슴도치를 고르면 적용돼요."},
     {"id": "deguri_skin_panda_esports", "name": "e스포츠 판다", "displayName": "e스포츠 판다", "rarity": "legend", "emoji": "🕹️", "price": 150, "creature": "panda", "skin": "esports", "desc": "빨강·검정 유니폼에 헤드셋을 쓰고 조이스틱을 쥔 e스포츠 선수 판다예요. 판다를 고르면 적용돼요."},
     {"id": "deguri_skin_ribbonpig_samgyeop", "name": "삼겹살 쌈", "displayName": "삼겹살 쌈 돼지", "rarity": "epic", "emoji": "🥬", "price": 100, "creature": "ribbonpig", "skin": "samgyeop", "desc": "불판 자국이 난 노릇한 살결에 쌈장을 바르고 파란 머릿수건을 두른 삼겹살 가게 사장님 돼지. 뒷몸통은 상추에 폭 싸였어요. 돼지를 고르면 적용돼요."},
-    {"id": "deguri_skin_hedgehog_bamsong", "name": "밤송이도치", "displayName": "밤송이도치", "rarity": "rare", "emoji": "🌰", "price": 50, "creature": "hedgehog", "skin": "bamsong", "desc": "가시가 초록 밤송이가 되고 등 위로 반질한 밤 한 알이 고개를 내민 고슴도치. 고슴도치를 고르면 적용돼요."}
+    {"id": "deguri_skin_hedgehog_bamsong", "name": "밤송이도치", "displayName": "밤송이도치", "rarity": "rare", "emoji": "🌰", "price": 50, "creature": "hedgehog", "skin": "bamsong", "desc": "가시가 초록 밤송이가 되고 등 위로 반질한 밤 한 알이 고개를 내민 고슴도치. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_dragonfruit", "name": "용과냥", "displayName": "용과냥", "rarity": "epic", "emoji": "🌺", "price": 100, "creature": "cat", "skin": "dragonfruit", "desc": "연두 털에 분홍 귀, 꼬리가 통째로 커다란 용과가 된 고양이. 배에는 까만 씨가 콕콕 박혀 있어요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_ember", "name": "불씨냥", "displayName": "불씨냥", "rarity": "rare", "emoji": "🔥", "price": 50, "creature": "cat", "skin": "ember", "desc": "까만 털에 크림색 가슴털, 꼬리 끝에서 불꽃이 활활 타오르는 고양이. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_raccoon_ember", "name": "불씨너굴", "displayName": "불씨너굴", "rarity": "epic", "emoji": "🔥", "price": 100, "creature": "raccoon", "skin": "ember", "desc": "까만 털에 불씨 눈썹, 몸만 한 꼬리가 통째로 불꽃이 된 너구리. 너구리를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_icicle", "name": "고드름도치", "displayName": "고드름도치", "rarity": "epic", "emoji": "🧊", "price": 100, "creature": "hedgehog", "skin": "icicle", "desc": "가시가 전부 투명한 얼음 결정이 된 하얀 고슴도치. 가시 끝에 작은 고드름이 매달렸어요. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_ribbonpig_ember", "name": "불씨돼지", "displayName": "불씨돼지", "rarity": "rare", "emoji": "🔥", "price": 50, "creature": "ribbonpig", "skin": "ember", "desc": "까만 살결에 크림색 가슴, 돌돌 말린 꼬리 끝이 작은 불꽃인 돼지. 돼지를 고르면 적용돼요."},
+    {"id": "deguri_skin_pufferfish_lava", "name": "용암복", "displayName": "용암복", "rarity": "epic", "emoji": "🌋", "price": 100, "creature": "pufferfish", "skin": "lava", "desc": "빨간 몸에 가시와 꼬리지느러미가 빛나는 용암 바위가 되고, 하얀 중절모를 쓴 복어. 복어를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_lava", "name": "용암냥", "displayName": "용암냥", "rarity": "epic", "emoji": "🌋", "price": 100, "creature": "cat", "skin": "lava", "desc": "빨간 털에 꼬리와 등이 갈라진 용암 바위가 되고, 하얀 중절모를 쓴 고양이. 불티가 톡톡 튀어요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_cat_icicle", "name": "고드름냥", "displayName": "고드름냥", "rarity": "epic", "emoji": "🧊", "price": 100, "creature": "cat", "skin": "icicle", "desc": "얼음빛 털에 귀는 얼음 결정, 꼬리는 얼음 구슬이 줄줄이 이어진 고양이. 배 밑에 고드름이 달렸어요. 고양이를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
