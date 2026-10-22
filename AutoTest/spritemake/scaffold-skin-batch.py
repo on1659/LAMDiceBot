@@ -38,6 +38,7 @@ TEMPLATE = {
     'hedgehog': ('marble-run-skin-hedgehog-knight-2026-09-22', 'hedgehog-knight', 'creatures_knight_png.js'),
     'pufferfish': ('deguri-skin-pufferfish-bungeo-2026-10-20', 'pufferfish-bungeo', 'creatures_skin_png.js'),   # 안전 축소가 이미 들어간 도구
     'cat': ('marble-run-creatures-m-2026-10-22', 'cat', 'creatures_m_png.js'),   # 기본 동물 배치(r3c0 도 공)
+    'penguin': ('marble-run-creatures-n-2026-10-22', 'penguin', 'creatures_n_png.js'),   # 기본 동물 배치(r3c0 도 공)
 }
 ROWS = {
     'raccoon': {
@@ -160,6 +161,17 @@ ROWS = {
         'scuffle': ("row0 push: c0 leaning forward pushing; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil.\n"
                     "row1: c0 startled jump, eyes wide, slightly airborne; c1 falling with distinct body and legs, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
                     "Copy the base cat-scuffle poses; right-facing side profile."),
+    },
+    'penguin': {
+        'main': ("row0 idle: c0 open-eyed default idle; c1 one flipper lifted slightly; c2 happy closed eyes looking up; c3 settled idle.\n"
+                 "row1 curl: c0 standing; c1 crouching, tucking flippers; c2 body rounding, head tucked into the body; c3 COMPLETE compact ball identical to r2c0.\n"
+                 "row2 ball: c0 plain round ball; c1 landing squash, distinctly wider than tall; c2 round ball with brown mud patches; c3 round dizzy ball with swirl eyes. All four are compact ROUND balls with a big belly patch visible, head tucked in, flippers hugged in.\n"
+                 "row3 uncurl: c0 complete ball; c1 half-open body; c2 standing wave A (one flipper raised); c3 standing wave B.\n"
+                 "row4 faceplant: c0 right-facing wall-hit, face squashed flat; c1 airborne rebound; c2 belly-down spread-eagle faceplant (top-down accepted); c3 stunned recovery with orbiting stars and dizzy eyes."),
+        'sleep': "c0 lying belly-down asleep, eyes closed; c1 same pose, belly rises a little; c2 waking, eyes open; c3 sitting upright, alert. No Z letters or text. Copy the base penguin-sleep poses exactly.",
+        'scuffle': ("row0 push: c0 leaning forward pushing; c1 stepping and pushing; c2 strongest push, eyes squeezed; c3 recoil.\n"
+                    "row1: c0 startled jump, eyes wide, slightly airborne; c1 falling with distinct body and flippers, NOT a ball; c2 seated dizzy A with swirl eyes; c3 seated dizzy B with swirl eyes, no stars.\n"
+                    "Copy the base penguin-scuffle poses; right-facing side profile."),
     },
 }
 GRID = {'main': (4, 5), 'sleep': (4, 1), 'scuffle': (4, 2)}

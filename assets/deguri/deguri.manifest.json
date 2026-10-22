@@ -9065,5 +9065,203 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "skinPenguinFluffy": {
+    "batch": "/Users/radar/Work/SpriteMake/output/deguri-skin-penguin-fluffy-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "",
+    "note": "펭귄 솜털(시안 8번) — 채택 attempt-01, 검증 통과",
+    "assets": {
+      "penguin-fluffy": {
+        "image": "creatures/penguin-fluffy.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-fluffy.webp",
+        "md5": "e06e62a79a5440e4600cf3f973801450",
+        "qaStatus": "PASS"
+      },
+      "penguin-fluffy-sleep": {
+        "image": "creatures/penguin-fluffy-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-fluffy-sleep.webp",
+        "md5": "b29ae4ef9dbdba8f2b487c9feff1cc45",
+        "qaStatus": "PASS"
+      },
+      "penguin-fluffy-scuffle": {
+        "image": "creatures/penguin-fluffy-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-fluffy-scuffle.webp",
+        "md5": "25bf1cac3568f859726d7e58832e2ca9",
+        "qaStatus": "PASS"
+      }
+    }
+  },
+  "skinPenguinDowny": {
+    "batch": "/Users/radar/Work/SpriteMake/output/deguri-skin-penguin-downy-2026-10-23",
+    "status": "all-3-picked-up",
+    "request": "",
+    "note": "펭귄 솜뭉치(시안 9번) — main attempt-02(r0c0 을 r0c3 눈 뜬 칸으로 교체), sleep·scuffle attempt-01",
+    "assets": {
+      "penguin-downy": {
+        "image": "creatures/penguin-downy.png",
+        "canvas": [
+          640,
+          800
+        ],
+        "grid": [
+          4,
+          5
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "ballCenter": [
+          80,
+          80
+        ],
+        "ballDiameter": 112,
+        "animations": "hedgehog 시트와 동일(idle/curl/ball/uncurl/faceplant)",
+        "targetGamePath": "assets/deguri/creatures/penguin-downy.webp",
+        "md5": "26542ba916e1c331b25d32c2fbe66f74",
+        "qaStatus": "PASS"
+      },
+      "penguin-downy-sleep": {
+        "image": "creatures/penguin-downy-sleep.png",
+        "canvas": [
+          640,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "lying",
+          "breathing",
+          "waking",
+          "sit-up"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-downy-sleep.webp",
+        "md5": "9226527e129091d958900dcc16a8a685",
+        "qaStatus": "PASS"
+      },
+      "penguin-downy-scuffle": {
+        "image": "creatures/penguin-downy-scuffle.png",
+        "canvas": [
+          640,
+          320
+        ],
+        "grid": [
+          4,
+          2
+        ],
+        "cell": [
+          160,
+          160
+        ],
+        "anchor": [
+          80,
+          150
+        ],
+        "sourcePlaneY": 150,
+        "frames": [
+          "push-lean",
+          "push-step",
+          "push-heave",
+          "push-recoil",
+          "startle-jump",
+          "falling",
+          "dizzy-sit-a",
+          "dizzy-sit-b"
+        ],
+        "targetGamePath": "assets/deguri/creatures/penguin-downy-scuffle.webp",
+        "md5": "034ddb6d19c49ab42e9d10b38f83a7a0",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

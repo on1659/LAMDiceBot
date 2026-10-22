@@ -101,7 +101,9 @@
     {"id": "deguri_skin_ribbonpig_ember", "name": "불씨돼지", "displayName": "불씨돼지", "rarity": "rare", "emoji": "🔥", "price": 50, "creature": "ribbonpig", "skin": "ember", "desc": "까만 살결에 크림색 가슴, 돌돌 말린 꼬리 끝이 작은 불꽃인 돼지. 돼지를 고르면 적용돼요."},
     {"id": "deguri_skin_pufferfish_lava", "name": "용암복", "displayName": "용암복", "rarity": "epic", "emoji": "🌋", "price": 100, "creature": "pufferfish", "skin": "lava", "desc": "빨간 몸에 가시와 꼬리지느러미가 빛나는 용암 바위가 되고, 하얀 중절모를 쓴 복어. 복어를 고르면 적용돼요."},
     {"id": "deguri_skin_cat_lava", "name": "용암냥", "displayName": "용암냥", "rarity": "epic", "emoji": "🌋", "price": 100, "creature": "cat", "skin": "lava", "desc": "빨간 털에 꼬리와 등이 갈라진 용암 바위가 되고, 하얀 중절모를 쓴 고양이. 불티가 톡톡 튀어요. 고양이를 고르면 적용돼요."},
-    {"id": "deguri_skin_cat_icicle", "name": "고드름냥", "displayName": "고드름냥", "rarity": "epic", "emoji": "🧊", "price": 100, "creature": "cat", "skin": "icicle", "desc": "얼음빛 털에 귀는 얼음 결정, 꼬리는 얼음 구슬이 줄줄이 이어진 고양이. 배 밑에 고드름이 달렸어요. 고양이를 고르면 적용돼요."}
+    {"id": "deguri_skin_cat_icicle", "name": "고드름냥", "displayName": "고드름냥", "rarity": "epic", "emoji": "🧊", "price": 100, "creature": "cat", "skin": "icicle", "desc": "얼음빛 털에 귀는 얼음 결정, 꼬리는 얼음 구슬이 줄줄이 이어진 고양이. 배 밑에 고드름이 달렸어요. 고양이를 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_fluffy", "name": "솜털 펭귄", "displayName": "솜털 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "fluffy", "desc": "검은 몸이 보송보송 털로 덮인 폭신한 펭귄. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_penguin_downy", "name": "솜뭉치 펭귄", "displayName": "솜뭉치 펭귄", "rarity": "common", "emoji": "🐧", "price": 30, "creature": "penguin", "skin": "downy", "desc": "회청색 솜털이 구름처럼 몽실몽실한 펭귄. 펭귄을 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
