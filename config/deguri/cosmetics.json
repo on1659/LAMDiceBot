@@ -114,7 +114,15 @@
     {"id": "deguri_skin_penguin_mail", "name": "우체부 펭귄", "displayName": "우체부 펭귄", "rarity": "epic", "emoji": "💌", "price": 100, "creature": "penguin", "skin": "mail", "desc": "빨간 우체부 모자를 쓰고 큰 가방을 멘 펭귄. 하트 편지를 들고 다녀요. 펭귄을 고르면 적용돼요."},
     {"id": "deguri_skin_penguin_icequeen", "name": "얼음 황제 펭귄", "displayName": "얼음 황제 펭귄", "rarity": "legend", "emoji": "👑", "price": 150, "creature": "penguin", "skin": "icequeen", "desc": "얼음 왕관과 눈꽃 망토를 두르고 얼음 홀을 든 황제 펭귄. 가슴을 쭉 펴고 서 있어요. 펭귄을 고르면 적용돼요."},
     {"id": "deguri_skin_penguin_jetpack", "name": "로켓 펭귄", "displayName": "로켓 펭귄", "rarity": "legend", "emoji": "🚀", "price": 150, "creature": "penguin", "skin": "jetpack", "desc": "등에 로켓을 메고 빨간 목도리를 휘날리는 펭귄. 서 있으면 로켓에서 불꽃이 뿜어져요. 펭귄을 고르면 적용돼요."},
-    {"id": "deguri_skin_penguin_wizard", "name": "마법사 펭귄", "displayName": "마법사 펭귄", "rarity": "legend", "emoji": "🪄", "price": 150, "creature": "penguin", "skin": "wizard", "desc": "별무늬 남색 로브와 고깔모자를 쓰고 지팡이 끝에서 별빛을 뿌리는 마법사 펭귄. 펭귄을 고르면 적용돼요."}
+    {"id": "deguri_skin_penguin_wizard", "name": "마법사 펭귄", "displayName": "마법사 펭귄", "rarity": "legend", "emoji": "🪄", "price": 150, "creature": "penguin", "skin": "wizard", "desc": "별무늬 남색 로브와 고깔모자를 쓰고 지팡이 끝에서 별빛을 뿌리는 마법사 펭귄. 펭귄을 고르면 적용돼요."},
+    {"id": "deguri_skin_turtle_yuja", "name": "유자부기", "displayName": "유자부기", "rarity": "rare", "emoji": "🍋", "price": 50, "creature": "turtle", "skin": "yuja", "desc": "유자처럼 노랗고 오돌토돌한 등껍질 위에 초록 잎 하나를 얹은 거북이. 거북이를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_matcha", "name": "말차토끼", "displayName": "말차토끼", "rarity": "rare", "emoji": "🍵", "price": 50, "creature": "rabbit", "skin": "matcha", "desc": "말차빛 연둣빛 털에 머리 위 말차 크림 한 덩이를 얹은 토끼. 토끼를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_chococrack", "name": "초코도치", "displayName": "초코도치", "rarity": "rare", "emoji": "🍫", "price": 50, "creature": "hedgehog", "skin": "chococrack", "desc": "가시가 윤기 나는 초코 코팅으로 덮여 군데군데 금이 가고 흰 초코칩이 박힌 고슴도치. 고슴도치를 고르면 적용돼요."},
+    {"id": "deguri_skin_raccoon_ghost", "name": "유령너굴", "displayName": "유령너굴", "rarity": "epic", "emoji": "👻", "price": 100, "creature": "raccoon", "skin": "ghost", "desc": "하얀 시트를 뒤집어쓰고 동그란 눈구멍만 낸 유령 차림의 너구리. 너구리를 고르면 적용돼요."},
+    {"id": "deguri_skin_turtle_bat", "name": "박쥐부기", "displayName": "박쥐부기", "rarity": "rare", "emoji": "🦇", "price": 50, "creature": "turtle", "skin": "bat", "desc": "짙은 보라 등껍질 양옆에 작은 박쥐 날개 한 쌍을 단 거북이. 거북이를 고르면 적용돼요."},
+    {"id": "deguri_skin_rabbit_smore", "name": "스모어토끼", "displayName": "스모어토끼", "rarity": "rare", "emoji": "🍡", "price": 50, "creature": "rabbit", "skin": "smore", "desc": "노릇하게 구운 마시멜로빛 털에 초코 조각을 얹은 마시멜로 한 덩이를 머리에 올린 토끼. 토끼를 고르면 적용돼요."},
+    {"id": "deguri_skin_pufferfish_gyul", "name": "귤복", "displayName": "귤복", "rarity": "rare", "emoji": "🍊", "price": 50, "creature": "pufferfish", "skin": "gyul", "desc": "귤처럼 주황빛 오돌토돌한 몸에 머리 위 귤잎 하나를 단 복어. 복어를 고르면 적용돼요."},
+    {"id": "deguri_skin_turtle_bandage", "name": "미라부기", "displayName": "미라부기", "rarity": "epic", "emoji": "🩹", "price": 100, "creature": "turtle", "skin": "bandage", "desc": "등껍질까지 온몸을 흰 붕대로 감은 거북이. 거북이를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
@@ -129,6 +137,14 @@
     {"id": "deguri_balloon_hotteok", "name": "호떡 야식", "displayName": "호떡 야식", "rarity": "rare", "emoji": "🥞", "price": 50, "sprite": "balloon-hotteok", "desc": "종이컵에 담겨 꿀 시럽이 흘러나오는 호떡 하나. 동물을 안 가려요."},
     {"id": "deguri_balloon_soju", "name": "소주 한 잔", "displayName": "소주 한 잔", "rarity": "rare", "emoji": "🍶", "price": 50, "sprite": "balloon-soju", "desc": "찰랑찰랑 가득 찬 소주잔과 초록 병이 머리 위에 둥실. 동물을 안 가려요."},
     {"id": "deguri_balloon_eomuk", "name": "어묵 야식", "displayName": "어묵 야식", "rarity": "rare", "emoji": "🍢", "price": 50, "sprite": "balloon-eomuk", "desc": "꼬치에 구불구불 꿰어 김이 모락모락 나는 어묵 한 꼬치. 동물을 안 가려요."},
-    {"id": "deguri_balloon_hodu", "name": "호두과자 야식", "displayName": "호두과자 야식", "rarity": "rare", "emoji": "🌰", "price": 50, "sprite": "balloon-hodu", "desc": "종이봉투에 담긴 동글동글 호두 모양 호두과자 세 알. 동물을 안 가려요."}
+    {"id": "deguri_balloon_hodu", "name": "호두과자 야식", "displayName": "호두과자 야식", "rarity": "rare", "emoji": "🌰", "price": 50, "sprite": "balloon-hodu", "desc": "종이봉투에 담긴 동글동글 호두 모양 호두과자 세 알. 동물을 안 가려요."},
+    {"id": "deguri_balloon_gunbam", "name": "군밤 야식", "displayName": "군밤 야식", "rarity": "rare", "emoji": "🔥", "price": 50, "sprite": "balloon-gunbam", "desc": "김이 나는 종이봉투에 담긴 따끈한 군밤. 동물을 안 가려요."},
+    {"id": "deguri_balloon_gungoguma", "name": "군고구마 야식", "displayName": "군고구마 야식", "rarity": "rare", "emoji": "🍠", "price": 50, "sprite": "balloon-gungoguma", "desc": "김이 모락모락 나는 속이 노란 군고구마. 동물을 안 가려요."},
+    {"id": "deguri_balloon_ramyeon", "name": "컵라면 야식", "displayName": "컵라면 야식", "rarity": "rare", "emoji": "🍜", "price": 50, "sprite": "balloon-ramyeon", "desc": "뚜껑을 반쯤 뜯은 김 나는 컵라면. 동물을 안 가려요."},
+    {"id": "deguri_balloon_maratang", "name": "마라탕 야식", "displayName": "마라탕 야식", "rarity": "rare", "emoji": "🍲", "price": 50, "sprite": "balloon-maratang", "desc": "김이 오르는 빨간 국물에 청경채와 버섯, 어묵이 든 마라탕 한 그릇. 동물을 안 가려요."},
+    {"id": "deguri_balloon_mandu", "name": "만두 야식", "displayName": "만두 야식", "rarity": "rare", "emoji": "🥟", "price": 50, "sprite": "balloon-mandu", "desc": "대나무 찜기에 담긴 김 나는 찐만두 세 개. 동물을 안 가려요."},
+    {"id": "deguri_balloon_butterddeok", "name": "버터떡 야식", "displayName": "버터떡 야식", "rarity": "rare", "emoji": "🧈", "price": 50, "sprite": "balloon-butterddeok", "desc": "버터가 녹아 윤기 나는 노란 버터떡 세 조각. 동물을 안 가려요."},
+    {"id": "deguri_balloon_dakkochi", "name": "닭꼬치 야식", "displayName": "닭꼬치 야식", "rarity": "rare", "emoji": "🍢", "price": 50, "sprite": "balloon-dakkochi", "desc": "달콤한 양념에 구운 닭고기와 대파를 꿴 닭꼬치. 동물을 안 가려요."},
+    {"id": "deguri_balloon_steambun", "name": "호빵 야식", "displayName": "호빵 야식", "rarity": "rare", "emoji": "🥟", "price": 50, "sprite": "balloon-steambun", "desc": "김이 모락모락 나는 하얀 호빵 하나. 동물을 안 가려요."}
   ]
 }
