@@ -122,7 +122,8 @@
     {"id": "deguri_skin_turtle_bat", "name": "박쥐부기", "displayName": "박쥐부기", "rarity": "rare", "emoji": "🦇", "price": 50, "creature": "turtle", "skin": "bat", "desc": "짙은 보라 등껍질 양옆에 작은 박쥐 날개 한 쌍을 단 거북이. 거북이를 고르면 적용돼요."},
     {"id": "deguri_skin_rabbit_smore", "name": "스모어토끼", "displayName": "스모어토끼", "rarity": "rare", "emoji": "🍡", "price": 50, "creature": "rabbit", "skin": "smore", "desc": "노릇하게 구운 마시멜로빛 털에 초코 조각을 얹은 마시멜로 한 덩이를 머리에 올린 토끼. 토끼를 고르면 적용돼요."},
     {"id": "deguri_skin_pufferfish_gyul", "name": "귤복", "displayName": "귤복", "rarity": "rare", "emoji": "🍊", "price": 50, "creature": "pufferfish", "skin": "gyul", "desc": "귤처럼 주황빛 오돌토돌한 몸에 머리 위 귤잎 하나를 단 복어. 복어를 고르면 적용돼요."},
-    {"id": "deguri_skin_turtle_bandage", "name": "미라부기", "displayName": "미라부기", "rarity": "epic", "emoji": "🩹", "price": 100, "creature": "turtle", "skin": "bandage", "desc": "등껍질까지 온몸을 흰 붕대로 감은 거북이. 거북이를 고르면 적용돼요."}
+    {"id": "deguri_skin_turtle_bandage", "name": "미라부기", "displayName": "미라부기", "rarity": "epic", "emoji": "🩹", "price": 100, "creature": "turtle", "skin": "bandage", "desc": "등껍질까지 온몸을 흰 붕대로 감은 거북이. 거북이를 고르면 적용돼요."},
+    {"id": "deguri_skin_hedgehog_vampire", "name": "뱀파도치", "displayName": "뱀파도치", "rarity": "epic", "emoji": "🧛", "price": 100, "creature": "hedgehog", "skin": "vampire", "desc": "안이 빨간 검은 망토로 몸을 감싸고 세운 깃과 작은 송곳니를 드러낸 할로윈 뱀파이어 차림 고슴도치. 고슴도치를 고르면 적용돼요."}
   ],
   "deguri_balloon": [
     {"id": "deguri_balloon_none", "name": "없음", "displayName": "", "rarity": "common", "defaultOwned": true, "emoji": "🚫"},
