@@ -29,16 +29,16 @@ const TARGET_LABEL = { first: '1등', last: '꼴등' };
 // ─── 방 단위 스킨 경제 — 손님용 (사용자 2026-09-22: 코인·스킨은 그 방에서 1회용) ───
 // 방에 들어오면 ROOM_SEED_COINS, 한 판 뛰면 +COIN_RACE_JOIN, 머문 5분마다 +STAY_COIN. 구매·소유·장착은 mb.wallets/mb.equip(방 메모리)에만 — 방을 나가면 전부 사라진다(rooms.js/chat.js 가 삭제).
 // 로그인이 확인된 소켓(socket.authedUserId)은 아래 "계정 지갑"을 쓴다(2026-10-09). 승리 보너스 없음.
-// 내부 테스트(로컬 개발 서버·테스트 서버 DEV_GAMES=1)에서는 200만 코인(사용자 2026-09-24) — 실서버는 200
-const ROOM_SEED_COINS_LIVE = 200;
+// 내부 테스트(로컬 개발 서버·테스트 서버 DEV_GAMES=1)에서는 200만 코인(사용자 2026-09-24) — 실서버는 400(사용자 2026-11-12: 스킨이 많아져 지급 2배, 전에는 200)
+const ROOM_SEED_COINS_LIVE = 400;
 const ROOM_SEED_COINS_TEST = 2000000;
 const ROOM_SEED_COINS = DEV_GAMES_ENABLED ? ROOM_SEED_COINS_TEST : ROOM_SEED_COINS_LIVE;
-const COIN_RACE_JOIN = 10;
+const COIN_RACE_JOIN = 20;   // 사용자 2026-11-12: 10 → 20
 // ─── 구슬 뽑기 (docs/goal/deguri-gacha.md, 사용자 2026-09-23) — 방 지갑에서 한 번 60, 중복이면 30 돌려줌 ───
 // 등급 추첨 → 그 등급 안에서 균등. 스킨은 카탈로그 rarity, 야식(deguri_balloon)은 전부 rare. 추첨은 서버에서만.
 const GACHA_PRICE = 60;
 const GACHA_REFUND = 30;
-const GACHA_WEIGHTS = { common: 40, rare: 35, epic: 18, legend: 7 };   // 일반 등급 추가(사용자 2026-10-01, docs/goal/deguri-shop-declutter-common-tier.md) — 전에는 rare 60 · epic 30 · legend 10
+const GACHA_WEIGHTS = { common: 33, rare: 29, epic: 27, legend: 11 };   // 사용자 2026-11-12: 스킨이 많아져 에픽·전설 약 1.5배, 줄어든 만큼 일반·레어에서 비율대로 — 전에는 40/35/18/7(2026-10-01 일반 등급 추가, docs/goal/deguri-shop-declutter-common-tier.md)
 const GACHA_TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
 // ─── 자유이용권 (docs/goal/deguri-free-pass-tickets.md, 사용자 2026-10-16) ───
 // 뽑기에서 에픽 미만(일반·레어·야식)이 나오면 실패 — 실패 GAUGE_FAILS 번마다 이용권 1장. 에픽·전설 스킨은 코인으로 못 사고,
@@ -49,18 +49,18 @@ function isFailTier(tier) { return tier === 'common' || tier === 'rare'; }
 const CHAT_HISTORY_MAX = 100;     // socket/chat.js·scheduled-start.js 와 같은 상한
 // 방에 머문 시간 보상(사용자 2026-09-23: 광고 클릭 보상은 애드센스 정책 위반이라 대신) — 입장(joinTime)부터 STAY_COIN_MS 마다 +STAY_COIN.
 // 타이머 없이 지갑을 볼 때(상점·구매·뽑기·한 판 보상) 밀린 만큼 한 번에 넣는다. 나가면 지갑과 함께 사라진다.
-const STAY_COIN = 10;
+const STAY_COIN = 20;   // 사용자 2026-11-12: 10 → 20
 const STAY_COIN_MS = 5 * 60 * 1000;
 // ─── 계정 지갑 (docs/goal/deguri-skin-account-binding.md, 사용자 2026-10-09) ───
 // 로그인 계정은 코인(user_coins)·소유(user_cosmetics)·장착(users.prefs.equipped)이 DB 에 남는다 — 방을 나가도, 서버가 재시작돼도.
 // 방에는 캐시만 둔다: mb.wallets[name] = { userId, owned }(잔고는 DB 가 권위), mb.equip[name] = 계정 장착값. 나가면 손님과 같이 지워진다.
-// 매일 코인 = 뽑기 1번(한국 날짜당 1회). 머문 시간 보상은 손님과 같은 계산이지만 계정당 하루 STAY_DAILY_MAX 번까지(방·탭을 합쳐 +60).
-const DAILY_COIN = GACHA_PRICE;
-const STAY_DAILY_MAX = 6;
-// 지갑 상한(사용자 2026-10-14: 300 이상 안 쌓이게) — 매일·머문 시간·한 판 보상이 상한을 넘기면 넘는 만큼은 안 들어온다(이월 없음).
-// 구매·뽑기 환급은 상한과 무관. 내부 테스트는 입장 코인이 200만이라 상한을 두지 않는다
-const WALLET_MAX_LIVE = 300;
-const WALLET_MAX = DEV_GAMES_ENABLED ? Infinity : WALLET_MAX_LIVE;
+// 하루 지급 총량 1000(사용자 2026-10-23: 120 → 500, 2026-11-12: 2배) = 매일 코인 DAILY_COIN(한국 날짜당 1회) + 머문 시간 보상 STAY_DAILY_MAX 칸 × STAY_COIN(방·탭을 합쳐 +600).
+// 머문 시간 보상은 손님과 같은 계산이지만 계정당 하루 STAY_DAILY_MAX 번까지.
+const DAILY_COIN = 400;
+const STAY_DAILY_MAX = 30;
+// 지갑 상한 없음(사용자 2026-11-12: 스킨이 많아져 제한을 없앰 — 전에는 2026-10-14 300 → 2026-10-23 600, 넘는 만큼은 버렸다).
+// grant(max) 자리에 그대로 넘기므로 Infinity 로 둔다
+const WALLET_MAX = Infinity;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
@@ -205,7 +205,7 @@ async function grantDaily(w, userId, now, scope) {
     w.dailyDay = day;
     return r.granted ? r.amount : 0;
 }
-// 머문 시간 보상(계정) — 칸 수는 손님과 같고, 하루 STAY_DAILY_MAX 번까지만. 원장 ref '날짜#1'~'#6' 이 방·탭을 합친 상한이다(넘친 칸은 버린다).
+// 머문 시간 보상(계정) — 칸 수는 손님과 같고, 하루 STAY_DAILY_MAX 번까지만. 원장 ref '날짜#1'~'#30' 이 방·탭을 합친 상한이다(넘친 칸은 버린다).
 // 반환 = 이번에 넣은 칸 수. w.staySlot > STAY_DAILY_MAX 면 오늘 몫을 다 받았다
 async function grantAccountStay(w, user, userId, now, scope) {
     const day = kstDay(now);
@@ -1097,7 +1097,6 @@ module.exports.start = startDeguri;
 // 테스트(AutoTest/qa-deguri-skin-shop-test.js)용
 module.exports.awardRaceCoins = awardRaceCoins;
 module.exports.COIN_RACE_JOIN = COIN_RACE_JOIN;
-module.exports.WALLET_MAX_LIVE = WALLET_MAX_LIVE;
 module.exports.ROOM_SEED_COINS = ROOM_SEED_COINS;
 module.exports.GACHA_PRICE = GACHA_PRICE;
 module.exports.GAUGE_FAILS = GAUGE_FAILS;

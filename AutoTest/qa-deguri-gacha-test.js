@@ -37,18 +37,18 @@ const tierOf = id => {
         const pool = deguri.gachaPool();
         const buyableSkins = catalog.deguri_skin.filter(i => i.creature && Number.isInteger(i.price) && !i.defaultOwned);
         const buyableBalloons = catalog.deguri_balloon.filter(i => i.sprite && Number.isInteger(i.price) && !i.defaultOwned);
-        const TIERS = ['common', 'rare', 'epic', 'legend'], WANT = { common: 40, rare: 35, epic: 18, legend: 7 };
+        const TIERS = ['common', 'rare', 'epic', 'legend'], WANT = { common: 33, rare: 29, epic: 27, legend: 11 };
         check(TIERS.reduce((n, t) => n + pool[t].length, 0) === buyableSkins.length + buyableBalloons.length,
             '풀 = 살 수 있는 스킨 ' + buyableSkins.length + ' + 야식 ' + buyableBalloons.length, JSON.stringify(Object.fromEntries(TIERS.map(t => [t, pool[t].length]))));
         check(TIERS.every(t => pool[t].length > 0 && pool[t].every(p => tierOf(p.id) === t)), '네 등급 모두 항목이 있고, 풀 등급 = 카탈로그 등급(야식은 레어)');
         check(!Object.values(pool).flat().some(p => /_none$/.test(p.id)), '기본 모습/없음 항목은 풀에 없음');
-        check(TIERS.every(t => deguri.GACHA_WEIGHTS[t] === WANT[t]) && Object.keys(deguri.GACHA_WEIGHTS).length === TIERS.length, '서버 가중치 = 40/35/18/7');
+        check(TIERS.every(t => deguri.GACHA_WEIGHTS[t] === WANT[t]) && Object.keys(deguri.GACHA_WEIGHTS).length === TIERS.length, '서버 가중치 = 33/29/27/11');
         const N = 20000, cnt = { common: 0, rare: 0, epic: 0, legend: 0 };
         let s = 12345; const rng = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };   // 결정론 — 테스트 재현용
         for (let i = 0; i < N; i++) cnt[deguri.drawGacha(pool, rng).tier]++;
         const pct = t => cnt[t] / N * 100;
         check(TIERS.every(t => Math.abs(pct(t) - WANT[t]) <= 2),
-            '등급 비율 40/35/18/7 ±2%p', TIERS.map(t => t + ' ' + pct(t).toFixed(1)).join(' · '));
+            '등급 비율 33/29/27/11 ±2%p', TIERS.map(t => t + ' ' + pct(t).toFixed(1)).join(' · '));
         check(deguri.drawGacha({ common: [], rare: [], epic: [], legend: [] }, rng) === null, '빈 풀 → null');
         check(deguri.drawGacha({ rare: [], epic: [{ id: 'e', tier: 'epic' }], legend: [] }, () => 0.99).tier === 'epic', '빈 등급은 가중치에서 빠짐');
         check(deguri.GACHA_PRICE === 60 && deguri.GACHA_REFUND === 30, '가격 60 · 중복 환급 30');
@@ -61,8 +61,8 @@ const tierOf = id => {
         const s2 = sw.balance;
         deguri.accrueStay(sw, { joinTime: new Date(J) }, J + 3 * M + 1000);
         check(s1 === 200 && s2 === 200 + deguri.STAY_COIN && sw.balance === 200 + 3 * deguri.STAY_COIN && sw.stayFrom === J + 3 * M,
-            '머문 시간 보상: 5분 전 0 → 5분 +10 → 15분 누적 +30, 기준은 입장 시각', [s1, s2, sw.balance].join(' → '));
-        check(deguri.STAY_COIN === 10 && M === 5 * 60 * 1000, '5분마다 10코인');
+            '머문 시간 보상: 5분 전 0 → 5분 +20 → 15분 누적 +60, 기준은 입장 시각', [s1, s2, sw.balance].join(' → '));
+        check(deguri.STAY_COIN === 20 && M === 5 * 60 * 1000, '5분마다 20코인');
         const src = fs.readFileSync(path.join(__dirname, '..', 'socket', 'deguri.js'), 'utf8');
         check(/tier === 'legend'[\s\S]{0,200}gachaNotice\(/.test(src), '전설이면 방 채팅 알림(gachaNotice) 호출');
 

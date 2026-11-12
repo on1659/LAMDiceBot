@@ -1,4 +1,28 @@
 ========================================
+📋 Summit Log - 2026-11-12 (데구리 뽑기 확률 상향·코인 지급 2배·지갑 상한 없앰)
+========================================
+
+## 변경 파일
+- socket/deguri.js: GACHA_WEIGHTS 40/35/18/7 → 33/29/27/11, DAILY_COIN GACHA_PRICE(60) → 400, STAY_DAILY_MAX 6 → 30, STAY_COIN 10 → 20, COIN_RACE_JOIN 10 → 20, ROOM_SEED_COINS_LIVE 200 → 400, WALLET_MAX = Infinity(실서버 300 상한 제거), WALLET_MAX_LIVE 상수·export 제거
+- js/deguri-gacha.js: 확률 안내 ODDS_TEXT 33/29/27/11, 표시용 STAY_COIN 20, '코인이 모자라요' 안내 한 판 20코인
+- js/deguri-shop.js: 지갑 설명 주석 수치 갱신
+- AutoTest/qa-deguri-gacha-test.js · qa-deguri-skin-shop-test.js · qa-deguri-account-wallet-test.js: 기대값을 새 수치로
+- AutoTest/hardcoded-colors-baseline.json: js/deguri-render.js 독수리 연출 글자색 3개('!'·'헛발질!'·'앗! 놓쳤다!', 이미 커밋된 캔버스 연출) 예외로 기준선 갱신
+- update-log.md: 11-12 공개 로그(확률은 규칙대로 안 씀)
+
+## 상세 변경 내역
+
+### 데구리 경제
+- 이유: 스킨이 너무 많아져 모으기 어려움(사용자 요청). 에픽·전설 약 1.5배, 줄어든 만큼 일반·레어에서 비율대로 뺌. 지급 전부 2배, 잔고 상한 없앰.
+- '2배' 기준은 10-23 작업 폴더 값(매일 200·하루 30칸·상한 600 — 커밋된 적 없던 변경, 이번에 같이 들어감)으로 하기로 사용자 확정. 실서버 기준으로는 매일 60 → 400, 머문 시간 하루 +60 → +600, 하루 최대 약 120 → 1000.
+- 뽑기 값 60·중복 환급 30·자유이용권 규칙은 그대로.
+- WALLET_MAX 는 grant(max) 인자·stayNextMs 비교에 그대로 쓰이므로 Infinity 로 둠(db/coins.grant 는 Number.isFinite 아니면 delta 그대로).
+- 둥둥라이더는 데구리 지갑을 공유하므로 같이 적용됨.
+- 검증: 로컬 dev-5174 에서 qa-deguri-gacha / skin-shop / account-wallet 테스트 ALL PASS, drawGacha 10만 회 32.9/28.8/27.1/11.2%.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-10-14 오후 (데구리 PiP 안 결과·다시 보기 + 테스트 서버 내용 실서버 반영)
 ========================================
 

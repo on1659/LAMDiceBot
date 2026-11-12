@@ -16,9 +16,9 @@
     var BASE = '/assets/deguri/gacha/';
     var ASSET_VER = '?v=16';   // anchors json·그림이 바뀌면 반드시 올린다(2026-09-24: 벽 윤곽 추가 후 안 올려서 옛 캐시로 뽑기가 멈춘 사고). v16(2026-10-01): 일반 등급 캡슐·빛살·램프 칸
     var PRICE = 60, REFUND = 30;   // 표시용 — 서버 socket/deguri.js GACHA_PRICE / GACHA_REFUND 와 같은 값
-    var ODDS_TEXT = '일반 40% · 레어 35% · 에픽 18% · 전설 7% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';   // 서버 GACHA_WEIGHTS 와 같은 값
-    var STAY_COIN = 10;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
-    var STAY_DONE_TEXT = '오늘 머문 시간 코인은 다 받았어요';   // 로그인 계정은 하루 +60 까지(서버 STAY_DAILY_MAX) — 다 받으면 지갑 응답의 stayNextMs 가 null
+    var ODDS_TEXT = '일반 33% · 레어 29% · 에픽 27% · 전설 11% · 이미 가진 게 나오면 ' + REFUND + '코인을 돌려받아요';   // 서버 GACHA_WEIGHTS 와 같은 값
+    var STAY_COIN = 20;   // 표시용 — 서버 STAY_COIN / STAY_COIN_MS(5분)와 같은 값. 방에 머문 시간 보상
+    var STAY_DONE_TEXT = '오늘 머문 시간 코인은 다 받았어요';   // 로그인 계정은 하루 +600 까지(서버 STAY_DAILY_MAX) — 다 받으면 지갑 응답의 stayNextMs 가 null
     var TIER_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
     var LAMP_CELL = { off: 0, rare: 1, epic: 2, legend: 3, common: 4 };   // 일반 칸은 시트 맨 뒤에 덧붙였다(make-gacha-common.py)
     var TIERS = ['common', 'rare', 'epic', 'legend'];
@@ -888,7 +888,7 @@
             if (!res || !res.ok) {
                 _busy = false; _el.pull.disabled = false;
                 if (res && typeof res.balance === 'number') setBalance(res.balance);
-                setMsg(res && res.reason === 'insufficient' ? '코인이 모자라요. 한 판 뛰면 10코인씩 모여요.' : '지금은 뽑을 수 없어요. 잠시 뒤 다시 해 주세요.');
+                setMsg(res && res.reason === 'insufficient' ? '코인이 모자라요. 한 판 뛰면 20코인씩 모여요.' : '지금은 뽑을 수 없어요. 잠시 뒤 다시 해 주세요.');
                 return;
             }
             var item = catalogItem(res.cosmeticId);   // 잔고는 코인이 투입구에 들어간 순간 줄어든다(payShown)

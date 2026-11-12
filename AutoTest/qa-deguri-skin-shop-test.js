@@ -242,7 +242,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const fakeMb = { participants: [host, guest], wallets: { [host]: { balance: 40, owned: [] }, [guest]: { balance: 120, owned: [] } }, equip: {} };
         deguriHandler.awardRaceCoins(fakeIo, { roomId: 'qa' }, { users: [{ name: host, id: 'x' }, { name: guest, id: 'y' }] }, fakeMb);
         check(fakeMb.wallets[host].balance === 40 + deguriHandler.COIN_RACE_JOIN && fakeMb.wallets[guest].balance === 120 + deguriHandler.COIN_RACE_JOIN, '한 판 참여 → 방 지갑 +' + deguriHandler.COIN_RACE_JOIN + ' (손님 포함)');
-        check(deguriHandler.ROOM_SEED_COINS_LIVE === 200 && (SEED === 200 || SEED === 2000000), '입장 지갑: 실서버 200 · 내부 테스트 200만', String(SEED));
+        check(deguriHandler.ROOM_SEED_COINS_LIVE === 400 && (SEED === 400 || SEED === 2000000), '입장 지갑: 실서버 400 · 내부 테스트 200만', String(SEED));
 
         // 방 나가고 재입장 → 전부 초기화(1회용): 지갑 200, 소유 0, 장착 없음
         await wait(10500);   // 소켓 rate limit 윈도(10초 50회) 리셋

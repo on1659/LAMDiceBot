@@ -4,7 +4,7 @@
 //          → 두 동물 스킨 + 야식 장착(prefs.equipped 저장 형식) → 뽑기 3번(잔고 = 이전 − 60 (+30 중복)) → 일반 shop:equip 은 데구리 슬롯 거절
 //          → 방 나가고 새 방: 상점을 안 열어도 requestState 만으로 장착 복원, 다른 사람 출발대에 스킨이 보인다
 //          → 같은 방 손님은 방 지갑(DB 무관)
-//   [모듈]  awardRaceCoins — 계정 한 판 +10 은 판마다 한 번(같은 시드 두 번 불러도 1번), 머문 시간 보상은 방을 바꿔도 하루 +60 까지
+//   [모듈]  awardRaceCoins — 계정 한 판 +20 은 판마다 한 번(같은 시드 두 번 불러도 1번), 머문 시간 보상은 방을 바꿔도 하루 +600 까지
 //   실행: node AutoTest/qa-deguri-account-wallet-test.js [port]   (로컬 서버 + 로컬 PG — 서버가 떠 있어야 함)
 //   시드: 계정 2개를 API 로 등록 — 종료 시 users/wallet/ledger/cosmetics 정리.
 require('../config');
@@ -78,7 +78,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const bal0 = await dbBalance(userId);
         check(w0 && w0.ok && w0.balance === bal0, '계정 지갑: shop:get 잔고 = DB user_coins', w0 && w0.balance + ' / ' + bal0);
         check(await ledgerCount(userId, 'deguri-daily', today()) === 1, '매일 코인: 오늘 날짜 원장 1줄(deguri-daily)');
-        check(dailies.length === 1 && dailies[0].message.includes('+' + deguri.DAILY_COIN) && deguri.DAILY_COIN === deguri.GACHA_PRICE, '매일 코인 채팅 알림 1줄, +' + deguri.DAILY_COIN + '(= 뽑기 1번)', dailies.map(m => m.message).join(' / '));
+        check(dailies.length === 1 && dailies[0].message.includes('+' + deguri.DAILY_COIN), '매일 코인 채팅 알림 1줄, +' + deguri.DAILY_COIN, dailies.map(m => m.message).join(' / '));
         await emitAck(sA, 'deguri:shop:get', {});
         await wait(200);
         check(await ledgerCount(userId, 'deguri-daily') === 1 && dailies.length === 1, '같은 날 다시 조회 → 매일 코인 안 들어옴');
@@ -154,9 +154,9 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         const gb = await emitAck(sB, 'deguri:shop:buy', { cosmeticId: skin1.id });
         check(gb && gb.ok && gb.balance === deguri.ROOM_SEED_COINS - skin1.price && await dbBalance(userId) === before, '손님 구매는 방 지갑에서만(계정 무관)');
 
-        // ── 한 판 +10 (판마다 한 번) · 머문 시간 하루 +60 상한 (모듈 직접 — 소켓 없이) ──
+        // ── 한 판 +20 (판마다 한 번) · 머문 시간 하루 +600 상한 (모듈 직접 — 소켓 없이) ──
         const fakeIo = { to: () => ({ emit: () => {} }) };
-        const longAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);   // 3시간 = 36칸 → 6칸만
+        const longAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);   // 4시간 = 48칸 → 30칸만
         const mkMb = seed => ({ seed, participants: [nameA], wallets: { [nameA]: { userId, owned: [] } }, equip: {} });
         const gs = { users: [{ name: nameA, id: 'x', authedUserId: userId, joinTime: longAgo }] };
         const raceBefore = await ledgerCount(userId, 'deguri-race');
@@ -165,7 +165,7 @@ const myBall = (st, name) => st && st.preview && st.preview.balls.find(b => b.ow
         deguri.awardRaceCoins(fakeIo, { roomId: 'qa-' + uniq }, gs, mkMb(777));   // 같은 판을 두 번 불러도
         await wait(800);
         check(await ledgerCount(userId, 'deguri-race') === raceBefore + 1, '계정 한 판 +' + deguri.COIN_RACE_JOIN + ' — 같은 판 두 번 불러도 1번(원장 멱등)');
-        check(await ledgerCount(userId, 'deguri-stay', today() + '#%') === deguri.STAY_DAILY_MAX, '머문 시간 3시간 → 오늘 ' + deguri.STAY_DAILY_MAX + '칸(+60)까지만');
+        check(await ledgerCount(userId, 'deguri-stay', today() + '#%') === deguri.STAY_DAILY_MAX, '머문 시간 4시간 → 오늘 ' + deguri.STAY_DAILY_MAX + '칸(+600)까지만');
         deguri.awardRaceCoins(fakeIo, { roomId: 'qa2-' + uniq }, gs, mkMb(778));   // 다른 방(새 캐시)에서 또 3시간
         await wait(800);
         check(await ledgerCount(userId, 'deguri-race') === raceBefore + 2, '다른 판 → 한 판 코인 또 +' + deguri.COIN_RACE_JOIN);
