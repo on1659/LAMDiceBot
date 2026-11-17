@@ -244,7 +244,8 @@
     var home = $('.entry-games');
     var picker = $('#gameSheet .game-picker');
     $('#gameCount').textContent = '게임 ' + games.length + '개';
-    if (games.length > FIRST_VIEW_GAME_COUNT) {
+    // PC 는 게임을 한 줄에 다 보여 주므로 '아래에도' 안내는 폰에서만.
+    if (games.length > FIRST_VIEW_GAME_COUNT && matchMedia('(max-width: 760px)').matches) {
       $('.entry-heading p').textContent = '아래에도 게임이 있어요. 누르면 방이 열려요.';
     }
     $('#createGame').disabled = !games.length;
