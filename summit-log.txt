@@ -1,4 +1,33 @@
 ========================================
+📋 Summit Log - 2026-11-17 (모바일 새 첫 화면·로비·게임 방 Concept 7 토큰화·PC 깨짐 수정)
+========================================
+
+## 변경 파일
+- index.html: 루트 진입을 /mobile 로 location.replace(쿼리·해시 유지, ?view=home → #start). 서버 선택 자동 표시 제거
+- mobile.html · js/mobile-home.js · css/mobile-home.css: 첫 방문 로그인(가입·손님 입장)·저장 계정/별명 이어가기·시작 페이지와 로비 히스토리 이동·게임 카탈로그 목록
+- js/mobile-games.js (신규): MOBILE_GAMES 레지스트리(gameType → name·icon·path·nameKey·createKey·joinKey), 홈 카드·방 만들기·방 목록 메타를 한 곳에서 생성
+- js/mobile-game.js · css/mobile-game.css · css/mobile-{dice-roulette,horse-polish,deguri-polish}.css: 방 화면 반경·글자 크기를 [tokens:mobile:*] 토큰으로, 버튼 글자 가운데 정렬
+- css/theme.css: Concept 7 모바일 토큰(라이트·다크) 추가
+- dice/roulette/horse-race/deguri-multiplayer.html: 모바일 스크립트·스타일 연결, 주사위 PC 기록 칸 잘림·정렬 버튼 줄바꿈 수정
+- js/horse-race.js: '트랙:' 라벨 nowrap·flex-shrink 0 (PC 줄바꿈)
+- DESIGN.md: Concept 7 기준값 동기화
+- docs/GameGuide/NEW-GAME.md: 모바일 공개 시 MOBILE_GAMES 등록 안내
+- AutoTest/qa-mobile-live-ui.js · qa-mobile-game-catalog-test.js · qa-mobile-lobby-entry-test.js: 모바일 UI·카탈로그·로비 진입 검증
+- docs/goal/applied/: expanding-mobile-game-catalog · login-first-lobby · mobile-release-web-ux · unified-app-start 완료 명세
+
+## 상세 변경 내역
+
+### 모바일 진입
+- 공개 루트·옛 홈 링크 모두 새 반응형 첫 화면으로. 기존 인증 API·소켓 계약, 방 초대 링크, 손님 방 만들기 흐름은 그대로
+- 이유: 진입 화면이 네 벌로 갈려 있던 것을 하나로
+
+### 디자인 토큰
+- 하드코딩 반경·글자 크기를 토큰으로 바꿔 게임 간 통일, 라이트·다크 동시 대응
+- 영향: body.mobile-ui(760px 이하) 화면. PC 는 깨짐 3건만 수정
+
+========================================
+
+========================================
 📋 Summit Log - 2026-11-12 (데구리 뽑기 확률 상향·코인 지급 2배·지갑 상한 없앰)
 ========================================
 

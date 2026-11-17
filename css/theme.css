@@ -17,7 +17,7 @@
   --purple-200: #D0BFFF;
   --purple-300: #B69FFF;
   --purple-400: #9C7FFF;
-  --purple-500: #667eea;  /* 메인 (현재 사용 중) */
+  --purple-500: #5266d6;  /* 메인 (현재 사용 중) — 흰 바탕 글자·흰 글자 바탕 둘 다 4.5 이상 */
   --purple-600: #764ba2;  /* 진한색 (현재 사용 중) */
   --purple-700: #5A3880;
   --purple-800: #3D255E;
@@ -114,7 +114,7 @@
   ============================================ */
   /* 주사위 게임 - 보라색 유지 */
   --dice-50:    #F3F0FF;
-  --dice-500:   #667eea;
+  --dice-500:   #5266d6;
   --dice-600:   #764ba2;
   --dice-700:   #5A3880;
 
@@ -256,7 +256,7 @@
   --text-primary: var(--gray-900);
   --text-secondary: var(--gray-700);
   --text-tertiary: var(--gray-500);
-  --text-muted: var(--gray-400);
+  --text-muted: #69717a;  /* 흰·연회색 바탕에서 4.5 이상 (gray-400 은 2.1) */
 
   --border-color: var(--gray-300);
   --border-light: var(--gray-200);
@@ -350,6 +350,19 @@
   --mobile-violet: #e9e3ff;
   --mobile-soft: #eef2e7;
   --mobile-shadow: 0 12px 35px rgba(24,41,30,.09);
+  /* [tokens:mobile:shape] 모바일 로비·게임 방 틀 모서리·글자 단계 (DESIGN.md Spacing & Shape·Typography). 스킨과 무관 */
+  --mobile-radius-xs: 6px;    /* 배지·작은 칩 */
+  --mobile-radius-sm: 10px;   /* 버튼·입력 */
+  --mobile-radius-md: 12px;   /* 게임 타일·카드 안 칸 */
+  --mobile-radius-lg: 16px;   /* 패널·시트·주 버튼 */
+  --mobile-radius-xl: 22px;   /* 큰 무대(주사위 판) */
+  --mobile-radius-pill: 999px;
+  --mobile-text-xs: 12px;     /* 가장 작은 글자 — 이보다 작게 쓰지 않는다 */
+  --mobile-text-sm: 13px;
+  --mobile-text-base: 15px;
+  --mobile-text-input: 16px;  /* 입력·주 버튼 — iOS 확대 방지 */
+  --mobile-text-md: 17px;
+  --mobile-text-lg: 22px;
 
   /* [tokens:common:light] 공통 공유 모듈 (js/shared/*·free) */
   --common-ink-faint: #999;        /* 빈 목록 안내·시각 같은 옅은 글자 (채팅·주문·준비) */
@@ -360,7 +373,7 @@
   --chat-ink-sub: #666;
   --chat-line: #ccc;
   --chat-error: #c00;
-  --chat-name: #667eea;
+  --chat-name: #5266d6;
   --chat-my-name: #764ba2;
   --chat-chip-bg: #f9f9f9;
   --chat-chip-line: #ddd;
@@ -378,7 +391,7 @@
   --chat-pin-title: #ff6f00;       /* 고정된 메시지 제목 */
   /* 주문 (order-shared.js) */
   --order-saved-flash: #d4edda;
-  --order-title: #667eea;
+  --order-title: #5266d6;
   --order-ink: #333;
   --order-ink-sub: #718096;
   --order-accent-ink: #5568d3;
@@ -449,7 +462,7 @@
   --free-title-gradient: linear-gradient(135deg, #667eea, #1ec8da);
   --free-card-horse: linear-gradient(135deg, #8B4513 0%, #c97a3e 100%);
   --free-card-bridge: linear-gradient(135deg, #0891b2 0%, #42edff 100%);
-  --free-loading-dice: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  /* 바로 입장 로딩 화면 */
+  --free-loading-dice: linear-gradient(135deg, #5266d6 0%, #764ba2 100%);  /* 바로 입장 로딩 화면 */
   --free-loading-roulette: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
   --free-loading-horse: linear-gradient(135deg, #d2691e 0%, #8B4513 100%);
   --free-loading-bridge: linear-gradient(135deg, #42edff 0%, #1ec8da 100%);
@@ -720,6 +733,7 @@
   --gray-200: #3a3a37;
   --gray-300: #4a4944;
   --gray-400: #9c9a92;
+  --text-muted: var(--gray-400);  /* 라이트가 고정값이라 다크·스킨은 gray-400 을 따르게 */
   --gray-500: #a6a39a;
   --gray-600: #b4b2a8;
   --gray-700: #c2c0b6;
@@ -771,7 +785,7 @@
   --purple-800: #d6d2ee;
   --purple-900: #e6e3f4;
 
-  /* 색 버튼·헤더 그라디언트 — 시작색을 라이트(#667eea, 흰 글자 3.7)보다 조금 진하게 해 흰 글자 4.5 이상 */
+  /* 색 버튼·헤더 그라디언트 — 시작색을 라이트(#5266d6)보다 조금 진하게 해 흰 글자 4.5 이상 */
   --brand-gradient: linear-gradient(135deg, #5a62b4 0%, #67508f 100%);
   --dice-gradient: linear-gradient(135deg, #5a62b4 0%, #67508f 100%);
 

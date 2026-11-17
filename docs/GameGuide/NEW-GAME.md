@@ -46,6 +46,8 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 | `dice-game-multiplayer.html` | `.room-item.game-[game]` CSS, `<label id="[game]Label">` 라디오, gameType colorMap, 방카드 분기, joinRoomDirectly/finalizeRoomCreation/joinSelectedRoom 3곳에 redirect (localStorage `pending[Game]Room`/`pending[Game]Join` 저장 → `/[game]?createRoom=true` 또는 `?joinRoom=true`) |
 | `index.html` | 게임 링크 추가 (선택) |
 
+모바일 공개 시 `js/mobile-games.js`의 `MOBILE_GAMES`에 서버 `gameType`을 키로 한 항목을 추가한다. `name`, `icon`, `path`와 게임 페이지가 읽는 `nameKey`·`createKey`·`joinKey`를 지정한다. 등록 순서대로 `/mobile` 첫 화면과 방 만들기에 표시되며, 열린 방에서도 같은 이름과 아이콘을 사용한다. 전용 카드 그림은 선택 사항이다. `mobile.html`에 `gameArt-[gameType]` 템플릿이 있으면 그 그림을 사용하고, 기본 카드는 등록한 아이콘을 사용한다.
+
 ### 공유 시스템
 | 파일 | 할 일 |
 |------|-------|

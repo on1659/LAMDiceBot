@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        const entryUrl = new URL('/mobile', location.origin);
+        entryUrl.search = location.search;
+        entryUrl.hash = location.hash;
+        if (entryUrl.searchParams.get('view') === 'home') {
+            entryUrl.searchParams.delete('view');
+            entryUrl.hash = 'start';
+        }
+        location.replace(entryUrl.pathname + entryUrl.search + entryUrl.hash);
+    </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -369,8 +379,6 @@
             window.location.href = '/game';
         });
 
-        // 페이지 로드 시 바로 서버 선택 표시
-        ServerSelectModule.show();
     </script>
 
     <!-- Ad: Bottom Banner -->

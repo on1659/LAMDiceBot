@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -81,7 +81,8 @@
                총 너비: 800px + 20px + 320px = 1140px
                중앙 정렬: (100vw - 1140px) / 2 + 160px
             */
-            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            /* 상한: 기록 패널과 40px 이상 떨어지게 (룰렛·경마와 같은 식) — 없으면 1460px 미만에서 패널이 화면 밖으로 잘린다 */
+            margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
             margin-right: auto;
             max-width: 800px;
         }
@@ -1445,14 +1446,31 @@
                컨테이너와 기록 섹션 사이 여백: 20px
                기록 섹션 왼쪽 위치: (100vw - 1140px) / 2 + 160px + 800px + 20px
             */
-            left: calc((100vw - 1140px) / 2 + 160px + 800px + 20px);
+            left: min(calc((100vw - 1140px) / 2 + 160px + 800px + 20px), calc(100vw - 340px)); /* 화면 오른쪽 20px 안쪽까지만 */
             right: auto;
         }
         
         .history-section.visible {
             display: block;
         }
-        
+
+        /* 좁은 PC(1200px 이하): 본문 가운데, 기록은 본문 아래로 (룰렛과 같은 규칙) */
+        @media (max-width: 1200px) {
+            body.game-active .container {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .history-section,
+            body.game-active .history-section {
+                position: static;
+                left: auto;
+                width: 100%;
+                max-height: none;
+                margin-top: 20px;
+            }
+        }
+
         /* 모바일 반응형 스타일 */
         @media (max-width: 768px) {
             /* 모바일에서는 컨테이너를 전체 너비로 사용 */
@@ -1625,9 +1643,15 @@
 
         .history-title-wrapper {
             display: flex;
+            flex-wrap: wrap; /* 좁은 기록 칸(320px)에서는 제목 아래로 정렬 버튼을 내린다 — 글자를 쪼개지 않음 */
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
             margin-bottom: 15px;
+        }
+
+        .history-title, .sort-button {
+            white-space: nowrap;
         }
 
         .history-title {
@@ -1953,9 +1977,9 @@
     }
     </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
-    <link rel="stylesheet" href="/css/mobile-game.css?v=live-polish-1">
-    <link rel="stylesheet" href="/css/mobile-dice-roulette.css?v=live-polish-1">
-    <script src="/js/mobile-game.js?v=live-polish-1" defer></script>
+    <link rel="stylesheet" href="/css/mobile-game.css?v=release-room-2">
+    <link rel="stylesheet" href="/css/mobile-dice-roulette.css?v=live-polish-2">
+    <script src="/js/mobile-game.js?v=release-room-1" defer></script>
 </head>
 <body>
     <noscript>
@@ -2098,7 +2122,7 @@
                     </label>
                     <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate/deguri)의 인라인 display:none을 제거하면 됨 -->
                     <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
-                    <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
+                    <label id="ladderLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji"><i class="ui ui-ladder"></i></span>
                         <span class="gt-name">사다리타기</span>
@@ -2117,15 +2141,13 @@
                         <span class="gt-name">해적 룰렛</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <!-- 데구리: 베타 테스트로 공개(2026-09-21) — 배지 "베타" -->
+                    <!-- 데구리: 2026-09-21 베타 공개 → 베타 배지 제거 -->
                     <label id="deguriLabel" class="game-type-option" style="--gt-color: var(--game-type-deguri); --gt-rgb: var(--deguri-500-rgb);">
                         <input type="radio" name="gameType" value="deguri" id="deguriRadio" />
                         <span class="gt-emoji"><i class="ui ui-paw"></i></span>
                         <span class="gt-name">데구리</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--fill-danger); color: var(--text-on-accent); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-new-glow-rgb), 0.4); animation: newBadgePulse 2s ease-in-out infinite;">베타</span>
                     </label>
                 </div>
-                <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
                 <div id="gameTypeInfo">
                     룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
@@ -3621,8 +3643,6 @@
             if (ladderDevBadge) ladderDevBadge.style.display = 'none';
             const ladderNewBadge = document.getElementById('ladderNewBadge');
             if (ladderNewBadge) ladderNewBadge.style.display = '';
-            const gameTypeInfo = document.getElementById('gameTypeInfo');
-            if (gameTypeInfo) gameTypeInfo.textContent = '룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.';
         });
 
         // 선택 불가 상태에서 사다리타기를 누르면 안내 (라디오가 disabled여도 라벨 클릭은 발생)
