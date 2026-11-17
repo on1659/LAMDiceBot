@@ -58,7 +58,17 @@
     var EAGLE = { cell: 256, h: 160, frames: 4, fps: 10, w: 92 };
     var STAR = { cell: 96, frames: 4 };
     var BAL_SPRITE = { w: 96, h: 128, knotX: 48, knotY: 106, worldH: 46 };   // 야식 풍선(deguri_balloon) 셀·매듭 — docs/goal/deguri-balloon-accessory.md 계약
-    var CAUSE_TEXT = { spike: '가시에 찔렸다', blade: '풍차에 펑!', pend: '통나무에 펑!', bolt: '번개에 펑!', bee: '벌한테 펑!', thorn: '가시벽에 펑!', eagle: '독수리한테 펑!', finale: '풍선이 펑!', bomb: '폭탄에 펑!', meteor: '별똥별에 펑!' };
+    var CAUSE_TEXT = { spike: '가시에 찔렸다', blade: '풍차에 펑!', pend: '통나무에 펑!', bolt: '번개에 펑!', piston: '밀대에 쾅!', arm: '막대에 휙!', hammer: '망치에 쿵!', bee: '벌한테 펑!', thorn: '가시벽에 펑!', eagle: '독수리한테 펑!', finale: '풍선이 펑!', bomb: '폭탄에 펑!', meteor: '별똥별에 펑!' };
+    // 몸까지 맞는 원인(사용자 2026-11-17 "풍선만 터지는 것과 같은 연출이라 왜 쟤만 끝까지 가는지 납득을 못 한다") — 서버 R.airCauses 밖 = 낙하산으로 내려간다.
+    // 펑(R.popStop)+떨어짐(R.dropDur) 0.63초 안에 맞는 순간을, 낙하산~착지 뒤 HIT_FADE_MS 까지 '맞았다' 표시를 그린다(docs/goal/balloon-body-hit-obstacles.md)
+    var BODY_HIT = { bolt: 1, piston: 1, arm: 1, hammer: 1 };
+    var LOST_BALLOON = { piston: 1, arm: 1, hammer: 1 };   // 몸을 치는 장애물 — 풍선은 안 터지고 손에서 놓쳐 줄을 늘어뜨린 채 날아간다(번개는 터진다)
+    var LOST_FX_MS = 1800, LOST_RISE = 130, LOST_DRIFT = 18;   // 놓친 풍선이 보이는 시간 · 오르는 속도(세계/초) · 옆으로 흐르는 속도
+    var HIT_FADE_MS = 800;              // 착지한 뒤 그을음·별이 사라지는 시간
+    var HIT_ZAP = 0.4, HIT_ZAP_HZ = 18; // 번개 — 감전(번쩍·떨림·불꽃) 시간 · 흰/검정 번갈아 빠르기
+    var HIT_SPIN = 0.6, HIT_SPIN_TURNS = 2;   // 회전 막대 — 휘말려 도는 시간 · 바퀴 수(정수여야 낙하산 펼 때 바로 선다)
+    var HIT_SQUASH = 0.6;               // 밀대(옆으로 납작)·망치(위에서 눌림) — 찌그러졌다 펴지며 기울었다 돌아오는 시간
+    var HIT_COLOR = { zapA: '#fff6b0', zapB: '#1c1612', soot: '#2b241f', spark: '#ffe066', smoke: '120,112,104', dizzy: '#ffd84a', dizzyInk: '#7a5200' };
     var ITEM_TEXT = { super: '슈퍼 풍선!', shield: '방패!', slow: '무거운 풍선!', bomb: '깜짝 폭탄!' };
     var ITEM_FX_TEXT = { super: '슈퍼!', shield: '방패!', slow: '무거워!', bomb: '꽝!' };
     var START_BUILD_MS = 600;          // 카운트다운 때 아직 없는 층을 비버가 짓는 시간(보통은 대기 화면에서 이미 지어져 있다)
@@ -104,8 +114,10 @@
     var PIECES = { eagle: 'pieces/eagle.webp', beam: 'pieces/start-platform-mid.webp', fan: 'pieces/fan.webp', hive: 'pieces/beehive.webp', plog: 'pieces/pendulum-log.webp',
         pivot: 'pieces/pendulum-pivot.webp', flag: 'pieces/flag.webp', star: 'fx/impact-star.webp', swarm: 'fx/bee-swarm.webp', wind: 'fx/wind.webp', dust: 'fx/dust-puff.webp',
         beaver: 'pieces/beaver-v2.webp', fence: 'pieces/fence-mid.webp', post: 'pieces/fence-post.webp', pipe: 'pieces/warp-pipe.webp', skyFar: 'stage/sky-far.webp',
-        meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp', rotor: 'pieces/windmill-rotor.webp' };
+        meadow: 'stage/meadow-tile.webp', tree: 'stage/decor-tree.webp', bush: 'stage/decor-bush-big.webp', bushS: 'stage/decor-bush-small.webp', rotor: 'pieces/windmill-rotor.webp',
+        pistonHead: 'pieces/piston-head.webp', pistonShaft: 'pieces/piston-shaft.webp', arm: 'pieces/flipflop-arm.webp', armPivot: 'pieces/flipflop-pivot.webp' };   // 몸을 치는 장애물 — 데구리 밀대·뒤집개 팔 그대로
     var images = {}, loadState = 0, loadWaiters = [], instances = [];
+    var tintCanvas = null;   // hitCell 보조 캔버스(칸 하나)
     function image(path) {
         var im = images[path];
         if (!im) {
@@ -268,7 +280,7 @@
             var n = data.players.length;
             people = data.players.map(function (p, i) {
                 return { id: p.id, name: p.owner, creature: p.creature, skin: p.skin || null, balloon: p.balloon || null, color: BALLOON[(p.colorIdx != null ? p.colorIdx : i) % BALLOON.length], colorIdx: p.colorIdx != null ? p.colorIdx : i,
-                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], pokesBy: [], finishT: -1, superIv: [], shieldIv: [], slowIv: [], shieldNs: [], warps: [] };
+                    ph: i * 1.7 + 0.3, trans: [{ t: 0, st: 'rise', safe: false }], pops: [], hits: [], pokesBy: [], finishT: -1, superIv: [], shieldIv: [], slowIv: [], waryIv: [], rescueIv: [], shieldNs: [], warps: [] };
             });
             var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
             var nameOf = function (id) { return byId[id] ? byId[id].name : ''; };
@@ -295,9 +307,10 @@
                 var p = e.ball != null ? byId[e.ball] : null;
                 switch (e.type) {
                     case 'pop':
-                        closeIv(p.shieldIv, e.t); closeIv(p.superIv, e.t); closeIv(p.slowIv, e.t);
+                        closeIv(p.shieldIv, e.t); closeIv(p.superIv, e.t); closeIv(p.slowIv, e.t); closeIv(p.waryIv, e.t);
                         p.trans.push({ t: e.t, st: e.cause === 'finale' ? 'fdrop' : 'pop' }); p.pops.push(e.t);   // 피날레 펑 = 낙하산 없이 바로 떨어진다
-                        tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color, row: (p.colorIdx || 0) % BALLOON.length });
+                        if (BODY_HIT[e.cause]) p.hits.push({ t: e.t, cause: e.cause, dir: e.dir || 1, ti: p.trans.length - 1 });   // 몸까지 맞음(낙하산 원인) — 그림만 다르게(bodyHitAt)
+                        tl.popFx.push({ t: e.t, x: e.x, y: e.y, color: p.color, row: (p.colorIdx || 0) % BALLOON.length, lost: !!LOST_BALLOON[e.cause], dir: e.dir || 1, p: p });   // lost = 터지지 않고 놓쳐 날아간다
                         if (e.spike != null) tl.spikeFall[e.spike] = e.t;
                         if (e.cause === 'poke' && byId[e.by]) {   // 찌른 쪽의 찌르기에 '맞혔다' 표시 — 맞힌 순간 효과는 대상 풍선에서
                             var pk = byId[e.by].pokesBy.filter(function (q) { return q.target === e.ball; }).pop(); if (pk) pk.hit = true;
@@ -331,6 +344,9 @@
                         else if (e.blocked) tl.toasts.push({ t: e.t, text: shortName(p.name) + ' 폭탄도 끄떡없다!' });
                         break;
                     case 'superEnd': closeIv(p.superIv, e.t); break;
+                    case 'wary': if (e.on) openIv(p.waryIv, e.t); else closeIv(p.waryIv, e.t); break;   // 방금 맞은 장애물 밑에서 타이밍 재며 기다림
+                    case 'rescue': openIv(p.rescueIv, e.t); tl.toasts.push({ t: e.t, text: shortName(p.name) + ' 부스터!' }); break;   // 혼자 한참 뒤처져 따라잡기 부스터
+                    case 'rescueEnd': closeIv(p.rescueIv, e.t); break;
                     case 'slowEnd': closeIv(p.slowIv, e.t); break;
                     case 'shieldEnd': closeIv(p.shieldIv, e.t); p.shieldNs.push({ t: e.t, n: 0 }); break;
                     case 'shieldPop':
@@ -420,6 +436,17 @@
             for (var i = 1; i < p.trans.length && p.trans[i].t <= sim; i++) cur = p.trans[i];
             return cur;
         }
+        // 몸까지 맞은 뒤 펑 → 떨어짐 → 낙하산 → 착지(뒤 HIT_FADE_MS)까지만 { cause, dir, since(초), fade(0~1), air(아직 공중) } — 그 사이에 다른 상태(하수구·불기 등)가 끼면 끝
+        var HIT_CHAIN = { pop: 1, drop: 1, chute: 1, land: 1 };
+        function bodyHitAt(p, sim) {
+            var h = null;
+            for (var i = p.hits.length - 1; i >= 0; i--) if (p.hits[i].t <= sim) { h = p.hits[i]; break; }
+            if (!h) return null;
+            var landT = -1;
+            for (var j = h.ti; j < p.trans.length && p.trans[j].t <= sim; j++) { var tr = p.trans[j]; if (!HIT_CHAIN[tr.st]) return null; if (tr.st === 'land') landT = tr.t; }
+            var fade = landT < 0 ? 1 : 1 - (sim - landT) / HIT_FADE_MS;
+            return fade > 0 ? { cause: h.cause, dir: h.dir, since: (sim - h.t) / 1000, fade: fade, air: landT < 0 } : null;
+        }
         function posAt(i, sim) {
             var f = tl.frames, k = sim / tl.sampleMs, a = Math.min(f.length - 1, Math.floor(k)), b = Math.min(f.length - 1, a + 1), u = k - a;
             var bo = boostOffset(people[i], sim);   // 출발 부스터 — 아래층은 처져 보이다가 제 순간에 따라붙는다(계산은 모두 같은 출발선)
@@ -468,11 +495,13 @@
                 else if (st.st === 'inflate') { v.k = clamp((sim - st.t) / st.dur, 0, 1); v.dur = st.dur; }
                 else v.k = 1;
                 v.safe = st.st === 'rise' && st.safe && sim - st.t < R.safeDur * 1000;
+                v.hit = counting ? null : bodyHitAt(p, sim);
                 var airborne = st.st === 'rise' || st.st === 'chute' || st.st === 'drop' || st.st === 'done';
                 if (Math.abs(vx) > FACE_VX) p.faceDir = Math.sign(vx);   // 움직이는 쪽을 본다 — 거의 멈추면 보던 쪽 그대로(풍선과 따로 놀지 않게, 사용자 2026-10-18)
                 v.face = airborne ? (p.faceDir || 1) : Math.abs(vx) > 14 ? Math.sign(vx) : (Math.sin(t * 0.45 + p.ph * 7) > 0.15 ? 1 : -1);   // 땅에선 멈추면 두리번(그림 전용)
                 var inIv = function (list) { for (var q = 0; q < list.length; q++) if (sim >= list[q].a && sim < list[q].b) return true; return false; };
                 v.super = !counting && inIv(p.superIv); v.shield = !counting && inIv(p.shieldIv); v.slow = !counting && inIv(p.slowIv);
+                v.wary = !counting && inIv(p.waryIv); v.rescue = !counting && inIv(p.rescueIv);
                 v.shieldN = 0; for (var sq = 0; sq < p.shieldNs.length && p.shieldNs[sq].t <= sim; sq++) v.shieldN = p.shieldNs[sq].n;   // 방패 개수(겹쳐 먹기)
                 if (!counting && st.st === 'rise') for (var pq = p.pokesBy.length - 1; pq >= 0; pq--) {   // 찌르는 중(예고 POKE_PRE 초 전부터) — 대상 쪽을 본다
                     var pkq = p.pokesBy[pq]; if (pkq.t - POKE_PRE * 1000 > sim) continue;
@@ -529,7 +558,8 @@
             drawWorld(sim, t, clockS, view);
             drawBleachers(tl.rowSpans, function (r) { return tl.rowPrebuilt[r] || !counting ? 1 : csMs / START_BUILD_MS; }, clockS);
             view.slice().sort(function (a, b) { return ((!!a.poke) - (!!b.poke)) || ((a.p.name === me) - (b.p.name === me)) || ((a.p === camFocus) - (b.p === camFocus)) || ((!!a.poked) - (!!b.poked)) || a.y - b.y; }).forEach(function (v) { drawPlayer(v, clockS, picked); });   // 찌르는 동물이 맨 앞(y 순이면 아래에서 찌르는 70% 가 대상 뒤에 깔렸다, 사용자 2026-10-20) → 내 동물 → 카메라가 보는 동물 → 찔리는 동물
-            if (!counting && sim < (R.boostJitter + R.boostDur) * 1000) view.forEach(function (v) { drawBoost(v, sim, clockS); });   // 출발 부스터 불꽃 — 동물마다 제각각 터진다(솟는 속도만큼) · 동물·이름표 앞에
+            if (!counting && sim < (R.boostJitter + R.boostDur) * 1000) view.forEach(function (v) { drawBoost(v, sim, clockS); });
+            view.forEach(function (v) { if (v.rescue && v.st === 'rise') drawFlame(v, 1, clockS); });   // 따라잡기 부스터(혼자 한참 뒤처졌을 때)   // 출발 부스터 불꽃 — 동물마다 제각각 터진다(솟는 속도만큼) · 동물·이름표 앞에
             if (picked && rule !== 'first') drawSpotlight(picked, sim);
             drawFx(sim, view);
             drawEagle(sim, clockS);
@@ -786,8 +816,10 @@
         function drawBoost(v, sim, clockS) {   // 부스터가 터진 동안(boostAt ~ +boostDur) 불꽃 — 따라붙을 높이가 클수록 세게
             var p = v.p, gap = tl.seatTop - (p.seatY || 0), k = (sim / 1000 - p.boostAt) / R.boostDur;
             if (gap <= 0 || k <= 0 || k >= 1) return;
-            var gain = clamp(gap / Math.max(R.startRowGap, tl.seatTop), 0.35, 1) * Math.sin(Math.min(1, k * 1.4) * Math.PI * 0.5 + 0.0) * (1 - k * 0.5);
-            var x = sx(v.x), y = sy(v.y) + 3, L = (24 + 56 * gain) * s * (0.85 + 0.15 * Math.sin(clockS * 40 + p.ph)), wd = (7 + 5 * gain) * s;   // 발밑에서 뿜는다
+            drawFlame(v, clamp(gap / Math.max(R.startRowGap, tl.seatTop), 0.35, 1) * Math.sin(Math.min(1, k * 1.4) * Math.PI * 0.5 + 0.0) * (1 - k * 0.5), clockS);
+        }
+        function drawFlame(v, gain, clockS) {   // 발밑에서 뿜는 부스터 불꽃(gain 0~1) — 출발 부스터·따라잡기 부스터
+            var p = v.p, x = sx(v.x), y = sy(v.y) + 3, L = (24 + 56 * gain) * s * (0.85 + 0.15 * Math.sin(clockS * 40 + p.ph)), wd = (7 + 5 * gain) * s;
             var g = ctx.createLinearGradient(x, y, x, y + L);
             g.addColorStop(0, 'rgba(255,255,230,1)'); g.addColorStop(0.3, 'rgba(255,200,60,0.95)'); g.addColorStop(1, 'rgba(255,80,20,0)');
             ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - wd, y); ctx.quadraticCurveTo(x, y + L * 1.15, x + wd, y); ctx.closePath(); ctx.fill();
@@ -1011,6 +1043,30 @@
                         ctx.beginPath(); ctx.rect(xl - halfW, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
                         ctx.beginPath(); ctx.rect(xr, y - dth / 2, halfW, dth); ctx.fill(); ctx.stroke();
                     }
+                } else if (h.type === 'piston') {   // 벽 밀대 — 벽(h.x)에서 머리까지 자루(piston-shaft 타일), 머리는 세로 판(piston-head 96×256, 쇠판 = 앞면). 예고 때 덜덜 + !
+                    var pa = BW.pistonAt(h, t), pd = h.s, hw = 16, face = h.x + pd * Math.max(hw, Z.pistonReach * pa.ext), jig = pa.warn ? Math.sin(clockS * 90) * 1.5 * s : 0;
+                    var hx0 = sx(Math.min(face, face - pd * hw)) + jig, hhp = Z.pistonHalfH * 2 * s, shH = 14 * s, wx = sx(h.x), bx = pd > 0 ? hx0 : hx0 + hw * s;
+                    var x0 = Math.min(wx, bx), x1 = Math.max(wx, bx);
+                    if (x1 > x0) {
+                        if (ok(P('pistonShaft'))) { var tw = shH * 128 / 96; ctx.save(); ctx.beginPath(); ctx.rect(x0, y - shH / 2, x1 - x0, shH); ctx.clip(); for (var xx = x0; xx < x1; xx += tw) ctx.drawImage(P('pistonShaft'), xx, y - shH / 2, tw, shH); ctx.restore(); }
+                        else { ctx.fillStyle = C.platDark; ctx.fillRect(x0, y - shH / 2, x1 - x0, shH); }
+                    }
+                    if (ok(P('pistonHead'))) { ctx.save(); ctx.translate(hx0 + hw * s / 2, y); if (pd < 0) ctx.scale(-1, 1); ctx.drawImage(P('pistonHead'), -hw * s / 2, -hhp / 2, hw * s, hhp); ctx.restore(); }
+                    else { ctx.fillStyle = C.plat; ctx.fillRect(hx0, y - hhp / 2, hw * s, hhp); }
+                    if (pa.warn) drawExclaim(sx(h.x + pd * 22), y - hhp / 2 - 14 * s, clockS);
+                } else if (h.type === 'arm') {   // 회전 막대 — 공중의 축을 돈다(flipflop-arm 40×240, 위쪽 구멍이 축 · 구멍~끝 ≈ 220). 풍차처럼 받침 없이 떠 있다
+                    var aa = BW.armAng(h, t), ak = Z.armLen * s / 220;
+                    if (ok(P('arm'))) { ctx.save(); ctx.translate(x, y); ctx.rotate(-aa - Math.PI / 2); ctx.drawImage(P('arm'), -20 * ak, -18 * ak, 40 * ak, 240 * ak); ctx.restore(); }
+                    else { var atp = BW.armTip(h, t); ctx.strokeStyle = C.bladeDark; ctx.lineWidth = Z.armHalfW * 2 * s; seg(x, y, sx(atp[0]), sy(atp[1])); }
+                    if (ok(P('armPivot'))) ctx.drawImage(P('armPivot'), x - 12 * s, y - 12 * s, 24 * s, 24 * s); else { ctx.fillStyle = C.hub; dot(x, y, 6 * s); }
+                } else if (h.type === 'hammer') {   // 비버 망치 — 턱(ledge) 끝에 선 비버(beaver-hammer 96×96 ×4: 걷기 2·망치 듦·내려침)가 h.s 쪽 턱 끝 너머를 내려친다. 예고 = 망치 듦 + 덜덜 + !
+                    var hst = BW.hammerState(h, t), bz = 44 * s, bwx = sx(h.x - h.s * 30), hfr = hst === 1 ? 2 : hst >= 2 ? 3 : Math.floor(clockS * 3) % 2, hj = hst === 1 ? Math.sin(clockS * 70) * 1.2 * s : 0;
+                    if (ok(BP('beaver-hammer'))) { ctx.save(); ctx.translate(bwx + hj, y - bz / 2 + 2 * s); if (h.s < 0) ctx.scale(-1, 1); ctx.drawImage(BP('beaver-hammer'), hfr * 96, 0, 96, 96, -bz / 2, -bz / 2, bz, bz); ctx.restore(); }
+                    if (hst === 1) drawExclaim(bwx, y - bz - 10 * s, clockS);
+                    if (hst === 2) {   // 내려치는 칸(턱 끝 너머 아래) — 휙 자국
+                        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 4 * s; ctx.beginPath();
+                        ctx.arc(bwx, y - bz * 0.3, Math.abs(sx(h.x) - bwx) + 6 * s, h.s > 0 ? -0.9 : Math.PI - 0.6, h.s > 0 ? 0.6 : Math.PI + 0.9); ctx.stroke();
+                    }
                 } else if (h.type === 'up') {
                     var uw = h.w * s, top = sy(h.y + h.h);
                     ctx.fillStyle = C.updraft; ctx.fillRect(x - uw / 2, top, uw, h.h * s);
@@ -1163,6 +1219,7 @@
                 }
                 ctx.restore();
                 if (st === 'shock') drawExclaim(x, feet - S * 1.02, clockS);
+                if (v.wary && hangSt) drawWait(x + S * 0.62, feet - S * 0.8, clockS);   // 방금 맞은 장애물 밑에서 타이밍 재는 중
                 if (v.slow && st === 'rise') {   // 무거운 풍선(§13-1) — 발밑에 쇳덩이 추가 매달려 흔들린다
                     var wsz = 20 * s, wy = feet + 6 * s, wx = x + Math.sin(clockS * 3 + p.ph) * 3 * s;
                     ctx.strokeStyle = C.string; ctx.lineWidth = Math.max(1, s); seg(x, feet - 2 * s, wx, wy);
@@ -1172,7 +1229,7 @@
             } else if (st === 'chute') {   // 낙하산 — 손으로 잡지 않고 가만히 엎드린 채 등에 단다(사용자 2026-10-18). 엎드린 자세 = 동물 시트 row 4 c0
                 var back = cellPt(x, feet, S, face, 80, 100);
                 drawChuteAt(v, back[0], back[1]);
-                if (ok(main)) cellTo(main, 0, 4, x, feet, S, face);
+                if (ok(main)) hitCell(v.hit, main, 0, 4, x, feet, S, face);
                 else { var hs2 = poseSheet(p, 'hang'); if (hs2) cellTo(hs2, 0, 0, x, feet, S, face); }
             } else if (st === 'done') {   // 도착(§13-3) — 풍선에서 내려 도착 구름 위에 선다. 놓은 풍선은 위로 날아가며 사라진다
                 var t2 = v.since - DISMOUNT_RISE_S, fk = clamp(t2 / DISMOUNT_FLY_S, 0, 1), dk = clamp(t2 / DISMOUNT_DROP_S, 0, 1), lt = t2 - DISMOUNT_DROP_S;   // 구름보다 조금 위에서 놓고 떨어져 내린다(사용자 2026-10-18)
@@ -1192,21 +1249,96 @@
                 else { drawBalloonAt(v, kx, ky, pf.size, 1); if (ok(main)) cellTo(main, 0, 0, x, feet, S, face); }
             } else if (flail) {
                 var fs = poseSheet(p, 'fall');
-                if (fs) cellTo(fs, st === 'pop' ? 0 : 1 + (frameOf('fall', clockS, p) % 3), 0, x, feet, S, face);
-                else if (ok(main)) { ctx.save(); ctx.translate(x, feet - S / 2); ctx.rotate(Math.sin(clockS * 22 + p.ph) * 0.45); ctx.translate(-x, -(feet - S / 2)); codeArms(x, feet - S / 2, S, 0, true, clockS); cellTo(main, 0, 0, x, feet, S, face); ctx.restore(); }
+                ctx.save(); if (v.hit && v.hit.air) hitPose(v.hit, x, feet - S / 2, clockS);
+                if (fs) hitCell(v.hit, fs, st === 'pop' ? 0 : 1 + (frameOf('fall', clockS, p) % 3), 0, x, feet, S, face);
+                else if (ok(main)) { ctx.save(); ctx.translate(x, feet - S / 2); ctx.rotate(Math.sin(clockS * 22 + p.ph) * 0.45); ctx.translate(-x, -(feet - S / 2)); codeArms(x, feet - S / 2, S, 0, true, clockS); hitCell(v.hit, main, 0, 0, x, feet, S, face); ctx.restore(); }
+                ctx.restore();
             } else if (st === 'grave') {
                 drawGrave(v, x, feet, S, face, main, clockS);
             } else {   // wait · land — 서기(착지 순간은 납작)
                 var sq = st === 'land' ? 0.8 + 0.2 * clamp(v.since / R.landDur, 0, 1) : 1, frame = Math.floor((clockS + p.ph) * SPRITE.fps) % SPRITE.frames;
                 ctx.save(); ctx.translate(x, feet); ctx.scale(1, sq); ctx.translate(-x, -feet);
-                if (ok(main)) cellTo(main, frame, 0, x, feet, S, face);
+                if (ok(main)) hitCell(v.hit, main, frame, 0, x, feet, S, face);
                 else { ctx.fillStyle = C.hand; ctx.beginPath(); ctx.arc(x, feet - S / 2, S * 0.4, 0, Math.PI * 2); ctx.fill(); }
                 ctx.restore();
             }
             ctx.globalAlpha = p.dim ? 0.45 : 1;
             if (v.shield && (hangSt || st === 'shock')) drawShield(bx, knotY - (BAL_CELL.knotY - BAL_CELL.popCY) * (2 * R.balloonR * 1.15 * s / BAL_CELL.bodyW), R.balloonR * 2.1 * s, clockS, v.shieldN);   // 방패는 풍선 몸통 가운데(풍선 칸의 몸통 중심 popCY)를 감싼다(§12-5)
+            if (v.hit) drawHitFx(v, x, feet, S, knotY, clockS);
             if (st !== 'grave') nameTag(p, x, feet - S * NAME_HEAD - 19);   // 이름표는 머리 위(사용자 2026-10-18) — nameTag 는 y+1~y+17 에 그린다
             ctx.globalAlpha = 1;
+        }
+        // ── 몸까지 맞음(BODY_HIT) — 그림만 ──
+        // 맞는 순간 몸 움직임: 번개 = 덜덜 · 회전 막대 = 휘말려 HIT_SPIN_TURNS 바퀴 · 밀대·망치 = 찌그러졌다 탱 펴지며 기울었다 돌아옴. (cx, cy) = 몸 가운데
+        function hitPose(hit, cx, cy, clockS) {
+            var u;
+            if (hit.cause === 'bolt' && hit.since < HIT_ZAP) ctx.translate(Math.sin(clockS * 90) * 2.5 * s, Math.cos(clockS * 77) * 1.5 * s);
+            else if (hit.cause === 'arm' && hit.since < HIT_SPIN) {
+                u = hit.since / HIT_SPIN;
+                ctx.translate(cx, cy); ctx.rotate(hit.dir * HIT_SPIN_TURNS * 2 * Math.PI * (1 - (1 - u) * (1 - u))); ctx.translate(-cx, -cy);
+            } else if ((hit.cause === 'piston' || hit.cause === 'hammer') && hit.since < HIT_SQUASH) {   // 밀대 = 옆으로 납작, 망치 = 위에서 눌림
+                u = hit.since / HIT_SQUASH;
+                var e = hit.since < 0.06 ? hit.since / 0.06 : Math.exp(-(hit.since - 0.06) * 7) * Math.cos((hit.since - 0.06) * 26);
+                ctx.translate(cx, cy); ctx.rotate(hit.dir * (hit.cause === 'piston' ? 0.7 : 0.35) * Math.sin(Math.PI * u));
+                if (hit.cause === 'piston') ctx.scale(1 - 0.38 * e, 1 + 0.22 * e); else ctx.scale(1 + 0.3 * e, 1 - 0.42 * e);
+                ctx.translate(-cx, -cy);
+            }
+        }
+        // 동물 한 칸 + 번개 색 — 감전 중엔 흰/검정 번갈아 번쩍, 그 뒤엔 그을음(착지 뒤 옅어짐). 칸 모양 위에만 칠하려고 보조 캔버스에 옮겨 칠한다
+        function hitCell(hit, img, col, row, x, feet, S, face) {
+            cellTo(img, col, row, x, feet, S, face);
+            if (!hit || hit.cause !== 'bolt') return;
+            var zap = hit.air && hit.since < HIT_ZAP, n = SPRITE.size;
+            if (!tintCanvas) { tintCanvas = document.createElement('canvas'); tintCanvas.width = tintCanvas.height = n; }
+            var tx = tintCanvas.getContext('2d');
+            tx.globalCompositeOperation = 'source-over'; tx.clearRect(0, 0, n, n);
+            tx.drawImage(img, col * n, row * n, n, n, 0, 0, n, n);
+            tx.globalCompositeOperation = 'source-atop'; tx.fillStyle = zap ? (Math.floor(hit.since * HIT_ZAP_HZ) % 2 ? HIT_COLOR.zapB : HIT_COLOR.zapA) : HIT_COLOR.soot; tx.fillRect(0, 0, n, n);
+            ctx.save(); ctx.globalAlpha *= zap ? 0.85 : 0.65 * hit.fade;
+            ctx.filter = 'none'; ctx.shadowColor = 'rgba(0,0,0,0)';   // 내 동물·찌르기 테두리(drop-shadow)는 몸 그림에 이미 있다 — 반투명 색 위에 또 그리면 테두리 색이 비쳐 뭉갠다
+            cellTo(tintCanvas, 0, 0, x, feet, S, face);
+            ctx.restore();
+        }
+        // 몸 둘레 효과 — 번개: 풍선 자리→몸 번개 줄기·불꽃·연기 / 밀대·막대·망치: 맞는 순간 별 터짐(밀대·망치는 충격선까지)·머리 둘레 도는 별
+        function drawHitFx(v, x, feet, S, knotY, clockS) {
+            var hit = v.hit, u = hit.since, cy = feet - S / 2, headY = feet - S * (v.st === 'chute' ? 0.45 : 0.7), k, i;   // 별 고리 높이 — 이름표(머리 위) 아래, 머리 둘레
+            ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.filter = 'none'; ctx.shadowColor = 'rgba(0,0,0,0)';   // 효과에는 내 동물 테두리를 안 씌운다
+            if (hit.cause === 'bolt') {
+                var top = knotY - R.balloonR * 2.3 * s;   // 터진 풍선 자리
+                if (hit.air && u < HIT_ZAP * 0.6) drawLightning(x, top, cy - top, Math.floor(u * 24) + v.p.id * 7);
+                if (hit.air && u < HIT_ZAP) {
+                    var rnd = mulberry32(Math.floor(u * 20) * 31 + v.p.id);
+                    for (i = 0; i < 7; i++) {
+                        var a = rnd() * Math.PI * 2, r0 = S * 0.34, r1 = S * (0.5 + rnd() * 0.12), mr = (r0 + r1) / 2, ma = a + (rnd() - 0.5) * 0.5;
+                        var pts = [[x + Math.cos(a) * r0, cy + Math.sin(a) * r0], [x + Math.cos(ma) * mr, cy + Math.sin(ma) * mr], [x + Math.cos(a) * r1, cy + Math.sin(a) * r1]];
+                        [[3.2, HIT_COLOR.spark], [1.2, '#ffffff']].forEach(function (l) { ctx.lineWidth = l[0] * s; ctx.strokeStyle = l[1]; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); ctx.lineTo(pts[1][0], pts[1][1]); ctx.lineTo(pts[2][0], pts[2][1]); ctx.stroke(); });
+                    }
+                }
+                if (u > HIT_ZAP * 0.7) for (i = 0; i < 3; i++) {
+                    k = (clockS * 1.1 + i / 3) % 1;
+                    ctx.fillStyle = 'rgba(' + HIT_COLOR.smoke + ',' + (0.7 * (1 - k) * hit.fade) + ')';
+                    dot(x + Math.sin(clockS * 3 + i * 2) * 4 * s + (i - 1) * 6 * s, headY - k * 30 * s, (4 + k * 7) * s);
+                }
+            } else {
+                if (hit.air && u < 0.35 && ok(P('star'))) {   // 밀대는 맞은 쪽 몸 옆(날아가는 방향 반대), 망치는 머리 위, 막대는 몸 가운데
+                    var ss = 44 * s, ix = hit.cause === 'piston' ? x - hit.dir * S * 0.28 : x, iy = hit.cause === 'hammer' ? feet - S * 0.9 : cy;
+                    ctx.drawImage(P('star'), Math.min(3, Math.floor(u / 0.35 * 4)) * STAR.cell, 0, STAR.cell, STAR.cell, ix - ss / 2, iy - ss / 2, ss, ss);
+                }
+                if (hit.cause !== 'arm' && hit.air && u < 0.3) {   // 쾅 — 충격선
+                    k = u / 0.3; ctx.strokeStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.lineWidth = 3 * s;
+                    for (i = 0; i < 8; i++) { var aa = i * Math.PI / 4 + 0.2, q0 = S * (0.4 + k * 0.25), q1 = q0 + S * 0.18; seg(x + Math.cos(aa) * q0, cy + Math.sin(aa) * q0, x + Math.cos(aa) * q1, cy + Math.sin(aa) * q1); }
+                }
+                if (u > 0.25) {
+                    ctx.globalAlpha *= hit.fade;
+                    for (i = 0; i < 3; i++) { var sa = clockS * 5 + i * Math.PI * 2 / 3; drawDizzyStar(x + Math.cos(sa) * S * 0.36, headY + Math.sin(sa) * S * 0.1, 7 * s, sa); }
+                }
+            }
+            ctx.restore();
+        }
+        function drawDizzyStar(x, y, r, rot) {
+            ctx.beginPath();
+            for (var i = 0; i < 10; i++) { var a = rot + i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+            ctx.closePath(); ctx.fillStyle = HIT_COLOR.dizzy; ctx.fill(); ctx.strokeStyle = HIT_COLOR.dizzyInk; ctx.lineWidth = Math.max(1, s); ctx.stroke();
         }
         function drawShield(x, cy, rr, clockS, count) {   // 방패 — shield.webp 128×128 ×2 의 첫 칸(속이 빈 비눗방울 고리), 풍선 가운데(x, cy)를 반지름 rr 로 감싼다
             var r = rr * (1 + 0.04 * Math.sin(clockS * 5));
@@ -1275,6 +1407,7 @@
         }
         function drawFx(sim, view) {
             tl.popFx.forEach(function (f) {
+                if (f.lost) { drawLostBalloon(f, sim); return; }
                 if (sim < f.t || sim - f.t >= POP_FX_MS) return;
                 var k = (sim - f.t) / POP_FX_MS, x = sx(f.x), y = sy(f.y);
                 if (ok(BP('balloon')) && k < 0.6) {   // 풍선 시트의 터짐 3칸(그 사람 색) — 지나며 알파로 서서히 사라진다
@@ -1413,6 +1546,28 @@
             if (q.hit && hit >= 0 && hit < 0.35) pokeFx(POKE_FX.spark, tx, ty, sz * (1.3 + hit * 2), sz * (1.3 + hit * 2), 1 - hit / 0.35);   // 맞힌 자리 번쩍(헛찌르기는 없음) — 조금 크고 길게
         }
         // 들보 부딪힘 — 밑면에서 먼지 연기(데구리 dust-puff 80×80 ×4)가 양옆으로 퍼지고 나무 부스러기가 튀어 떨어진다. 부서지면 들보 길이 전체에서 크게
+        // 놓친 풍선(몸을 치는 장애물) — 터지지 않고 줄을 늘어뜨린 채 위로 날아가며 흐려진다. 위치는 사건 뒤 시각만의 함수(되감기·두 탭 같음)
+        function drawLostBalloon(f, sim) {
+            if (sim < f.t || sim - f.t >= LOST_FX_MS) return;
+            var u = (sim - f.t) / 1000, kw = f.x - f.dir * LOST_DRIFT * u + Math.sin(u * 3) * 4, kyW = f.y - R.balloonR * 1.15 + LOST_RISE * u + 25 * u * u;
+            var kx = sx(kw), ky = sy(kyW), a = clamp((LOST_FX_MS / 1000 - u) / 0.5, 0, 1);
+            ctx.save(); ctx.globalAlpha = a;
+            stringTo(kx, ky, kx + Math.sin(u * 5) * 6 * s, ky + 34 * s, 4 * s);
+            drawBalloonAt({ p: f.p }, kx, ky, 1, a);
+            ctx.restore();
+        }
+        // 조심해서 기다림 — 머리 위 말풍선 "…"(점이 차례로 톡톡). 방금 맞은 장애물 밑에서 타이밍을 재는 중
+        function drawWait(x, y, clockS) {
+            var w = 30, h = 18;
+            ctx.save(); ctx.translate(x, y);
+            ctx.fillStyle = C.tag; ctx.strokeStyle = C.tagInk; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(-w / 2 + 6, -h / 2); ctx.lineTo(w / 2 - 6, -h / 2); ctx.quadraticCurveTo(w / 2, -h / 2, w / 2, 0); ctx.quadraticCurveTo(w / 2, h / 2, w / 2 - 6, h / 2);
+            ctx.lineTo(3, h / 2); ctx.lineTo(-2, h / 2 + 5); ctx.lineTo(-3, h / 2); ctx.lineTo(-w / 2 + 6, h / 2); ctx.quadraticCurveTo(-w / 2, h / 2, -w / 2, 0); ctx.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + 6, -h / 2);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = C.tagInk;
+            for (var i = 0; i < 3; i++) { var b = Math.max(0, Math.sin(clockS * 6 - i * 0.9)); ctx.beginPath(); ctx.arc((i - 1) * 7, -b * 2, 2.2, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+        }
         function drawBeamFx(f, k) {
             var tS = k * (f.broke ? BEAM_BREAK_FX_MS : BEAM_FX_MS) / 1000, rnd = mulberry32(f.seed + Math.round(f.t));   // 부스러기 방향은 사건마다 같은 값(되감기·두 탭 같음)
             // 연기 덩어리 [세계 x, 퍼지는 방향, 크기 배율, 늦게 나오는 비율] — 들보 나무에서 난다(사용자 "먼지가 나무 기준으로"): 부딪힌 자리 양옆 나무 몸통에서 들보를 따라 퍼지며

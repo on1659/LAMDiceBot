@@ -199,7 +199,7 @@ function payload(tl, cands) {
 }
 
 // ─── Jev 요청(socket/jev.js ask 의 build) — 사실 → 영어 문장. 숫자는 낱말로, 위치(경주 끝 등)는 말하지 않는다(데구리에서 끝 장면만 고르던 쏠림) ───
-const CAUSE_WORD = { spike: 'a chestnut burr', blade: 'a spinning blade', pend: 'a swinging pendulum', bolt: 'a lightning bolt', bee: 'a bee', thorn: 'a thorny wall', eagle: 'an eagle', meteor: 'a falling meteor', bomb: 'a surprise bomb from a mystery box', poke: 'another animal sneakily poking it', warp: 'a drain pipe that sent it back down' };
+const CAUSE_WORD = { spike: 'a chestnut burr', blade: 'a spinning blade', pend: 'a swinging pendulum', bolt: 'a lightning bolt', bee: 'a bee', thorn: 'a thorny wall', eagle: 'an eagle', meteor: 'a falling meteor', bomb: 'a surprise bomb from a mystery box', poke: 'another animal sneakily poking it', warp: 'a drain pipe that sent it back down', piston: 'a wooden piston punching out of the wall', arm: 'a spinning wooden arm', hammer: 'a beaver swinging a hammer' };
 function times(n) { return n === 1 ? 'once' : n === 2 ? 'twice' : n <= 4 ? `${['', '', '', 'three', 'four'][n]} times` : 'many times'; }
 function describe(c, race) {
     const f = c.facts, parts = [], first = race.mode === 'first';

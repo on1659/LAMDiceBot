@@ -37,20 +37,33 @@
         pokeStuck: 1, pokeBlock: 0.6, pokeLow: 0.7, pokePassP: 0.1, pokePassDv: 20, pokeWind: 0.5, pokeReach: 60, pokeCool: 6, pokePairCool: 10, pokeBodyP: 0.25, pokeBodyPassP: 0.04, pokeVictimCool: 8,   // 몸 맞닿음(위 동물만 찌름) 막힘·지나가며 확률 · 찔린 동물은 이만큼 다시 안 찔린다(뒤처진 동물 연달아 찔림 방지)
        
         fenceHold: 0.25, gateKnock: 320, gateHoldMax: 3,   // gateKnock = 내려오는 눈 문짝에 맞은 풍선을 아래로 쳐내는 속도                                                    // 울타리에 닿은 뒤 제자리 찾기를 끄는 시간(§12-11) · gateHoldMax = 눈 꼭대기 문이 지나가는 동물을 기다리는 최대 초
-        // 풍선만 터지는 원인 — 낙하산 없이 잠깐 떨어지다 공중에서 다시 불고 오른다(§13-12). 나머지(번개·풍차·통나무)는 몸까지 맞아 낙하산 → 착지
-        airCauses: ['eagle', 'bee', 'spike', 'thorn', 'bomb', 'meteor', 'poke'], airDropDur: 0.45, airInflMin: 0.5, airInflMax: 0.8, airInflFallV: 70, airInflEase: 5,
+        // 풍선만 터지는 원인 — 낙하산 없이 잠깐 떨어지다 공중에서 다시 불고 오른다(§13-12). 나머지(번개·밀대·회전 막대·비버 망치)는 몸까지 맞아 낙하산 → 착지
+        // 풍차·흔들 통나무는 풍선만 친다(판정이 풍선 자리 — 사용자 2026-11-17 "왜 쟤만 끝까지 가는지 납득을 못 한다", docs/goal/balloon-body-hit-obstacles.md)
+        airCauses: ['eagle', 'bee', 'spike', 'thorn', 'bomb', 'meteor', 'poke', 'blade', 'pend'], airDropDur: 0.45, airInflMin: 0.5, airInflMax: 0.8, airInflFallV: 70, airInflEase: 5,
         riseAccel: 3, sideAccel: 4, blockSlow: 70,                          // 관성(사용자 2026-10-18) — 상승·옆 속도가 목표를 따라가는 빠르기(/초), 막힘 감속을 시작하는 거리
-        laneFar: [0.62, 0.88],                                              // 터진 자리 반대쪽 길(통로 폭 비율) — 같은 자리 반복 금지(§13-15)
+        laneFar: [0.62, 0.88],                                              // 터진 자리 반대쪽 길(통로 폭 비율) — 같은 자리 반복 줄이기(§13-15). 안 보이는 면제는 없다(2026-11-17)
         startRowsMax: 4, startRowGap: 50, startColGap: 44, boostDur: 0.6, boostJitter: 0.9,   // 출발 좌석 — 최대 4층, 층 사이 높이 · 옆 간격 · 부스터 한 번 길이 · 출발 뒤 부스터가 터지는 순간(0~boostJitter, 동물마다 제각각 — 그림 전용)
         pivotW: 48, pivotTop: 16,                                           // 흔들 통나무 축 받침 발판 — 폭 · 축 위 높이(받침 그림 윗면)
-        itemStackMax: 6, mysteryP: 0.5, mysteryGood: 0.55, slowShare: 0.6, slowDur: 3, slowMul: 0.5   // ? 상자(§13-1) — 상자 중 ? 비율 · 좋은 것 확률 · 나쁜 것 중 무거운 풍선 비율(나머지 폭탄) · 무거운 풍선 시간·상승 배율
+        itemStackMax: 6, mysteryP: 0.5, mysteryGood: 0.55, slowShare: 0.6, slowDur: 3, slowMul: 0.5,   // ? 상자(§13-1) — 상자 중 ? 비율 · 좋은 것 확률 · 나쁜 것 중 무거운 풍선 비율(나머지 폭탄) · 무거운 풍선 시간·상승 배율
+        // 조심(2026-11-17, 안 보이는 면제 대신) — 방금 나를 터뜨린 장애물 밑에서 그 장애물이 닿는 가로 범위 밖으로 비켜 서고, 앞으로 waryLook 초(waryLookN 번 나눠 봄)에 위험이 보이면
+        // 언제 출발할지 한 번 정한다(waryStep 간격으로 최대 waryMax 초 기다림, 지나가는 데 waryPass 초까지 확인). 기다릴 땐 waryBrake/초로 서고, 출발하면 waryGo/초로 빨리 붙는다
+        waryLook: 1.2, waryLookN: 12, waryStep: 0.05, waryMax: 3, waryPass: 2.5, waryBrake: 20, waryGo: 8, waryReplan: 0.5, waryXTol: 6, waryMargin: 16,
+        // 따라잡기 부스터(2026-11-17) — 바로 위 동물보다 rescueGap 넘게 아래면 켜짐(상승 ×rescueMul, 안 터짐), rescueEnd 안으로 붙거나 rescueMax 초면 꺼짐
+        rescueGap: 2000, rescueEnd: 400, rescueMul: 2, rescueMax: 6
     };
     // 구간 장치 — 위치는 시각 t(초) 만의 함수
     const Z = {
         bladeLen: 60, bladeHub: 10, bladePeriod: 6, pendLen: 150, pendAmp: 0.8, pendPeriod: 2.8, pendR: 19,
         boltPeriod: 3.6, boltWarn: 0.7, boltDur: 0.25, boltW: 70, boltLen: 280, fanPeriod: 3, fanOn: 1.4, fanPush: 150, fanBand: 120,
         beePeriod: 3.4, beeOut: 110, beeSway: 24, beeDrop: 240, beeR: 24, gatePeriod: 4, gateOpen: 1.5, gateSlide: 0.35, gateSwing: Math.PI - Math.atan2(75, 36),   // 문짝이 경첩 쪽 비탈(가로 36·세로 75)에 딱 붙을 때까지 접힌다 — 덜 접히면 문짝·비탈 사이 구석에 풍선이 갇힌다
-        meteorPeriod: 2.2, meteorWarn: 0.7, meteorFall: 0.55, meteorFade: 0.35, meteorR: 12, meteorLanes: 3, meteorDrop: 120, finishGateGap: 70, shutPeriod: 3, shutSlide: 0.4, shutSteer: 2.2, shutReach: 260, upBoost: 1.9
+        meteorPeriod: 2.2, meteorWarn: 0.7, meteorFall: 0.55, meteorFade: 0.35, meteorR: 12, meteorLanes: 3, meteorDrop: 120, finishGateGap: 70, shutPeriod: 3, shutSlide: 0.4, shutSteer: 2.2, shutReach: 260, upBoost: 1.9,
+        // 몸을 치는 장애물(docs/goal/balloon-body-hit-obstacles.md, 사용자 2026-11-17) — 판정은 몸 원(발 위 R.bodyCY, 반지름 R.bodyR). 풍선은 안 터지고 밀리기만 한다
+        // 벽 밀대: 한 주기 = 쉼 → 덜덜(pistonWarn) → 쾅 나옴(pistonOut) → 버팀(pistonHold) → 들어감(pistonBack). 벽에서 머리 앞면까지 최대 pistonReach, 머리 세로 반폭 pistonHalfH
+        pistonPeriod: 2.6, pistonWarn: 0.5, pistonOut: 0.12, pistonHold: 0.35, pistonBack: 0.5, pistonReach: 150, pistonHalfH: 26,
+        // 회전 막대: 축에서 armLen 까지, 두께 반 armHalfW, 한 바퀴 armPeriod 초
+        armPeriod: 2.4, armLen: 78, armHalfW: 6,
+        // 비버 망치: 한 주기 = 쉼 → 망치 듦(hammerWarn) → 내려침(hammerSmash) → 돌아옴(hammerBack). 내려치는 칸 = 망치 x ± hammerZoneW/2, 발판 윗면 + hammerZoneUp ~ 아래 hammerZoneDown
+        hammerPeriod: 3, hammerWarn: 0.6, hammerSmash: 0.3, hammerBack: 0.25, hammerZoneW: 48, hammerZoneUp: 8, hammerZoneDown: 64
     };
 
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -78,7 +91,8 @@
             plats: [[zx(130) - 45, 130, 70], [zx(340) + 45, 340, 70], [zx(590) - 45, 590, 70], [zx(810) + 45, 810, 70]] }),
         windmill: rng => ({ h: 720, label: '풍차', spikes: [], plats: [[50, 140, 90], [310, 140, 90], [35, 380, 70], [325, 380, 70], [180, 620, 90]],
             hz: [{ type: 'blade', x: 180, y: 370, s: 1, phase: 6.28 * rng() }] }),
-        pendulum: () => ({ h: 760, label: '흔들 통나무', spikes: [], plats: [[55, 110, 90], [305, 250, 90], [55, 480, 90], [305, 620, 90]],
+        // 발판은 통나무가 휩쓰는 높이(축 아래 104~150 + 통나무·풍선 반지름) 밖에(2026-11-17 — 250·620 에 있던 들보 밑에 막힌 동물이 비킬 데 없이 거듭 맞았다. 예전엔 안 보이는 면제가 가렸다)
+        pendulum: () => ({ h: 760, label: '흔들 통나무', spikes: [], plats: [[55, 110, 90], [305, 140, 90], [60, 450, 80], [300, 465, 80]],
             hz: [{ type: 'pend', x: 180, y: 360, s: 1, phase: 0 }, { type: 'pend', x: 180, y: 720, s: 1, phase: Math.PI }] }),
         storm: () => ({ h: 760, label: '먹구름', spikes: [], plats: [[300, 130, 90], [60, 300, 90], [300, 470, 90], [180, 640, 80]],
             hz: [{ type: 'bolt', x: 95, y: 330, s: 1, phase: 0 }, { type: 'bolt', x: 265, y: 540, s: 1, phase: 1.2 }, { type: 'bolt', x: 150, y: 740, s: 1, phase: 2.4 }] }),
@@ -109,13 +123,29 @@
             const ux = rng() < 0.5 ? 100 : 260;
             return { h: 640, label: '상승 기류', spikes: [[360 - ux, 260], [180, 450]], plats: [[300, 180, 80], [60, 360, 80], [180, 560, 80]],
                 hz: [{ type: 'up', x: ux, y: 60, w: 70, h: 520, s: 1 }] };
-        }
+        },
+        // ── 몸을 치는 장애물 구간(2026-11-17) — 셋 다 낙하산 원인 ──
+        // 벽 밀대: 통로 양쪽 벽에서 번갈아 쾅(s = 미는 쪽, x = 벽). 위상을 엇갈려 한 번에 하나씩
+        piston: rng => ({ h: 720, label: '밀대 골목', corr: { lo: 62, hi: 298 }, spikes: [],
+            plats: [[250, 110, 70], [110, 330, 70], [250, 530, 70]],
+            hz: [{ type: 'piston', x: 62, y: 220, s: 1, phase: rng() * Z.pistonPeriod }, { type: 'piston', x: 298, y: 430, s: -1, phase: rng() * Z.pistonPeriod },
+                { type: 'piston', x: 62, y: 630, s: 1, phase: rng() * Z.pistonPeriod }] }),
+        // 회전 막대: 옆에서 나온 받침 끝 축(x, y)에서 몸 높이를 휘젓는다(s = 도는 방향)
+        arm: rng => ({ h: 700, label: '회전 막대', spikes: [], plats: [[300, 120, 90], [60, 420, 80], [300, 620, 90]],
+            hz: [{ type: 'arm', x: 75, y: 250, s: 1, phase: rng() * 6.28 }, { type: 'arm', x: 285, y: 470, s: -1, phase: rng() * 6.28 }] }),
+        // 비버 망치: 벽에 붙은 턱(ledges, 안 부서지고 늘 막힘 — 오르는 동물이 트인 끝으로 비켜 간다) 끝에서 비버가 내려친다(x = 망치 칸 가운데, s = 비버가 보는 쪽)
+        beaver: rng => ({ h: 680, label: '비버 공사장', spikes: [], plats: [[180, 620, 90]],
+            ledges: [[295, 220, 130], [65, 450, 130]],
+            hz: [{ type: 'hammer', x: 214, y: 220, s: -1, phase: rng() * Z.hammerPeriod }, { type: 'hammer', x: 146, y: 450, s: 1, phase: rng() * Z.hammerPeriod }] })
     };
     const SECTION_NAMES = Object.keys(SECTIONS);
-    const SECTION_H = { chestnut: 700, zigzag: 900, windmill: 720, pendulum: 760, storm: 760, fans: 720, bees: 660, shutter: 540, updraft: 640, smile: 720 };
+    const SECTION_H = { chestnut: 700, zigzag: 900, windmill: 720, pendulum: 760, storm: 760, fans: 720, bees: 660, shutter: 540, updraft: 640, smile: 720, piston: 720, arm: 700, beaver: 680 };
     // 움직이는 장애물 구간 — 판마다 최소 GIMMICK_MIN 개(밤송이·셔터·기류만 나오면 밋밋하다)
-    const GIMMICK_NAMES = ['windmill', 'pendulum', 'storm', 'fans', 'bees'];
+    const GIMMICK_NAMES = ['windmill', 'pendulum', 'storm', 'fans', 'bees', 'piston', 'arm', 'beaver'];
     const GIMMICK_MIN = 2;
+    // 몸까지 맞는(낙하산) 구간 — 판마다 BODY_MIN~BODY_MAX 개(낙하산은 길게 떨어져 판을 늘린다)
+    const BODY_NAMES = ['storm', 'piston', 'arm', 'beaver'];
+    const BODY_MIN = 1, BODY_MAX = 2;
     const FINALE_SECTION = 'smile';   // 웃는 얼굴은 덱에 안 넣고 판마다 맨 위(도착 바로 아래)에 붙인다 — 데구리 마지막 '그릇'처럼(사용자 2026-10-18)
     const DECK_NAMES = SECTION_NAMES.filter(n => n !== FINALE_SECTION);
 
@@ -130,13 +160,18 @@
         const recent = n => order.includes(n) || (prev || []).includes(n);
         const refill = () => { deck = deck.concat(shuffle(DECK_NAMES.slice()).sort((a, b) => recent(a) - recent(b))); };
         const take = i => { const n = deck.splice(i, 1)[0]; order.push(n); sum += SECTION_H[n]; };
+        const isBody = n => BODY_NAMES.includes(n), bodyFull = () => order.filter(isBody).length >= BODY_MAX;
+        while (order.filter(isBody).length < BODY_MIN) {   // 몸 맞는 구간 하나는 꼭(2026-11-17)
+            const i = deck.findIndex(n => isBody(n) && !order.includes(n));
+            if (i < 0) refill(); else take(i);
+        }
         while (order.filter(n => GIMMICK_NAMES.includes(n)).length < GIMMICK_MIN) {
-            const i = deck.findIndex(n => GIMMICK_NAMES.includes(n) && !order.includes(n));
+            const i = deck.findIndex(n => GIMMICK_NAMES.includes(n) && !order.includes(n) && !(isBody(n) && bodyFull()));
             if (i < 0) refill(); else take(i);
         }
         for (let i = 0, refilled = false; sum < lo;) {
             if (i >= deck.length) { if (refilled) break; refill(); refilled = true; continue; }
-            if (order.includes(deck[i]) || sum + SECTION_H[deck[i]] > hi) i++; else take(i);
+            if (order.includes(deck[i]) || sum + SECTION_H[deck[i]] > hi || (isBody(deck[i]) && bodyFull())) i++; else take(i);
         }
         return { order: shuffle(order).concat(FINALE_SECTION), deck };
     }
@@ -152,6 +187,7 @@
             sections.push({ name, label: sec.label, y0, y1: y0 + sec.h, mirror: m, corr: sec.corr || null, thorn: !!sec.thorn });
             sec.spikes.forEach(([x, y]) => spikes.push({ x: X(x), y: y0 + y }));
             sec.plats.forEach(([x, y, w]) => plats.push({ x: X(x), y: y0 + y, w, solid: rng() < R.solidP }));   // solid = 안 열리는 들보(밑에서 오면 비켜 간다)
+            (sec.ledges || []).forEach(([x, y, w]) => plats.push({ x: X(x), y: y0 + y, w, solid: true, kind: 'ledge' }));   // 비버 턱 — 안 부서지고 늘 막힌다(트인 끝으로 비켜 가다 망치 칸을 지난다)
             (sec.hz || []).forEach(h => {
                 hazards.push(Object.assign({}, h, { x: X(h.x), y: y0 + h.y, s: m ? -h.s : h.s }));
                 if (h.type === 'pend') plats.push({ x: X(h.x), y: y0 + h.y + R.pivotTop, w: R.pivotW, solid: true, kind: 'pivot' });   // 흔들 통나무 축 받침 위 — 착지할 수 있다(사용자 2026-10-18). 그림은 장치 쪽(pendulum-pivot)
@@ -165,6 +201,9 @@
         const bridges = sections.slice(1).map((q, i) => ({ y: q.y0, idx: i }));   // 구간 경계마다 세이브 다리
         const nearHz = (x, y, pad) => hazards.some(h => h.type === 'bolt' ? Math.abs(x - h.x) < Z.boltW / 2 + 20 && y < h.y + 40 && y > h.y - Z.boltLen - 40
             : h.type === 'shutter' ? Math.abs(y - h.y) < 60 : h.type === 'up' ? false
+            : h.type === 'piston' ? Math.abs(y - h.y) < Z.pistonHalfH + pad && Math.abs(x - (h.x + h.s * Z.pistonReach / 2)) < Z.pistonReach / 2 + pad
+            : h.type === 'hammer' ? Math.abs(y - h.y) < Z.hammerZoneDown + pad && Math.abs(x - h.x) < Z.hammerZoneW / 2 + pad
+            : h.type === 'arm' ? Math.hypot(x - h.x, y - h.y) < Z.armLen + pad
             : h.type === 'bee' ? Math.abs(x - (h.x + h.s * Z.beeOut)) < pad && y < h.y + pad && y > h.y - Z.beeDrop - pad   // 벌 떼가 오가는 세로 띠
             : Math.hypot(x - h.x, y - h.y) < pad + (h.type === 'blade' ? Z.bladeLen : h.type === 'pend' ? Z.pendLen : 0));
         const freeAt = (x, y, halfW) => {
@@ -187,7 +226,7 @@
         });
         // 하수구 짝 — 아래 절반 구간의 넓은 발판 하나 ↔ 위 절반 구간의 넓은 발판 하나(그 발판은 늘 solid). 구간 4개 이상이면 2쌍
         const warps = [], half = Math.floor(sections.length / 2), used = new Set();
-        const wide = (lo, hi) => plats.filter(p => !used.has(p) && p.w >= R.warpPlatMin && p.y >= sections[lo].y0 && p.y < sections[hi - 1].y1 && !sections.some(q => q.y0 > p.y && q.y0 < p.y + R.warpH + 30));   // 파이프 머리가 위 구간 경계(세이브 다리)에 닿지 않게
+        const wide = (lo, hi) => plats.filter(p => !used.has(p) && !p.kind && p.w >= R.warpPlatMin && p.y >= sections[lo].y0 && p.y < sections[hi - 1].y1 && !sections.some(q => q.y0 > p.y && q.y0 < p.y + R.warpH + 30));   // 파이프 머리가 위 구간 경계(세이브 다리)에 닿지 않게
         for (let k = 0; half >= 1 && k < (sections.length >= 4 ? 2 : 1); k++) {   // 구간이 하나뿐인 맵(프리뷰에서 구간 지정)엔 짝을 못 놓는다
             const a = pick(wide(0, half)), up = a ? wide(half, sections.length) : [];
             const near = up.filter(q => q.y - a.y >= R.warpGapMin && q.y - a.y <= R.warpGapMax);   // 짝 사이가 너무 멀면 한 번에 판이 끝난다(바닥 → 꼭대기)
@@ -272,6 +311,25 @@
         const dx = f.x2 - f.x1, dy = f.y2 - f.y1, L = Math.hypot(dx, dy), a = Math.atan2(dy, dx) + (dx >= 0 ? -1 : 1) * e * Z.gateSwing;
         return { x1: f.x1, y1: f.y1, x2: f.x1 + Math.cos(a) * L, y2: f.y1 + Math.sin(a) * L, gate: f.gate };
     }
+    // 벽 밀대 → { ext(0~1, 벽에서 나온 정도), warn(덜덜 예고 중) }
+    function pistonAt(h, t) {
+        const c = cyc(h, t, Z.pistonPeriod), rest = Z.pistonPeriod - Z.pistonWarn - Z.pistonOut - Z.pistonHold - Z.pistonBack;
+        if (c < rest) return { ext: 0, warn: false };
+        if (c < rest + Z.pistonWarn) return { ext: 0, warn: true };
+        const o = c - rest - Z.pistonWarn;
+        if (o < Z.pistonOut) { const k = o / Z.pistonOut; return { ext: k * k, warn: false }; }
+        if (o < Z.pistonOut + Z.pistonHold) return { ext: 1, warn: false };
+        return { ext: 1 - (o - Z.pistonOut - Z.pistonHold) / Z.pistonBack, warn: false };
+    }
+    // 밀대가 차지한 가로 [왼, 오](벽 ~ 머리 앞면) — 세로는 h.y ± pistonHalfH
+    function pistonSpan(h, ext) { const face = h.x + h.s * Z.pistonReach * ext; return [Math.min(h.x, face), Math.max(h.x, face)]; }
+    const armAng = (h, t) => h.s * 2 * Math.PI * t / Z.armPeriod + h.phase;   // 세계 각(y 위가 +) — 막대 끝 = 축 + armLen·(cos, sin)
+    function armTip(h, t) { const a = armAng(h, t); return [h.x + Math.cos(a) * Z.armLen, h.y + Math.sin(a) * Z.armLen]; }
+    // 비버 망치 → 0 쉼 · 1 망치 듦(예고) · 2 내려침(판정) · 3 돌아옴
+    function hammerState(h, t) {
+        const c = cyc(h, t, Z.hammerPeriod), rest = Z.hammerPeriod - Z.hammerWarn - Z.hammerSmash - Z.hammerBack;
+        return c < rest ? 0 : c < rest + Z.hammerWarn ? 1 : c < rest + Z.hammerWarn + Z.hammerSmash ? 2 : 3;
+    }
     const shutOpen = (h, t) => (Math.floor((t + h.phase) / Z.shutPeriod) % 2 ? -h.s : h.s);   // 1 = 오른쪽 반이 열림, -1 = 왼쪽 반
     // 셔터 두 문짝의 안쪽 끝 [왼 문 오른끝, 오른 문 왼끝] — 열리는 문은 shutSlide 초에 걸쳐 벽 속으로, 닫히는 문은 벽에서 나온다.
     // 막힘·착지·그림이 다 이 자리를 쓴다(사용자 2026-10-21 "지나가야 될 것 같은데 미리 박는다" — 판정만 주기 경계에서 한 번에 바뀌던 것)
@@ -306,8 +364,9 @@
     }
 
     return {
-        WORLD_W, BODY, BAL_OFF, R, Z, SECTIONS, SECTION_NAMES, SECTION_H, GIMMICK_NAMES, GIMMICK_MIN, FINALE_SECTION,
+        WORLD_W, BODY, BAL_OFF, R, Z, SECTIONS, SECTION_NAMES, SECTION_H, GIMMICK_NAMES, GIMMICK_MIN, BODY_NAMES, BODY_MIN, BODY_MAX, FINALE_SECTION,
         clamp, segClosest, segDist, drawOrder, buildMap, sectionAt, sectionBounds, boundsAt,
+        pistonAt, pistonSpan, armAng, armTip, hammerState,
         bladeAng, pendBall, boltState, fanOn, swarmAt, shutOpen, shutEdges, seatPos, gateOpen, gateSwinging, fenceSeg, meteorAt, meteorFadeAt, cyc, simTimeAt, realDuration
     };
 });

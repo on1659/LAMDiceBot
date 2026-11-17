@@ -91,9 +91,11 @@ var BALLOON_REASON = {   // 서버 reason.key(socket/balloon-highlight.js reason
     'turnLastBy.eagle': '{name} 독수리에 풍선 터져 꼴찌로', 'turnLastBy.bee': '{name} 벌에 쏘여 꼴찌로', 'turnLastBy.spike': '{name} 밤송이에 찔려 꼴찌로', 'turnLastBy.thorn': '{name} 가시벽에 터져 꼴찌로',
     'turnLastBy.blade': '{name} 칼날에 터져 꼴찌로', 'turnLastBy.pend': '{name} 진자에 맞아 꼴찌로', 'turnLastBy.bolt': '{name} 번개 맞고 꼴찌로', 'turnLastBy.meteor': '{name} 별똥별 맞고 꼴찌로',
     'turnLastBy.bomb': '{name} ? 상자 폭탄에 꼴찌로', 'turnLastBy.warp': '{name} 하수구에 빠져 꼴찌로', 'turnLastBy.poke': '{name} 콕 찔려 꼴찌로',
+    'turnLastBy.piston': '{name} 밀대에 맞아 꼴찌로', 'turnLastBy.arm': '{name} 회전 막대에 맞아 꼴찌로', 'turnLastBy.hammer': '{name} 비버 망치에 맞아 꼴찌로',
     'turnFirstBy.eagle': '선두가 독수리에 터져 {name} 1등으로', 'turnFirstBy.bee': '선두가 벌에 쏘여 {name} 1등으로', 'turnFirstBy.spike': '선두가 밤송이에 찔려 {name} 1등으로', 'turnFirstBy.thorn': '선두가 가시벽에 터져 {name} 1등으로',
     'turnFirstBy.blade': '선두가 칼날에 터져 {name} 1등으로', 'turnFirstBy.pend': '선두가 진자에 맞아 {name} 1등으로', 'turnFirstBy.bolt': '선두가 번개 맞아 {name} 1등으로', 'turnFirstBy.meteor': '선두가 별똥별 맞아 {name} 1등으로',
     'turnFirstBy.bomb': '선두가 폭탄에 터져 {name} 1등으로', 'turnFirstBy.warp': '선두가 하수구에 빠져 {name} 1등으로', 'turnFirstBy.poke': '선두가 콕 찔려 {name} 1등으로',
+    'turnFirstBy.piston': '선두가 밀대에 맞아 {name} 1등으로', 'turnFirstBy.arm': '선두가 회전 막대에 맞아 {name} 1등으로', 'turnFirstBy.hammer': '선두가 비버 망치에 맞아 {name} 1등으로',
     lastLate: '막판 {sec}초 꼴찌 {n}번 바뀜', lastSwaps: '꼴찌 {n}번 바뀜', lastSwap: '꼴찌 바뀜', leadLate: '막판 {sec}초 1등 {n}번 바뀜', leadSwaps: '1등 {n}번 바뀜', leadSwap: '1등 바뀜',
     lastNeck: '꼴찌 다툼 {sec}초 접전', firstNeck: '1등 다툼 {sec}초 접전', finale: '{name} 비석 쿵',
     eagle: '{name} 독수리에 펑', meteor: '{name} 별똥별에 펑', bolt: '{name} 번개 맞음', bomb: '{name} ? 상자 폭탄', poke: '{name} 풍선 콕 찔림', super: '{name} 슈퍼 풍선', warp: '{name} 하수구 쏙', shieldPop: '{name} 방패로 막음', eagleMiss: '독수리 헛발질',
@@ -298,14 +300,15 @@ window.addEventListener('DOMContentLoaded', function () {
 // 그 밖의 사건: [소리 키, 모두의 사건]. 모두의 사건은 WORLD_SOUND_VOL, 그 밖엔 내 동물 크게·남의 동물 작게
 var BALLOON_EVENT_SOUNDS = {
     inflate: ['balloon_inflate'], poke: ['balloon_poke'], spikeKnock: ['balloon_spike'], shock: ['balloon_shock'], bonk: ['balloon_bonk'], beamHit: ['balloon_bonk'],
-    item: ['balloon_item'], shieldPop: ['balloon_shield'], warp: ['balloon_warp'], chute: ['balloon_chute'],
+    item: ['balloon_item'], shieldPop: ['balloon_shield'], warp: ['balloon_warp'], chute: ['balloon_chute'], rescue: ['balloon_item'],
     eagleWarn: ['balloon_eagle', true], gust: ['balloon_gust', true]
 };
+var BODY_KNOCK = { piston: 1, arm: 1, hammer: 1 };   // js/balloon-render.js LOST_BALLOON 과 같은 원인 — 풍선을 놓친다(터짐 소리 대신 쿵)
 var lastEventSoundAt = {};
 function onTimelineEvent(e) {
     if (!balloonState.reveal) return;
     var p = e.ball != null ? balloonState.reveal.players[e.ball] : null;
-    if (e.type === 'pop') playBalloonSound('balloon_pop', p && p.owner === currentUser ? 1 : POP_SOUND_VOL);
+    if (e.type === 'pop') playBalloonSound(BODY_KNOCK[e.cause] ? 'balloon_bonk' : 'balloon_pop', p && p.owner === currentUser ? 1 : POP_SOUND_VOL);   // 몸을 치는 장애물은 풍선이 안 터진다 — 쿵
     else if (e.type === 'land' && p && p.owner === currentUser) playBalloonSound('balloon_land', POP_SOUND_VOL);
     else if (e.type === 'finish' && p && p.owner === currentUser) playBalloonSound('balloon_goal');
     else if (e.type === 'beamHit' && e.hp === 0) { playBalloonSound('balloon_crack', WORLD_SOUND_VOL); return; }   // 들보가 부서짐(안 부서지면 아래 표의 쿵)
