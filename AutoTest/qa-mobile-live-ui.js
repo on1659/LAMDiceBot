@@ -471,18 +471,22 @@ async function runAuth(browser) {
         }
         for (const [page, name] of [[host, hostName], [guest, guestName]]) {
             await freeLobby(page);
-            await page.locator('#acct').click();
+            await page.locator('nav [data-panel="menu"]').click();
+            await page.getByRole('button', { name: '계정', exact: true }).click();
             await page.locator('#acctName').fill(name);
             await page.locator('#acctPin').fill(AUTH_PIN);
             await page.locator('#acctGo').click();
             await page.waitForFunction(name => JSON.parse(localStorage.getItem('userAuth') || 'null')?.name === name, name);
+            await page.locator('#acctSheet').waitFor({ state: 'hidden' });
+            await page.locator('#navRooms').click();
+            await page.locator('#where').click();
             await row(page, '새 서버').waitFor();
         }
         pass('auth real accounts login through mobile UI');
         await row(host, '새 서버').click();
         await host.locator('#newSrvName').fill(serverName);
         await host.locator('#srvList button').filter({ hasText: /^만들기$/ }).click();
-        await host.waitForFunction(name => document.querySelector('#whereName').textContent === name && document.querySelector('#srvSheet').hidden, serverName);
+        await host.waitForFunction(name => document.querySelector('#whereName').textContent === name && !document.querySelector('#srvSheet').open, serverName);
         const selected = await host.evaluate(() => JSON.parse(localStorage.getItem('lamdice_lastServer')));
         assert(selected?.serverId, 'New server selection missing');
         pass('auth server creation selects actual server', selected);
@@ -493,23 +497,38 @@ async function runAuth(browser) {
         pass('auth unapproved member remains pending in free scope');
         const approval = await fetch(BASE + '/api/server/' + selected.serverId + '/members/' + encodeURIComponent(guestName) + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isApproved: true, hostName }) });
         assert(approval.ok, 'Member approval failed: ' + approval.status);
+        await guest.locator('#srvSheet [data-close]').click();
+        // A pending applicant is outside the server's notification channel. Reopening fetches their current membership.
+        await guest.locator('#where').click();
         await guest.waitForFunction(name => [...document.querySelectorAll('#srvList .item')].some(item => item.textContent.includes(name) && !item.textContent.includes('승인 대기') && !item.textContent.includes('참여 가능')), serverName);
         await row(guest, serverName).click();
         await guest.waitForFunction(name => document.querySelector('#whereName').textContent === name, serverName);
         await host.locator('#createGame').click();
         await host.locator('#gameSheet [data-game="horse-race"]').click();
         await activeRoom(host);
-        await guest.locator('#roomList button[data-room-id]').filter({ hasText: hostName }).click();
+        await guest.locator('#roomList button[data-room-id]').filter({ hasText: hostName }).waitFor();
+        const invitePath = new URL(host.url()).pathname;
+        await guest.locator('nav [data-panel="menu"]').click();
+        await guest.getByRole('button', { name: '계정', exact: true }).click();
+        await guest.getByRole('button', { name: '로그아웃', exact: true }).click();
+        await guest.goto(BASE + invitePath);
+        await guest.locator('#acctSheet.account-entry').waitFor();
+        assert(!(await guest.locator('#acctGuest').isVisible()), 'A server invitation requires an account');
+        await guest.locator('#acctName').fill(guestName);
+        await guest.locator('#acctPin').fill(AUTH_PIN);
+        await guest.locator('#acctGo').click();
         await activeRoom(guest);
+        assert.equal(new URL(guest.url()).pathname, invitePath);
         await host.waitForFunction(name => document.querySelector('#usersList').textContent.includes(name), guestName);
         assert(!new URL(host.url()).pathname.startsWith('/free/'), 'Server room incorrectly became free');
         const identity = await guest.evaluate(() => ({ name: localStorage.getItem('freeUserName'), auth: JSON.parse(localStorage.getItem('userAuth')).name }));
         assert.deepEqual(identity, { name: '별명B', auth: guestName });
-        pass('auth approved member joins server room with account identity and preserved free nickname');
+        pass('auth approved member logs in from a live room invitation and joins with account identity and preserved free nickname');
         await host.goto(BASE + '/mobile', { waitUntil: 'domcontentloaded' });
         await host.evaluate(() => localStorage.setItem('userAuth', JSON.stringify({ name: '만료계정', token: 'invalid-local-qa-token' })));
         await host.reload({ waitUntil: 'domcontentloaded' });
         await host.waitForFunction(() => !localStorage.getItem('userAuth') && document.querySelector('#whereName').textContent === '자유 방');
+        await host.locator('#acctSheet.account-entry').waitFor({ state: 'visible' });
         assert.equal(await host.evaluate(() => localStorage.getItem('freeUserName')), '별명A');
         pass('auth stale token clears login and server scope while preserving free nickname');
         report.games.auth = { status: 'pass', serverId: selected.serverId, serverName, hostName, guestName };

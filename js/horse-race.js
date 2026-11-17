@@ -1709,7 +1709,7 @@ function renderHorseSelection() {
         const activeColor = 'var(--yellow-400)'; // 모든 트랙 버튼 노란색 통일
         const trackLabels = { short: '짧게', medium: '보통', long: '길게' };
         const presets = trackPresetsFromServer;
-        let btnsHtml = '<span style="font-size: 12px; color: var(--track-chip-label);">트랙:</span>';
+        let btnsHtml = '<span style="font-size: 12px; color: var(--track-chip-label); white-space: nowrap; flex-shrink: 0;">트랙:</span>';
         for (const key of ['short', 'medium', 'long']) {
             const isActive = currentTrackLength === key;
             btnsHtml += `<button class="track-length-btn" data-length="${key}"

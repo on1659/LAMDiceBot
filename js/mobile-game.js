@@ -14,17 +14,22 @@
     const moved = [];
     const layoutMoved = [];
     const panels = new Map();
-    let enabled = false, timer = null, leaving = false, currentAction = null;
+    let enabled = false, timer = null, currentAction = null;
     let sheet, sheetBody, footer, header, lobbyLink, currentPanel = '', currentTab = 'game';
+    let detailOrigin = null;
     let gameAttributes = null, diceAttributes = null, selectionToggle = null, workspace = null, adsGroup = null, lastSelection = null;
     const TAB_KEYS = ['game', 'orders', 'chat', 'more'];
+    const PANEL_LABELS = {
+        game: '게임', orders: '주문', chat: '채팅', more: '메뉴', people: '참여자',
+        history: '게임 기록', settings: '화면·소리', host: '방장 설정', rules: '게임 규칙'
+    };
     const isDice = !!byId('diceIdleEmoji');
     const isHorse = !!byId('raceTrack');
     let horseCountdown = false, horseChoiceFocused = false;
     let horsePreview = null, horsePreviewRoot = null, horseViewButton = null, horseAutoFsOwned = false, horseViewAttempted = false;
     let horseOrdersSummary = null, horseOrderInput = null, horseMenuInput = null, horseOrderSort = 'asc', horseOrdersSignature = '';
     const horseOrderSortListeners = [];
-    const mobileMatches = () => media.matches || (isHorse && landscapeMedia.matches);
+    const mobileMatches = () => media.matches || landscapeMedia.matches;
     const title = document.body.dataset.game === 'balloon' ? '둥둥라이더' : byId('deguriCanvas') ? '데구리' : byId('raceTrack') ? '경마' : byId('rouletteWheel') ? '룰렛' : '주사위';
     const node = (tag, text, attrs) => {
         const result = document.createElement(tag);
@@ -291,17 +296,26 @@
         });
         if (!quantity) content.append(node('p', '주문 없음', { class: 'mobile-orders-empty' }));
     }
-    function closeSheet() { if (enabled && sheet) showPanel(!TAB_KEYS.includes(currentPanel) ? 'more' : 'game'); }
+    function closeSheet() {
+        if (!enabled || !sheet) return;
+        const origin = detailOrigin;
+        const tab = origin?.tab || 'game';
+        showPanel(tab);
+        (origin?.trigger || byId('mobileGameTab-' + tab))?.focus({ preventScroll: true });
+    }
     function scrollTo(target) {
         showPanel('game');
-        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
     }
-    function showPanel(key) {
+    function showPanel(key, trigger) {
         if (key === 'ranking') {
             if (isHorse) closeSheet();
             if (typeof RankingModule !== 'undefined') RankingModule.show();
             return;
         }
+        const detail = !TAB_KEYS.includes(key);
+        if (!detail) detailOrigin = null;
+        else if (TAB_KEYS.includes(currentPanel)) detailOrigin = { tab: currentTab, trigger };
         currentPanel = key;
         currentTab = TAB_KEYS.includes(key) ? key : 'more';
         const game = byId('gameSection');
@@ -313,16 +327,16 @@
         header.inert = footer.inert = false;
         document.body.classList.toggle('mobile-orders-page', key === 'orders');
         document.body.classList.toggle('mobile-room-page', !mainVisible);
-        byId('mobileGameSheetClose').hidden = TAB_KEYS.includes(key);
-        byId('mobileGameSheetClose').textContent = '‹ 메뉴';
+        const back = byId('mobileGameSheetClose');
+        back.hidden = !detail;
+        if (detail) back.textContent = '‹ ' + PANEL_LABELS[detailOrigin?.tab || 'more'];
         game.setAttribute('aria-labelledby', 'mobileGameTab-' + (isDice && currentTab === 'chat' ? 'chat' : 'game'));
         byId('mobileGameDock').querySelectorAll('[role=tab]').forEach(tab => {
             const selected = tab.dataset.mobilePanel === currentTab;
             tab.setAttribute('aria-selected', String(selected));
             tab.tabIndex = selected ? 0 : -1;
         });
-        const names = { chat: '채팅', orders: '주문', people: '참여자', history: '게임 기록', settings: '화면·소리', host: '방장 설정', rules: '게임 규칙', more: '메뉴' };
-        byId('mobileGameSheetTitle').textContent = names[key] || '게임';
+        byId('mobileGameSheetTitle').textContent = PANEL_LABELS[key] || '게임';
         sheetBody.querySelectorAll('.mobile-native-panel').forEach(panel => { panel.hidden = true; });
         byId('mobileGameMore').hidden = key !== 'more';
         if (panels.has(key)) panels.get(key).hidden = false;
@@ -333,6 +347,7 @@
         if (mainVisible) requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
         document.querySelector('body > .container')?.scrollTo({ top: 0, behavior: 'instant' });
         window.scrollTo({ top: 0, behavior: 'instant' });
+        if (detail && trigger) back.focus({ preventScroll: true });
     }
     function addMore(label, action, attrs) { byId('mobileGameMore').append(button(label, action, attrs)); }
     function build() {
@@ -341,10 +356,11 @@
         identity.append(node('small', title), node('strong', '', { id: 'mobileGameTitle' }));
         const back = button('‹ 로비', () => {
             if (!active()) { location.assign('/mobile'); return; }
-            const nativeLeave = byId('leaveBtn');
-            if (nativeLeave) { leaving = true; nativeLeave.click(); }
+            byId('leaveBtn')?.click();
         }, { id: 'mobileGameBack' });
-        header.append(back, identity, button('', () => showPanel('people'), { id: 'mobileGamePeople', 'aria-label': '참여자 보기' }));
+        const people = button('', event => showPanel('people', event.currentTarget), { id: 'mobileGamePeople', 'aria-label': '참여자 보기' });
+        people.append(node('i', '', { class: 'ui ui-people', 'aria-hidden': 'true' }), node('span', '', { id: 'mobileGamePeopleCount' }));
+        header.append(back, identity, people);
         document.body.prepend(header);
         footer = node('div', '', { id: 'mobileGameFooter', class: 'mobile-game-chrome' });
         const action = button('', () => {
@@ -354,11 +370,11 @@
         }, { id: 'mobileGameAction' });
         footer.append(action);
         const dock = node('nav', '', { id: 'mobileGameDock', role: 'tablist', 'aria-label': '방 탭' });
-        const tools = [['game', '게임', 'play'], ['orders', '주문', 'burger'], ['chat', '채팅', 'chat'], ['more', '메뉴', 'list']];
-        tools.forEach(([key, label, icon]) => {
+        const icons = { game: 'play', orders: 'burger', chat: 'chat', more: 'list' };
+        TAB_KEYS.forEach(key => {
             const attrs = { role: 'tab', 'aria-selected': String(key === 'game'), tabindex: key === 'game' ? '0' : '-1' };
             const tool = button('', () => showPanel(key), { 'data-mobile-panel': key, id: 'mobileGameTab-' + key, 'aria-controls': key === 'game' || (isDice && key === 'chat') ? 'gameSection' : 'mobileGameSheet', ...attrs });
-            tool.append(node('i', '', { class: 'ui ui-' + icon, 'aria-hidden': 'true' }), node('span', label));
+            tool.append(node('i', '', { class: 'ui ui-' + icons[key], 'aria-hidden': 'true' }), node('span', PANEL_LABELS[key]));
             dock.append(tool);
         });
         dock.addEventListener('keydown', event => {
@@ -392,17 +408,17 @@
         themeRow.append(themeControl);
         sheetBody.querySelector('#mobileGameMore').append(themeRow);
         sheet.append(sheetHead, sheetBody); byId('gameSection').after(sheet);
-        addMore('참여자', () => showPanel('people'));
+        addMore('참여자', event => showPanel('people', event.currentTarget));
         addMore('랭킹', () => showPanel('ranking'));
-        addMore('화면·소리', () => showPanel('settings'));
-        addMore('게임 기록', () => showPanel('history'));
-        addMore('게임 규칙', () => {
-            if (panels.has('rules')) showPanel('rules');
+        addMore('화면·소리', event => showPanel('settings', event.currentTarget));
+        addMore('게임 기록', event => showPanel('history', event.currentTarget));
+        addMore('게임 규칙', event => {
+            if (panels.has('rules')) showPanel('rules', event.currentTarget);
             else if (isDice) scrollTo(byId('gameRulesSection'));
             else if (nativeVisible(byId('rankVoteSection'))) scrollTo(byId('rankVoteSection'));
             else window.open(title === '데구리' ? '/pages/game-guides.html' : '/pages/' + (title === '경마' ? 'horse-race' : 'roulette') + '-guide.html', '_blank', 'noopener');
         });
-        addMore('방장 설정·예약', () => showPanel('host'), { id: 'mobileGameHostMenu' });
+        addMore('방장 설정·예약', event => showPanel('host', event.currentTarget), { id: 'mobileGameHostMenu' });
         addMore('꾸미기', () => {
             closeSheet();
             if (window.DeguriShop) window.DeguriShop.openShop();
@@ -413,8 +429,10 @@
         lobbyLink = node('a', '‹ 모바일 로비', { href: '/mobile', id: 'mobileGameLobbyLink', class: 'mobile-game-chrome' });
         document.body.prepend(lobbyLink);
         document.addEventListener('keydown', event => {
-            if (!enabled || sheet.hidden) return;
-            if (event.key === 'Escape' && (!isHorse || sheet.contains(document.activeElement))) closeSheet();
+            if (!enabled || event.key !== 'Escape' || currentTab === 'game' || event.defaultPrevented) return;
+            if (event.target.closest('dialog, [role=dialog], [role=menu], [aria-haspopup][aria-expanded=true]')) return;
+            if (sheet.contains(event.target) || footer.contains(event.target) || header.contains(event.target) ||
+                (isDice && currentTab === 'chat' && byId('gameSection').contains(event.target))) closeSheet();
         });
     }
     function enable() {
@@ -469,7 +487,7 @@
     function disable() {
         if (!enabled) return;
         restore(); enabled = false; currentAction = null;
-        sheet.hidden = true; currentPanel = ''; currentTab = 'game';
+        sheet.hidden = true; currentPanel = ''; currentTab = 'game'; detailOrigin = null;
         header.inert = footer.inert = false;
         const game = byId('gameSection');
         game.classList.remove('mobile-tab-away', 'mobile-dice-chat-only');
@@ -488,6 +506,7 @@
         document.body.classList.remove('mobile-ui', 'mobile-game-active', 'mobile-debug', 'mobile-app-running', 'mobile-app-fullscreen', 'mobile-stage-map-visible', 'mobile-dice-app', 'mobile-horse-focus', 'mobile-orders-page', 'mobile-room-page');
         document.body.removeAttribute('data-mobile-phase');
         document.documentElement.style.removeProperty('--mobile-game-bottom');
+        document.documentElement.style.removeProperty('--mobile-keyboard-inset');
     }
     function chooseAction() {
         const visible = ids => ids.map(byId).find(element => nativeVisible(element));
@@ -509,7 +528,8 @@
         const count = (byId('usersCount') || byId('userCount'))?.textContent.trim() || '0';
         const people = byId('mobileGamePeople');
         const peopleLabel = count + '명';
-        if (people.textContent !== peopleLabel) people.textContent = peopleLabel;
+        const peopleCount = byId('mobileGamePeopleCount');
+        if (peopleCount.textContent !== peopleLabel) peopleCount.textContent = peopleLabel;
         people.setAttribute('aria-label', '참여자 ' + peopleLabel + ' 보기');
         const summary = byId('mobileGameReadySummary');
         const readyText = '준비 ' + (byId('readyCount')?.textContent.trim() || '0') + '/' + count;
@@ -613,12 +633,20 @@
         document.documentElement.style.setProperty('--mobile-game-bottom', fullscreen ? '0px' : Math.ceil(footer.getBoundingClientRect().height) + 'px');
     }
     function schedule() { if (enabled && timer === null) timer = setTimeout(sync, SYNC_MS); }
+    // Some mobile browsers resize only the visual viewport when an editor opens.
+    function fitKeyboard() {
+        if (!enabled) return;
+        const viewport = window.visualViewport;
+        const editing = document.activeElement?.matches('textarea, input:not([type=button]):not([type=checkbox]):not([type=radio]):not([type=range]), [contenteditable=true]');
+        const inset = editing && viewport?.scale === 1 ? Math.max(0, Math.round(innerHeight - viewport.height - viewport.offsetTop)) : 0;
+        document.documentElement.style.setProperty('--mobile-keyboard-inset', inset + 'px');
+    }
     function boot() {
-        if (media.matches && isDice && ['/', '/game', '/dice-game-multiplayer.html'].includes(location.pathname) && !active() && !pendingEntry()) { location.replace('/mobile'); return; }
-        // The native listener performs cleanup first; the confirmed departure then returns to /mobile.
+        if (mobileMatches() && isDice && ['/', '/game', '/dice-game-multiplayer.html'].includes(location.pathname) && !active() && !pendingEntry()) { location.replace('/mobile'); return; }
+        // Native handlers clean up the confirmed room. Browser Back can also request this exit.
         const gameSocket = typeof socket !== 'undefined' ? socket : window.socket;
         if (gameSocket?.on) {
-            ['roomLeft', 'leftRoom'].forEach(event => gameSocket.on(event, () => { if (enabled && leaving) location.replace('/mobile'); }));
+            ['roomLeft', 'leftRoom'].forEach(event => gameSocket.on(event, () => { if (enabled) location.replace('/mobile'); }));
             if (isHorse) {
                 gameSocket.on('horseRaceCountdown', () => { horseCountdown = true; schedule(); });
                 ['horseRaceStarted', 'horseRaceGameReset', 'horseRaceDataCleared'].forEach(event => gameSocket.on(event, () => { horseCountdown = false; schedule(); }));
@@ -631,7 +659,11 @@
         observer.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true, attributeFilter: ['class', 'style', 'disabled', 'hidden'] });
         const updateLayout = () => { if (mobileMatches()) enable(); else disable(); schedule(); };
         media.addEventListener('change', updateLayout);
-        if (isHorse) landscapeMedia.addEventListener('change', updateLayout);
+        landscapeMedia.addEventListener('change', updateLayout);
+        window.visualViewport?.addEventListener('resize', fitKeyboard);
+        window.visualViewport?.addEventListener('scroll', fitKeyboard);
+        document.addEventListener('focusin', fitKeyboard);
+        document.addEventListener('focusout', () => requestAnimationFrame(fitKeyboard));
         window.addEventListener('resize', schedule);
         document.addEventListener('fullscreenchange', schedule);
         if (mobileMatches()) enable();

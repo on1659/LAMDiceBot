@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -81,7 +81,8 @@
                총 너비: 800px + 20px + 320px = 1140px
                중앙 정렬: (100vw - 1140px) / 2 + 160px
             */
-            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            /* 상한: 기록 패널과 40px 이상 떨어지게 (룰렛·경마와 같은 식) — 없으면 1460px 미만에서 패널이 화면 밖으로 잘린다 */
+            margin-left: min(calc((100vw - 1140px) / 2 + 160px), calc(100vw - 1180px));
             margin-right: auto;
             max-width: 800px;
         }
@@ -1446,14 +1447,31 @@
                컨테이너와 기록 섹션 사이 여백: 20px
                기록 섹션 왼쪽 위치: (100vw - 1140px) / 2 + 160px + 800px + 20px
             */
-            left: calc((100vw - 1140px) / 2 + 160px + 800px + 20px);
+            left: min(calc((100vw - 1140px) / 2 + 160px + 800px + 20px), calc(100vw - 340px)); /* 화면 오른쪽 20px 안쪽까지만 */
             right: auto;
         }
         
         .history-section.visible {
             display: block;
         }
-        
+
+        /* 좁은 PC(1200px 이하): 본문 가운데, 기록은 본문 아래로 (룰렛과 같은 규칙) */
+        @media (max-width: 1200px) {
+            body.game-active .container {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .history-section,
+            body.game-active .history-section {
+                position: static;
+                left: auto;
+                width: 100%;
+                max-height: none;
+                margin-top: 20px;
+            }
+        }
+
         /* 모바일 반응형 스타일 */
         @media (max-width: 768px) {
             /* 모바일에서는 컨테이너를 전체 너비로 사용 */
@@ -1626,9 +1644,15 @@
 
         .history-title-wrapper {
             display: flex;
+            flex-wrap: wrap; /* 좁은 기록 칸(320px)에서는 제목 아래로 정렬 버튼을 내린다 — 글자를 쪼개지 않음 */
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
             margin-bottom: 15px;
+        }
+
+        .history-title, .sort-button {
+            white-space: nowrap;
         }
 
         .history-title {
@@ -1954,9 +1978,9 @@
     }
     </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
-    <link rel="stylesheet" href="/css/mobile-game.css?v=live-polish-1">
-    <link rel="stylesheet" href="/css/mobile-dice-roulette.css?v=live-polish-1">
-    <script src="/js/mobile-game.js?v=live-polish-1" defer></script>
+    <link rel="stylesheet" href="/css/mobile-game.css?v=release-room-2">
+    <link rel="stylesheet" href="/css/mobile-dice-roulette.css?v=live-polish-2">
+    <script src="/js/mobile-game.js?v=release-room-1" defer></script>
 </head>
 <body>
     <noscript>

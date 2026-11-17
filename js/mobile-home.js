@@ -24,17 +24,14 @@
   var SUGGEST = ['토끼', '거북이', '고슴도치', '판다', '로켓'];
   var FREE_LABEL = '자유 방';
   var ROOM_WAIT_MS = 12000, HASH_SHIFT = 5, UPDATE_LINES = 70;
+  var TAB_ID_WORDS = 4;
+  var FIRST_VIEW_GAME_COUNT = 4;
+  var ENTRY_CHOICE_KEY = 'mobileEntryChoice';
+  var NICKNAME_SUFFIX_MIN = 10, NICKNAME_SUFFIX_RANGE = 90;
   var diceHandoff = null, diceTimer = null, privateTarget = null, authenticated = false;
   var panelVersion = 0;
+  var lastDialog = null;
   var SKINS = [['light','라이트'],['dark','다크'],['black','블랙'],['midnight','미드나잇'],['mocha','모카'],['purple','퍼플']];
-
-  // gameType(서버 표기) 기준. 사다리(준비 중)·미사용 게임은 넣지 않는다 → 목록에서도 숨겨진다.
-  var GAMES = {
-    'horse-race': { name: '경마',   soft: 'var(--horse-soft)',    icon: 'ui-horse', nameKey: 'horseRaceUserName', createKey: 'pendingHorseRaceRoom', joinKey: 'pendingHorseRaceJoin', path: '/horse-race' },
-    'dice':       { name: '주사위', soft: 'var(--dice-soft)',     icon: 'ui-dice' },
-    'roulette':   { name: '룰렛',   soft: 'var(--roulette-soft)', icon: 'ui-slot',  nameKey: 'rouletteUserName',  createKey: 'pendingRouletteRoom',  joinKey: 'pendingRouletteJoin',  path: '/roulette-game-multiplayer.html' },
-    'deguri':     { name: '데구리', soft: 'var(--deguri-soft)',   icon: 'ui-paw',   nameKey: 'deguriUserName',    createKey: 'pendingDeguriRoom',    joinKey: 'pendingDeguriJoin',    path: '/deguri' }
-  };
 
   // ─── 저장소 유틸 ───
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -59,18 +56,64 @@
   function isLoggedIn() { return !!(auth && auth.name); }
   function currentName() { return server ? ((auth && auth.name) || '') : freeName; }
   function pick(list) { return list[Date.now() % list.length]; }
+  function suggestedNickname() { return pick(SUGGEST) + (NICKNAME_SUFFIX_MIN + Date.now() % NICKNAME_SUFFIX_RANGE); }
 
   // ─── 화면 공통 ───
-  function show() { $('#s-home').hidden = false; $('#s-rooms').hidden = true; $('#scroller').scrollTop = 0; }
+  function jumpTo(heading) {
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: 'start' });
+  }
   function toast(msg) {
     var o = $('.toast'); if (o) o.remove();
-    var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-atomic', 'true'); t.textContent = msg; document.body.appendChild(t);
+    var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-atomic', 'true'); t.textContent = msg; ($('dialog[open]') || document.body).appendChild(t);
     setTimeout(function () { t.remove(); }, TOAST_MS);
   }
-  function closeSheets() { $$('.sheet').forEach(function (s) { s.hidden = true; }); }
-  $$('.sheet').forEach(function (s) { s.addEventListener('click', function (e) { if (e.target === s) closeSheets(); }); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheets(); });
-  $$('[data-go]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.go); }); });
+  // A sheet gets one history entry. Switching from the menu to a form reuses it.
+  function openDialog(dialog, focusTarget) {
+    var current = $('dialog[open]');
+    if (current !== dialog) {
+      if (current) current.close();
+      if (!history.state?.mobileLobbyDialog) history.pushState({ ...history.state, mobileLobbyDialog: true }, '');
+      lastDialog = dialog;
+      dialog.showModal();
+    }
+    if (focusTarget) focusTarget.focus();
+  }
+  function dismissDialog() {
+    var current = $('dialog[open]');
+    if (!current) return;
+    if (current.classList.contains('account-entry')) {
+      if (history.state?.mobileLobbyStartReturn) history.back();
+      return;
+    }
+    current.close();
+    if (history.state?.mobileLobbyDialog) history.back();
+  }
+  window.addEventListener('popstate', function (event) {
+    var current = $('dialog[open]');
+    if (event.state?.mobileLobbyStart || location.hash === '#start') { showAccount(true); return; }
+    if (current?.classList.contains('account-entry')) { hideStart(); current = null; }
+    if (event.state?.mobileLobbyDialog && lastDialog && !current) lastDialog.showModal();
+    if (!event.state?.mobileLobbyDialog && current) current.close();
+    if (event.state?.page === 'ranking') openRanking();
+    else if ($('#ranking-overlay')) RankingModule.hide();
+  });
+  $$('dialog').forEach(function (dialog) {
+    dialog.addEventListener('cancel', function (event) { event.preventDefault(); dismissDialog(); });
+    var pressedOutside = false;
+    function outside(event) {
+      if (event.target !== dialog) return false;
+      var bounds = (dialog.querySelector('.panel') || dialog).getBoundingClientRect();
+      return event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom;
+    }
+    dialog.addEventListener('pointerdown', function (event) { pressedOutside = outside(event); });
+    dialog.addEventListener('click', function (event) { if (pressedOutside && outside(event)) dismissDialog(); });
+  });
+  function enterPage(path) {
+    if (history.state?.mobileLobbyDialog) location.replace(path);
+    else location.assign(path);
+  }
 
   function syncTop() {
     $('#acct').textContent = isLoggedIn() ? auth.name : (freeName || '로그인');
@@ -92,6 +135,7 @@
     if (server) lsSet('lamdice_lastServer', JSON.stringify({ serverId: server.serverId, serverName: server.serverName, hostName: server.hostName }));
     rooms = [];
     syncTop();
+    renderRooms('방을 불러오는 중이에요.');
     requestRooms();
   }
 
@@ -104,7 +148,7 @@
   function onRooms(list) {
     var sid = server ? Number(server.serverId) : null;
     rooms = (list || []).filter(function (r) {
-      return GAMES[r.gameType] && (r.serverId ? Number(r.serverId) : null) === sid;
+      return Object.hasOwn(MOBILE_GAMES, r.gameType) && (r.serverId ? Number(r.serverId) : null) === sid;
     });
     syncTop();
     renderRooms();
@@ -115,20 +159,19 @@
   // ─── 그림 = 방 만들기. 이름이 있으면 바로, 없으면 이름 한 번 묻고 같은 곳으로 이어간다 ───
   function go(game, target) {
     if (!socket.connected || joining || (server && !authenticated)) { toast('연결을 확인한 뒤 다시 눌러 주세요'); return; }
-    closeSheets();
     var name = currentName();
     if (!name) {
       pending = { game: game, target: target };
-      $('#nameInput').value = pick(SUGGEST) + (10 + Date.now() % 90);
-      $('#nameSheet').hidden = false;
-      setTimeout(function () { $('#nameInput').select(); }, 50);
+      $('#nameInput').value = suggestedNickname();
+      openDialog($('#nameSheet'), $('#nameInput'));
+      $('#nameInput').select();
       return;
     }
     handoff(game, target, name);
   }
 
   function handoff(game, target, name) {
-    var g = GAMES[game];
+    var g = MOBILE_GAMES[game];
     if (!g) return;
     var serverId = server ? server.serverId : null;
     var serverName = server ? server.serverName : null;
@@ -138,13 +181,16 @@
       if (target.kind === 'join' && target.room.isPrivate && !target.password) {
         privateTarget = { game: game, target: target, name: name };
         $('#roomPasswordInput').value = ''; $('#passwordError').textContent = '';
-        $('#passwordSheet').hidden = false; $('#roomPasswordInput').focus(); return;
+        openDialog($('#passwordSheet'), $('#roomPasswordInput')); return;
       }
       diceHandoff = { name: name, target: target, serverId: serverId, serverName: serverName };
       diceTimer = setTimeout(function () { diceHandoff = null; toast('방 응답이 늦어요. 목록을 새로고침해 주세요'); }, ROOM_WAIT_MS);
-      if (!sessionStorage.getItem('tabId')) ssSet('tabId', crypto.randomUUID());
+      if (!sessionStorage.getItem('tabId')) {
+        // getRandomValues also works when previewing over a phone's local Wi-Fi.
+        ssSet('tabId', crypto.getRandomValues(new Uint32Array(TAB_ID_WORDS)).join('-'));
+      }
       if (target.kind === 'create') {
-        socket.emit('createRoom', { userName: name, roomName: name + '님의 주사위', gameType: 'dice', isPrivate: false, password: '', expiryHours: EXPIRY_HOURS, blockIPPerUser: BLOCK_IP_PER_USER, serverId: serverId, serverName: serverName, deviceId: deviceId(), tabId: sessionStorage.getItem('tabId') });
+        socket.emit('createRoom', { userName: name, roomName: name + '님의 ' + g.name, gameType: game, isPrivate: false, password: '', expiryHours: EXPIRY_HOURS, blockIPPerUser: BLOCK_IP_PER_USER, serverId: serverId, serverName: serverName, deviceId: deviceId(), tabId: sessionStorage.getItem('tabId') });
       } else {
         socket.emit('joinRoom', { roomId: target.room.roomId, userName: name, isHost: false, password: target.password || '', deviceId: deviceId(), tabId: sessionStorage.getItem('tabId') });
       }
@@ -155,7 +201,7 @@
     if (target.kind === 'join') {
       lsSet(g.joinKey, JSON.stringify({ roomId: target.room.roomId, userName: name, isPrivate: !!target.room.isPrivate, serverId: serverId, serverName: serverName }));
       ssSet('mobileLobbyReturn', '/mobile');
-      window.location.href = g.path + '?joinRoom=true&from=mobile';
+      enterPage(g.path + '?joinRoom=true&from=mobile');
       return;
     }
     lsSet(g.createKey, JSON.stringify({
@@ -164,101 +210,229 @@
       serverId: serverId, serverName: serverName
     }));
     ssSet('mobileLobbyReturn', '/mobile');
-    window.location.href = g.path + '?createRoom=true&from=mobile';
+    enterPage(g.path + '?createRoom=true&from=mobile');
   }
 
-  $$('.tile').forEach(function (t) { t.addEventListener('click', function () { go(t.dataset.game, { kind: 'create' }); }); });
+  function gameIcon(game) {
+    var icon = document.createElement('i');
+    icon.className = 'ui ' + (game.icon || 'ui-gamepad');
+    icon.setAttribute('aria-hidden', 'true');
+    return icon;
+  }
+
+  function gameArtwork(type, game) {
+    var template = document.getElementById('gameArt-' + type);
+    if (template) return template.content.cloneNode(true);
+    var art = document.createElement('span');
+    art.className = 'game-art art-default';
+    art.appendChild(gameIcon(game));
+    return art;
+  }
+
+  function gameTile(type, game, art) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tile';
+    button.dataset.game = type;
+    button.append(art, textNode('strong', game.name));
+    button.addEventListener('click', function () { go(type, { kind: 'create' }); });
+    return button;
+  }
+
+  function renderGameCatalog() {
+    var games = Object.entries(MOBILE_GAMES);
+    var home = $('.entry-games');
+    var picker = $('#gameSheet .game-picker');
+    $('#gameCount').textContent = '게임 ' + games.length + '개';
+    if (games.length > FIRST_VIEW_GAME_COUNT) {
+      $('.entry-heading p').textContent = '아래에도 게임이 있어요. 누르면 방이 열려요.';
+    }
+    $('#createGame').disabled = !games.length;
+    if (!games.length) home.appendChild(textNode('p', '아직 공개된 게임이 없어요.'));
+    games.forEach(function ([type, game]) {
+      home.appendChild(gameTile(type, game, gameArtwork(type, game)));
+      picker.appendChild(gameTile(type, game, gameIcon(game)));
+    });
+  }
 
   $('#nameForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var name = $('#nameInput').value.trim();
     if (!name) { $('#nameInput').focus(); return; }
     freeName = name; lsSet('freeUserName', name);
-    closeSheets(); syncTop();
-    if (pending) { var p = pending; pending = null; handoff(p.game, p.target, currentName()); }
+    syncTop();
+    if (pending) go(pending.game, pending.target);
   });
 
   // ─── 열린 방 ───
-  function renderRooms() {
+  function renderRooms(emptyMessage) {
+    var focusedRoom = document.activeElement?.dataset.roomId;
     var ul = $('#roomList'); ul.textContent = '';
     $('#roomEmpty').hidden = rooms.length > 0;
-    $('#roomEmpty').textContent = socket.connected ? '아직 열린 방이 없어요. 첫 방을 만들어 보세요.' : '서버에 연결하고 있어요.';
+    $('#roomEmpty').textContent = emptyMessage || '아직 열린 방이 없어요. 첫 방을 만들어 보세요.';
     rooms.forEach(function (r) {
-      var g = GAMES[r.gameType], li = document.createElement('li'), b = document.createElement('button');
+      var g = MOBILE_GAMES[r.gameType], li = document.createElement('li'), b = document.createElement('button');
       b.type = 'button'; b.className = 'item'; b.dataset.roomId = r.roomId; b.dataset.game = r.gameType;
-      var sq = document.createElement('span'); sq.className = 'sq'; var ic = document.createElement('i'); ic.className = 'ui ' + g.icon; sq.appendChild(ic);
+      var sq = document.createElement('span'); sq.className = 'sq'; sq.appendChild(gameIcon(g));
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.roomName; var detail = document.createElement('small'); detail.textContent = g.name; nm.appendChild(detail);
       var live = !!(r.isGameActive || r.isOrderActive);
       var rt = document.createElement('span'); rt.className = 'r' + (live ? ' live' : ''); rt.textContent = r.playerCount + '명' + (live ? ' 진행' : '') + (r.isPrivate ? ' 비공개' : '');
       b.appendChild(sq); b.appendChild(nm); b.appendChild(rt);
       b.addEventListener('click', function () { go(r.gameType, { kind: 'join', room: r }); });
       li.appendChild(b); ul.appendChild(li);
+      if (b.dataset.roomId === focusedRoom) b.focus({ preventScroll: true });
     });
   }
-  $('#toRooms').addEventListener('click', function () { renderRooms(); show('rooms'); socket.emit('getRooms'); });
+  $('#toRooms').addEventListener('click', function () {
+    if (socket.connected) socket.emit('getRooms');
+    else toast('서버에 다시 연결하고 있어요.');
+  });
+  $('#navRooms').onclick = function () { jumpTo($('#roomsTitle')); };
+  $('#navHome').onclick = function () { jumpTo($('#entryTitle')); };
+  var dockObserver = new IntersectionObserver(function (entries) {
+    var entry = entries[0];
+    var atRooms = !entry.isIntersecting && entry.boundingClientRect.bottom <= $('#scroller').getBoundingClientRect().top;
+    $('#navRooms').hidden = atRooms;
+    $('#navHome').hidden = !atRooms;
+  }, { root: $('#scroller') });
+  dockObserver.observe($('.entry-games'));
 
   // ─── 계정: 처음·단골은 로그인 시트, 로그인 상태는 로그아웃 ───
   $('#acct').addEventListener('click', function () {
-    if (isLoggedIn()) { var body = openPanel('내 계정'); body.appendChild(textNode('p', auth.name)); body.appendChild(panelButton('로그아웃', function () { $('#dialog').close(); logout(); })); return; }
+    if (isLoggedIn()) { var body = openPanel('내 계정'); body.appendChild(textNode('p', auth.name)); body.appendChild(panelButton('로그아웃', logout)); return; }
+    showAccount(false);
+  });
+
+  function showAccount(entry) {
+    var sheet = $('#acctSheet');
+    var previous = $('dialog[open]');
+    if (entry && previous && previous !== sheet) previous.close();
     setRegister(false);
     $('#acctName').value = freeName || ''; $('#acctPin').value = ''; $('#acctErr').hidden = true;
-    $('#acctSheet').hidden = false;
-    setTimeout(function () { ($('#acctName').value ? $('#acctPin') : $('#acctName')).focus(); }, 50);
+    sheet.classList.toggle('account-entry', entry);
+    var resume = entry && isLoggedIn();
+    $('#entryAuth').hidden = resume;
+    $('#entryResume').hidden = !resume;
+    $('#entryPlayer').textContent = resume ? auth.name : '';
+    if (resume) $('#acctTitle').textContent = '게임 시작';
+    $('#acctGuest').hidden = !entry || !!inviteReturnPath();
+    $('#acctGuest').textContent = freeName ? '게스트로 계속' : '게스트로 시작';
+    sheet.querySelector('[data-close]').hidden = entry && !history.state?.mobileLobbyStartReturn;
+    $('.mobile-app').hidden = entry;
+    if (entry) {
+      if (!history.state?.mobileLobbyStart) history.replaceState({ mobileLobbyStart: true }, '');
+      if (!sheet.open) sheet.showModal();
+      $('#acctTitle').focus({ preventScroll: true });
+    } else {
+      openDialog(sheet, $('#acctName').value ? $('#acctPin') : $('#acctName'));
+    }
+  }
+
+  function hideStart() {
+    var sheet = $('#acctSheet');
+    sheet.close(); sheet.classList.remove('account-entry');
+    sheet.querySelector('[data-close]').hidden = false;
+    $('#acctGuest').hidden = true;
+    $('.mobile-app').hidden = false;
+    $('#entryTitle').focus({ preventScroll: true });
+  }
+
+  function enterLobby() {
+    if ($('#acctSheet').classList.contains('account-entry')) {
+      hideStart();
+      var url = new URL(location.href);
+      if (url.hash === '#start') url.hash = '';
+      history.pushState({ mobileLobbyPage: 'lobby' }, '', url.pathname + url.search + url.hash);
+    } else if ($('#acctSheet').open) dismissDialog();
+  }
+
+  $('#entryContinue').addEventListener('click', enterLobby);
+  $('#entrySwitch').addEventListener('click', logout);
+
+  $('#acctGuest').addEventListener('click', function () {
+    if (inviteReturnPath() || $('#acctGo').disabled) return;
+    var nickname = $('#acctName').value.trim();
+    if (nickname.length > $('#nameInput').maxLength) {
+      $('#acctErr').textContent = '게스트 이름은 ' + $('#nameInput').maxLength + '자까지 쓸 수 있어요.';
+      $('#acctErr').hidden = false; $('#acctName').focus(); return;
+    }
+    freeName = nickname || freeName || suggestedNickname();
+    lsSet('freeUserName', freeName);
+    lsSet(ENTRY_CHOICE_KEY, 'guest');
+    syncTop(); enterLobby();
   });
   function setRegister(on) {
     register = on; $('#pinConfirmLabel').hidden = !on; $('#acctPinConfirm').required = on;
+    $('#acctPinConfirm').value = '';
+    $('#acctPin').autocomplete = on ? 'new-password' : 'current-password';
     $('#acctTitle').textContent = on ? '회원가입' : '로그인';
-    $('#acctGo').textContent = on ? '가입' : '로그인';
-    $('#acctAlt').textContent = on ? '이미 있으면 로그인' : '처음이면 회원가입';
-    $('#acctPin').placeholder = on ? '숫자 암호 4~6자리 (잊으면 못 찾아요)' : '숫자 암호 4~6자리';
+    $('#acctGo').textContent = on ? '가입하기' : '로그인';
+    $('#acctAlt').textContent = on ? '로그인으로 돌아가기' : '회원가입';
+    $('#acctPin').placeholder = on ? '숫자 4~6자리 (잊으면 못 찾아요)' : '숫자 4~6자리';
   }
   $('#acctAlt').addEventListener('click', function () { setRegister(!register); $('#acctErr').hidden = true; });
 
   // 로그아웃 — userAuth 만 지운다(이름 키는 유지). 서버 소속은 자유 방으로.
   function logout() {
     lsDel('userAuth'); auth = null; authenticated = false;
+    lsSet(ENTRY_CHOICE_KEY, 'login');
     socket.disconnect(); socket.connect();
     selectServer(null);
-    toast('로그아웃');
+    showAccount(true);
   }
 
-  // 서버 방 링크 복귀 — js/free.js 가 미로그인 진입 시 sessionStorage.lamdice_returnAfterLogin 에 경로를 저장한다.
-  // 같은 오리진 경로만 인정(`/`로 시작, `//` 제외). 읽는 즉시 지운다 (1회용).
-  function takeReturnLink() {
-    var link = null;
-    try { link = sessionStorage.getItem('lamdice_returnAfterLogin'); sessionStorage.removeItem('lamdice_returnAfterLogin'); } catch (e) {}
-    if (!link || link.charAt(0) !== '/' || link.charAt(1) === '/') return null;
-    return link;
+  // js/free.js saves a local room path when an invitation requires login.
+  function inviteReturnPath() {
+    try {
+      var path = sessionStorage.getItem('lamdice_returnAfterLogin');
+      if (path?.startsWith('/') && !path.startsWith('//') && new URL(path, location.origin).origin === location.origin) return path;
+    } catch (_) {}
+    return null;
+  }
+
+  function resumeInvitation() {
+    var path = inviteReturnPath();
+    if (!path) return false;
+    try { sessionStorage.removeItem('lamdice_returnAfterLogin'); } catch (_) {}
+    location.replace(path);
+    return true;
   }
 
   $('#acctForm').addEventListener('submit', function (e) {
     e.preventDefault();
+    if ($('#acctGo').disabled) return;
     var name = $('#acctName').value.trim(), pin = $('#acctPin').value.trim();
     var err = $('#acctErr');
     if (!name) { $('#acctName').focus(); return; }
     if (!/^\d{4,6}$/.test(pin)) { err.textContent = '암호코드는 숫자 4~6자리'; err.hidden = false; $('#acctPin').focus(); return; }
     if (register && $('#acctPinConfirm').value !== pin) { err.textContent = '암호코드가 일치하지 않아요'; err.hidden = false; return; }
-    var go = $('#acctGo'); go.disabled = true;
+    function busy(on) {
+      $('#acctForm').setAttribute('aria-busy', String(on));
+      $('#acctGo').disabled = on; $('#acctAlt').disabled = on; $('#acctGuest').disabled = on;
+      $('#acctGo').textContent = on ? (register ? '가입 중…' : '로그인 중…') : (register ? '가입하기' : '로그인');
+    }
+    busy(true);
     fetch(register ? '/api/auth/register' : '/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, pin: pin })
     }).then(function (res) { return res.json().then(function (j) { return { ok: res.ok, body: j }; }); })
       .then(function (r) {
-        go.disabled = false;
+        busy(false);
         if (!r.ok) { err.textContent = r.body.error || '다시 시도해 주세요'; err.hidden = false; return; }
         var result = r.body;
-        if (result.adminToken) { ssSet('adminToken', result.adminToken); window.location.href = '/admin'; return; }
-        // result.token: socket 인증용 (지갑/상점). 로그인 응답에만 존재.
+        if (result.adminToken) { ssSet('adminToken', result.adminToken); enterPage('/admin'); return; }
+        // Login and registration both issue a token for socket authentication.
         var authData = Object.assign({}, result.user);
         if (result.token) authData.token = result.token;
         lsSet('userAuth', JSON.stringify(authData)); auth = authData;
-        closeSheets();
+        lsSet(ENTRY_CHOICE_KEY, 'account');
+        $('#acctPin').value = ''; $('#acctPinConfirm').value = '';
         // 서버 방 링크에서 미로그인으로 넘어온 경우 — 로그인/가입 성공 즉시 그 링크로 복귀
-        var returnLink = takeReturnLink();
-        if (returnLink) { window.location.href = returnLink; return; }
+        if (resumeInvitation()) return;
+        enterLobby(); syncTop();
         toast(register ? '가입 완료' : '로그인 완료');
-        validateToken(auth.token, true, function () { restoreLastServer(); openServers(); });
+        validateToken(auth.token, true, function () { restoreLastServer(); socket.emit('getServers', { userName: auth.name }); });
       })
-      .catch(function () { go.disabled = false; err.textContent = '서버에 연결하지 못했어요'; err.hidden = false; });
+      .catch(function () { busy(false); err.textContent = '서버에 연결하지 못했어요'; err.hidden = false; });
   });
 
   // 지난번 서버가 있으면 자동 선택. 멤버십이 끊겼으면 serverError 가 와서 자유 방으로 되돌린다.
@@ -276,18 +450,18 @@
   // 토큰 만료 감지 — auth 거부면 AuthToken.renew 로 1회 연장, 그래도 안 되면 로그아웃 처리.
   // 인증 응답을 확인한 뒤에만 서버 방을 조회하고 만들 수 있다.
   function expireLogin() {
-    lsDel('userAuth'); auth = null; authenticated = false;
-    socket.disconnect(); socket.connect();
-    selectServer(null);
+    logout();
     toast('로그인이 만료됐어요. 다시 로그인해 주세요');
   }
   function validateToken(token, allowRenew, done) {
     authenticated = false;
     socket.timeout(SERVER_WAIT_MS).emit('socket:authenticate', { token: token }, function (err, res) {
+      if (!auth || auth.token !== token) return;
       if (err) { toast('로그인 확인에 실패했어요. 다시 연결해 주세요'); selectServer(null); return; }
       if (res && res.ok) { authenticated = true; if (done) done(); return; }
       if (allowRenew && window.AuthToken) {
         window.AuthToken.renew(function (newToken) {
+          if (!auth || auth.token !== token) return;
           if (newToken) { auth = readJson('userAuth'); validateToken(newToken, false, done); }
           else { expireLogin(); }
         });
@@ -318,7 +492,7 @@
     var ul = $('#srvList'); ul.textContent = '';
     var nowId = server ? Number(server.serverId) : null;
     if (!isLoggedIn()) {
-      var loginRow = row('', '', '로그인하고 내 서버 선택', '›', '', function () { closeSheets(); $('#acct').click(); }); ul.appendChild(loginRow);
+      var loginRow = row('', '', '로그인하고 내 서버 선택', '›', '', function () { $('#acct').click(); }); ul.appendChild(loginRow);
     }
     var search = $('#serverSearch').value.trim().toLowerCase();
     servers.filter(function (s) { return isLoggedIn() && (!search || s.name.toLowerCase().includes(search)); }).forEach(function (s) {
@@ -326,7 +500,7 @@
       var right = isNow ? LABEL_NOW : s.is_member ? '' : s.is_pending ? LABEL_PENDING : s.is_private ? LABEL_CODE : LABEL_OPEN;
       var cls = isNow ? 'now' : '';
       var li = row(cls, s.name.charAt(0), s.name, right, s.is_pending ? 'live' : 'ok', function () {
-        if (isNow) { closeSheets(); return; }
+        if (isNow) { dismissDialog(); return; }
         if (s.is_pending) { toast('방장 승인을 기다리는 중'); return; }
         if (s.is_member) { joinServer(s.id, s.name); return; }
         if (s.is_private) { openCode = Number(s.id) === openCode ? null : Number(s.id); renderServers(); return; }
@@ -343,7 +517,7 @@
       }
       ul.appendChild(li);
     });
-    var freeRow = row('dash' + (nowId === null ? ' now' : ''), '', FREE_LABEL, '로그인 없이', 'ok', function () { selectServer(null); closeSheets(); }); freeRow.querySelector('button').dataset.server = 'free'; ul.appendChild(freeRow);
+    var freeRow = row('dash' + (nowId === null ? ' now' : ''), '', FREE_LABEL, '로그인 없이', 'ok', function () { selectServer(null); dismissDialog(); }); freeRow.querySelector('button').dataset.server = 'free'; ul.appendChild(freeRow);
     if (!isLoggedIn()) return;
     var newLi = row('dash', '+', '새 서버', '', '', function () { openNew = !openNew; renderServers(); });
     if (openNew) {
@@ -374,7 +548,7 @@
   }
 
   function openServers() {
-    closeSheets(); openCode = null; openNew = false; renderServers(); $('#srvSheet').hidden = false; $('#serverSearch').focus();
+    openCode = null; openNew = false; renderServers(); openDialog($('#srvSheet'), $('#srvSheet [data-close]'));
     if (isLoggedIn() && authenticated) socket.emit('getServers', { userName: auth.name });
   }
   $('#where').addEventListener('click', openServers);
@@ -382,7 +556,7 @@
 
   socket.on('serversList', function (list) {
     servers = list || [];
-    if (!$('#srvSheet').hidden) renderServers();
+    if ($('#srvSheet').open) renderServers();
   });
   socket.on('serversUpdated', function () { if (isLoggedIn()) socket.emit('getServers', { userName: auth.name }); });
   socket.on('memberUpdated', function () { if (isLoggedIn()) socket.emit('getServers', { userName: auth.name }); });
@@ -395,7 +569,7 @@
     clearJoining();
     autoServerId = null;
     selectServer({ serverId: data.id, serverName: data.name, hostName: data.hostName });
-    closeSheets();
+    if ($('#srvSheet').open) dismissDialog();
     toast(data.name + ' 입장');
   });
   socket.on('serverJoinRequested', function (data) {
@@ -425,14 +599,21 @@
   socket.on('connect', function () {
     $('#connectionStatus').textContent = '연결됨';
     function readyLobby() {
+      if (authenticated && resumeInvitation()) return;
       restoreLastServer();
       if (isLoggedIn()) socket.emit('getServers', { userName: auth.name });
     }
     if (auth && auth.token) validateToken(auth.token, true, readyLobby);
     else { if (auth && auth.name) expireLogin(); readyLobby(); }
   });
-  socket.on('disconnect', function () { authenticated = false; $('#connectionStatus').textContent = '다시 연결하는 중'; });
-  socket.on('connect_error', function () { $('#connectionStatus').textContent = '연결되지 않았어요. 잠시 후 다시 시도해 주세요'; });
+  socket.on('disconnect', function () {
+    authenticated = false;
+    $('#connectionStatus').textContent = '다시 연결하는 중';
+    rooms = [];
+    syncTop();
+    renderRooms('다시 연결하면 방 목록을 불러와요.');
+  });
+  socket.on('connect_error', function () { $('#connectionStatus').textContent = '연결 재시도 중'; });
 
   function deviceId() {
     var info = { userAgent: navigator.userAgent || '', platform: navigator.platform || '', hardwareConcurrency: navigator.hardwareConcurrency || 0, screenWidth: screen.width || 0, screenHeight: screen.height || 0, language: navigator.language || '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '' };
@@ -445,30 +626,46 @@
     var action = diceHandoff; diceHandoff = null; clearTimeout(diceTimer);
     ssSet('diceActiveRoom', JSON.stringify({ roomId: data.roomId, userName: action.name, serverId: action.serverId, serverName: action.serverName, password: action.target.password || '' }));
     ssSet('mobileLobbyReturn', '/mobile');
-    window.location.href = '/game?from=mobile';
+    enterPage(MOBILE_GAMES.dice.path + '?from=mobile');
   }
   socket.on('roomCreated', finishDice); socket.on('roomJoined', finishDice);
   socket.on('roomError', function (message) { clearTimeout(diceTimer); diceHandoff = null; $('#passwordError').textContent = typeof message === 'string' ? message : '방에 들어갈 수 없어요'; toast($('#passwordError').textContent); });
   $('#passwordForm').addEventListener('submit', function (e) { e.preventDefault(); if (!privateTarget) return; privateTarget.target.password = $('#roomPasswordInput').value; handoff(privateTarget.game, privateTarget.target, privateTarget.name); });
-  $('#createGame').onclick = function () { if (!socket.connected) { toast('연결 중이에요'); return; } closeSheets(); $('#gameSheet').hidden = false; $('#gameSheet .tile').focus(); };
-  $('#navHome').onclick = show; $('#navServers').onclick = openServers;
-  $$('[data-close]').forEach(function (b) { b.onclick = closeSheets; });
+  $('#createGame').onclick = function () { if (!socket.connected) { toast('연결 중이에요'); return; } openDialog($('#gameSheet'), $('#gameSheet .tile')); };
+  $$('[data-close]').forEach(function (b) { b.onclick = dismissDialog; });
   function textNode(tag, text) { var n = document.createElement(tag); n.textContent = text; return n; }
   function panelButton(label, fn) { var b = textNode('button', label); b.type = 'button'; b.onclick = fn; return b; }
-  function openPanel(title) { panelVersion++; closeSheets(); $('#dialogTitle').textContent = title; $('#panelContent').replaceChildren(); if (!$('#dialog').open) $('#dialog').showModal(); return $('#panelContent'); }
-  $('#closeDialog').onclick = function () { $('#dialog').close(); };
+  function openPanel(title) { panelVersion++; $('#dialogTitle').textContent = title; $('#panelContent').replaceChildren(); openDialog($('#dialog'), $('#closeDialog')); return $('#panelContent'); }
+  $('#closeDialog').onclick = dismissDialog;
   function dataRow(title, detail) { var r = textNode('div', ''); r.className = 'data-row'; r.appendChild(textNode('strong', title)); if (detail) r.appendChild(textNode('small', detail)); return r; }
   function fetchJson(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error('조회하지 못했어요. 잠시 후 다시 시도해 주세요'); return r.json(); }); }
   function loadPanel(title, url, paint) { var body = openPanel(title), version = panelVersion; body.appendChild(textNode('p', '불러오는 중…')); fetchJson(url).then(function (data) { if (!body.isConnected || version !== panelVersion) return; body.replaceChildren(); paint(body, data); }).catch(function (e) { if (version !== panelVersion) return; body.replaceChildren(textNode('p', e.message), panelButton('다시 시도', function () { loadPanel(title, url, paint); })); }); }
+  function openRanking() {
+    // RankingModule.hide() returns through history when the entry is named "ranking".
+    var current = $('dialog[open]');
+    if (current) current.close();
+    if (history.state?.mobileLobbyDialog) history.replaceState({ page: 'ranking' }, '');
+    else if (history.state?.page !== 'ranking') history.pushState({ page: 'ranking' }, '');
+    RankingModule.init(server ? server.serverId : null, currentName());
+    RankingModule.show();
+  }
   function feature(key) {
-    if (key === 'ranking') { $('#dialog').close(); closeSheets(); RankingModule.init(server ? server.serverId : null, currentName()); RankingModule.show(); return; }
-    if (key === 'menu') { var p = openPanel('더보기'), grid = textNode('div', ''); grid.className = 'menu-grid'; [['members','멤버'],['history','지난 게임'],['updates','업데이트'],['settings','화면 설정'],['account','계정'],['servers','서버 선택'],['help','사용법'],['manage','서버 관리']].forEach(function (entry) { grid.appendChild(panelButton(entry[1], function () { feature(entry[0]); })); }); p.appendChild(grid); return; }
-    if (key === 'account') { $('#dialog').close(); $('#acct').click(); return; }
-    if (key === 'servers') { $('#dialog').close(); openServers(); return; }
+    if (key === 'ranking') { openRanking(); return; }
+    if (key === 'menu') { var p = openPanel('더보기'), grid = textNode('div', ''); grid.className = 'menu-grid'; [['home','첫 화면'],['members','멤버'],['history','지난 게임'],['updates','업데이트'],['settings','화면 설정'],['account','계정'],['servers','서버 선택'],['help','사용법'],['manage','서버 관리']].forEach(function (entry) { grid.appendChild(panelButton(entry[1], function () { feature(entry[0]); })); }); p.appendChild(grid); return; }
+    if (key === 'home') {
+      var startUrl = new URL(location.href); startUrl.hash = 'start';
+      var state = { mobileLobbyStart: true, mobileLobbyStartReturn: true };
+      if (history.state?.mobileLobbyDialog) history.replaceState(state, '', startUrl.pathname + startUrl.search + startUrl.hash);
+      else history.pushState(state, '', startUrl.pathname + startUrl.search + startUrl.hash);
+      showAccount(true);
+      return;
+    }
+    if (key === 'account') { $('#acct').click(); return; }
+    if (key === 'servers') { openServers(); return; }
     if (key === 'settings') { var settings = openPanel('화면 설정'), label = textNode('label','화면 스킨'), select = document.createElement('select'); select.id='mobileSkin'; SKINS.forEach(function(s){var option=textNode('option',s[1]);option.value=s[0];select.appendChild(option);}); select.value=ThemeModule.get(); select.onchange=function(){ThemeModule.set(select.value);}; label.appendChild(select);settings.appendChild(label);return; }
     if (key === 'updates') { var updates = openPanel('업데이트'), updateVersion = panelVersion; updates.appendChild(textNode('p','불러오는 중…')); fetch('/update-log.md').then(function (r) { if (!r.ok) throw new Error('업데이트를 불러오지 못했어요'); return r.text(); }).then(function (text) { if(updateVersion!==panelVersion)return; updates.replaceChildren(); var pre = textNode('div', text.split('\n').slice(0, UPDATE_LINES).join('\n')); pre.className = 'updates-copy'; updates.appendChild(pre); var link = textNode('a','업데이트 전체 보기'); link.href='/pages/changelog.html'; updates.appendChild(link); }).catch(function (e) { if(updateVersion!==panelVersion)return; updates.replaceChildren(textNode('p',e.message)); }); return; }
     if (key === 'help') { var help = openPanel('사용법'), a = textNode('a','게임 사용법 보기'); a.href='/pages/game-guides.html'; help.appendChild(a); return; }
-    if (!server) { var empty = openPanel(key === 'members' ? '멤버' : key === 'manage' ? '서버 관리' : '지난 게임'); empty.append(textNode('p','서버를 선택하면 모임의 멤버와 기록을 볼 수 있어요.'),panelButton('서버 선택',function(){ $('#dialog').close(); openServers(); })); return; }
+    if (!server) { var empty = openPanel(key === 'members' ? '멤버' : key === 'manage' ? '서버 관리' : '지난 게임'); empty.append(textNode('p','서버를 선택하면 모임의 멤버와 기록을 볼 수 있어요.'),panelButton('서버 선택',function(){ openServers(); })); return; }
     if (key === 'members' || key === 'manage') {
       loadPanel(key === 'manage' ? '서버 관리' : '멤버', '/api/server/' + server.serverId + '/members', function (body, data) {
         if (!data.length) body.appendChild(textNode('p','멤버가 없어요.'));
@@ -479,18 +676,31 @@
         });
       }); return;
     }
-    if (key === 'history') loadPanel('지난 게임', '/api/ranking/' + server.serverId + '/calendar', function (body, data) { var list = data.sessions || []; if (!list.length) body.appendChild(textNode('p','아직 게임 기록이 없어요.')); list.forEach(function (session) { var winners = (session.winners || []).map(function (w) { return typeof w === 'string' ? w : w.userName || w.name || ''; }).filter(Boolean).join(', '); body.appendChild(dataRow(session.roomName || ({horse:'경마',dice:'주사위',roulette:'룰렛',deguri:'데구리'}[session.gameType]) || '게임', (session.playedAt ? new Date(session.playedAt).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'}) : '') + (winners ? ' · ' + winners : ''))); }); body.appendChild(panelButton('랭킹 · 달력',function(){feature('ranking');})); });
+    if (key === 'history') loadPanel('지난 게임', '/api/ranking/' + server.serverId + '/calendar', function (body, data) {
+      var list = data.sessions || [];
+      if (!list.length) body.appendChild(textNode('p', '아직 게임 기록이 없어요.'));
+      list.forEach(function (session) {
+        var type = session.gameType === 'horse' ? 'horse-race' : session.gameType;
+        var label = session.roomName || (Object.hasOwn(MOBILE_GAMES, type) ? MOBILE_GAMES[type].name : '게임');
+        var winners = (session.winners || []).map(function (w) { return typeof w === 'string' ? w : w.userName || w.name || ''; }).filter(Boolean).join(', ');
+        var date = session.playedAt ? new Date(session.playedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
+        body.appendChild(dataRow(label, date + (winners ? ' · ' + winners : '')));
+      });
+      body.appendChild(panelButton('랭킹 · 달력', function () { feature('ranking'); }));
+    });
   }
   $$('[data-panel]').forEach(function (b) { b.onclick = function () { feature(b.dataset.panel); }; });
-  document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Tab') return;
-    var sheet = $$('.sheet').find(function (s) { return !s.hidden; }); if (!sheet) return;
-    var items = Array.prototype.filter.call(sheet.querySelectorAll('button,input,select,a[href]'),function(e){return !e.disabled && e.getClientRects().length;}); if (!items.length) return;
-    var first = items[0], last = items[items.length-1];
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  });
-
+  renderGameCatalog();
   syncTop();
-  show('home');
+  var entryChoice = ls(ENTRY_CHOICE_KEY);
+  if (location.hash === '#start' || (!isLoggedIn() && (inviteReturnPath() || entryChoice === 'login' || (!freeName && entryChoice !== 'guest')))) {
+    showAccount(true);
+  } else {
+    $('.mobile-app').hidden = false;
+    if (!history.state?.mobileLobbyPage && !history.state?.mobileLobbyDialog) {
+      var lobbyUrl = location.pathname + location.search + location.hash;
+      history.replaceState({ mobileLobbyStart: true }, '', location.pathname + location.search + '#start');
+      history.pushState({ mobileLobbyPage: 'lobby' }, '', lobbyUrl);
+    }
+  }
 })();
