@@ -12,5 +12,9 @@ const MOBILE_GAMES = {
   deguri: {
     name: '데구리', icon: 'ui-paw', path: '/deguri',
     nameKey: 'deguriUserName', createKey: 'pendingDeguriRoom', joinKey: 'pendingDeguriJoin'
+  },
+  balloon: { // 공개 주소는 /dodong (gameType 은 balloon 그대로)
+    name: '둥둥라이더', icon: 'ui-balloon', path: '/dodong',
+    nameKey: 'balloonUserName', createKey: 'pendingBalloonRoom', joinKey: 'pendingBalloonJoin'
   }
 };
