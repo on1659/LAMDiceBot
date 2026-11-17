@@ -65,6 +65,9 @@
 }
 .entry-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .entry-heading p { margin-top: 4px; color: var(--mobile-muted); }
+/* 게임 칸을 감싼다 — PC 에서 넘칠 때만 좌우 화살표(.games-arrow)를 띄운다. 폰은 화살표 없음 */
+.entry-games-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.games-arrow { display: none; }
 .entry-games {
     flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(110px, 1fr);
     gap: 12px;
@@ -314,8 +317,27 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
     .section-head .where { max-width: 100%; padding-inline: 0; }
     .rooms-block { display: grid; padding: 0; border: 0; background: transparent; }
     .rooms-body { padding: 16px; border: 1px solid var(--mobile-line); border-radius: var(--mobile-radius-lg); background: var(--mobile-card); }
-    /* PC: 게임을 한 줄로 — 게임 수만큼 칸을 나눈다 (2026-11-18 사용자) */
-    .entry-games { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-auto-rows: clamp(150px, 20vh, 190px); }
+    /* PC: 게임을 세로로 긴 카드 한 줄로. 넘치면 옆으로 넘기고 그때만 화살표 (2026-11-18 사용자 스케치) */
+    .entry-games {
+        grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(100px, 1fr);
+        grid-auto-rows: clamp(260px, 44vh, 380px);
+        overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 2px; scrollbar-width: none;
+        padding: 2px 4px 6px 2px; margin: -2px -4px -6px -2px;
+    }
+    .entry-games::-webkit-scrollbar { display: none; }
+    .entry-games .tile { scroll-snap-align: start; }
+    .entry-games .wheel-face { width: 76%; height: auto; max-width: none; }
+    .games-arrow {
+        display: grid; place-items: center; position: absolute; top: 50%; z-index: 2;
+        width: 44px; height: 44px; margin-top: -22px; padding: 0;
+        border: 2px solid var(--mobile-ink); border-radius: var(--mobile-radius-pill);
+        background: var(--mobile-card); color: var(--mobile-ink); box-shadow: 2px 3px 0 var(--mobile-ink);
+        font: 800 24px/1 Pretendard, sans-serif; cursor: pointer;
+    }
+    .games-arrow[hidden] { display: none; }
+    .games-prev { left: -20px; }
+    .games-next { right: -20px; }
+    .games-arrow:focus-visible { outline: 3px solid var(--mobile-ink); outline-offset: 2px; }
     .entry-games strong { font-size: 16px; white-space: nowrap; }
     .entry-games strong::after { display: none; }
     .art-default .ui { width: min(64%, 80px); }
