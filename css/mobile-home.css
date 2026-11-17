@@ -364,15 +364,15 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
     .rooms-body { padding: 16px; border: 1px solid var(--mobile-line); border-radius: var(--mobile-radius-lg); background: var(--mobile-card); }
     /* PC: 게임을 세로로 긴 카드 한 줄로. 넘치면 옆으로 넘기고 그때만 화살표 (2026-11-18 사용자 스케치) */
     .entry-games {
-        display: flex; height: clamp(174px, 29vh, 253px); flex: none;
+        display: flex; height: clamp(260px, 44vh, 380px); flex: none;
         overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 2px; scrollbar-width: none;
         padding: 2px 4px 6px 2px; margin: -2px -4px -6px -2px;
     }
     .entry-games::-webkit-scrollbar { display: none; }
     .entry-games .tile { flex: 1 1 0; min-width: 100px; scroll-snap-align: start; transition: flex-grow .35s ease-out, min-width .35s ease-out, transform .14s ease-out, box-shadow .14s ease-out; }
     /* 마우스를 올리면 그 카메라 창이 넓어져 같은 장면이 더 크게 보인다 */
-    .entry-games .tile:hover, .entry-games .tile:focus-visible { flex-grow: 4; }
-    .entry-games:has(.tile:hover) .tile:not(:hover) { min-width: 64px; }
+    .entry-games .tile:hover, .entry-games .tile:focus-visible { flex-grow: 1.9; }
+    .entry-games:has(.tile:hover) .tile:not(:hover) { min-width: 88px; }
     .entry-games .wheel-face { width: 76%; height: auto; max-width: none; }
     .games-arrow {
         display: grid; place-items: center; position: absolute; top: 50%; z-index: 2;
