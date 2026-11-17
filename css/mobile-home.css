@@ -97,7 +97,10 @@
 .art-default .ui { width: min(48%, 88px); height: auto; max-height: 80%; aspect-ratio: 1; image-rendering: pixelated; }
 .art-race {
     background: var(--yellow-100) url('/assets/backgrounds/horse.webp') 28% center / auto 100% no-repeat;
+    animation: lobbyCameraPan 16s ease-in-out infinite alternate;
 }
+/* 카드 = 큰 장면을 들여다보는 작은 카메라 창. 배경이 천천히 흘러 '조금만 보인다'는 느낌을 준다 */
+@keyframes lobbyCameraPan { from { background-position-x: 8%; } to { background-position-x: 72%; } }
 .entry-horse {
     position: absolute; left: 44%; bottom: 9%; transform: translateX(-50%);
     width: min(79%, 160px); max-height: 85%; aspect-ratio: 4/3;
@@ -116,24 +119,34 @@
     background-size: 12px 12px;
 }
 .art-dice .ui { position: absolute; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
-.art-dice .ui:first-child { width: min(36%, 56px); top: 20%; right: 12%; transform: rotate(16deg); }
-.art-dice .ui:last-child { width: min(57%, 102px); bottom: 15%; left: 11%; transform: rotate(-12deg); }
+.art-dice { animation: lobbyDiceDots 6s linear infinite; }
+.art-dice .ui:first-child { width: min(36%, 56px); top: 20%; right: 12%; transform: rotate(16deg); animation: lobbyDiceTumble 2.6s ease-in-out infinite; }
+.art-dice .ui:last-child { width: min(57%, 102px); bottom: 15%; left: 11%; transform: rotate(-12deg); animation: lobbyDiceTumble 3.2s ease-in-out -1.1s infinite reverse; }
+@keyframes lobbyDiceDots { to { background-position: 24px 48px; } }
+@keyframes lobbyDiceTumble {
+    0%, 100% { transform: translateY(0) rotate(-12deg); }
+    35% { transform: translateY(-14%) rotate(28deg); }
+    60% { transform: translateY(0) rotate(78deg); }
+}
 
 .art-wheel {
     background-color: var(--mobile-forest);
     background-image: repeating-linear-gradient(-45deg, transparent 0 16px, rgba(var(--shadow-rgb), .12) 16px 18px);
 }
+@property --lobby-wheel-angle { syntax: '<angle>'; inherits: false; initial-value: 8deg; }
 .wheel-face {
     position: relative; height: min(72%, 118px); max-width: 75%; aspect-ratio: 1; border-radius: 50%;
     border: 4px solid var(--deguri-gold);
     box-shadow: 0 0 0 3px var(--deguri-sprite-line), 0 5px 0 2px var(--deguri-sprite-line);
-    background: repeating-conic-gradient(from 8deg, var(--deguri-chute-red) 0 45deg, var(--deguri-hud-cream) 45deg 90deg, var(--mobile-accent) 90deg 135deg, var(--deguri-gold) 135deg 180deg);
+    background: repeating-conic-gradient(from var(--lobby-wheel-angle), var(--deguri-chute-red) 0 45deg, var(--deguri-hud-cream) 45deg 90deg, var(--mobile-accent) 90deg 135deg, var(--deguri-gold) 135deg 180deg);
+    animation: lobbyWheelSpin 5s cubic-bezier(.3, 0, .2, 1) infinite;
 }
+@keyframes lobbyWheelSpin { 0% { --lobby-wheel-angle: 8deg; } 70%, 100% { --lobby-wheel-angle: 728deg; } }
 .wheel-face::before, .wheel-face::after { content: ''; position: absolute; left: 50%; transform: translate(-50%, -50%); }
 .wheel-face::before { top: 3%; width: 16%; height: 20%; background: var(--deguri-sprite-line); clip-path: polygon(0 0,100% 0,50% 100%); }
 .wheel-face::after { top: 50%; width: 17%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--deguri-sprite-line); background: var(--deguri-gold); }
 
-.art-deguri { background: var(--green-100) url('/assets/deguri/stage/sky-far.webp') center bottom / auto 125% no-repeat; }
+.art-deguri { background: var(--green-100) url('/assets/deguri/stage/sky-far.webp') center bottom / auto 125% no-repeat; animation: lobbyCameraPan 20s ease-in-out infinite alternate; }
 .art-deguri::before, .art-deguri::after { content: ''; position: absolute; bottom: 3%; }
 .art-deguri::before {
     left: -4%; width: 34%; aspect-ratio: 4/3; background: url('/assets/deguri/stage/decor-bush-small.webp') center / contain no-repeat;
@@ -147,6 +160,38 @@
     image-rendering: pixelated; animation: lobbyDeguriIdle .8s steps(4) infinite;
 }
 @keyframes lobbyDeguriIdle { to { background-position: 133.3333% 0; } }
+
+/* 둥둥라이더: 하늘이 아래로 흘러 올라가는 느낌 — 게임 그림 그대로(assets/balloon) */
+.art-balloon {
+    background: var(--mobile-soft) url('/assets/balloon/bg/sky-mid.webp') center 100% / cover no-repeat;
+    animation: lobbyBalloonSky 18s ease-in-out infinite alternate;
+}
+@keyframes lobbyBalloonSky { from { background-position-y: 100%; } to { background-position-y: 0%; } }
+.balloon-cloud {
+    position: absolute; left: -10%; top: -20%; width: 90%; aspect-ratio: 4; opacity: .9;
+    background: url('/assets/balloon/props/cloud.webp') center / contain no-repeat;
+    animation: lobbyBalloonCloud 7s linear infinite;
+}
+.balloon-cloud + .balloon-cloud { left: 30%; width: 70%; animation-delay: -3.5s; }
+@keyframes lobbyBalloonCloud { from { top: -20%; } to { top: 110%; } }
+.entry-balloon {
+    position: absolute; left: 50%; top: 12%; width: min(72%, 120px); aspect-ratio: 96 / 220;
+    transform: translateX(-50%); animation: lobbyBalloonBob 2.4s ease-in-out infinite alternate;
+}
+@keyframes lobbyBalloonBob { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -8%); } }
+.balloon-ball {
+    position: absolute; left: 22%; top: 0; width: 56%; aspect-ratio: 96 / 120;
+    background: url('/assets/balloon/props/balloon.webp') 0 0 / 400% 800% no-repeat; image-rendering: pixelated;
+}
+.balloon-ball::after {
+    content: ''; position: absolute; left: 50%; top: 96%; width: 2px; height: 34%; background: var(--deguri-sprite-line);
+}
+.balloon-rider {
+    position: absolute; left: 0; top: 38%; width: 100%; aspect-ratio: 1;
+    background: url('/assets/balloon/creatures/hedgehog-hang.webp') 0 0 / 400% 100% no-repeat;
+    image-rendering: pixelated; animation: lobbyBalloonHang .8s steps(4) infinite;
+}
+@keyframes lobbyBalloonHang { to { background-position: 133.3333% 0; } }
 
 .lobby-rail {
     min-width: 0; padding-bottom: 24px;
@@ -319,13 +364,15 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
     .rooms-body { padding: 16px; border: 1px solid var(--mobile-line); border-radius: var(--mobile-radius-lg); background: var(--mobile-card); }
     /* PC: 게임을 세로로 긴 카드 한 줄로. 넘치면 옆으로 넘기고 그때만 화살표 (2026-11-18 사용자 스케치) */
     .entry-games {
-        grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(100px, 1fr);
-        grid-auto-rows: clamp(260px, 44vh, 380px);
+        display: flex; height: clamp(260px, 44vh, 380px); flex: none;
         overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 2px; scrollbar-width: none;
         padding: 2px 4px 6px 2px; margin: -2px -4px -6px -2px;
     }
     .entry-games::-webkit-scrollbar { display: none; }
-    .entry-games .tile { scroll-snap-align: start; }
+    .entry-games .tile { flex: 1 1 0; min-width: 100px; scroll-snap-align: start; transition: flex-grow .35s ease-out, min-width .35s ease-out, transform .14s ease-out, box-shadow .14s ease-out; }
+    /* 마우스를 올리면 그 카메라 창이 넓어져 같은 장면이 더 크게 보인다 */
+    .entry-games .tile:hover, .entry-games .tile:focus-visible { flex-grow: 4; }
+    .entry-games:has(.tile:hover) .tile:not(:hover) { min-width: 64px; }
     .entry-games .wheel-face { width: 76%; height: auto; max-width: none; }
     .games-arrow {
         display: grid; place-items: center; position: absolute; top: 50%; z-index: 2;
@@ -363,6 +410,8 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
 }
 @media (prefers-reduced-motion: reduce) {
     .entry-games .tile { transition: none; }
-    .entry-horse img, .entry-deguri { animation: none; }
+    .entry-horse img, .entry-deguri, .art-race, .art-deguri, .art-dice, .art-dice .ui, .wheel-face,
+    .art-balloon, .balloon-cloud, .entry-balloon, .balloon-rider { animation: none; }
+    .balloon-cloud { display: none; }
     .entry-horse img:last-child { opacity: 0; }
 }
