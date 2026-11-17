@@ -311,6 +311,17 @@
   new ResizeObserver(syncGameArrows).observe(gameRow);
   new MutationObserver(syncGameArrows).observe(gameRow, { childList: true });
 
+  // 카드 사이 틈을 지나도 고른 표시가 꺼지지 않게: 마지막으로 올린 카드를 줄을 벗어날 때까지 유지한다.
+  function pickGame(tile) {
+    gameRow.querySelectorAll('.tile.is-picked').forEach(function (t) { if (t !== tile) t.classList.remove('is-picked'); });
+    if (tile) tile.classList.add('is-picked');
+  }
+  gameRow.addEventListener('pointerover', function (e) {
+    var tile = e.pointerType === 'mouse' && e.target.closest('.tile');
+    if (tile) pickGame(tile);   // 틈 위에서는 그대로 둔다
+  });
+  gameRow.addEventListener('pointerleave', function () { pickGame(null); });
+
   // ─── 계정: 처음·단골은 로그인 시트, 로그인 상태는 로그아웃 ───
   $('#acct').addEventListener('click', function () {
     if (isLoggedIn()) { var body = openPanel('내 계정'); body.appendChild(textNode('p', auth.name)); body.appendChild(panelButton('로그아웃', logout)); return; }

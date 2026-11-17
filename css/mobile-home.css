@@ -163,6 +163,7 @@
 
 /* 둥둥라이더: 하늘이 아래로 흘러 올라가는 느낌 — 게임 그림 그대로(assets/balloon) */
 .art-balloon {
+    container-type: size;
     background: var(--mobile-soft) url('/assets/balloon/bg/sky-mid.webp') center 100% / cover no-repeat;
     animation: lobbyBalloonSky 18s ease-in-out infinite alternate;
 }
@@ -175,7 +176,8 @@
 .balloon-cloud + .balloon-cloud { left: 30%; width: 70%; animation-delay: -3.5s; }
 @keyframes lobbyBalloonCloud { from { top: -20%; } to { top: 110%; } }
 .entry-balloon {
-    position: absolute; left: 50%; top: 6%; height: 88%; max-width: 80%; aspect-ratio: 96 / 220;
+    /* 폭·높이 중 작은 쪽 하나로 크기를 정해 비율이 깨지지 않게(깨지면 고슴도치가 줄을 놓친다) */
+    position: absolute; left: 50%; top: 6%; width: min(80cqw, 38.4cqh); aspect-ratio: 96 / 220;
     transform: translateX(-50%); animation: lobbyBalloonBob 2.4s ease-in-out infinite alternate;
 }
 @keyframes lobbyBalloonBob { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -8%); } }
@@ -364,15 +366,16 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
     .rooms-body { padding: 16px; border: 1px solid var(--mobile-line); border-radius: var(--mobile-radius-lg); background: var(--mobile-card); }
     /* PC: 게임을 세로로 긴 카드 한 줄로. 넘치면 옆으로 넘기고 그때만 화살표 (2026-11-18 사용자 스케치) */
     .entry-games {
-        display: flex; height: clamp(260px, 44vh, 380px); flex: none;
+        display: flex; height: calc(clamp(260px, 44vh, 380px) + 56px); flex: none;
         overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 2px; scrollbar-width: none;
-        padding: 2px 4px 6px 2px; margin: -2px -4px -6px -2px;
+        padding: 26px 10px 30px; margin: -26px -10px -30px; /* 커진 카드가 잘리지 않게 여유 */
     }
     .entry-games::-webkit-scrollbar { display: none; }
-    .entry-games .tile { flex: 1 1 0; min-width: 100px; scroll-snap-align: start; transition: flex-grow .35s ease-out, min-width .35s ease-out, transform .14s ease-out, box-shadow .14s ease-out; }
-    /* 마우스를 올리면 그 카메라 창이 넓어져 같은 장면이 더 크게 보인다 */
-    .entry-games .tile:hover, .entry-games .tile:focus-visible { flex-grow: 1.9; }
-    .entry-games:has(.tile:hover) .tile:not(:hover) { min-width: 88px; }
+    .entry-games .tile { flex: 1 1 0; min-width: 100px; scroll-snap-align: start; transition: transform .04s linear, outline-color .04s linear; outline: 3px solid transparent; outline-offset: 3px; }
+    /* 마우스를 올린 카드(.is-picked, js/mobile-home.js)만 제자리(가운데)에서 바로 커지고 한 칸 띄운 테두리 고리가 생긴다 — 게임 메뉴 버튼처럼 '골랐다' 느낌 (2026-11-18 사용자 참고 영상) */
+    .entry-games .tile.is-picked, .entry-games .tile:focus-visible {
+        position: relative; z-index: 2; transform: scale(1.08); outline-color: var(--mobile-ink); box-shadow: 2px 3px 0 var(--mobile-ink);
+    }
     .entry-games .wheel-face { width: 76%; height: auto; max-width: none; }
     .games-arrow {
         display: grid; place-items: center; position: absolute; top: 50%; z-index: 2;
