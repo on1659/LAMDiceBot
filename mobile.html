@@ -13,7 +13,7 @@
   <script src="/js/shared/ui-icons.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&amp;display=swap&amp;text=뭘로정할까경마주사위룰렛데구리열린방로그인회원가입게임시작하기%3F">
-  <link rel="stylesheet" href="/css/mobile-home.css?v=release-6">
+  <link rel="stylesheet" href="/css/mobile-home.css?v=release-7">
 </head>
 <body class="mobile-home">
   <div class="mobile-app" hidden>
@@ -35,7 +35,11 @@
             </div>
             <p>게임을 고르면 방이 열려요.</p>
           </div>
-          <div class="entry-games"></div>
+          <div class="entry-games-wrap">
+            <div class="entry-games"></div>
+            <button type="button" class="games-arrow games-prev" aria-label="앞 게임 보기" hidden>‹</button>
+            <button type="button" class="games-arrow games-next" aria-label="다음 게임 보기" hidden>›</button>
+          </div>
         </section>
         <div class="lobby-rail">
           <section class="rooms-block" id="roomsSection" aria-labelledby="roomsTitle">
@@ -144,7 +148,7 @@
   <script src="/js/shared/auth-token-shared.js"></script>
   <script src="/js/shared/ranking-shared.js"></script>
   <script src="/js/mobile-games.js?v=1"></script>
-  <script src="/js/mobile-home.js?v=release-4"></script>
+  <script src="/js/mobile-home.js?v=release-5"></script>
   <script src="/js/ads.js"></script>
 </body>
 </html>

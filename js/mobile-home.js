@@ -298,6 +298,19 @@
   }, { root: $('#scroller') });
   dockObserver.observe($('.entry-games'));
 
+  // PC 게임 줄: 넘칠 때만 좌우 화살표를 보이고, 누르면 한 화면씩 넘긴다.
+  var gameRow = $('.entry-games'), gamesPrev = $('.games-prev'), gamesNext = $('.games-next');
+  function syncGameArrows() {
+    var over = gameRow.scrollWidth > gameRow.clientWidth + 1;
+    gamesPrev.hidden = !over || gameRow.scrollLeft <= 1;
+    gamesNext.hidden = !over || gameRow.scrollLeft + gameRow.clientWidth >= gameRow.scrollWidth - 1;
+  }
+  gamesPrev.addEventListener('click', function () { gameRow.scrollBy({ left: -gameRow.clientWidth, behavior: 'smooth' }); });
+  gamesNext.addEventListener('click', function () { gameRow.scrollBy({ left: gameRow.clientWidth, behavior: 'smooth' }); });
+  gameRow.addEventListener('scroll', syncGameArrows, { passive: true });
+  new ResizeObserver(syncGameArrows).observe(gameRow);
+  new MutationObserver(syncGameArrows).observe(gameRow, { childList: true });
+
   // ─── 계정: 처음·단골은 로그인 시트, 로그인 상태는 로그아웃 ───
   $('#acct').addEventListener('click', function () {
     if (isLoggedIn()) { var body = openPanel('내 계정'); body.appendChild(textNode('p', auth.name)); body.appendChild(panelButton('로그아웃', logout)); return; }
@@ -692,6 +705,7 @@
   }
   $$('[data-panel]').forEach(function (b) { b.onclick = function () { feature(b.dataset.panel); }; });
   renderGameCatalog();
+  syncGameArrows();
   syncTop();
   var entryChoice = ls(ENTRY_CHOICE_KEY);
   if (location.hash === '#start' || (!isLoggedIn() && (inviteReturnPath() || entryChoice === 'login' || (!freeName && entryChoice !== 'guest')))) {
