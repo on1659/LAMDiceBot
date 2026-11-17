@@ -363,6 +363,16 @@
   --mobile-text-input: 16px;  /* 입력·주 버튼 — iOS 확대 방지 */
   --mobile-text-md: 17px;
   --mobile-text-lg: 22px;
+  /* [tokens:pcroom:light] PC(>760px) 게임 방 3단 (css/pc-room.css). 게임색은 주 버튼·무대·고른 칸에만 */
+  --pc-horse-fill: #8b4513;          /* 흰 글자 7:1 이상 */
+  --pc-horse-tint: var(--horse-accent-light);
+  --pc-dice-fill: var(--dice-500);
+  --pc-dice-tint: var(--dice-accent-bg);
+  --pc-roulette-fill: var(--yellow-500);   /* 위 글자는 --text-on-light */
+  --pc-roulette-tint: var(--roulette-50);
+  --pc-deguri-fill: #3a7a4f;         /* 흰 글자 5.2:1 — --deguri-600 은 4.33 으로 미달 */
+  --pc-deguri-tint: var(--deguri-cream);
+  /* [/tokens:pcroom:light] */
 
   /* [tokens:common:light] 공통 공유 모듈 (js/shared/*·free) */
   --common-ink-faint: #999;        /* 빈 목록 안내·시각 같은 옅은 글자 (채팅·주문·준비) */
@@ -920,6 +930,16 @@
   --mobile-violet: #3b3548;
   --mobile-soft: #30392d;
   --mobile-shadow: 0 12px 35px rgba(0,0,0,.2);
+  /* [tokens:pcroom:dark] PC(>760px) 게임 방 3단 (css/pc-room.css) */
+  --pc-horse-fill: #73492f;
+  --pc-horse-tint: var(--horse-accent-light);
+  --pc-dice-fill: var(--dice-600);
+  --pc-dice-tint: var(--dice-accent-bg);
+  --pc-roulette-fill: var(--yellow-500);
+  --pc-roulette-tint: var(--roulette-50);
+  --pc-deguri-fill: #3a7a4f;
+  --pc-deguri-tint: var(--gray-100);
+  /* [/tokens:pcroom:dark] */
 
   /* [tokens:common:dark] 공통 공유 모듈 (js/shared/*·free) */
   --common-ink-faint: var(--text-tertiary);

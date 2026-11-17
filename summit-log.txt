@@ -1,4 +1,31 @@
 ========================================
+📋 Summit Log - 2026-11-17 (PC 게임 방 B안 3단)
+========================================
+
+## 변경 파일
+- js/pc-room.js (신규): PC(>760px) 게임 방 표현 레이어. 방 안(#gameSection.active)일 때 기존 요소를 주석 표시와 함께 #pcRoomTop(72px 머리줄)·#pcRoomLeft(참여자)·#pcRoomCenter(고르기·무대·#pcRoomActions)·#pcRoomRight(채팅·주문·기록 탭)로 옮기고, 폰 폭이 되면 mobile-game.js 보다 먼저 제자리로 돌려놓는다. 게임 코드·소켓·ID 변경 없음
+- css/pc-room.css (신규): body.pc-room 범위 스타일. Concept 7 무채색 + 게임색(주 버튼·무대·고른 칸만), 1279px 이하 두 칸 접힘, 룰렛 판 320~560px 가변, 주사위 시스템 카드 한 줄, 룰렛 당첨 팝업 → 돌림판 아래 한 줄, 경마 순위 발표 카드 재디자인, 경마 #liveRankingPanel 왼쪽 칸 표시
+- css/theme.css: [tokens:pcroom:light]/[tokens:pcroom:dark] — --pc-{horse,dice,roulette,deguri}-{fill,tint}
+- dice/roulette/horse-race/deguri-multiplayer.html: pc-room.css·pc-room.js 연결 (mobile-game.js 보다 먼저 로드 — 폭 전환 순서)
+- DESIGN.md: PC 게임 방 틀 규칙·결정 기록
+- docs/goal/applied/pc-room-three-column.md: 명세(세 칸 기준 1280px 로 조정한 이유, 데구리 순위는 캔버스 안 순위표 유지 결정 포함)
+
+## 상세 변경 내역
+
+### 배치
+- 참여자 목록에 준비 배지를 달고 준비 목록은 숨김(방장 드래그로 준비시키기는 PC 새 화면에서 안 됨)
+- 주 버튼은 상태마다 하나: 아직 준비 전이면 '준비', 그다음 '시작'. 나머지 방장 버튼은 글자 버튼
+- 결과 단계에서 사용자가 탭을 직접 고르지 않았으면 오른쪽 칸을 '기록' 탭으로
+- 이유: 2026-11-17 사용자가 1440×900 실제 크기 시안 4종 중 B안 선택
+
+### 검증
+- 네 게임 대기·진행·결과 × 라이트·다크 실제 2인 플레이 캡처, 1080 폭(두 칸) 확인
+- PC↔폰 폭 전환 시 요소 복원 확인, 경마 전체화면 왕복 시 트랙 복귀 확인
+- check-hardcoded-colors 통과, 폰 QA: 카탈로그 PASS·스모크 148 PASS. 경마 스모크 '선택' 접기 단계 시간 초과는 pc-room.js 를 비워도 같아 이번 변경과 무관(서버에 테스트 방 다수 생성 후)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-11-17 (모바일 새 첫 화면·로비·게임 방 Concept 7 토큰화·PC 깨짐 수정)
 ========================================
 

@@ -1,0 +1,766 @@
+/* PC (>760px) game room — direction B "people-first, 3 columns" (docs/goal/pc-room-three-column.md).
+ * Applies only while js/pc-room.js has set body.pc-room. Colours: Concept 7 neutrals (--mobile-*)
+ * plus the per-game fill/tint (--pc-*-fill/-tint, css/theme.css [tokens:pcroom]). */
+
+body.pc-room {
+  --pc-fill: var(--pc-horse-fill);
+  --pc-on-fill: var(--text-on-accent);
+  --pc-tint: var(--pc-horse-tint);
+  --pc-col-left: 260px;
+  --pc-col-right: 320px;
+  --pc-top: 72px;
+  background: var(--mobile-canvas) !important;
+  color: var(--mobile-ink);
+  font-family: "Pretendard", -apple-system, "Apple SD Gothic Neo", sans-serif;
+  margin: 0;
+  padding: 0 !important;
+  min-height: 100vh;
+}
+body.pc-room-dice { --pc-fill: var(--pc-dice-fill); --pc-tint: var(--pc-dice-tint); }
+body.pc-room-roulette { --pc-fill: var(--pc-roulette-fill); --pc-on-fill: var(--text-on-light); --pc-tint: var(--pc-roulette-tint); }
+body.pc-room-deguri { --pc-fill: var(--pc-deguri-fill); --pc-tint: var(--pc-deguri-tint); }
+
+/* ---------- page frame ---------- */
+body.pc-room > .container {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  min-height: 0 !important;
+}
+body.pc-room .container > div:has(> .brand-title) { display: none !important; }
+body.pc-room #gameSection {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  max-width: none !important;
+}
+body.pc-room #gameSection > .ad-container { max-width: 1360px; margin: 0 auto 16px !important; }
+
+/* ---------- top bar ---------- */
+#pcRoomTop {
+  height: var(--pc-top);
+  border-bottom: 1px solid var(--mobile-line);
+  background: var(--mobile-canvas);
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+.pc-room-top-inner {
+  max-width: 1440px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 40px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pc-room-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 14px;
+  border-right: 1px solid var(--mobile-line);
+  color: var(--mobile-ink) !important;
+  text-decoration: none !important;
+  font: 900 19px/1 "Pretendard", sans-serif;
+  letter-spacing: -.07em;
+  flex-shrink: 0;
+}
+.pc-room-logo svg { width: 27px; height: 27px; }
+.pc-room-top-bar { flex: 1; min-width: 0; }
+body.pc-room #controlBarMount .room-control-bar {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+body.pc-room #controlBarMount .control-bar-title {
+  order: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  font-size: var(--mobile-text-md);
+  font-weight: 800;
+  color: var(--mobile-ink);
+  white-space: nowrap;
+}
+body.pc-room #roomNameDisplay { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.pc-room #controlBarMount #leaveBtn,
+body.pc-room #pcRoomMenuButton,
+body.pc-room #freeInviteBar {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: var(--mobile-radius-sm);
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font: 700 15px "Pretendard", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: none !important;
+  cursor: pointer;
+  white-space: nowrap;
+  width: auto;
+  margin: 0;
+}
+body.pc-room #controlBarMount #leaveBtn { order: 0; }
+body.pc-room #freeInviteBar { order: 2; margin-left: auto; max-width: 340px; overflow: hidden; }
+body.pc-room #freeInviteBar * { color: inherit !important; background: none !important; border: 0 !important; font-size: var(--mobile-text-sm) !important; }
+body.pc-room #controlBarMount #leaveBtn:hover,
+body.pc-room #pcRoomMenuButton:hover,
+body.pc-room #freeInviteBar:hover { background: var(--mobile-soft) !important; }
+.pc-room-menu-wrap { position: relative; flex-shrink: 0; }
+#pcRoomMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 260px;
+  padding: 16px;
+  border-radius: var(--mobile-radius-lg);
+  border: 1px solid var(--mobile-line);
+  background: var(--mobile-card);
+  box-shadow: var(--mobile-shadow);
+  z-index: 70;
+}
+#pcRoomMenu .control-bar-meta { flex-direction: column; align-items: stretch; gap: 12px; }
+
+/* ---------- three columns ---------- */
+#pcRoomGrid {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 40px 16px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: var(--pc-col-left) minmax(0, 1fr) var(--pc-col-right);
+  gap: 24px;
+  height: calc(100vh - var(--pc-top) - var(--pc-room-bottom, 0px));
+  min-height: 560px;
+}
+#pcRoomLeft, #pcRoomCenter, #pcRoomRight { min-height: 0; min-width: 0; }
+#pcRoomLeft, #pcRoomCenter {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+}
+#pcRoomRight {
+  display: flex;
+  flex-direction: column;
+  background: var(--mobile-card);
+  border: 1px solid var(--mobile-line);
+  border-radius: var(--mobile-radius-lg);
+  overflow: hidden;
+}
+
+/* Native section chrome → flat Concept 7 cards */
+body.pc-room #pcRoomGrid .users-section,
+body.pc-room #pcRoomGrid .ready-section,
+body.pc-room #pcRoomGrid .room-expiry-section,
+body.pc-room #pcRoomGrid .horse-selection-section,
+body.pc-room #pcRoomGrid #deguriPickSection,
+body.pc-room #pcRoomGrid .game-rules-section {
+  background: var(--mobile-card) !important;
+  border: 1px solid var(--mobile-line) !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  color: var(--mobile-ink);
+}
+body.pc-room #pcRoomGrid .room-expiry-section { padding: 10px 14px !important; font-size: var(--mobile-text-sm); }
+body.pc-room #pcRoomGrid .room-expiry-section * { font-size: var(--mobile-text-sm) !important; color: var(--mobile-muted) !important; font-weight: 700 !important; }
+body.pc-room #pcRoomGrid .users-title {
+  font: 800 var(--mobile-text-base) "Pretendard", sans-serif !important;
+  color: var(--mobile-ink) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 0 10px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+body.pc-room #pcRoomGrid .users-title::after { display: none !important; }
+body.pc-room #pcRoomGrid #dragHint { display: none !important; }
+body.pc-room #pcRoomGrid .users-list {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  background: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  min-height: 0 !important;
+}
+body.pc-room #pcRoomGrid .user-tag {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: var(--mobile-radius-md) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font: 700 var(--mobile-text-base) "Pretendard", sans-serif !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+/* One people list: the ready list folds into ready badges on the people list (js/pc-room.js data-pc-ready). */
+body.pc-room #pcRoomGrid #readySection { display: none !important; }
+body.pc-room #pcRoomGrid #usersList .user-tag::after {
+  content: "대기";
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--mobile-radius-pill);
+  background: var(--mobile-soft);
+  color: var(--mobile-muted);
+  font-size: var(--mobile-text-xs);
+  font-weight: 700;
+}
+body.pc-room[data-pc-phase="running"] #pcRoomGrid #usersList .user-tag::after { display: none; }
+body.pc-room #pcRoomGrid #usersList .user-tag[data-pc-ready]::after {
+  content: "준비";
+  background: var(--pc-fill);
+  color: var(--pc-on-fill);
+}
+
+/* ---------- center ---------- */
+#pcRoomStage { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+#pcRoomActions {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 0 0;
+  background: var(--mobile-canvas);
+}
+body.pc-room #pcRoomActions .host-controls,
+body.pc-room #pcRoomActions .schedule-open-row { display: contents !important; }
+body.pc-room #pcRoomActions .host-controls[style*="display: none"],
+body.pc-room #pcRoomActions .host-controls[style*="display:none"] { display: none !important; }
+body.pc-room #pcRoomActions .host-controls > div:not([style*="display: none"]):not([style*="display:none"]):not(#deguriHostSettings) { display: contents !important; }
+/* Deguri host settings keep their own row under the buttons. */
+body.pc-room #pcRoomActions #deguriHostSettings { order: 10; flex-basis: 100%; }
+/* While the viewer still has to get ready, ready is the one primary and start steps back. */
+body.pc-room #pcRoomActions:has(#readyButton.pc-room-primary) #startHorseRaceButton:not(:disabled),
+body.pc-room #pcRoomActions:has(#readyButton.pc-room-primary) #startRouletteButton:not(:disabled),
+body.pc-room #pcRoomActions:has(#readyButton.pc-room-primary) #startDeguriButton:not(:disabled),
+body.pc-room #pcRoomActions:has(#readyButton.pc-room-primary) #startButton:not(:disabled) {
+  height: 44px;
+  padding: 0 16px !important;
+  border: 1px solid var(--mobile-line) !important;
+  border-radius: var(--mobile-radius-sm) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font-size: var(--mobile-text-base) !important;
+  box-shadow: none !important;
+}
+body.pc-room #pcRoomActions .host-controls > div[style*="display: none"] { display: none !important; }
+body.pc-room #pcRoomActions button {
+  height: 44px;
+  width: auto !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  padding: 0 14px !important;
+  border-radius: var(--mobile-radius-sm) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--mobile-muted) !important;
+  font: 700 var(--mobile-text-base) "Pretendard", sans-serif !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+  animation: none !important;
+}
+body.pc-room #pcRoomActions button:hover:not(:disabled) { background: var(--mobile-soft) !important; color: var(--mobile-ink) !important; }
+/* The one primary button of each state: start (host) and ready. */
+body.pc-room #pcRoomActions #startHorseRaceButton,
+body.pc-room #pcRoomActions #startRouletteButton,
+body.pc-room #pcRoomActions #startDeguriButton,
+body.pc-room #pcRoomActions #startButton,
+body.pc-room #pcRoomActions #readyButton.pc-room-primary,
+body.pc-room #pcRoomActions #endGameSection button,
+body.pc-room #pcRoomActions #deguriResetButton {
+  order: -1;
+  height: 56px;
+  padding: 0 32px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--pc-fill) !important;
+  color: var(--pc-on-fill) !important;
+  font: 800 var(--mobile-text-md) "Pretendard", sans-serif !important;
+  box-shadow: 2px 3px 0 var(--mobile-ink) !important;
+}
+body.pc-room #pcRoomActions #startHorseRaceButton:hover:not(:disabled),
+body.pc-room #pcRoomActions #startRouletteButton:hover:not(:disabled),
+body.pc-room #pcRoomActions #startDeguriButton:hover:not(:disabled),
+body.pc-room #pcRoomActions #startButton:hover:not(:disabled),
+body.pc-room #pcRoomActions #readyButton.pc-room-primary:hover:not(:disabled) {
+  background: var(--pc-fill) !important;
+  color: var(--pc-on-fill) !important;
+  box-shadow: 1px 2px 0 var(--mobile-ink) !important;
+}
+body.pc-room #pcRoomGrid #pcRoomActions button:disabled {
+  opacity: 1 !important;
+  cursor: default;
+  border-color: var(--mobile-line) !important;
+  background: var(--mobile-soft) !important;
+  color: var(--mobile-muted) !important;
+  box-shadow: none !important;
+}
+
+/* Horse: compact vehicle tiles and track-length chips */
+body.pc-room-horse #pcRoomGrid .horse-selection-header { display: flex; align-items: center; gap: 8px; }
+body.pc-room-horse #pcRoomGrid .horse-selection-header .users-title { font-size: var(--mobile-text-md) !important; margin: 0 !important; }
+body.pc-room-horse #pcRoomGrid .horse-selection-header .users-title .ui { display: none; }
+body.pc-room-horse #pcRoomGrid .horse-selection-grid {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+body.pc-room-horse #pcRoomGrid .horse-selection-button {
+  min-height: 104px;
+  padding: 10px 6px !important;
+  border: 1px solid var(--mobile-line) !important;
+  border-radius: var(--mobile-radius-md) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  font-size: 32px;
+}
+body.pc-room-horse #pcRoomGrid .horse-selection-button:hover:not(:disabled) { background: var(--mobile-soft) !important; }
+body.pc-room-horse #pcRoomGrid .horse-selection-button.selected {
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--pc-tint) !important;
+  box-shadow: 2px 3px 0 var(--mobile-ink) !important;
+}
+body.pc-room-horse #pcRoomGrid .horse-selection-button * { color: var(--mobile-ink); }
+/* The active length is the chip whose inline background is not the plain chip token. */
+body.pc-room #pcRoomGrid .track-length-btn {
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: var(--mobile-radius-pill) !important;
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--pc-fill) !important;
+  color: var(--pc-on-fill) !important;
+  font: 700 var(--mobile-text-sm) "Pretendard", sans-serif !important;
+  box-shadow: none !important;
+  flex: 0 0 auto !important;
+}
+body.pc-room #pcRoomGrid .track-length-btn[style*="track-chip-bg"] {
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+}
+body.pc-room #pcRoomGrid #trackLengthSelector { justify-content: flex-start !important; margin: 12px 0 0 !important; }
+
+/* Dice: rule options as one row of chips */
+body.pc-room-dice #pcRoomGrid .dice-settings-title { font: 800 var(--mobile-text-base) "Pretendard", sans-serif !important; color: var(--mobile-ink) !important; margin: 0 0 10px !important; }
+body.pc-room-dice #pcRoomGrid .dice-settings-title .ui { display: none; }
+body.pc-room-dice #pcRoomGrid .dice-native-rules { flex-direction: row !important; flex-wrap: wrap; gap: 8px !important; }
+body.pc-room-dice #pcRoomGrid .dice-native-rules > label {
+  min-height: 40px;
+  padding: 0 14px !important;
+  border-radius: var(--mobile-radius-pill) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font-size: var(--mobile-text-sm);
+  gap: 6px;
+}
+body.pc-room-dice #pcRoomGrid .dice-native-rules > label:has(input:checked) {
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--pc-fill) !important;
+  color: var(--text-on-accent) !important;
+}
+body.pc-room-dice #pcRoomGrid .dice-native-rules > label:has(input:checked) * { color: inherit !important; }
+body.pc-room-dice #pcRoomGrid .dice-native-rules input[type="radio"] { position: absolute; opacity: 0; width: 1px !important; height: 1px !important; }
+body.pc-room-dice #pcRoomGrid .dice-native-rules > label:focus-within { outline: 2px solid var(--mobile-ink); outline-offset: 2px; }
+
+/* Orders panel in a 320px column */
+body.pc-room .pc-room-panel .history-title-wrapper { display: flex !important; flex-direction: column; align-items: stretch !important; gap: 8px; margin: 0 0 12px !important; }
+body.pc-room .pc-room-panel .order-header-actions { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: center; }
+body.pc-room .pc-room-panel #showOrderListButton {
+  writing-mode: horizontal-tb !important;
+  height: 36px;
+  padding: 0 12px !important;
+  border-radius: var(--mobile-radius-sm) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font: 700 var(--mobile-text-sm) "Pretendard", sans-serif !important;
+  white-space: nowrap;
+  margin: 0 !important;
+}
+body.pc-room .pc-room-panel .sort-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+body.pc-room .pc-room-panel .sort-button {
+  height: 32px;
+  width: auto !important;
+  padding: 0 10px !important;
+  margin: 0 !important;
+  border-radius: var(--mobile-radius-pill) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-muted) !important;
+  font: 700 var(--mobile-text-xs) "Pretendard", sans-serif !important;
+  white-space: nowrap;
+}
+body.pc-room .pc-room-panel .sort-button.active { border-color: var(--mobile-ink) !important; color: var(--mobile-ink) !important; background: var(--mobile-soft) !important; }
+
+/* Roulette: the wheel grows with the free height (game mode) instead of the fixed 350px. */
+body.pc-room-roulette #pcRoomGrid .roulette-wrapper {
+  width: clamp(320px, calc(100vh - var(--pc-top) - var(--pc-room-bottom, 0px) - 300px), 560px);
+  height: clamp(320px, calc(100vh - var(--pc-top) - var(--pc-room-bottom, 0px) - 300px), 560px);
+  margin: 8px auto;
+}
+body.pc-room-roulette #pcRoomGrid .roulette-container { padding: 8px 0 !important; }
+
+/* Dice: the chat is the stage. System cards (game start, rules) become one quiet line instead of the purple card. */
+body.pc-room-dice #pcRoomStage .chat-history-wrapper { flex: 1; min-height: 0; display: flex; }
+body.pc-room-dice #pcRoomStage .chat-section {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
+  background: var(--pc-tint) !important;
+  border: 1px solid var(--mobile-line) !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  overflow: hidden;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+body.pc-room-dice #pcRoomStage .chat-section > div:first-child { display: flex !important; justify-content: flex-end; padding: 8px 12px !important; margin: 0 !important; }
+body.pc-room-dice #pcRoomStage .chat-section > div:first-child > :first-child:not(button) { display: none !important; }
+body.pc-room-dice #pcRoomStage #chatMessages {
+  flex: 1;
+  min-height: 240px;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 8px 16px 16px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+body.pc-room-dice #pcRoomStage .chat-section > div:last-child {
+  padding: 12px 16px;
+  border-top: 1px solid var(--mobile-line);
+  background: var(--mobile-card);
+  margin: 0 !important;
+}
+body.pc-room-dice #pcRoomStage #chatMessages > div[style*="--dice-gradient"] {
+  margin: 8px 0 !important;
+  padding: 8px 12px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+body.pc-room-dice #pcRoomStage #chatMessages > div[style*="--dice-gradient"] div {
+  color: var(--mobile-muted) !important;
+  background: transparent !important;
+  text-shadow: none !important;
+  font-size: var(--mobile-text-sm) !important;
+  font-weight: 700 !important;
+  padding: 0 !important;
+  margin: 2px 0 !important;
+  backdrop-filter: none !important;
+}
+body.pc-room-dice #pcRoomStage #chatMessages > div[style*="--dice-gradient"] .ui { display: none; }
+body.pc-room-dice #pcRoomStage #diceIdleEmoji { display: none !important; }
+body.pc-room-dice #pcRoomStage .game-status { margin: 0 !important; }
+
+/* Roulette: the winner shows as one line under the wheel instead of a full-screen popup. */
+body.pc-room-roulette #pcRoomStage #resultOverlay {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  background: none !important;
+  z-index: auto !important;
+}
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--mobile-card) !important;
+  box-shadow: 2px 3px 0 var(--mobile-ink) !important;
+  text-align: left !important;
+  animation: none !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-title { font-size: 0 !important; margin: 0 !important; color: var(--mobile-coral) !important; }
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-title::before { content: "당첨"; font: 800 var(--mobile-text-base) "Pretendard", sans-serif; color: var(--mobile-coral); }
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-winner { font: 900 var(--mobile-text-lg) "Pretendard", sans-serif !important; margin: 0 !important; color: var(--mobile-ink) !important; }
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-message { flex: 1; margin: 0 !important; color: var(--mobile-muted) !important; font-size: var(--mobile-text-sm) !important; }
+body.pc-room-roulette #pcRoomStage #resultOverlay .result-message .ui { display: none; }
+body.pc-room-roulette #pcRoomStage #resultOverlay button {
+  height: 44px;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  border-radius: var(--mobile-radius-sm) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font: 700 var(--mobile-text-base) "Pretendard", sans-serif !important;
+  box-shadow: none !important;
+}
+
+/* While racing the horse stage comes first; the (idle) action row drops below it. */
+body.pc-room-horse[data-pc-phase="running"] #pcRoomActions { order: 5; }
+/* Chat header stays on top, the input stays at the bottom even while a game hides the message list. */
+body.pc-room .pc-room-panel > .chat-section > div:first-child { margin-bottom: auto !important; }
+
+/* ---------- right: tabs ---------- */
+.pc-room-tabs { display: flex; border-bottom: 1px solid var(--mobile-line); flex-shrink: 0; }
+.pc-room-tabs button {
+  flex: 1;
+  height: 48px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--mobile-muted);
+  font: 700 var(--mobile-text-base) "Pretendard", sans-serif;
+  cursor: pointer;
+  width: auto;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.pc-room-tabs button[aria-selected="true"] { color: var(--mobile-ink); border-bottom-color: var(--mobile-ink); background: var(--mobile-soft); }
+.pc-room-tabs button:focus-visible { outline: 2px solid var(--mobile-ink); outline-offset: -3px; }
+.pc-room-panel { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.pc-room-panel[hidden] { display: none !important; }
+body.pc-room .pc-room-panel > * {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+body.pc-room .pc-room-panel > .history-section {
+  position: static !important;
+  display: block !important;
+  width: auto !important;
+  max-height: none !important;
+  padding: 16px !important;
+  z-index: auto !important;
+}
+body.pc-room .pc-room-panel > .orders-section { padding: 16px !important; }
+body.pc-room .pc-room-panel > .chat-section {
+  flex: 1;
+  min-height: 0;
+  display: flex !important;
+  flex-direction: column;
+  padding: 0 !important;
+}
+body.pc-room .pc-room-panel > .chat-section > div:first-child {
+  display: flex !important;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 12px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--mobile-line) !important;
+  min-height: 0;
+}
+body.pc-room .pc-room-panel > .chat-section > div:first-child > :first-child:not(button) { display: none !important; }
+body.pc-room .pc-room-panel #chatMessages {
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow-y: auto;
+}
+body.pc-room .pc-room-panel .chat-section > :last-child:not(#chatMessages) {
+  margin-top: auto !important;
+  padding: 12px 16px;
+  border-top: 1px solid var(--mobile-line);
+  margin: 0 !important;
+}
+
+/* Inputs and send buttons inside the room → Concept 7 */
+body.pc-room #pcRoomGrid input[type="text"],
+body.pc-room #pcRoomGrid textarea {
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: var(--mobile-radius-sm) !important;
+  border: 1px solid var(--mobile-line) !important;
+  background: var(--mobile-canvas) !important;
+  color: var(--mobile-ink) !important;
+  font: 500 var(--mobile-text-input) "Pretendard", sans-serif !important;
+  padding: 0 12px !important;
+  box-shadow: none !important;
+}
+body.pc-room #pcRoomGrid input[type="text"]:focus { outline: 2px solid var(--mobile-ink); outline-offset: 0; }
+body.pc-room #pcRoomGrid .chat-section > div:last-child > button,
+body.pc-room #pcRoomGrid #orderSaveButton {
+  height: 44px;
+  width: auto !important;
+  padding: 0 16px !important;
+  margin: 0 !important;
+  border-radius: var(--mobile-radius-sm) !important;
+  border: 1px solid var(--mobile-forest) !important;
+  background: var(--mobile-forest) !important;
+  color: var(--mobile-on-forest) !important;
+  font: 700 var(--mobile-text-base) "Pretendard", sans-serif !important;
+  box-shadow: none !important;
+}
+body.pc-room #pcRoomGrid #orderSaveButton:disabled { opacity: .5; }
+
+/* ---------- narrower PC (761–1279px): left column folds into a strip above the stage ---------- */
+@media (max-width: 1279px) {
+  body.pc-room { --pc-col-right: 300px; }
+  #pcRoomGrid { grid-template-columns: minmax(0, 1fr) var(--pc-col-right); padding: 16px 24px; gap: 16px; }
+  .pc-room-top-inner { padding: 0 24px; }
+  #pcRoomLeft {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: flex-start;
+    max-height: 132px;
+  }
+  #pcRoomLeft > * { flex: 0 0 auto; max-width: 320px; }
+  #pcRoomLeft .users-list { flex-direction: row !important; flex-wrap: wrap; }
+  #pcRoomLeft .user-tag { width: auto !important; min-height: 36px; }
+  #pcRoomCenter { grid-column: 1; grid-row: 2; }
+  #pcRoomRight { grid-column: 2; grid-row: 1 / span 2; }
+  #pcRoomGrid { grid-template-rows: auto minmax(0, 1fr); }
+}
+
+/* While a game runs, the action row is idle — let it scroll with the stage instead of covering it. */
+body.pc-room[data-pc-phase="running"] #pcRoomActions { position: static; }
+
+/* Horse live ranking (native #liveRankingPanel) on the left during a race; last place gets the coral border. */
+body.pc-room #pcRoomLeft #liveRankingPanel {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 1px solid var(--mobile-line);
+  background: var(--mobile-card) !important;
+  color: var(--mobile-ink) !important;
+  font-family: "Pretendard", sans-serif !important;
+}
+body.pc-room[data-pc-phase="wait"] #pcRoomLeft #liveRankingPanel { display: none !important; }
+body.pc-room #pcRoomLeft #liveRankingPanel > div:first-child {
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 0 8px !important;
+  text-align: left !important;
+  font: 800 var(--mobile-text-base) "Pretendard", sans-serif !important;
+}
+body.pc-room #pcRoomLeft #liveRankingList > div {
+  min-height: 40px;
+  margin: 0 0 6px !important;
+  padding: 0 10px;
+  border: 1px solid var(--mobile-line);
+  border-radius: var(--mobile-radius-md);
+  color: var(--mobile-ink) !important;
+  font-weight: 700 !important;
+}
+body.pc-room #pcRoomLeft #liveRankingList > div span { font-size: var(--mobile-text-sm) !important; color: inherit !important; }
+body.pc-room #pcRoomLeft #liveRankingList > div:first-child { background: var(--pc-tint); }
+body.pc-room #pcRoomLeft #liveRankingList > div:last-child:not(:first-child) { border: 2px solid var(--mobile-coral); }
+body.pc-room #pcRoomLeft #liveRankingList > div:last-child:not(:first-child) span:last-child { color: var(--mobile-coral) !important; }
+
+/* Horse result card ("순위 발표") → Concept 7: neutral rows, 1st in the game tint, the target (loser) row and block in coral. */
+body.pc-room-horse #resultOverlay .result-card {
+  width: min(420px, 90vw);
+  box-sizing: border-box;
+  padding: 24px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 2px solid var(--mobile-ink);
+  background: var(--mobile-card) !important;
+  box-shadow: 2px 3px 0 var(--mobile-ink);
+  color: var(--mobile-ink);
+  font-family: "Pretendard", sans-serif !important;
+}
+body.pc-room-horse #resultOverlay .result-title {
+  font: 800 var(--mobile-text-lg) "Pretendard", sans-serif !important;
+  color: var(--mobile-ink) !important;
+  text-shadow: none !important;
+  margin: 0 0 16px !important;
+}
+body.pc-room-horse #resultOverlay .result-title .ui { display: none; }
+body.pc-room-horse #resultRankings > div:not(.result-target-block) {
+  background: var(--mobile-card) !important;
+  border: 1px solid var(--mobile-line) !important;
+  border-radius: var(--mobile-radius-md) !important;
+  box-shadow: none !important;
+  margin: 0 0 6px !important;
+  padding: 8px 12px !important;
+  animation: none !important;
+}
+body.pc-room-horse #resultRankings > div:not(.result-target-block) span { color: var(--mobile-ink) !important; text-shadow: none !important; }
+body.pc-room-horse #resultRankings > .result-rank-1 { background: var(--pc-tint) !important; }
+body.pc-room-horse #resultRankings > .result-target-row { border: 2px solid var(--mobile-coral) !important; }
+body.pc-room-horse #resultRankings > .result-target-row span { color: var(--mobile-coral) !important; }
+body.pc-room-horse #resultRankings > .result-target-block {
+  margin-top: 12px !important;
+  padding: 14px 16px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 2px solid var(--mobile-coral) !important;
+  background: var(--mobile-card) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+body.pc-room-horse #resultRankings > .result-target-block span,
+body.pc-room-horse #resultRankings > .result-target-block div { color: var(--mobile-ink) !important; text-shadow: none !important; }
+body.pc-room-horse #resultRankings > .result-target-block > div:first-child:not(.winner-chip-row) {
+  background: var(--mobile-coral) !important;
+  color: var(--mobile-card) !important;
+}
+body.pc-room-horse #resultRankings .winner-chip {
+  background: var(--pc-fill) !important;
+  color: var(--pc-on-fill) !important;
+  border: 2px solid var(--mobile-ink) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+body.pc-room-horse #resultRankings .winner-chip.empty { background: var(--mobile-soft) !important; color: var(--mobile-muted) !important; border-color: var(--mobile-line) !important; }
+body.pc-room-horse #resultOverlay .result-card > button {
+  height: 48px;
+  padding: 0 32px !important;
+  border-radius: var(--mobile-radius-lg) !important;
+  border: 2px solid var(--mobile-ink) !important;
+  background: var(--pc-fill) !important;
+  color: var(--pc-on-fill) !important;
+  font: 800 var(--mobile-text-md) "Pretendard", sans-serif !important;
+  box-shadow: 2px 3px 0 var(--mobile-ink) !important;
+}
+
+/* Roulette result: the winner line replaces the yellow commentary banner and must clear the sticky action row. */
+body.pc-room-roulette #pcRoomStage:has(#resultOverlay.visible) #rouletteLiveCommentary { display: none !important; }
+body.pc-room-roulette #pcRoomStage #resultOverlay { scroll-margin-bottom: 112px; }
