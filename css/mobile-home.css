@@ -175,7 +175,7 @@
 .balloon-cloud + .balloon-cloud { left: 30%; width: 70%; animation-delay: -3.5s; }
 @keyframes lobbyBalloonCloud { from { top: -20%; } to { top: 110%; } }
 .entry-balloon {
-    position: absolute; left: 50%; top: 12%; width: min(72%, 120px); aspect-ratio: 96 / 220;
+    position: absolute; left: 50%; top: 6%; height: 88%; max-width: 80%; aspect-ratio: 96 / 220;
     transform: translateX(-50%); animation: lobbyBalloonBob 2.4s ease-in-out infinite alternate;
 }
 @keyframes lobbyBalloonBob { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -8%); } }
@@ -364,7 +364,7 @@ button.create { background: var(--mobile-forest); color: var(--mobile-on-forest)
     .rooms-body { padding: 16px; border: 1px solid var(--mobile-line); border-radius: var(--mobile-radius-lg); background: var(--mobile-card); }
     /* PC: 게임을 세로로 긴 카드 한 줄로. 넘치면 옆으로 넘기고 그때만 화살표 (2026-11-18 사용자 스케치) */
     .entry-games {
-        display: flex; height: clamp(260px, 44vh, 380px); flex: none;
+        display: flex; height: clamp(174px, 29vh, 253px); flex: none;
         overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 2px; scrollbar-width: none;
         padding: 2px 4px 6px 2px; margin: -2px -4px -6px -2px;
     }
