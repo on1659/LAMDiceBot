@@ -31,6 +31,8 @@ body.pc-room > .container {
   border: 0 !important;
   border-radius: 0 !important;
   min-height: 0 !important;
+  max-height: none !important;   /* css/horse-race.css .container caps at 90vh and scrolls inside — the room grid sizes itself */
+  overflow: visible !important;
 }
 body.pc-room .container > div:has(> .brand-title) { display: none !important; }
 body.pc-room #gameSection {
@@ -53,7 +55,7 @@ body.pc-room #gameSection > .ad-container { max-width: 1360px; margin: 0 auto 16
   z-index: 60;
 }
 .pc-room-top-inner {
-  max-width: 1440px;
+  max-width: 1920px;
   height: 100%;
   margin: 0 auto;
   padding: 0 40px;
@@ -141,7 +143,7 @@ body.pc-room #freeInviteBar:hover { background: var(--mobile-soft) !important; }
 
 /* ---------- three columns ---------- */
 #pcRoomGrid {
-  max-width: 1440px;
+  max-width: 1920px;
   margin: 0 auto;
   padding: 24px 40px 16px;
   box-sizing: border-box;
@@ -245,7 +247,40 @@ body.pc-room #pcRoomGrid #usersList .user-tag[data-pc-ready]::after {
 }
 
 /* ---------- center ---------- */
-#pcRoomStage { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+#pcRoomStage { display: flex; flex-direction: column; gap: 12px; flex: 1 0 auto; min-height: 0; }
+/* The game takes the free height (js/pc-room.js fitStage); what it cannot fill becomes filler bars. */
+#pcRoomFit {
+  flex: 1 0 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mobile-radius-lg);
+}
+#pcRoomFit > * { width: 100%; flex: none; }
+#pcRoomCenter > * { flex-shrink: 0; }   /* only the stage stretches; the picker and vote never get squeezed */
+body.pc-room-horse #pcRoomFit,
+body.pc-room-roulette #pcRoomFit { background: var(--pc-tint); overflow: hidden; }
+#pcRoomFit > #pcRoomFitBox { position: relative; width: auto; }
+#pcRoomFitInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 600px;   /* js/pc-room.js HORSE_LAYOUT_W */
+  padding-top: 32px;
+  transform-origin: 0 0;
+}
+/* Deguri and roulette show their own rank / need no people list while running — the stage takes that width. */
+body.pc-room-deguri[data-pc-phase="running"] #pcRoomGrid,
+body.pc-room-roulette[data-pc-phase="running"] #pcRoomGrid { grid-template-columns: minmax(0, 1fr) var(--pc-col-right); }
+body.pc-room-deguri[data-pc-phase="running"] #pcRoomLeft,
+body.pc-room-roulette[data-pc-phase="running"] #pcRoomLeft { display: none; }
+/* Horse keeps its live ranking on the left while racing, in a narrower column. */
+body.pc-room-horse[data-pc-phase="running"] { --pc-col-left: 200px; }
+/* Nothing in the action row can be used mid-game; its height goes to the stage. */
+body.pc-room-horse[data-pc-phase="running"] #pcRoomActions,
+body.pc-room-deguri[data-pc-phase="running"] #pcRoomActions,
+body.pc-room-roulette[data-pc-phase="running"] #pcRoomActions { display: none; }
 #pcRoomActions {
   margin-top: auto;
   position: sticky;
@@ -432,10 +467,10 @@ body.pc-room .pc-room-panel .sort-button {
 }
 body.pc-room .pc-room-panel .sort-button.active { border-color: var(--mobile-ink) !important; color: var(--mobile-ink) !important; background: var(--mobile-soft) !important; }
 
-/* Roulette: the wheel grows with the free height (game mode) instead of the fixed 350px. */
+/* Roulette: the wheel grows to the free stage size (js/pc-room.js fitStage sets --pc-wheel) instead of the fixed 350px. */
 body.pc-room-roulette #pcRoomGrid .roulette-wrapper {
-  width: clamp(320px, calc(100vh - var(--pc-top) - var(--pc-room-bottom, 0px) - 300px), 560px);
-  height: clamp(320px, calc(100vh - var(--pc-top) - var(--pc-room-bottom, 0px) - 300px), 560px);
+  width: var(--pc-wheel, 360px);
+  height: var(--pc-wheel, 360px);
   margin: 8px auto;
 }
 body.pc-room-roulette #pcRoomGrid .roulette-container { padding: 8px 0 !important; }

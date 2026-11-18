@@ -5,6 +5,13 @@
     'use strict';
     const MOBILE_WIDTH = 760;
     const SYNC_MS = 150;
+    // Stage fit: the game fills the free height; what does not fit becomes filler bars.
+    const HORSE_LAYOUT_W = 600;      // horse track keeps one layout width and is scaled (camera coordinates never change)
+    const HORSE_BTN_ROW = 32;        // the track's top button row sits above the wrapper (css/horse-race.css .track-top-btn-row)
+    const HORSE_SCALE_MAX = 1.6;
+    const DEGURI_RATIO_NATIVE = 0.72, DEGURI_RATIO_MIN = 0.55, DEGURI_RATIO_MAX = 1.78;   // native = js/deguri-render.js DESKTOP_ASPECT; a short wide window may go below it mid-race; max = the phone ratio
+    const WHEEL_MIN = 280, WHEEL_MAX = 680, WHEEL_GAP = 16;
+    const RANK_SLIDE_MS = 320;
     const media = matchMedia('(max-width: ' + MOBILE_WIDTH + 'px)');
     const landscapeMedia = matchMedia('(orientation: landscape) and (max-height: ' + MOBILE_WIDTH + 'px) and (pointer: coarse)');
     const byId = id => document.getElementById(id);
@@ -14,6 +21,7 @@
     const moved = [];
     let enabled = false, timer = null, top = null, grid = null, leftColumn = null, panels = null, tabButtons = null, menu = null, currentTab = '';
     let userPickedTab = false, lastPhase = '';
+    let fit = null, fitBox = null, fitInner = null, fitObserver = null;
 
     const node = (tag, attrs, text) => {
         const element = document.createElement(tag);
@@ -140,7 +148,16 @@
             relocate(byId('rankVoteSection'), center);
             center.append(stage);
             ['rouletteScheduleStatus', 'gameStatus', 'targetRankBanner', 'targetRankReason'].forEach(id => relocate(byId(id), stage));
-            relocate(byId('raceTrackWrapper') || byId('deguriStage') || byId('rouletteContainer'), stage);
+            fit = node('div', { id: 'pcRoomFit' });
+            stage.append(fit);
+            if (game === 'horse') {
+                fitBox = node('div', { id: 'pcRoomFitBox' });
+                fitInner = node('div', { id: 'pcRoomFitInner' });
+                fitBox.append(fitInner); fit.append(fitBox);
+                relocate(byId('raceTrackWrapper'), fitInner);
+            } else relocate(byId('deguriStage') || byId('rouletteContainer'), fit);
+            fitObserver = new ResizeObserver(fitStage);
+            fitObserver.observe(fit);
             // Roulette's winner popup becomes a line right under the wheel (css/pc-room.css).
             if (game === 'roulette') relocate(byId('resultOverlay'), stage);
             ['turboSettingSection', 'replaySection', 'endGameSection'].forEach(id => relocate(byId(id), stage));
@@ -164,8 +181,12 @@
             const slot = anchor(target);
             marker.replaceWith(slot);
         });
+        fitObserver?.disconnect();
+        byId('deguriCanvasBox')?.style.removeProperty('--deguri-view-height-ratio');
+        document.body.style.removeProperty('--pc-wheel');
+        stopRankSlide();
         top?.remove(); grid?.remove();
-        top = grid = leftColumn = panels = tabButtons = menu = null;
+        top = grid = leftColumn = panels = tabButtons = menu = fit = fitBox = fitInner = fitObserver = null;
         currentTab = ''; userPickedTab = false; lastPhase = '';
         document.body.classList.remove('pc-room', 'pc-room-' + game);
         byId('readyButton')?.classList.remove('pc-room-primary');
@@ -211,6 +232,7 @@
         // Horse builds its live ranking lazily (inside the record panel); during a race it belongs on the left.
         const live = byId('liveRankingPanel');
         if (live && leftColumn) { relocate(live, leftColumn); if (live.parentNode === leftColumn && leftColumn.firstChild !== live) leftColumn.prepend(live); }
+        if (game === 'horse') { if (phase === 'wait') slides.clear(); watchRankSlide(); }
         // Ready list folds into badges on the one people list.
         const readyNames = new Set(Array.from(document.querySelectorAll('#readyUsersList [data-user-name]'), tag => tag.dataset.userName));
         document.querySelectorAll('#usersList .user-tag[data-user-name]').forEach(tag => {
@@ -220,10 +242,97 @@
         const ready = byId('readyButton');
         if (ready) ready.classList.toggle('pc-room-primary', ready.textContent.trim() === '준비');
         // Keep the bottom sticky ad from covering the columns.
-        const sticky = document.querySelector('.ad-sticky');
-        const bottom = visible(sticky) ? Math.ceil(sticky.getBoundingClientRect().height) : 0;
+        const bottom = Math.ceil(Math.max(0, ...Array.from(document.querySelectorAll('.ad-sticky'), sticky => visible(sticky) ? sticky.getBoundingClientRect().height : 0)));
         const value = bottom + 'px';
         if (document.documentElement.style.getPropertyValue('--pc-room-bottom') !== value) document.documentElement.style.setProperty('--pc-room-bottom', value);
+        fitStage();
+    }
+    // Make the game as large as the free stage height allows.
+    function fitStage() {
+        if (!fit || !fit.isConnected) return;
+        const width = fit.clientWidth, height = fit.clientHeight;
+        if (!width || !height) return;
+        if (game === 'horse') {
+            const wrapper = byId('raceTrackWrapper');
+            const natural = fitInner.offsetHeight;
+            const lifted = !wrapper || !fitInner.contains(wrapper) || !visible(wrapper);
+            // Never smaller than the native track: while the picker takes the height, the column scrolls instead.
+            const scale = lifted || natural < 60 ? 1 : Math.max(1, Math.min(width / HORSE_LAYOUT_W, height / natural, HORSE_SCALE_MAX));
+            fit.style.minHeight = lifted ? '' : natural + 'px';
+            fitInner.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(4) + ')';
+            fitBox.style.width = Math.floor(HORSE_LAYOUT_W * scale) + 'px';
+            fitBox.style.height = lifted ? '' : Math.floor(natural * scale) + 'px';
+            return;
+        }
+        // Deguri / roulette size themselves: free height = what the stage grew by, minus what overflows the column.
+        const center = byId('pcRoomCenter');
+        const outer = child => { const style = getComputedStyle(child); return child.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom); };
+        const spareOf = child => (child ? height - outer(child) : 0) + Math.min(0, center.clientHeight - center.scrollHeight);
+        if (game === 'deguri') {
+            const box = byId('deguriCanvasBox'), canvas = byId('deguriCanvas'), stageEl = byId('deguriStage');
+            if (!box || !canvas || !stageEl || !visible(canvas) || !fit.contains(box) || !box.clientWidth) return;
+            // Only a running race trades height for width below the native ratio; while picking, the column scrolls instead.
+            const floor = document.body.dataset.pcPhase === 'running' ? DEGURI_RATIO_MIN : DEGURI_RATIO_NATIVE;
+            const ratio = Math.min(DEGURI_RATIO_MAX, Math.max(floor, (canvas.offsetHeight + spareOf(stageEl)) / box.clientWidth));
+            const current = parseFloat(box.style.getPropertyValue('--deguri-view-height-ratio')) || 0;
+            // js/deguri-render.js sizes the canvas only on window resize — also nudge it when the column width changed.
+            if (Math.abs(ratio - current) < 0.01 && Math.abs(canvas.offsetWidth - box.clientWidth) < 2) return;
+            box.style.setProperty('--deguri-view-height-ratio', ratio.toFixed(4));
+            window.dispatchEvent(new Event('resize'));
+        } else if (game === 'roulette') {
+            const container = byId('rouletteContainer'), wheel = container?.querySelector('.roulette-wrapper');
+            if (!wheel || !visible(wheel)) return;
+            const size = Math.round(Math.min(WHEEL_MAX, Math.max(WHEEL_MIN, Math.min(width - WHEEL_GAP, wheel.offsetHeight + spareOf(container)))));
+            const value = size + 'px';
+            if (document.body.style.getPropertyValue('--pc-wheel') !== value) document.body.style.setProperty('--pc-wheel', value);
+        }
+    }
+    // Horse live ranking: rows are rebuilt every 100ms (js/horse-race.js updateLiveRanking); slide each vehicle
+    // from where it was drawn to its new place instead of jumping. Keyed by the vehicle thumbnail (unique per race).
+    const slides = new Map();
+    let slideFrame = 0, rankObserver = null;
+    function rankRows() {
+        const list = byId('liveRankingList');
+        return list ? Array.from(list.children).map(row => ({ row, key: row.children[1]?.innerHTML || row.textContent })) : [];
+    }
+    function paintRankSlide() {
+        slideFrame = 0;
+        const now = performance.now();
+        let moving = false;
+        rankRows().forEach(({ row, key }) => {
+            const slide = slides.get(key);
+            if (!slide) return;
+            const t = Math.min(1, (now - slide.start) / RANK_SLIDE_MS);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const y = slide.from + (slide.to - slide.from) * eased;
+            row.style.transform = Math.abs(y - slide.to) < 0.5 ? '' : 'translateY(' + (y - slide.to).toFixed(1) + 'px)';
+            slide.at = y;
+            if (t < 1) moving = true;
+        });
+        if (moving) slideFrame = requestAnimationFrame(paintRankSlide);
+    }
+    function onRankRebuilt() {
+        const now = performance.now();
+        rankRows().forEach(({ row, key }) => {
+            const top = row.offsetTop;
+            const slide = slides.get(key);
+            if (!slide) slides.set(key, { from: top, to: top, at: top, start: 0 });
+            else if (slide.to !== top) slides.set(key, { from: slide.at, to: top, at: slide.at, start: now });
+        });
+        if (!slideFrame) paintRankSlide();
+    }
+    function watchRankSlide() {
+        const list = byId('liveRankingList');
+        if (!list || rankObserver?.target === list) return;
+        stopRankSlide();
+        rankObserver = new MutationObserver(onRankRebuilt);
+        rankObserver.observe(list, { childList: true });
+        rankObserver.target = list;
+    }
+    function stopRankSlide() {
+        rankObserver?.disconnect(); rankObserver = null;
+        if (slideFrame) cancelAnimationFrame(slideFrame);
+        slideFrame = 0; slides.clear();
     }
     function schedule() { if (timer === null) timer = setTimeout(sync, SYNC_MS); }
     function boot() {
