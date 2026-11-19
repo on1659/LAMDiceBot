@@ -1,0 +1,87 @@
+/* 재밍라이더(jamming) — deguri.css 위에 다른 점만. 페이지는 둥둥라이더처럼 데구리 복사본이라 DOM id·클래스가 같다(jamming-multiplayer.html 맨 위 주석).
+   색은 전부 css/theme.css 토큰. 캔버스 위 HUD(소식 줄·순위)는 스킨과 무관한 고정 HUD 토큰(--deguri-hud-*)을 쓴다 */
+
+/* 옆으로 나는 게임이라 캔버스는 폭을 다 쓴다 — 높이는 렌더러가 폭·창 높이로 정한다(js/jamming-render.js resize) */
+#deguriCanvasBox {
+    position: relative;
+    overflow: hidden;
+}
+#deguriCanvas {
+    display: block;
+    touch-action: manipulation;
+}
+
+/* 소식 줄(목업 .feed) — 왼쪽 위, 나에게 일어난 일은 노란 알약 */
+.jamming-feed {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 96px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 4px;
+    justify-items: start;
+    pointer-events: none;
+    z-index: 4;
+}
+.jamming-feed li {
+    max-width: 100%;
+    padding: 1px 10px;
+    border-radius: 999px;
+    background: rgba(var(--deguri-hud-rgb), 0.82);
+    color: var(--deguri-hud-cream);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.jamming-feed li.me { background: var(--jamming-me); color: var(--jamming-on-me); }
+
+/* 내 순위(목업 .rank) — 오른쪽 위 */
+.jamming-rank {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    background: rgba(var(--deguri-hud-rgb), 0.82);
+    color: var(--deguri-hud-cream);
+    font: 400 22px/1 'Jua', sans-serif;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 4;
+}
+
+/* 넓은 화면 순위 칸(목업 PC .side) — 캔버스 오른쪽, 카메라 이름 아래 */
+.jamming-board {
+    position: absolute;
+    top: 84px;
+    right: 10px;
+    width: 140px;
+    max-height: calc(100% - 130px);
+    overflow: hidden;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    display: grid;
+    gap: 1px;
+    border-radius: 10px;
+    background: rgba(var(--deguri-hud-rgb), 0.6);
+    color: var(--deguri-hud-cream);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 4;
+}
+.jamming-board li { display: flex; gap: 6px; align-items: center; padding: 0 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; }
+.jamming-board li.me { background: rgba(var(--highlight-rgb), 0.18); font-weight: 800; }
+.jamming-board li.done { opacity: 0.7; }
+.jamming-board li b { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+@media (max-width: 600px) {
+    .jamming-feed li { font-size: 11px; }
+    .jamming-rank { font-size: 18px; padding: 4px 10px; }
+}

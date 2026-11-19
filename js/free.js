@@ -36,7 +36,8 @@
         ladder:   '사다리타기',
         'spin-arena': '회전 칼날',
         deguri:   '데구리',
-        dodong:   '둥둥라이더'
+        dodong:   '둥둥라이더',
+        jamming:  '재밍라이더'
     };
 
     // 게임 슬러그 → 공용 아이콘 id (css/ui-icons.css .ui-{id})
@@ -48,7 +49,8 @@
         ladder:   'ladder',
         'spin-arena': 'swords',
         deguri:   'paw',
-        dodong:   'balloon'
+        dodong:   'balloon',
+        jamming:  'wave'
     };
 
     // 게임별 로딩 화면 바탕 — css/theme.css 의 --free-loading-* (라이트 = 게임 그라데이션, 다크 = 그 게임 페이지 바닥)
@@ -60,7 +62,8 @@
         ladder:   'var(--free-loading-ladder)',
         'spin-arena': 'var(--free-loading-spin-arena)',
         deguri:   'var(--free-loading-deguri)',
-        dodong:   'var(--free-loading-balloon)'
+        dodong:   'var(--free-loading-balloon)',
+        jamming:  'var(--free-loading-jamming)'
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -72,7 +75,8 @@
         'ladder':     '/ladder',
         'spin-arena': '/spin-arena',
         'deguri':     '/deguri',   // gameType 은 deguri, 공개 경로는 /deguri(2026-09-29)
-        'balloon':    '/dodong'    // gameType 은 balloon, 공개 경로는 /dodong(2026-10-21)
+        'balloon':    '/dodong',   // gameType 은 balloon, 공개 경로는 /dodong(2026-10-21)
+        'jamming':    '/jamming'
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
@@ -81,7 +85,8 @@
         'ladder':     'pendingLadderJoin',
         'spin-arena': 'pendingSpinArenaJoin',
         'deguri':     'pendingDeguriJoin',
-        'balloon':    'pendingBalloonJoin'
+        'balloon':    'pendingBalloonJoin',
+        'jamming':    'pendingJammingJoin'
         // dice는 sessionStorage.diceActiveRoom을 사용 (게임 페이지 IIFE가 자동 joinRoom)
     };
     // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
@@ -93,7 +98,8 @@
         'ladder':     'ladderActiveRoom',
         'spin-arena': 'spinArenaActiveRoom',
         'deguri':     'deguriActiveRoom',
-        'balloon':    'balloonActiveRoom'
+        'balloon':    'balloonActiveRoom',
+        'jamming':    'jammingActiveRoom'
     };
 
     // ─── DOM ──────────────────────────────────
@@ -168,7 +174,8 @@
         'ladder': 'ladder',
         'spin-arena': 'spin-arena',
         'deguri': 'deguri',
-        'dodong': 'dodong'
+        'dodong': 'dodong',
+        'jamming': 'jamming'
     };
     var gameFromPath      = null;
     var shortcodeFromPath = null;

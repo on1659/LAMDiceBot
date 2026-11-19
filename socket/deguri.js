@@ -79,7 +79,7 @@ function assignCreature(idx) { return PICKABLE_CREATURES[idx % PICKABLE_CREATURE
 const EQUIP_SLOTS = ['deguri_skin', 'deguri_balloon'];
 // 이 지갑(상점·옷장·뽑기·장착 이벤트)을 같이 쓰는 게임 — 둥둥라이더(balloon) 방도 같은 gameState.deguri.wallets/equip 칸을 쓴다(사용자 2026-10-18: 스킨 상점 그대로).
 // 모든 방에 gameState.deguri 가 있어서(utils/room-helpers.js) 방을 나갈 때 지우는 곳(rooms.js·chat.js)도 그대로 맞는다
-const WALLET_GAMES = ['deguri', 'balloon'];
+const WALLET_GAMES = ['deguri', 'balloon', 'jamming'];   // 재밍라이더(jamming)도 같은 칸(docs/goal/jamming-rider.md §8)
 
 // 카탈로그 항목 → 방 장착값. 슬롯이 요구하는 필드가 없으면(deguri_*_none) 해제(null). 소유 검사는 호출부.
 const SLOT_RESOLVERS = {
@@ -686,6 +686,7 @@ module.exports = (socket, io, ctx) => {
     // 장착이 바뀌었을 때 출발대를 다시 알린다 — 둥둥라이더 방이면 그 게임 상태로(socket/balloon.js 가 ctx.emitBalloonStateUpdated 를 단다)
     function emitLooks(room, gameState) {
         if (room.gameType === 'balloon') { if (ctx.emitBalloonStateUpdated) ctx.emitBalloonStateUpdated(room, gameState); }
+        else if (room.gameType === 'jamming') { if (ctx.emitJammingStateUpdated) ctx.emitJammingStateUpdated(room, gameState); }
         else emitState(room, gameState);
     }
 
@@ -699,6 +700,8 @@ module.exports = (socket, io, ctx) => {
         if (!w) return null;
         if (fresh && room.gameType === 'balloon') {
             if (ctx.emitBalloonStateUpdated) ctx.emitBalloonStateUpdated(room, gameState, { socket, name: user.name });   // 아래 데구리 두 줄과 같은 일 — 남에겐 출발 자리, 나에겐 myEquip 까지
+        } else if (fresh && room.gameType === 'jamming') {
+            if (ctx.emitJammingStateUpdated) ctx.emitJammingStateUpdated(room, gameState, { socket, name: user.name });
         } else if (fresh) {
             socket.to(room.roomId).emit('deguri:stateUpdated', publicState(gameState));
             socket.emit('deguri:stateUpdated', { ...publicState(gameState), myEquip: equippedIds(mb, user.name) });

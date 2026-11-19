@@ -17,7 +17,8 @@ var TutorialModule = (function() {
         'spin-arena': 128,
         pirate: 256,
         deguri: 512,
-        balloon: 1024   // 16 은 영구 예약(C-44)
+        balloon: 1024,  // 16 은 영구 예약(C-44)
+        jamming: 2048
     };
 
     // Server flags cache (loaded once per session via socket)

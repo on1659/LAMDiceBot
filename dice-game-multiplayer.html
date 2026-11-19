@@ -164,6 +164,7 @@
         .room-item.game-pirate { --accent: var(--game-type-pirate); --accent-rgb: var(--pirate-500-rgb); }
         .room-item.game-deguri { --accent: var(--game-type-deguri); --accent-rgb: var(--deguri-500-rgb); }
         .room-item.game-balloon { --accent: var(--game-type-balloon); --accent-rgb: var(--balloon-500-rgb); }
+        .room-item.game-jamming { --accent: var(--game-type-jamming); --accent-rgb: var(--jamming-500-rgb); }
 
         .room-item:hover {
             border-color: var(--accent);
@@ -2131,6 +2132,13 @@
                         <span class="gt-name">둥둥라이더</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">베타</span>
                     </label>
+                    <!-- 재밍라이더(jamming): 1차는 테스트 서버만(devFlags.jammingEnabled 일 때 보인다, 실서버는 config DEV_GATED_GAMES 로 방 생성 거부) — 배지 "베타" -->
+                    <label id="jammingLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-jamming); --gt-rgb: var(--jamming-500-rgb);">
+                        <input type="radio" name="gameType" value="jamming" id="jammingRadio" />
+                        <span class="gt-emoji"><i class="ui ui-wave"></i></span>
+                        <span class="gt-name">재밍라이더</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning); color: var(--dice-ink-on-yellow); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(var(--dice-badge-dev-glow-rgb), 0.4);">베타</span>
+                    </label>
                 </div>
                 <div id="gameTypeInfo">
                     룰렛/경마를 선택하면 전용 페이지로 이동합니다.
@@ -3349,6 +3357,9 @@
                 } else if (room.gameType === 'balloon') {
                     gameTypeIcon = UIIcons.tag('balloon');
                     gameTypeLabel = '둥둥라이더';
+                } else if (room.gameType === 'jamming') {
+                    gameTypeIcon = UIIcons.tag('wave');
+                    gameTypeLabel = '재밍라이더';
                 }
                 
                 // 남은 시간 표시
@@ -3531,6 +3542,19 @@
                 return;
             }
 
+            // 재밍라이더 방이면 재밍라이더 페이지로 이동
+            if (room && room.gameType === 'jamming') {
+                localStorage.setItem('jammingUserName', userName);
+                localStorage.setItem('pendingJammingJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/jamming?joinRoom=true';
+                return;
+            }
             // 풍선 타기 방이면 풍선 타기 페이지로 이동
             if (room && room.gameType === 'balloon') {
                 localStorage.setItem('balloonUserName', userName);
@@ -3630,6 +3654,11 @@
             if (flags.deguriEnabled) {
                 const deguriLabel = document.getElementById('deguriLabel');
                 if (deguriLabel) deguriLabel.style.display = '';
+            }
+            // 재밍라이더: 1차는 테스트 서버(DEV_GAMES)·로컬에서만 방 만들기 라벨을 보여준다
+            if (flags.jammingEnabled) {
+                const jammingLabel = document.getElementById('jammingLabel');
+                if (jammingLabel) jammingLabel.style.display = '';
             }
             if (!flags.ladderEnabled) return;
 
@@ -4548,6 +4577,22 @@
                 return;
             }
 
+            // 재밍라이더 게임이면 재밍라이더 페이지로 이동
+            if (gameType === 'jamming') {
+                localStorage.setItem('jammingUserName', hostName);
+                localStorage.setItem('pendingJammingRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/jamming?createRoom=true';
+                return;
+            }
             // 풍선 타기 게임이면 풍선 타기 페이지로 이동
             if (gameType === 'balloon') {
                 localStorage.setItem('balloonUserName', hostName);
@@ -4701,6 +4746,19 @@
                 return;
             }
 
+            // 재밍라이더 방이면 재밍라이더 페이지로 이동
+            if (room && room.gameType === 'jamming') {
+                localStorage.setItem('jammingUserName', userName);
+                localStorage.setItem('pendingJammingJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/jamming?joinRoom=true';
+                return;
+            }
             // 풍선 타기 방이면 풍선 타기 페이지로 이동
             if (room && room.gameType === 'balloon') {
                 localStorage.setItem('balloonUserName', userName);

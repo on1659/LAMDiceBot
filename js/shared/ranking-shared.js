@@ -32,6 +32,7 @@ const RankingModule = (function () {
         'ladder': { icon: 'ladder', text: '사다리타기', color: 'var(--rank-game-ladder)' },
         'deguri': { icon: 'paw', text: '데구리', color: 'var(--rank-game-deguri)' },
         'balloon': { icon: 'balloon', text: '둥둥라이더', color: 'var(--rank-game-balloon)' },
+        'jamming': { icon: 'wave', text: '재밍라이더', color: 'var(--rank-game-jamming)' },
         'spin-arena': { icon: 'swords', text: '회전 칼날', color: 'var(--rank-game-other)' }
     };
     const GAME_ORDER = Object.keys(GAME_META);

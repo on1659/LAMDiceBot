@@ -78,5 +78,17 @@
   "horse-race_cheer_burst": "assets/sounds/horse-race/cheer_burst.mp3",
   "gacha_charge": "assets/sounds/gacha/charge.mp3",
   "gacha_reveal": "assets/sounds/gacha/reveal.mp3",
-  "gacha_reveal_epic": "assets/sounds/gacha/reveal_epic.mp3"
+  "gacha_reveal_epic": "assets/sounds/gacha/reveal_epic.mp3",
+  "jamming_start": "assets/sounds/balloon/start.mp3",
+  "jamming_bgm": "assets/sounds/balloon/bgm.mp3",
+  "jamming_goal": "assets/sounds/balloon/goal.mp3",
+  "jamming_lose": "assets/sounds/balloon/lose.mp3",
+  "jamming_land": "assets/sounds/balloon/land.mp3",
+  "jamming_hit": "assets/sounds/balloon/bonk.mp3",
+  "jamming_sea": "assets/sounds/balloon/pop.mp3",
+  "jamming_item": "assets/sounds/balloon/item.mp3",
+  "jamming_shield": "assets/sounds/balloon/shield.mp3",
+  "jamming_boost": "assets/sounds/balloon/inflate.mp3",
+  "jamming_wind": "assets/sounds/balloon/gust.mp3",
+  "jamming_zap": "assets/sounds/balloon/shock.mp3"
 }

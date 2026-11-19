@@ -67,7 +67,8 @@ const SUPPORTED_GAME_TYPES = {
     'roulette': './roulette',
     'horse-race': './horse',
     'deguri': './deguri',
-    'balloon': './balloon'   // 둥둥라이더 — 2026-10-19 실서버 베타 공개
+    'balloon': './balloon',   // 둥둥라이더 — 2026-10-19 실서버 베타 공개
+    'jamming': './jamming'    // 재밍라이더 — 1차는 테스트 서버만(config DEV_GATED_GAMES)
 };
 
 function isSupported(gameType) {

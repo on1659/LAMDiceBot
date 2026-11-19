@@ -671,6 +671,18 @@ module.exports = (socket, io, ctx) => {
                             if (bl.phase !== 'playing') io.to(roomId).emit('balloon:rankVotesUpdated', { votes: { ...bl.rankVotes } });
                         }
                     }
+                    // 재밍라이더: 끊긴 사용자의 동물 선택·투표 정리 — leaveRoom(socket/rooms.js)과 짝(C-19)
+                    if (gameState.jamming) {
+                        const jm = gameState.jamming;
+                        if (jm.picks && jm.picks[userName] !== undefined) {
+                            delete jm.picks[userName];
+                            if (jm.phase === 'idle') io.to(roomId).emit('jamming:stateUpdated', { picks: { ...jm.picks } });
+                        }
+                        if (jm.rankVotes && jm.rankVotes[userName] !== undefined) {
+                            delete jm.rankVotes[userName];
+                            if (jm.phase !== 'playing') io.to(roomId).emit('jamming:rankVotesUpdated', { votes: { ...jm.rankVotes } });
+                        }
+                    }
 
                     // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
                     // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.

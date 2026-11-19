@@ -175,6 +175,10 @@ module.exports = (socket, io, ctx) => {
                 balloon: gameState.balloon
                     ? { phase: gameState.balloon.phase, picks: gameState.balloon.picks, round: gameState.balloon.round, history: gameState.balloon.history }
                     : undefined,
+                // 재밍라이더: timeline / result / seed 마스킹 (C-20)
+                jamming: gameState.jamming
+                    ? { phase: gameState.jamming.phase, picks: gameState.jamming.picks, round: gameState.jamming.round, history: gameState.jamming.history }
+                    : undefined,
                 deguri: gameState.deguri
                     ? { phase: gameState.deguri.phase, picks: gameState.deguri.picks, crowd: gameState.deguri.crowd, randomTrack: gameState.deguri.randomTrack !== false, round: gameState.deguri.round, history: gameState.deguri.history }
                     : undefined,
@@ -253,7 +257,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'deguri', 'balloon'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'deguri', 'balloon', 'jamming'].includes(gameType) ? gameType : 'dice';
 
         // 미출시 게임(사다리타기·데구리)은 로컬 개발 서버 또는 DEV_GAMES=1 서비스에서만 방을 만들 수 있다
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
@@ -1304,6 +1308,18 @@ module.exports = (socket, io, ctx) => {
                 if (bl.rankVotes && bl.rankVotes[socket.userName] !== undefined) {
                     delete bl.rankVotes[socket.userName];
                     if (bl.phase !== 'playing') io.to(roomId).emit('balloon:rankVotesUpdated', { votes: { ...bl.rankVotes } });
+                }
+            }
+            // 재밍라이더: 퇴장한 사용자의 동물 선택·투표 삭제 — socket/chat.js disconnect 와 짝(C-19)
+            if (gameState.jamming) {
+                const jm = gameState.jamming;
+                if (jm.picks && jm.picks[socket.userName] !== undefined) {
+                    delete jm.picks[socket.userName];
+                    if (jm.phase === 'idle') io.to(roomId).emit('jamming:stateUpdated', { picks: { ...jm.picks } });
+                }
+                if (jm.rankVotes && jm.rankVotes[socket.userName] !== undefined) {
+                    delete jm.rankVotes[socket.userName];
+                    if (jm.phase !== 'playing') io.to(roomId).emit('jamming:rankVotesUpdated', { votes: { ...jm.rankVotes } });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

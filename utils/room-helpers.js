@@ -161,6 +161,21 @@ function createRoomGameState() {
             revealTimeout: null,
             endTimeout: null
         },
+        jamming: {                  // 재밍라이더(socket/jamming.js, docs/goal/jamming-rider.md)
+            phase: 'idle',          // idle | playing | finished
+            picks: {},              // { userName: creatureId } — 동물은 데구리와 같은 목록
+            rankVotes: {},          // { userName: 'first' | 'last' }
+            target: 'last',
+            participants: [],
+            timeline: null,         // server-only: reveal 페이로드(재진입 마스킹 대상)
+            result: null,           // server-only
+            seed: 0,                // server-only
+            round: 0,
+            history: [],
+            isActive: false,
+            revealTimeout: null,
+            endTimeout: null
+        },
     };
 }
 
