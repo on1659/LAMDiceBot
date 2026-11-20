@@ -482,6 +482,8 @@ async function simulate(players, seed, map, opts) {
                     p.vy += (-R.airInflFallV - p.vy) * Math.min(1, dt * R.airInflEase);
                     p.x = clamp(p.x + (p.wind + p.kick + (b0 + (b1 - b0) * p.frac - p.x) * R.homeK) * dt, b0 + R.wallPad, b1 - R.wallPad);   // 새 길 쪽으로 미리 움직인다
                     if ((p.stT += dt) >= p.inflDur) { p.st = 'rise'; p.vy = 0; p.vx = 0; p.safeT = R.safeDur; p.airRefill = false; ev('rise', { ball: p.id }); break; }
+                } else if (p.chuteT >= R.chuteWake) {   // 낙하산으로 한참 내려가면 정신을 차리고 공중에서 다시 분다(사용자 2026-11-20 "너무 끝까지 간다") — 그 전에 발판에 닿으면 그대로 착지
+                    newLane(p); p.st = 'ainflate'; p.stT = 0; p.inflDur = range(R.airInflMin, R.airInflMax); ev('inflate', { ball: p.id, dur: Math.round(p.inflDur * 1000), air: true });
                 } else {
                     p.chuteT += dt; p.vy += (-R.chuteV - p.vy) * Math.min(1, dt * R.chuteEase);
                     p.x = clamp(p.x + (Math.sin(p.chuteT * 2.2 + p.ph) * R.chuteSway + p.wind + p.kick) * dt, b0 + R.wallPad, b1 - R.wallPad);

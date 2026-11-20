@@ -13,7 +13,7 @@
     const R = {
         reInflMin: 0.5, reInflMax: 1.0, riseMin: 185, riseMax: 215, riseWobble: 0.22, catchUp: 0.9,
         wanderAmp: 34, wanderWMin: 0.45, wanderWMax: 0.9, balTilt: 0.12, homeK: 0.9, kickV: 110, safeDur: 1.2, popBoost: 0.07, popBoostMax: 0.35, kickDecay: 1.3,
-        popStop: 0.08, popHop: 60, dropDur: 0.55, dropG: 900, chuteV: 170, chuteEase: 3, chuteSway: 26, landDur: 0.3,
+        popStop: 0.08, popHop: 60, dropDur: 0.55, dropG: 900, chuteV: 170, chuteEase: 3, chuteSway: 26, chuteWake: 1.2, landDur: 0.3,
         startYard: 240, topYard: 280, middleMin: 5900, middleMax: 7100, funnel: 120, wallPad: 16, thornPad: 4, spikeR: 13, spikeHit: 34, balloonR: 15, spikeClear: 130,
         gustMin: 5, gustMax: 8, gustDur: 1.5, gustPush: 80, gustSlow: 0.55, windEase: 3,
         eagleFirst: 8, eagleMin: 7, eagleMax: 10, eagleWarn: 0.9, eagleFly: 1.1, eagleHitP: 0.4, eagleFromH: 0.12, eagleTopGap: 150, eagleMissDy: 46,
